@@ -18,4 +18,4 @@
 .stairs-open{position:absolute;top:102px;right:405px;background:#211b15b8;border:1px solid #c7ad784d;border-radius:25px;padding:11px 17px;font-size:11px}.stairs-open:hover{background:#463828}@media(max-width:900px){.stairs-open{top:134px;right:20px}}@media(max-width:540px){.stairs-open{top:135px;right:17px;font-size:10px;padding:10px 12px}}
 
 /* Avoid filtering the changing WebGL surface underneath phone controls. */
-@media(pointer:coarse){.tools,.actionbar,.seat-panel,.settings-dialog,.settings-dialog::backdrop{backdrop-filter:none;-webkit-backdrop-filter:none}.tools,.actionbar{background:#29231def}.seat-panel,.settings-dialog{background:#27221c}.vignette{box-shadow:none}}
+@media(pointer:coarse){@supports(backdrop-filter:none){.tools,.actionbar,.seat-panel,.settings-dialog,.settings-dialog::backdrop{backdrop-filter:none!important}}@supports(-webkit-backdrop-filter:none){.tools,.actionbar,.seat-panel,.settings-dialog,.settings-dialog::backdrop{-webkit-backdrop-filter:none!important}}.tools,.actionbar{background:#29231def}.seat-panel,.settings-dialog{background:#27221c}.vignette{box-shadow:none}}
