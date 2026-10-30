@@ -52,6 +52,6 @@ export function batchCharacters(scene:T.Scene,roots:T.Object3D[]){
  const fixedUpdates=[...fixed.values()].map(group=>{const update=createLOD(scene,group,false);for(const mesh of group.objects)mesh.removeFromParent();return update;});
  const prune=(root:T.Object3D)=>{for(const child of [...root.children]){prune(child);if(child instanceof T.Group&&!child.children.length&&!child.userData.animated)child.removeFromParent();}};for(const root of roots)prune(root);
  const movingUpdates=[...moving.values()].map(group=>createLOD(scene,group,true));
- const eye=new T.Vector3(Infinity,Infinity,Infinity),rotation=new T.Quaternion();
- return (camera?:T.Camera)=>{for(const root of roots)root.updateMatrixWorld(false);for(const update of movingUpdates)update(camera);if(!camera||eye.distanceToSquared(camera.position)>.04||rotation.angleTo(camera.quaternion)>.015){for(const update of fixedUpdates)update(camera);if(camera){eye.copy(camera.position);rotation.copy(camera.quaternion);}}};
+ const eye=new T.Vector3(Infinity,Infinity,Infinity),rotation=new T.Quaternion(),projection=new T.Matrix4();
+ return (camera?:T.Camera)=>{for(const root of roots)root.updateMatrixWorld(false);for(const update of movingUpdates)update(camera);if(!camera||eye.distanceToSquared(camera.position)>.04||rotation.angleTo(camera.quaternion)>.015||!projection.equals(camera.projectionMatrix)){for(const update of fixedUpdates)update(camera);if(camera){eye.copy(camera.position);rotation.copy(camera.quaternion);projection.copy(camera.projectionMatrix);}}};
 }
