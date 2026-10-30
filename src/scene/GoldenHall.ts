@@ -34,7 +34,7 @@ function archedWindow(g:T.Object3D,y:number,blind=false){
  for(const yy of [1.9,3.8,5.1])box(g,[2.2,.07,.06],[0,y+yy,.2],P.gold);
 }
 function balustrade(g:T.Object3D,width:number){
- box(g,[width,.28,1.15],[0,0,0],P.gold);box(g,[width,.11,1.35],[0,.25,.05],P.light);box(g,[width,.2,.32],[0,1.48,.55],P.light);box(g,[width,1.05,.14],[0,.85,.46],P.ivory);
+ box(g,[width,.28,.4],[0,0,.32],P.gold);box(g,[width,.11,.5],[0,.25,.32],P.light);box(g,[width,.2,.32],[0,1.48,.55],P.light);box(g,[width,1.05,.14],[0,.85,.46],P.ivory);
  for(let x=-width/2+.22;x<width/2;x+=.46){const ring=new T.Mesh(geometryRing,material(P.gold,.35));ring.position.set(x,.85,.57);ring.scale.set(.14,.36,1);g.add(ring);box(g,[.035,1,.09],[x+.2,.84,.56],P.light);}
  for(const x of [-width/2+.08,width/2-.08]){box(g,[.19,1.4,.5],[x,.8,.5],P.gold);rosette(g,x,.9,.78,.1);}
 }
@@ -93,11 +93,11 @@ export function buildGoldenHall(scene:T.Scene){
    box(g,[5.9,6.9,.16],[0,3.5,.08],P.ivory);box(g,[4.1,4.8,.12],[0,3.1,.2],0xc5a875);box(g,[3.7,4.4,.14],[0,3.1,.3],0xf0dfbb);
    for(const x of [-2.55,2.55]){const figure=new T.Group();figure.position.set(x,.45,.3);figure.scale.set(1,1.21,1);g.add(figure);caryatid(figure);}
    rosette(g,0,5.8,.38,.27);box(g,[5.9,.23,1.4],[0,7.8,.6],P.deep);
-   const rail=new T.Group();rail.position.set(0,H.balconyHeight,1);g.add(rail);balustrade(rail,6);
+   const rail=new T.Group();rail.position.set(0,H.balconyHeight,2.8);g.add(rail);balustrade(rail,6);
    for(const x of [-2.65,2.65])gildedColumn(g,x,10.1,17,.22);archedWindow(g,15.4);
    cornice(g,6,26.5,.16);box(g,[5.7,.28,.15],[0,12.4,.18],P.gold);rosette(g,0,11.1,.32,.22);
   }
-  box(scene,[2.1,.3,80],[side*14.9,H.balconyHeight-.2,10],P.deep);
+  box(scene,[3.4,.3,77],[side*14.2,H.balconyHeight-.15,11.8],P.deep);
  }
  const rear=box(scene,[32,H.height,.4],[0,H.height/2,H.rear],P.ivory),front=box(scene,[32,H.height,.4],[0,H.height/2,H.front],P.ivory);cameraWalls.push(rear,front);
  for(const z of [-28.15,50.7]){const rail=new T.Group();rail.position.set(0,H.balconyHeight,z);if(z>0)rail.rotation.y=Math.PI;scene.add(rail);balustrade(rail,29.5);}

@@ -1,4 +1,4 @@
-import {SEATS,SPAWN,PALETTE,distance,walkable,type Visitor} from '../../shared/venue';
+import {SEATS,SPAWN,PALETTE,distance,walkable,canSit,type Visitor} from '../../shared/venue';
 import type {ClientMessage,Snapshot} from '../../shared/protocol';
 
 /** A single visitor session for static hosts that cannot run WebSocket servers. */
@@ -11,9 +11,9 @@ export class LocalConcert{
   const v=this.visitor;
   switch(msg.type){
    case 'zone':this.release();Object.assign(v,{zone:msg.zone,...SPAWN[msg.zone],yaw:0});return true;
-   case 'move':if(v.pose==='sit'||!walkable(v.zone,msg)||!Number.isFinite(msg.yaw))return false;Object.assign(v,{x:msg.x,z:msg.z,yaw:msg.yaw,pose:msg.pose});return true;
+   case 'move':if(v.pose==='sit'||!walkable(v.zone,msg)||!Number.isFinite(msg.yaw)||distance(v,msg)>2.2)return false;Object.assign(v,{x:msg.x,y:msg.y??0,z:msg.z,yaw:msg.yaw,pose:msg.pose});return true;
    case 'reserve':if(v.zone!=='auditorium'||!SEATS.some(s=>s.id===msg.seatId))return false;this.release();this.reservationRequest=msg.requestId;v.seatId=msg.seatId;this.seats[msg.seatId]={visitorId:v.id,status:'reserved',expiresAt:null};return true;
-   case 'seated':{const seat=SEATS.find(s=>s.id===msg.seatId);if(!seat||v.zone!=='auditorium'||v.seatId!==seat.id||(seat.level==='parterre'&&distance(v,seat.approach)>1.7))return false;Object.assign(v,{x:seat.x,z:seat.z,yaw:seat.yaw,pose:'sit'});this.seats[seat.id]={visitorId:v.id,status:'seated',expiresAt:null};return true;}
+   case 'seated':{const seat=SEATS.find(s=>s.id===msg.seatId);if(!seat||v.zone!=='auditorium'||v.seatId!==seat.id||!canSit(v,seat))return false;Object.assign(v,{x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw,pose:'sit'});this.seats[seat.id]={visitorId:v.id,status:'seated',expiresAt:null};return true;}
    case 'release':if(msg.requestId&&msg.requestId!==this.reservationRequest)return false;this.release();return true;
    case 'gesture':v.gesture=msg.gesture;v.gestureAt=Date.now();return true;
    default:return true;

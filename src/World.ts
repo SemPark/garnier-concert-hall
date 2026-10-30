@@ -3,7 +3,7 @@ import {createVenue,type Venue} from './scene/Venue';
 import {Avatar,musicianSits} from './character/Avatar';
 import {Input} from './controls/Input';
 import {findPath,segmentClear} from './navigation/path';
-import {SPAWN,SEATS,BOUNDS,walkable,distance,type Visitor,type Zone,type Point} from '../shared/venue';
+import {SPAWN,SEATS,BOUNDS,walkable,distance,surfaceHeight,stairPoint,type Visitor,type Zone,type Point} from '../shared/venue';
 import type {Snapshot} from '../shared/protocol';
 import type {Presence} from './network/Presence';
 import type {ConcertAudio} from './audio/ConcertAudio';
@@ -20,7 +20,7 @@ export class World{
  private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private route:Point[]=[];private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
  private seatedTarget:T.Vector3|null=null;
  private ray=new T.Raycaster();private ndc=new T.Vector2();private frame=0;private last=performance.now();private sentAt=0;private lastPose='';private renewAt=0;private lastUI=0;private look=new T.Vector3();private gesture:'wave'|'clap'|null=null;private gestureAt=0;
- private orchestraAt=0;private quality='balanced';private slowFrames=0;
+ private disposed=false;private lodAt=0;private actorTimes=new WeakMap<Avatar,number>();private orchestraAt=0;private quality='balanced';private slowFrames=0;
  private marker:T.Mesh;private statsTime=0;private frames=0;private reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
  constructor(host:HTMLElement,private net:Presence,private audio:ConcertAudio){
   this.renderer=new T.WebGLRenderer({antialias:false,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1));this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.18;this.renderer.shadowMap.enabled=false;this.renderer.shadowMap.type=T.PCFShadowMap;
@@ -28,7 +28,11 @@ export class World{
   this.venues={lobby:createVenue('lobby'),auditorium:createVenue('auditorium')};
   this.marker=new T.Mesh(new T.RingGeometry(.16,.24,24),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.8,depthWrite:false}));this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.venues.lobby.scene.add(this.marker);
   this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>{this.cameraYaw-=dx*.0034;if(this.zone==='auditorium'&&this.concertView)this.cameraYaw=T.MathUtils.clamp(this.cameraYaw,-.5,.5);this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0022,-.15,.5);},zoom:f=>{this.cameraDistance=T.MathUtils.clamp(this.cameraDistance*f,2.2,13);},escape:()=>this.stand()});
-  window.addEventListener('resize',this.resize);canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.onToast('화면 연결이 끊겼어요. 새로고침해 주세요.');});this.resize();this.snapCamera();this.animate();
+  window.addEventListener('resize',this.resize);canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.onToast('화면 연결이 끊겼어요. 새로고침해 주세요.');});this.resize();this.snapCamera();this.animate();void this.warmHall();
+ }
+ private async warmHall(){
+  const venue=this.venues.auditorium,camera=this.camera.clone();camera.position.set(...HALL_CAMERA.eye);camera.lookAt(new T.Vector3(...HALL_CAMERA.look));venue.updateLOD(camera);venue.updateMusicians(camera);
+  try{await this.renderer.compileAsync(venue.scene,camera);if(this.disposed)return;const target=new T.WebGLRenderTarget(16,16);const previous=this.renderer.getRenderTarget();try{this.renderer.setRenderTarget(target);this.renderer.render(venue.scene,camera);}finally{this.renderer.setRenderTarget(previous);target.dispose();}}catch{/* Rendering still works on drivers without parallel shader preparation. */}
  }
  setQuality(quality:string){this.quality=quality;this.renderer.setPixelRatio(Math.min(devicePixelRatio,quality==='low'?.8:1));}
  get venue(){return this.venues[this.zone];}
@@ -39,10 +43,10 @@ export class World{
   const self=state.visitors.find(v=>v.id===this.net.selfId);if(self){const initial=!this.self,changedZone=this.zone!==self.zone,stood=this.pose==='sit'&&self.pose!=='sit';this.self=self;
    if(!this.avatar){this.avatar=new Avatar(self.color,undefined,parseInt(self.id.slice(0,2),16)||0);this.venue.scene.add(this.avatar.root);}
    if(initial||changedZone||stood||self.pose==='sit'){
-    if(self.pose==='sit'&&!initial&&!changedZone)this.seatedTarget=new T.Vector3(self.x,SEATS.find(s=>s.id===self.seatId)?.y??0,self.z);
-    else{this.position.set(self.x,self.pose==='sit'?(SEATS.find(s=>s.id===self.seatId)?.y??0):0,self.z);this.seatedTarget=null;}
+    if(self.pose==='sit'&&!initial&&!changedZone)this.seatedTarget=new T.Vector3(self.x,self.y??SEATS.find(s=>s.id===self.seatId)?.y??0,self.z);
+    else{this.position.set(self.x,self.y??(self.pose==='sit'?(SEATS.find(s=>s.id===self.seatId)?.y??0):0),self.z);this.seatedTarget=null;}
     this.yaw=self.yaw;this.pose=self.pose;
-    if(initial||changedZone){this.zone=self.zone;this.avatar.root.removeFromParent();this.venue.scene.add(this.avatar.root);this.marker.removeFromParent();this.venue.scene.add(this.marker);this.route=[];this.marker.visible=false;this.reservedSeat=null;this.cameraYaw=0;this.audio.setZone(this.zone);this.snapCamera();}
+    if(initial||changedZone){this.zone=self.zone;this.avatar.root.removeFromParent();this.venue.scene.add(this.avatar.root);this.marker.removeFromParent();this.venue.scene.add(this.marker);this.route=[];this.marker.visible=false;this.reservedSeat=null;this.cameraYaw=0;this.audio.setZone(this.zone);this.snapCamera();this.venue.updateLOD(this.camera);this.venue.updateMusicians(this.camera);this.lodAt=0;}
     if(self.pose==='sit'){this.route=[];this.seating=false;this.marker.visible=false;}
    }
    if(this.reservedSeat&&state.seats[this.reservedSeat]?.visitorId!==self.id){this.route=[];this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
@@ -59,21 +63,22 @@ export class World{
  async chooseSeat(id:string){
   if(this.zone!=='auditorium'||!this.entered)return;const seat=SEATS.find(s=>s.id===id);if(!seat)return;
   if(this.pose==='sit'){this.stand();this.onToast('일어난 뒤 좌석을 선택해 주세요.');return;}
-  const path=seat.level==='balcony'?[]:findPath(this.zone,{x:this.position.x,z:this.position.z},seat.approach);if(!path){this.onToast('이 좌석으로 가는 길을 찾지 못했어요.');return;}
+  const path=findPath(this.zone,{x:this.position.x,y:this.position.y,z:this.position.z},seat.approach);if(!path){this.onToast('이 좌석으로 가는 길을 찾지 못했어요.');return;}
   this.cancelSeat();const version=++this.reserveVersion,requestId=crypto.randomUUID();const ok=await this.net.reserve(id,requestId);if(version!==this.reserveVersion){this.net.send({type:'release',requestId});return;}
-  if(!ok){this.net.send({type:'release',requestId});return;}this.reservedSeat=id;if(seat.level==='balcony'){this.net.send({type:'seated',seatId:id});this.concertView=false;this.cameraYaw=seat.yaw;this.snapCamera();this.onToast('발코니 좌석으로 이동했어요.');return;}this.seating=false;this.route=path;this.renewAt=performance.now();this.marker.visible=true;this.marker.position.set(seat.approach.x,.035,seat.approach.z);this.onToast('선택한 좌석으로 이동합니다.');
+  if(!ok){this.net.send({type:'release',requestId});return;}this.reservedSeat=id;if(seat.level==='balcony')this.concertView=false;this.seating=false;this.route=path;this.renewAt=performance.now();this.marker.visible=true;this.marker.position.set(seat.approach.x,seat.y+.035,seat.approach.z);this.onToast('선택한 좌석으로 이동합니다.');
  }
- stand(){this.seatedTarget=null;if(this.pose==='sit'||this.reservedSeat){const seat=SEATS.find(s=>s.id===(this.self?.seatId??this.reservedSeat));this.net.send({type:'release'});if(this.pose==='sit'&&seat)this.position.set(seat.approach.x,0,seat.approach.z);this.pose='idle';}this.cancelSeat();this.route=[];this.onChange();}
+ stand(){this.seatedTarget=null;if(this.pose==='sit'||this.reservedSeat){const seat=SEATS.find(s=>s.id===(this.self?.seatId??this.reservedSeat));this.net.send({type:'release'});if(this.pose==='sit'&&seat)this.position.set(seat.approach.x,seat.y,seat.approach.z);this.pose='idle';}this.cancelSeat();this.route=[];this.onChange();}
+ goToGallery(){if(this.zone!=='auditorium')return;if(this.pose==='sit')this.stand();const upper=this.position.y<GOLDEN_HALL.balconyHeight-.3,side=this.position.x<0?-1:1;const target=upper?{x:side*13.5,y:GOLDEN_HALL.balconyHeight,z:46}:stairPoint(side,false);const path=findPath(this.zone,this.position,target);if(!path){this.onToast('계단으로 가는 길을 찾지 못했어요.');return;}this.cancelSeat();this.route=path;this.concertView=false;this.cameraYaw=0;this.onToast(upper?'계단을 따라 2층으로 올라갑니다.':'계단을 따라 1층으로 내려갑니다.');this.onChange();}
  private cancelSeat(){this.reserveVersion++;if(this.reservedSeat)this.net.send({type:'release'});this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
  gestureAction(gesture:'wave'|'clap'){this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});}
  private click(x:number,y:number){if(!this.entered)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
-  const hits=this.ray.intersectObjects([...this.venue.seatTargets,this.venue.portal,this.venue.floor],true);if(!hits.length)return;const hit=hits[0];let obj:T.Object3D|null=hit.object,seatId:string|undefined;while(obj){seatId=seatId??obj.userData.seatId;if(obj.userData.portal){this.changeZone();return;}obj=obj.parent;}
+  const hits=this.ray.intersectObjects([...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);if(!hits.length)return;const hit=hits[0];let obj:T.Object3D|null=hit.object,seatId:string|undefined;while(obj){seatId=seatId??obj.userData.seatId;if(obj.userData.portal){this.changeZone();return;}obj=obj.parent;}
   if(seatId){void this.chooseSeat(seatId);return;}
   if(this.pose==='sit'){this.stand();return;}
-  const point={x:hit.point.x,z:hit.point.z};if(this.zone==='lobby'&&point.z<-15&&Math.abs(point.x)<2){this.changeZone();return;}
-  const path=findPath(this.zone,{x:this.position.x,z:this.position.z},point);if(!path){this.onToast('통로나 빈 바닥을 선택해 주세요.');return;}this.cancelSeat();this.route=path;this.marker.position.set(point.x,.035,point.z);this.marker.visible=true;
+  const point={x:hit.point.x,y:surfaceHeight(this.zone,hit.point,hit.point.y)??hit.point.y,z:hit.point.z};if(this.zone==='lobby'&&point.z<-15&&Math.abs(point.x)<2){this.changeZone();return;}
+  const path=findPath(this.zone,{x:this.position.x,y:this.position.y,z:this.position.z},point);if(!path){this.onToast('통로나 빈 바닥을 선택해 주세요.');return;}this.cancelSeat();this.route=path;this.marker.position.set(point.x,(point.y??0)+.035,point.z);this.marker.visible=true;
  }
- private sendPosition(now:number,force=false){if(!this.entered||!this.self||this.pose==='sit')return;if(force||now-this.sentAt>300||this.lastPose!==this.pose){this.sentAt=now;this.lastPose=this.pose;this.net.send({type:'move',x:this.position.x,z:this.position.z,yaw:this.yaw,pose:this.pose});}}
+ private sendPosition(now:number,force=false){if(!this.entered||!this.self||this.pose==='sit')return;if(force||now-this.sentAt>300||this.lastPose!==this.pose){this.sentAt=now;this.lastPose=this.pose;this.net.send({type:'move',x:this.position.x,y:this.position.y,z:this.position.z,yaw:this.yaw,pose:this.pose});}}
  private snapCamera(){const f=this.cameraFrame();this.look.copy(f.look);this.camera.position.copy(f.position);this.camera.lookAt(this.look);}
  private cameraFrame(){
   const sitting=this.pose==='sit',baseY=(sitting?2.05:1.05)+this.position.y,look=new T.Vector3(this.position.x,baseY,this.position.z-1.5),d=this.cameraDistance;
@@ -92,15 +97,16 @@ export class World{
   const origin=new T.Vector3(this.position.x,baseY,this.position.z),dir=target.clone().sub(origin),length=dir.length();this.ray.set(origin,dir.normalize());const hit=this.ray.intersectObjects(this.venue.cameraWalls,false)[0];if(hit&&hit.distance<length)target.copy(origin).addScaledVector(dir,Math.max(.6,hit.distance-.3));return {look,position:target};
  }
  private animate=()=>{
-  this.frame=requestAnimationFrame(this.animate);const now=performance.now(),dt=Math.min(.05,(now-this.last)/1000);this.last=now;this.frames++;this.statsTime+=dt;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
+  this.frame=requestAnimationFrame(this.animate);const now=performance.now(),elapsed=(now-this.last)/1000,dt=Math.min(.05,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
   let speed=0;const keys=this.input.keys,kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'));
   if(this.entered&&this.net.status==='connected'){
    if((kx||kz)&&this.pose==='sit')this.stand();
    const previous=this.position.clone();
    if(kx||kz){this.route=[];this.cancelSeat();const v=new T.Vector3(kx,0,kz).normalize().applyAxisAngle(new T.Vector3(0,1,0),this.cameraYaw).multiplyScalar(2.8*dt),candidate=this.position.clone().add(v);
-    if(segmentClear(this.zone,this.position,candidate))this.position.copy(candidate);else{const a={x:candidate.x,z:this.position.z},b={x:this.position.x,z:candidate.z};if(segmentClear(this.zone,this.position,a))this.position.x=a.x;if(segmentClear(this.zone,this.position,b))this.position.z=b.z;}
+    const move=(x:number,z:number)=>{const y=surfaceHeight(this.zone,{x,z},this.position.y);if(y===null)return false;const target={x,y,z};if(!segmentClear(this.zone,this.position,target))return false;this.position.set(x,y,z);return true;};
+    if(!move(candidate.x,candidate.z)){if(!move(candidate.x,this.position.z))move(this.position.x,candidate.z);}
    }else if(this.route.length&&this.pose!=='sit'){
-    const p=this.route[0],d=distance(this.position,p);if(d<.035){this.position.x=p.x;this.position.z=p.z;this.route.shift();}else{const step=Math.min(d,2.6*dt);this.position.x+=(p.x-this.position.x)/d*step;this.position.z+=(p.z-this.position.z)/d*step;}
+    const p=this.route[0],d=distance(this.position,p);if(d<.035){this.position.set(p.x,p.y??0,p.z);this.route.shift();}else{const step=Math.min(d,2.6*dt);this.position.x+=(p.x-this.position.x)/d*step;this.position.z+=(p.z-this.position.z)/d*step;this.position.y+=((p.y??0)-this.position.y)/d*step;}
     if(!this.route.length){this.marker.visible=false;this.pose='idle';if(this.reservedSeat&&!this.seating){this.seating=true;this.sendPosition(now,true);this.net.send({type:'seated',seatId:this.reservedSeat});}}
    }
    speed=previous.distanceTo(this.position)/Math.max(dt,.001);if(this.pose!=='sit'){this.pose=speed>.015?'walk':'idle';if(speed>.015)this.yaw=Math.atan2(-(this.position.x-previous.x),-(this.position.z-previous.z));}
@@ -111,12 +117,12 @@ export class World{
   if(this.pose==='sit'&&this.seatedTarget)this.position.lerp(this.seatedTarget,1-Math.exp(-dt*12));
   if(this.avatar){this.avatar.root.position.copy(this.position);this.avatar.root.rotation.y=this.yaw;this.avatar.update(this.net.now()/1000,speed,this.pose==='sit',false,this.gesture,(this.net.now()-this.gestureAt)/1000,dt);this.avatar.root.visible=this.entered;}
   for(const r of this.remotes.values()){
-   const v=r.visitor;r.avatar.root.visible=v.zone===this.zone;const target=new T.Vector3(v.x,v.pose==='sit'?(SEATS.find(s=>s.id===v.seatId)?.y??0):0,v.z);r.avatar.root.position.lerp(target,1-Math.exp(-dt*9));const dy=T.MathUtils.euclideanModulo(v.yaw-r.avatar.root.rotation.y+Math.PI,Math.PI*2)-Math.PI;r.avatar.root.rotation.y+=dy*(1-Math.exp(-dt*9));r.avatar.update(this.net.now()/1000,v.pose==='walk'?2.6:0,v.pose==='sit',false,v.gesture,(this.net.now()-v.gestureAt)/1000,dt);
+   const v=r.visitor;r.avatar.root.visible=v.zone===this.zone;const target=new T.Vector3(v.x,v.y??(v.pose==='sit'?(SEATS.find(s=>s.id===v.seatId)?.y??0):0),v.z);r.avatar.root.position.lerp(target,1-Math.exp(-dt*9));const dy=T.MathUtils.euclideanModulo(v.yaw-r.avatar.root.rotation.y+Math.PI,Math.PI*2)-Math.PI;r.avatar.root.rotation.y+=dy*(1-Math.exp(-dt*9));r.avatar.update(this.net.now()/1000,v.pose==='walk'?2.6:0,v.pose==='sit',false,v.gesture,(this.net.now()-v.gestureAt)/1000,dt);
   }
-  const playback=this.audio.playback;if(now-this.orchestraAt>=50){const animationDt=Math.min(.1,(now-this.orchestraAt)/1000);this.orchestraAt=now;for(const a of this.venue.musicians)a.update(this.reduced?0:this.net.now()/1000,0,musicianSits(a.instrumentType),playback.playing&&!this.reduced,null,10,animationDt);this.venue.updateMusicians();}
-  this.audio.tick(dt);const f=this.cameraFrame(),smooth=1-Math.exp(-dt*7);this.camera.position.lerp(f.position,smooth);this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);for(const object of this.venue.overviewHidden)object.visible=!this.concertView;this.renderer.render(this.venue.scene,this.camera);
+  const playback=this.audio.playback;if(now-this.orchestraAt>=50){this.orchestraAt=now;let changed=false;for(const actor of this.venue.musicians){const previous=this.actorTimes.get(actor)??0,distance=actor.root.position.distanceTo(this.camera.position),interval=distance<18?50:distance<38?100:250;if(now-previous<interval)continue;this.actorTimes.set(actor,now);changed=true;actor.update(this.reduced?0:this.net.now()/1000,0,musicianSits(actor.instrumentType),playback.playing&&!this.reduced,null,10,Math.min(.3,(now-previous)/1000));}if(changed)this.venue.updateMusicians(this.camera);}
+  this.audio.tick(dt);const f=this.cameraFrame(),smooth=1-Math.exp(-dt*7);this.camera.position.lerp(f.position,smooth);this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;this.renderer.render(this.venue.scene,this.camera);
   if(this.quality==='balanced'&&dt>.035){if(++this.slowFrames>75){this.renderer.setPixelRatio(Math.min(devicePixelRatio,.85));this.slowFrames=-100000;}}
   if(now-this.lastUI>500){this.lastUI=now;this.onChange();}
  };
- destroy(){cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.renderer.dispose();this.renderer.domElement.remove();}
+ destroy(){this.disposed=true;cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.renderer.dispose();this.renderer.domElement.remove();}
 }

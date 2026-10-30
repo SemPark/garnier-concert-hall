@@ -1,5 +1,5 @@
 import {DurableObject} from 'cloudflare:workers';
-import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,distance,type Visitor} from '../shared/venue';
+import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,distance,canSit,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim} from '../shared/protocol';
 
 type Attachment={visitor:Visitor;token:string;generation:string;lastMessage:number;windowAt:number;messageCount:number;reservationRequest?:string;roomId:string};
@@ -45,6 +45,7 @@ export class VenueRoom extends DurableObject<Env>{
   const savedToken=existing?.token??crypto.randomUUID();
   const claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE visitorId=?',visitor.id).toArray()[0];
   if(!claim){visitor.seatId=null;if(visitor.pose==='sit'){visitor.pose='idle';Object.assign(visitor,SPAWN[visitor.zone]);}}
+  if(visitor.pose==='sit')visitor.y=SEATS.find(s=>s.id===visitor.seatId)?.y??0;else visitor.y??=0;
   if(active){active.ws.serializeAttachment(null);active.ws.close(4001,'Session resumed elsewhere');}
   this.ctx.storage.sql.exec('INSERT INTO sessions(id,token,visitor,until) VALUES(?,?,?,NULL) ON CONFLICT(id) DO UPDATE SET visitor=excluded.visitor,until=NULL',visitor.id,savedToken,JSON.stringify(visitor));
   const pair=new WebSocketPair(),server=pair[1];this.ctx.acceptWebSocket(server);
@@ -62,10 +63,10 @@ export class VenueRoom extends DurableObject<Env>{
   if(msg.type==='clock'){if(Number.isFinite(msg.sentAt))this.send(ws,{type:'clock',sentAt:msg.sentAt,serverNow:now});return;}
   if(msg.type==='sync'){this.send(ws,{type:'state',state:this.snapshot(this.roomId())});return;}
   if(msg.type==='move'){
-   if(!walkable(v.zone,{x:msg.x,z:msg.z})||!Number.isFinite(msg.yaw)||!['idle','walk'].includes(msg.pose))return;
+   if(!walkable(v.zone,{x:msg.x,y:msg.y??0,z:msg.z})||!Number.isFinite(msg.yaw)||!['idle','walk'].includes(msg.pose))return;
    // A generous per-packet allowance accommodates interpolation and mobile pauses.
-   if(distance(v,{x:msg.x,z:msg.z})>Math.max(2.2,(now-a.lastMessage)/1000*4.5)&&a.lastMessage)return;
-   if(v.pose==='sit')return;Object.assign(v,{x:msg.x,z:msg.z,yaw:msg.yaw,pose:msg.pose});
+   if(distance(v,msg)>Math.max(2.2,(now-a.lastMessage)/1000*4.5)&&a.lastMessage)return;
+   if(v.pose==='sit')return;Object.assign(v,{x:msg.x,y:msg.y??0,z:msg.z,yaw:msg.yaw,pose:msg.pose});
   }else if(msg.type==='zone'){
    if(!['lobby','auditorium'].includes(msg.zone)||msg.zone===v.zone)return;
    this.release(v.id);Object.assign(v,{zone:msg.zone,...SPAWN[msg.zone],seatId:null,pose:'idle'});
@@ -78,8 +79,8 @@ export class VenueRoom extends DurableObject<Env>{
    this.send(ws,{type:'seatResult',ok:true,seatId:seat.id,requestId:msg.requestId});
   }else if(msg.type==='seated'){
    const seat=SEATS.find(s=>s.id===msg.seatId),claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE seatId=? AND visitorId=?',msg.seatId,v.id).toArray()[0];
-   if(!seat||!claim||v.zone!=='auditorium'||(seat.level==='parterre'&&distance(v,seat.approach)>1.7)){this.send(ws,{type:'error',message:'좌석 가까이로 이동해 주세요.'});return;}
-   this.ctx.storage.sql.exec("UPDATE claims SET status='seated',expiresAt=NULL WHERE seatId=?",seat.id);Object.assign(v,{x:seat.x,z:seat.z,yaw:seat.yaw,pose:'sit',seatId:seat.id});
+   if(!seat||!claim||v.zone!=='auditorium'||!canSit(v,seat)){this.send(ws,{type:'error',message:'좌석 가까이로 이동해 주세요.'});return;}
+   this.ctx.storage.sql.exec("UPDATE claims SET status='seated',expiresAt=NULL WHERE seatId=?",seat.id);Object.assign(v,{x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw,pose:'sit',seatId:seat.id});
   }else if(msg.type==='release'){
    if(msg.requestId&&msg.requestId!==a.reservationRequest)return;
    const seat=SEATS.find(s=>s.id===v.seatId);this.release(v.id);if(v.pose==='sit'&&seat)Object.assign(v,seat.approach);v.seatId=null;v.pose='idle';

@@ -1,5 +1,13 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {FLOOR_SEATS as SEATS,SPAWN,walkable} from '../shared/venue';import {findPath,segmentClear} from '../src/navigation/path';
+import {SEATS,FLOOR_SEATS,SPAWN,walkable,canSit,STAIR,stairPoint,distance} from '../shared/venue';import {findPath,segmentClear} from '../src/navigation/path';
 test('every selectable seat is reachable from the entrance without passing through a chair',()=>{for(const seat of SEATS){const path=findPath('auditorium',SPAWN.auditorium,seat.approach);assert.ok(path,seat.id);let previous=SPAWN.auditorium;for(const step of path){assert.ok(segmentClear('auditorium',previous,step),seat.id);previous=step;}assert.deepEqual(path.at(-1),seat.approach);}});
-test('chair centers and the stage are not walking targets',()=>{for(const s of SEATS)assert.equal(walkable('auditorium',s),false);assert.equal(findPath('auditorium',SPAWN.auditorium,{x:0,z:-16}),null);});
+test('chair centers and the stage are not walking targets',()=>{for(const s of FLOOR_SEATS)assert.equal(walkable('auditorium',s),false);assert.equal(findPath('auditorium',SPAWN.auditorium,{x:0,z:-16}),null);});
 test('routes around a foyer column do not cut its corners',()=>{const start={x:-5.4,z:7},end={x:-5.4,z:15},path=findPath('lobby',start,end);assert.ok(path);assert.equal(segmentClear('lobby',start,end),false);let previous=start;for(const p of path){assert.ok(segmentClear('lobby',previous,p));previous=p;}});
+
+test('seat approaches lie in front, and every route reaches the upper floor through a real stair',()=>{for(const seat of SEATS){const forward={x:-Math.sin(seat.yaw),z:-Math.cos(seat.yaw)},offset={x:seat.approach.x-seat.x,z:seat.approach.z-seat.z};assert.ok(offset.x*forward.x+offset.z*forward.z>.9);assert.ok(canSit(seat.approach,seat));assert.equal(canSit({x:seat.x-offset.x,y:seat.y,z:seat.z-offset.z},seat),false);if(seat.level==='balcony'){const path=findPath('auditorium',SPAWN.auditorium,seat.approach)!;assert.ok(path.some(p=>Math.abs((p.y??0)-STAIR.height)<.01&&Math.abs(p.z-STAIR.z)<1.1&&Math.abs(p.x)>STAIR.topX-.1));}}});
+test('stairs support the descent and a cross-gallery route without jumping off edges',()=>{for(const side of [-1,1]){const top=stairPoint(side,true),bottom=stairPoint(side,false),route=findPath('auditorium',top,bottom);assert.ok(route);assert.ok(route.some(p=>(p.y??0)===0));assert.equal(walkable('auditorium',{x:0,y:4,z:0}),false);const across=findPath('auditorium',{x:13.5,y:8.3,z:-20},{x:-13.5,y:8.3,z:-20});assert.ok(across);assert.ok(across.some(p=>p.z>44));}});
+
+test('a visitor can change direction halfway up a stair without dropping to the floor',()=>{
+ const middle={x:7.75,y:4.15,z:49},bottom=stairPoint(1,false),other={x:-7.75,y:4.15,z:49};
+ for(const end of [bottom,other]){const route=findPath('auditorium',middle,end);assert.ok(route);let p=middle;for(const point of route){assert.ok(segmentClear('auditorium',p,point));p={x:point.x,y:point.y??0,z:point.z};}}
+});

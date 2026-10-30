@@ -4,9 +4,10 @@ import {SEATS,BOUNDS,type Zone} from '../../shared/venue';
 import type {Avatar} from '../character/Avatar';
 import {buildOrchestra} from '../orchestra/buildOrchestra';
 import {GOLDEN_HALL} from '../../shared/goldenHall';
+import {buildStairs} from './Stairs';
 import {buildGoldenHall} from './GoldenHall';
 import {batchArchitecture,batchCharacters} from './batching';
-export type Venue={scene:T.Scene;floor:T.Mesh;seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:()=>void};
+export type Venue={scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void};
 
 function chandelier(parent:T.Object3D,x:number,y:number,z:number,r=1){
  const g=new T.Group();g.position.set(x,y,z);parent.add(g);cylinder(g,.035,2,[0,1.1,0],C.gold);sphere(g,.18,[0,.35,0],C.goldLight);
@@ -54,6 +55,7 @@ export function createVenue(zone:Zone):Venue{
  const sun=new T.DirectionalLight(0xffe4b8,2.2);sun.position.set(-7,13,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-17,right:17,top:20,bottom:-20,near:1,far:55});sun.shadow.normalBias=.04;scene.add(sun);
  const b=BOUNDS[zone],floor=box(scene,[zone==='lobby'?b.maxX-b.minX+2:GOLDEN_HALL.width,.15,zone==='lobby'?38:GOLDEN_HALL.rear-GOLDEN_HALL.front],[0,-.09,zone==='lobby'?0:(GOLDEN_HALL.front+GOLDEN_HALL.rear)/2],zone==='lobby'?C.marble:0x44352b);
  floor.userData.floor=true;
+ const walkTargets:T.Object3D[]=[floor];
  const cameraWalls:T.Object3D[]=[],overviewHidden:T.Object3D[]=[],seatTargets:T.Object3D[]=[],musicians:Avatar[]=[],seatLights=new Map<string,T.Mesh>();
  let portal:T.Object3D;
  if(zone==='lobby'){
@@ -78,6 +80,8 @@ export function createVenue(zone:Zone):Venue{
   const rug=box(scene,[3.4,.012,9],[0,.025,-11.8],C.red);rug.receiveShadow=true;
  }else{
   cameraWalls.push(...buildGoldenHall(scene).cameraWalls);
+  walkTargets.push(...buildStairs(scene).surfaces);
+  for(const side of [-1,1]){const proxy=new T.Mesh(new T.BoxGeometry(3.4,.02,77),new T.MeshBasicMaterial({visible:false}));proxy.position.set(side*14.2,GOLDEN_HALL.balconyHeight-.01,11.8);scene.add(proxy);walkTargets.push(proxy);}
   const hitGeometry=new T.BoxGeometry(1.2,1.5,1.15),hitMaterial=new T.MeshBasicMaterial({visible:false});
   for(const s of SEATS){const g=seat(scene,s.x,s.z);g.position.y=s.y;g.rotation.y=s.yaw;
    const target=new T.Mesh(hitGeometry,hitMaterial);target.position.set(s.x,s.y+.7,s.z);target.rotation.y=s.yaw;target.userData.seatId=s.id;scene.add(target);seatTargets.push(target);
@@ -86,7 +90,7 @@ export function createVenue(zone:Zone):Venue{
   musicians.push(...buildOrchestra(scene));
  }
  cameraWalls.push(portal);
- batchArchitecture(scene,[floor,portal,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
+ const updateLOD=batchArchitecture(scene,[floor,portal,...walkTargets.filter(o=>o instanceof T.Mesh&&!Array.isArray(o.material)&&!o.material.visible),...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
  const updateMusicians=batchCharacters(scene,musicians.map(a=>a.root));updateMusicians();
- return {scene,floor,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians};
+ return {scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians};
 }

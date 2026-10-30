@@ -14,3 +14,12 @@ test('detached character rigs still update instance transforms after poses chang
  const update=batchCharacters(scene,[root]);assert.equal(root.parent,null);root.position.set(2,3,4);mesh.position.x=1;update();
  const batch=scene.children[0] as T.InstancedMesh,matrix=new T.Matrix4();batch.getMatrixAt(0,matrix);const position=new T.Vector3().setFromMatrixPosition(matrix);assert.deepEqual(position.toArray(),[3,3,4]);
 });
+
+test('distance LOD switches to coarse spheres and drops subpixel decoration, then restores close detail',()=>{
+ const scene=new T.Scene(),geometry=new T.SphereGeometry(1,12,8),material=new T.MeshStandardMaterial({color:0xcca022});
+ const body=new T.Mesh(geometry,material),detail=new T.Mesh(geometry,material);detail.scale.setScalar(.02);scene.add(body,detail);
+ const update=batchArchitecture(scene,[]),camera=new T.PerspectiveCamera();camera.position.set(0,0,4);update(camera);
+ const batches=scene.children.filter(o=>o instanceof T.InstancedMesh) as T.InstancedMesh[];const high=batches.find(b=>b.geometry===geometry)!;assert.equal(high.count,2);
+ camera.position.z=60;update(camera);assert.equal(high.count,0);const low=batches.find(b=>b.geometry!==geometry)!;assert.equal(low.count,1);assert.ok(low.geometry.getAttribute('position').count<geometry.getAttribute('position').count/3);
+ camera.position.z=4;update(camera);assert.equal(high.count,2);assert.equal(low.count,0);
+});
