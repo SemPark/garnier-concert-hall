@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {coarseGeometry,detailDistance,LOD_NEAR} from './lodGeometry';
 type Lit=T.MeshStandardMaterial|T.MeshLambertMaterial;
-type Item={mesh:T.Mesh;matrix:T.Matrix4;center:T.Vector3;limit:number;min:number;color:T.Color|null;level:number;shown:boolean};
+type Item={mesh:T.Mesh;matrix:T.Matrix4;center:T.Vector3;radius:number;limit:number;min:number;color:T.Color|null;level:number;shown:boolean};
 type BatchGroup={material:T.Material;objects:T.Mesh[];colors:boolean};
 function isLit(mat:T.Material):mat is Lit{return mat instanceof T.MeshStandardMaterial||mat instanceof T.MeshLambertMaterial;}
 function collect(groups:Map<string,BatchGroup>,mesh:T.Mesh){
@@ -14,12 +14,14 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean){
  const geometry=group.objects[0].geometry,lowGeometry=coarseGeometry(geometry);
  const make=(g:T.BufferGeometry)=>{const batch=new T.InstancedMesh(g,group.material,group.objects.length);batch.instanceMatrix.setUsage(dynamic?T.DynamicDrawUsage:T.StaticDrawUsage);batch.matrixAutoUpdate=false;batch.frustumCulled=false;scene.add(batch);return batch;};
  const high=make(geometry),low=lowGeometry===geometry?high:make(lowGeometry);
- const items:Item[]=group.objects.map(mesh=>({mesh,matrix:mesh.matrixWorld.clone(),center:new T.Vector3().setFromMatrixPosition(mesh.matrixWorld),limit:detailDistance(mesh),min:mesh.userData.lodMin??0,color:group.colors?(mesh.material as Lit).color.clone():null,level:0,shown:false}));
+ geometry.computeBoundingSphere();
+ const items:Item[]=group.objects.map(mesh=>({mesh,matrix:mesh.matrixWorld.clone(),center:geometry.boundingSphere!.center.clone().applyMatrix4(mesh.matrixWorld),radius:geometry.boundingSphere!.radius*mesh.matrixWorld.getMaxScaleOnAxis(),limit:detailDistance(mesh),min:mesh.userData.lodMin??0,color:group.colors?(mesh.material as Lit).color.clone():null,level:0,shown:false}));
+ const frustum=new T.Frustum(),projection=new T.Matrix4(),sphere=new T.Sphere();
  let initialized=false;
  const write=(camera?:T.Camera)=>{
-  let changed=!initialized;const eye=camera?.position;
-  for(const item of items){if(dynamic){item.matrix.copy(item.mesh.matrixWorld);item.center.setFromMatrixPosition(item.matrix);}
-   const distance=eye?item.center.distanceTo(eye):0,nearLimit=item.level===0?LOD_NEAR+1.5:LOD_NEAR-1.5,level=distance<nearLimit?0:1,shown=distance<=item.limit&&distance>=item.min;
+  let changed=!initialized;const eye=camera?.position;if(camera){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));}
+  for(const item of items){if(dynamic){item.matrix.copy(item.mesh.matrixWorld);item.center.copy(geometry.boundingSphere!.center).applyMatrix4(item.matrix);item.radius=geometry.boundingSphere!.radius*item.matrix.getMaxScaleOnAxis();}
+   const distance=eye?item.center.distanceTo(eye):0,nearLimit=item.level===0?LOD_NEAR+1.5:LOD_NEAR-1.5,level=distance<nearLimit?0:1,shown=distance<=item.limit&&distance>=item.min&&(!camera||frustum.intersectsSphere(sphere.set(item.center,item.radius+.3)));
    if(level!==item.level||shown!==item.shown)changed=true;item.level=level;item.shown=shown;
   }
   if(!dynamic&&!changed)return;
@@ -50,6 +52,6 @@ export function batchCharacters(scene:T.Scene,roots:T.Object3D[]){
  const fixedUpdates=[...fixed.values()].map(group=>{const update=createLOD(scene,group,false);for(const mesh of group.objects)mesh.removeFromParent();return update;});
  const prune=(root:T.Object3D)=>{for(const child of [...root.children]){prune(child);if(child instanceof T.Group&&!child.children.length&&!child.userData.animated)child.removeFromParent();}};for(const root of roots)prune(root);
  const movingUpdates=[...moving.values()].map(group=>createLOD(scene,group,true));
- const eye=new T.Vector3(Infinity,Infinity,Infinity);
- return (camera?:T.Camera)=>{for(const root of roots)root.updateMatrixWorld(false);for(const update of movingUpdates)update(camera);if(!camera||eye.distanceToSquared(camera.position)>.04){for(const update of fixedUpdates)update(camera);if(camera)eye.copy(camera.position);}};
+ const eye=new T.Vector3(Infinity,Infinity,Infinity),rotation=new T.Quaternion();
+ return (camera?:T.Camera)=>{for(const root of roots)root.updateMatrixWorld(false);for(const update of movingUpdates)update(camera);if(!camera||eye.distanceToSquared(camera.position)>.04||rotation.angleTo(camera.quaternion)>.015){for(const update of fixedUpdates)update(camera);if(camera){eye.copy(camera.position);rotation.copy(camera.quaternion);}}};
 }

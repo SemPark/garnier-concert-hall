@@ -32,3 +32,15 @@ test('fixed musician meshes keep their GPU buffers while head/arm transforms con
  const staticBatch=batches.find(b=>b.instanceMatrix.usage===T.StaticDrawUsage)!,movingBatch=batches.find(b=>b.instanceMatrix.usage===T.DynamicDrawUsage)!;
  const version=staticBatch.instanceMatrix.version;arm.position.x=2;update(camera);assert.equal(staticBatch.instanceMatrix.version,version);const matrix=new T.Matrix4();movingBatch.getMatrixAt(0,matrix);assert.equal(new T.Vector3().setFromMatrixPosition(matrix).x,2);
 });
+
+test('instances outside the camera are omitted and restored after turning around',()=>{
+ const scene=new T.Scene(),geometry=new T.BoxGeometry(1,1,1),material=new T.MeshLambertMaterial();
+ const front=new T.Mesh(geometry,material),back=new T.Mesh(geometry,material);front.position.z=-6;back.position.z=6;scene.add(front,back);
+ const update=batchArchitecture(scene,[]),camera=new T.PerspectiveCamera(60,1,.1,100);update(camera);
+ const batch=scene.children.find(o=>o instanceof T.InstancedMesh) as T.InstancedMesh,matrix=new T.Matrix4();assert.equal(batch.count,1);batch.getMatrixAt(0,matrix);assert.equal(matrix.elements[14],-6);
+ camera.rotation.y=Math.PI;update(camera);assert.equal(batch.count,1);batch.getMatrixAt(0,matrix);assert.equal(matrix.elements[14],6);
+});
+test('stationary musician camera rotations restore fixed meshes outside the old view',()=>{
+ const scene=new T.Scene(),root=new T.Group(),head=new T.Group();head.userData.animated=true;root.add(head);const mesh=new T.Mesh(new T.BoxGeometry(1,1,1),new T.MeshLambertMaterial());mesh.position.z=6;root.add(mesh);scene.add(root);
+ const update=batchCharacters(scene,[root]),camera=new T.PerspectiveCamera(60,1,.1,100);update(camera);const batch=scene.children.find(o=>o instanceof T.InstancedMesh) as T.InstancedMesh;assert.equal(batch.count,0);camera.rotation.y=Math.PI;update(camera);assert.equal(batch.count,1);
+});

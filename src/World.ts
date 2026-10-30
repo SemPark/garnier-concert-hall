@@ -7,7 +7,7 @@ import {SPAWN,SEATS,BOUNDS,walkable,distance,surfaceHeight,stairPoint,type Visit
 import type {Snapshot} from '../shared/protocol';
 import type {Presence} from './network/Presence';
 import type {ConcertAudio} from './audio/ConcertAudio';
-import {renderRatio,type RenderQuality} from './scene/quality';
+import {renderRatio,frameRate,type RenderQuality} from './scene/quality';
 import {CONCERT_CAMERA} from './orchestra/layout';
 import {GOLDEN_HALL,HALL_CAMERA} from '../shared/goldenHall';
 
@@ -21,25 +21,26 @@ export class World{
  private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private route:Point[]=[];private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
  private seatedTarget:T.Vector3|null=null;
  private ray=new T.Raycaster();private ndc=new T.Vector2();private frame=0;private last=performance.now();private sentAt=0;private lastPose='';private renewAt=0;private lastUI=0;private look=new T.Vector3();private gesture:'wave'|'clap'|null=null;private gestureAt=0;
- private disposed=false;private lodAt=0;private orchestraAt=0;quality:RenderQuality='balanced';
+ private disposed=false;private lodAt=0;private orchestraAt=0;quality:RenderQuality='balanced';readonly mobile=matchMedia('(pointer: coarse)').matches||/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);private renderedAt=0;
  private marker:T.Mesh;private statsTime=0;private frames=0;private reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
  constructor(host:HTMLElement,private net:Presence,private audio:ConcertAudio){
-  this.renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(renderRatio(innerWidth,innerHeight,devicePixelRatio,this.quality));this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.18;this.renderer.shadowMap.enabled=false;this.renderer.shadowMap.type=T.PCFShadowMap;
+  try{const saved=localStorage.getItem('concert-quality');if(saved==='balanced'||saved==='sharp'||saved==='low')this.quality=saved;}catch{/* Storage can be unavailable in private browsing. */}
+  this.renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(renderRatio(innerWidth,innerHeight,devicePixelRatio,this.quality,this.mobile));this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.18;this.renderer.shadowMap.enabled=false;this.renderer.shadowMap.type=T.PCFShadowMap;
   const canvas=this.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','캐릭터 뒤에서 둘러보는 가르니에 음악당. 바닥 클릭으로 이동하고 드래그로 둘러봅니다.');host.append(canvas);
   this.venues={lobby:createVenue('lobby'),auditorium:createVenue('auditorium')};
   this.marker=new T.Mesh(new T.RingGeometry(.16,.24,24),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.8,depthWrite:false}));this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.venues.lobby.scene.add(this.marker);
   this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>{this.cameraYaw-=dx*.0034;if(this.zone==='auditorium'&&this.concertView)this.cameraYaw=T.MathUtils.clamp(this.cameraYaw,-.5,.5);this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0022,-.15,.5);},zoom:f=>{this.cameraDistance=T.MathUtils.clamp(this.cameraDistance*f,2.2,13);},escape:()=>this.stand()});
-  window.addEventListener('resize',this.resize);canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.onToast('화면 연결이 끊겼어요. 새로고침해 주세요.');});this.resize();this.snapCamera();this.animate();void this.warmHall();if(new URLSearchParams(location.search).has('diagnostics'))Object.assign(window,{__concertMetrics:()=>({fps:this.fps,calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,pixelRatio:this.renderer.getPixelRatio(),buffer:[this.renderer.domElement.width,this.renderer.domElement.height],quality:this.quality,animationHz:30,antialias:this.renderer.getContext().getContextAttributes()?.antialias})});
+  window.addEventListener('resize',this.resize);canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.onToast('화면 연결이 끊겼어요. 새로고침해 주세요.');});this.resize();this.snapCamera();this.animate();void this.warmHall();if(new URLSearchParams(location.search).has('diagnostics'))Object.assign(window,{__concertMetrics:()=>({fps:this.fps,calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,pixelRatio:this.renderer.getPixelRatio(),buffer:[this.renderer.domElement.width,this.renderer.domElement.height],quality:this.quality,mobile:this.mobile,targetFPS:frameRate(this.mobile,this.quality),animationHz:30,antialias:this.renderer.getContext().getContextAttributes()?.antialias})});
  }
  private async warmHall(){
   const venue=this.venues.auditorium,camera=this.camera.clone();camera.position.set(...HALL_CAMERA.eye);camera.lookAt(new T.Vector3(...HALL_CAMERA.look));venue.updateLOD(camera);venue.updateMusicians(camera);
   try{await this.renderer.compileAsync(venue.scene,camera);if(this.disposed)return;const target=new T.WebGLRenderTarget(16,16);const previous=this.renderer.getRenderTarget();try{this.renderer.setRenderTarget(target);this.renderer.render(venue.scene,camera);}finally{this.renderer.setRenderTarget(previous);target.dispose();}}catch{/* Rendering still works on drivers without parallel shader preparation. */}
  }
- setQuality(quality:string){this.quality=quality==='low'?'low':quality==='sharp'?'sharp':'balanced';this.renderer.setPixelRatio(renderRatio(innerWidth,innerHeight,devicePixelRatio,this.quality));this.onChange();}
+ setQuality(quality:string){this.quality=quality==='low'?'low':quality==='sharp'?'sharp':'balanced';try{localStorage.setItem('concert-quality',this.quality);}catch{}this.renderer.setPixelRatio(renderRatio(innerWidth,innerHeight,devicePixelRatio,this.quality,this.mobile));this.onChange();}
  get venue(){return this.venues[this.zone];}
  toggleFraming(){this.hallOverview=!this.hallOverview;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.onChange();}
  toggleConcertView(){this.concertView=!this.concertView;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.onChange();}
- private resize=()=>{const w=innerWidth,h=innerHeight;this.renderer.setPixelRatio(renderRatio(w,h,devicePixelRatio,this.quality));this.renderer.setSize(w,h);this.camera.aspect=w/h;this.camera.fov=w/h<.8?70:61;this.camera.updateProjectionMatrix();};
+ private resize=()=>{const w=innerWidth,h=innerHeight;this.renderer.setPixelRatio(renderRatio(w,h,devicePixelRatio,this.quality,this.mobile));this.renderer.setSize(w,h);this.camera.aspect=w/h;this.camera.fov=w/h<.8?70:61;this.camera.updateProjectionMatrix();};
  apply(state:Snapshot){
   const self=state.visitors.find(v=>v.id===this.net.selfId);if(self){const initial=!this.self,changedZone=this.zone!==self.zone,stood=this.pose==='sit'&&self.pose!=='sit';this.self=self;
    if(!this.avatar){this.avatar=new Avatar(self.color,undefined,parseInt(self.id.slice(0,2),16)||0);this.venue.scene.add(this.avatar.root);}
@@ -98,7 +99,7 @@ export class World{
   const origin=new T.Vector3(this.position.x,baseY,this.position.z),dir=target.clone().sub(origin),length=dir.length();this.ray.set(origin,dir.normalize());const hit=this.ray.intersectObjects(this.venue.cameraWalls,false)[0];if(hit&&hit.distance<length)target.copy(origin).addScaledVector(dir,Math.max(.6,hit.distance-.3));return {look,position:target};
  }
  private animate=()=>{
-  this.frame=requestAnimationFrame(this.animate);const now=performance.now(),elapsed=(now-this.last)/1000,dt=Math.min(.1,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
+  this.frame=requestAnimationFrame(this.animate);const now=performance.now(),interval=1000/frameRate(this.mobile,this.quality);if(now-this.renderedAt<interval-.5)return;this.renderedAt=interval?now-((now-this.renderedAt)%interval):now;const elapsed=(now-this.last)/1000,dt=Math.min(.1,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
   let speed=0;const keys=this.input.keys,kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'));
   if(this.entered&&this.net.status==='connected'){
    if((kx||kz)&&this.pose==='sit')this.stand();
