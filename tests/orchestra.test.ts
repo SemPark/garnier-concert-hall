@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
-import {Avatar,musicianSits,PERCUSSION} from '../src/character/Avatar';
-import {ORCHESTRA_LAYOUT,REFERENCE_COUNTS,STAGE,CONDUCTOR,REAR_TIERS,STRING_TIERS,MUSICIAN_SCALE} from '../src/orchestra/layout';
+import {Avatar,musicianSits} from '../src/character/Avatar';
+import {ORCHESTRA_LAYOUT,REFERENCE_COUNTS,STAGE,CONDUCTOR,STAGE_TERRACES,stageRiseAt,MUSICIAN_SCALE} from '../src/orchestra/layout';
 function bodyHand(a:Avatar,side:'left'|'right'){a.root.updateMatrixWorld(true);return a.body.worldToLocal((side==='left'?a.leftHand:a.rightHand).getWorldPosition(new T.Vector3()));}
-test('all reference instrument symbols get a player in the correct section',()=>{
+test('the 101-player complement retains its sections and includes the SCL percussion',()=>{
  const counts=Object.fromEntries(Object.keys(REFERENCE_COUNTS).map(section=>[section,ORCHESTRA_LAYOUT.filter(p=>p.section===section).length]));
  assert.deepEqual(counts,REFERENCE_COUNTS);assert.equal(ORCHESTRA_LAYOUT.length,101);
  const instruments=(name:string)=>ORCHESTRA_LAYOUT.filter(p=>p.instrument===name).length;
  assert.equal(instruments('flute'),3);assert.equal(instruments('piccolo'),1);assert.equal(instruments('english-horn'),2);assert.equal(instruments('bassoon'),3);assert.equal(instruments('horn'),6);assert.equal(instruments('trumpet'),4);assert.equal(instruments('trombone'),4);
- for(const type of PERCUSSION)assert.equal(instruments(type),1,type);
+ for(const type of ['timpani','bass-drum','xylophone','marimba','vibraphone','snare','cymbals','triangle','gong'])assert.equal(instruments(type),1,type);
 });
 test('every musician fits on the enlarged stage, faces the conductor and has personal space',()=>{
  for(const p of ORCHESTRA_LAYOUT){
@@ -17,7 +17,7 @@ test('every musician fits on the enlarged stage, faces the conductor and has per
   const forward=new T.Vector3(-Math.sin(p.yaw),0,-Math.cos(p.yaw)),toward=new T.Vector3(CONDUCTOR.x-p.x,0,CONDUCTOR.z-p.z).normalize();assert.ok(forward.dot(toward)>.999);
   for(const q of ORCHESTRA_LAYOUT)if(p!==q)assert.ok(Math.hypot(p.x-q.x,p.z-q.z)>MUSICIAN_SCALE*1.16,`${p.section} overlaps ${q.section}`);
  }
- for(const tiers of [STRING_TIERS,REAR_TIERS])for(let i=1;i<tiers.length;i++)assert.ok(tiers[i].rise>tiers[i-1].rise);
+ for(let i=1;i<STAGE_TERRACES.length;i++)assert.ok(STAGE_TERRACES[i].rise>STAGE_TERRACES[i-1].rise);for(const p of ORCHESTRA_LAYOUT)assert.equal(p.rise,stageRiseAt(p.x,p.z));
 });
 test('straight arms wave beside the body and clap in front without crossing',()=>{
  const a=new Avatar();
@@ -35,10 +35,10 @@ test('sitting keeps both legs straight forward at cushion height, then returns t
  assert.equal(musicianSits('bass'),false);assert.equal(musicianSits('timpani'),false);assert.equal(musicianSits('piano'),true);
 });
 
-test('front-right cellos and rear-right violas keep distinct instruments and footprints',()=>{
+test('cellos occupy the outer right of the violas and keep their distinct instrument size',()=>{
  const cellos=ORCHESTRA_LAYOUT.filter(p=>p.section==='cellos'),violas=ORCHESTRA_LAYOUT.filter(p=>p.section==='violas');
  assert.ok(cellos.every(p=>p.instrument==='cello'&&p.x>0));assert.ok(violas.every(p=>p.instrument==='viola'&&p.x>0));
- const radius=(p:{x:number;z:number})=>Math.hypot(p.x-CONDUCTOR.x,p.z-CONDUCTOR.z);assert.ok(Math.max(...cellos.map(radius))<Math.min(...violas.map(radius)));
+ const average=(ps:typeof cellos)=>ps.reduce((n,p)=>n+p.x,0)/ps.length;assert.ok(average(cellos)>average(violas));
  const cello=new Avatar(0x202020,'cello'),viola=new Avatar(0x202020,'viola');cello.root.updateMatrixWorld(true);viola.root.updateMatrixWorld(true);
  assert.ok(new T.Box3().setFromObject(cello.instrument).getSize(new T.Vector3()).y>new T.Box3().setFromObject(viola.instrument).getSize(new T.Vector3()).y*1.7);
 });
