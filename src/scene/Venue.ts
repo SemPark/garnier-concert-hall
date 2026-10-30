@@ -81,7 +81,6 @@ export function createVenue(zone:Zone):Venue{
  }else{
   cameraWalls.push(...buildGoldenHall(scene).cameraWalls);
   walkTargets.push(...buildStairs(scene).surfaces);
-  for(const side of [-1,1]){const proxy=new T.Mesh(new T.BoxGeometry(3.4,.02,77),new T.MeshBasicMaterial({visible:false}));proxy.position.set(side*14.2,GOLDEN_HALL.balconyHeight-.01,11.8);scene.add(proxy);walkTargets.push(proxy);}
   const hitGeometry=new T.BoxGeometry(1.2,1.5,1.15),hitMaterial=new T.MeshBasicMaterial({visible:false});
   for(const s of SEATS){const g=seat(scene,s.x,s.z);g.position.y=s.y;g.rotation.y=s.yaw;
    const target=new T.Mesh(hitGeometry,hitMaterial);target.position.set(s.x,s.y+.7,s.z);target.rotation.y=s.yaw;target.userData.seatId=s.id;scene.add(target);seatTargets.push(target);
