@@ -10,6 +10,7 @@ import type {Presence} from './network/Presence';
 import type {ConcertAudio} from './audio/ConcertAudio';
 import {renderRatio,frameRate,type RenderQuality} from './scene/quality';
 import {CONCERT_CAMERA} from './orchestra/layout';
+import {GALLERY_BRIDGE} from '../shared/gallery';
 import {GOLDEN_HALL,HALL_CAMERA} from '../shared/goldenHall';
 
 type Remote={avatar:Avatar;visitor:Visitor;lastPosition:T.Vector3};
@@ -72,7 +73,7 @@ export class World{
   if(!ok){this.net.send({type:'release',requestId});return;}this.reservedSeat=id;if(seat.level==='balcony')this.concertView=false;this.seating=false;this.route=path;this.renewAt=performance.now();this.marker.visible=true;this.marker.position.set(seat.approach.x,seat.y+.035,seat.approach.z);this.onToast('선택한 좌석으로 이동합니다.');
  }
  stand(){this.seatedTarget=null;if(this.pose==='sit'||this.reservedSeat){const seat=SEATS.find(s=>s.id===(this.self?.seatId??this.reservedSeat));this.net.send({type:'release'});if(this.pose==='sit'&&seat)this.position.set(seat.approach.x,seat.y,seat.approach.z);this.pose='idle';}this.cancelSeat();this.route=[];this.onChange();}
- goToGallery(){if(this.zone!=='auditorium')return;if(this.pose==='sit')this.stand();const upper=this.position.y<GOLDEN_HALL.balconyHeight-.3,side=this.position.x<0?-1:1;const target=upper?{x:side*13.5,y:GOLDEN_HALL.balconyHeight,z:46}:stairPoint(side,false);const path=findPath(this.zone,this.position,target);if(!path){this.onToast('계단으로 가는 길을 찾지 못했어요.');return;}this.cancelSeat();this.route=path;this.concertView=false;this.cameraYaw=0;this.onToast(upper?'계단을 따라 2층으로 올라갑니다.':'계단을 따라 1층으로 내려갑니다.');this.onChange();}
+ goToGallery(){if(this.zone!=='auditorium')return;if(this.pose==='sit')this.stand();const upper=this.position.y<GOLDEN_HALL.balconyHeight-.3,side=this.position.x<0?-1:1;const target=upper?{x:side*13.5,y:GOLDEN_HALL.balconyHeight,z:(GALLERY_BRIDGE.minZ+50.3)/2}:stairPoint(side,false);const path=findPath(this.zone,this.position,target);if(!path){this.onToast('계단으로 가는 길을 찾지 못했어요.');return;}this.cancelSeat();this.route=path;this.concertView=false;this.cameraYaw=0;this.onToast(upper?'계단을 따라 2층으로 올라갑니다.':'계단을 따라 1층으로 내려갑니다.');this.onChange();}
  private cancelSeat(){this.reserveVersion++;if(this.reservedSeat)this.net.send({type:'release'});this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
  gestureAction(gesture:'wave'|'clap'){this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});}
  private click(x:number,y:number){if(!this.entered)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);

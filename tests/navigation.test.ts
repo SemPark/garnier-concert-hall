@@ -8,6 +8,6 @@ test('seat approaches lie in front, and every route reaches the upper floor thro
 test('stairs support the descent and a cross-gallery route without jumping off edges',()=>{for(const side of [-1,1]){const top=stairPoint(side,true),bottom=stairPoint(side,false),route=findPath('auditorium',top,bottom);assert.ok(route);assert.ok(route.some(p=>(p.y??0)===0));assert.equal(walkable('auditorium',{x:0,y:4,z:0}),false);const across=findPath('auditorium',{x:13.5,y:8.3,z:-20},{x:-13.5,y:8.3,z:-20});assert.ok(across);assert.ok(across.some(p=>p.z>44));}});
 
 test('a visitor can change direction halfway up a stair without dropping to the floor',()=>{
- const middle={x:7.75,y:4.15,z:49},bottom=stairPoint(1,false),other={x:-7.75,y:4.15,z:49};
+ const middle={x:7.75,y:4.15,z:STAIR.z},bottom=stairPoint(1,false),other={x:-7.75,y:4.15,z:STAIR.z};
  for(const end of [bottom,other]){const route=findPath('auditorium',middle,end);assert.ok(route);let p=middle;for(const point of route){assert.ok(segmentClear('auditorium',p,point));p={x:point.x,y:point.y??0,z:point.z};}}
 });

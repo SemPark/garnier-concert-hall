@@ -3,7 +3,7 @@ import {createRoot} from 'react-dom/client';
 import {World} from './World';
 import {Presence} from './network/Presence';
 import {ConcertAudio} from './audio/ConcertAudio';
-import {SEATS,seatLabel} from '../shared/venue';
+import {SeatMap} from './SeatMap';
 import './style.css';
 import {runDeviceProbe} from './diagnostics/DeviceProbe';
 
@@ -26,7 +26,7 @@ function Icon({name,size=20}:{name:string;size?:number}){
 }
 function format(t:number){return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;}
 function App(){
- const [app,setApp]=useState<{world:World;net:Presence;audio:ConcertAudio}|null>(null),[,redraw]=useState(0),[entered,setEntered]=useState(false),[settings,setSettings]=useState(false),[seats,setSeats]=useState(false),[seatLevel,setSeatLevel]=useState<'parterre'|'balcony'>('parterre'),[seatRow,setSeatRow]=useState(1),[musicExpanded,setMusicExpanded]=useState(false),[toast,setToast]=useState(''),[error,setError]=useState('');
+ const [app,setApp]=useState<{world:World;net:Presence;audio:ConcertAudio}|null>(null),[,redraw]=useState(0),[entered,setEntered]=useState(false),[settings,setSettings]=useState(false),[seats,setSeats]=useState(false),[musicExpanded,setMusicExpanded]=useState(false),[toast,setToast]=useState(''),[error,setError]=useState('');
  const [probeProgress,setProbeProgress]=useState(''),[probeReport,setProbeReport]=useState(''),[probeMessage,setProbeMessage]=useState('');
  const toastTimer=useRef(0),dialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{let world:World|undefined;const net=new Presence(),audio=new ConcertAudio(net.now);
@@ -65,8 +65,8 @@ function App(){
    {zone==='auditorium'&&world?.concertView&&<button className="framing-toggle" onClick={()=>world?.toggleFraming()}>{world?.hallOverview?'공연 가까이':'홀 전체'}</button>}
    {zone==='auditorium'&&<button className="view-toggle" onClick={()=>world?.toggleConcertView()}>{world?.concertView?'걷기 시점':'무대 전체'}</button>}
    {zone==='auditorium'&&<button className="stairs-open" onClick={()=>world?.goToGallery()}>{(world?.position.y??0)>8?'1층 내려가기':'2층 계단'}</button>}
-   {zone==='auditorium'&&<button className="seat-open" onClick={()=>setSeats(v=>!v)} aria-expanded={seats}><Icon name="seat" size={16}/> 좌석 선택</button>}
-   {seats&&zone==='auditorium'&&<section className="seat-panel" aria-label="빈 좌석 선택"><div className="panel-heading"><span>나의 자리 · 456석</span><button className="icon-button" aria-label="좌석 선택 닫기" onClick={()=>setSeats(false)}><Icon name="close" size={16}/></button></div><div className="seat-filters"><select aria-label="객석 층" value={seatLevel} onChange={e=>{setSeatLevel(e.target.value as 'parterre'|'balcony');setSeatRow(1);}}><option value="parterre">1층 · 352석</option><option value="balcony">2층 · 104석</option></select><select aria-label="객석 열" value={seatRow} onChange={e=>setSeatRow(Number(e.target.value))}>{Array.from({length:seatLevel==='parterre'?22:13},(_,i)=><option key={i} value={i+1}>{i+1}열</option>)}</select></div><p>{seatLevel==='parterre'?'무대 · 앞쪽':'왼쪽 / 오른쪽 발코니'}</p><div className="stage-line"/><div className={`seat-grid ${seatLevel==='parterre'?'floor-grid':''}`}>{SEATS.filter(s=>s.level===seatLevel&&s.row===seatRow).map(s=>{const claim=net?.state?.seats[s.id],mine=claim?.visitorId===net?.selfId,occupied=!!claim&&!mine;return <button key={s.id} disabled={occupied||!connected} aria-label={`${seatLabel(s)}${occupied?' 이용 중':mine?' 내 자리':''}`} className={mine?'mine':''} onClick={()=>{void world?.chooseSeat(s.id);setSeats(false);}}><Icon name="seat" size={17}/><span>{s.column}</span></button>;})}</div><small>{seatLevel==='balcony'?'계단을 올라가 좌석 앞에서 앉습니다.':'열과 번호를 고르거나 화면의 의자를 누르세요.'}</small></section>}
+   {zone==='auditorium'&&<button className="seat-open" onClick={()=>{world?.input.keys.clear();setSeats(v=>!v);}} aria-expanded={seats}><Icon name="seat" size={16}/> 좌석 선택</button>}
+   {seats&&zone==='auditorium'&&<SeatMap claims={net?.state?.seats??{}} selfId={net?.selfId??''} connected={connected} onClose={()=>setSeats(false)} onChoose={id=>{void world?.chooseSeat(id);}}/>}
    {zone==='auditorium'&&p&&<aside className={`now-playing ${(!world?.concertView||world?.pose==='walk')&&!musicExpanded?'compact-music':''}`}><button className="music-summary" aria-label={musicExpanded?'음악 정보 접기':'음악 정보 펼치기'} aria-expanded={musicExpanded} onClick={()=>setMusicExpanded(v=>!v)}><Icon name="music" size={14}/><span>{p.track.title}</span><span>{musicExpanded?'−':'+'}</span></button><div className="music-details"><div className="now-label"><span className={`equalizer ${audio?.enabled&&p.playing?'active':''}`}><i/><i/><i/></span>{p.playing?'NOW PLAYING':'INTERMISSION'}</div><h2>{p.playing?p.track.title:'잠시 쉬어가는 시간'}</h2><p>{p.playing?p.track.composer:`${Math.ceil(p.remaining)}초 후 다시 시작합니다`}</p><div className="progress-track"><span style={{width:`${p.playing?p.offset/p.track.durationSeconds*100:0}%`}}/></div><div className="track-meta"><span>{audio?.state}</span><span>{format(p.offset)} / {format(p.track.durationSeconds)}</span></div></div></aside>}
    <div className="bottom-center"><div className="actionbar" aria-label="음악당에서 할 일"><button onClick={()=>world?.gestureAction('wave')} disabled={!connected}><Icon name="wave"/><span>인사</span></button><span className="divider"/><button className="primary-action" onClick={()=>sitting?world?.stand():world?.changeZone()} disabled={!connected}><Icon name={sitting?'seat':'door'}/><span>{sitting?'일어나기':zone==='lobby'?'공연장 입장':'로비로'}</span></button><span className="divider"/><button onClick={()=>world?.gestureAction('clap')} disabled={!connected}><Icon name="clap"/><span>박수</span></button></div><p className="controls-hint"><span>바닥 클릭으로 이동</span><i>·</i><span>드래그로 둘러보기</span><i>·</i><span>휠로 거리 조절</span></p></div>
   </>}

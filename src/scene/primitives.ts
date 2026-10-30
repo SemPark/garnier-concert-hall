@@ -1,6 +1,12 @@
 import * as T from 'three';
 const cache=new Map<string,T.MeshStandardMaterial|T.MeshLambertMaterial>();
-export function material(color:number,metalness=0,roughness=.72){const key=`${color}/${metalness}/${roughness}`;let m=cache.get(key);if(!m){m=metalness>=.55?new T.MeshStandardMaterial({color,metalness,roughness}):new T.MeshLambertMaterial({color});cache.set(key,m);}return m;}
+export function material(color:number,metalness=0,roughness=.72){const key=`${color}/${metalness}/${roughness}`;let m=cache.get(key);if(!m){m=metalness>=.55?new T.MeshStandardMaterial({color,metalness,roughness}):new T.MeshLambertMaterial({color});m.userData.surface={metalness,roughness};cache.set(key,m);}return m;}
+const detailedMaterials=new Map<string,T.MeshStandardMaterial>();
+/** Restore the original lit surface only for performers and audience chairs. */
+export function detailedMaterial(source:T.Material){
+ if(!(source instanceof T.MeshLambertMaterial))return source;
+ let m=detailedMaterials.get(source.uuid);if(!m){const surface=source.userData.surface??{metalness:0,roughness:.72};m=new T.MeshStandardMaterial({color:source.color,metalness:surface.metalness,roughness:surface.roughness,emissive:source.emissive,emissiveIntensity:source.emissiveIntensity,side:source.side,transparent:source.transparent,opacity:source.opacity,depthWrite:source.depthWrite,map:source.map});detailedMaterials.set(source.uuid,m);}return m;
+}
 const boxes=new T.BoxGeometry(1,1,1),cylinders=new T.CylinderGeometry(1,1,1,12),spheres=new T.SphereGeometry(1,16,12),smallSpheres=new T.SphereGeometry(1,8,6);
 export function box(parent:T.Object3D,size:number[],position:number[],color:number,metalness=0){const m=new T.Mesh(boxes,material(color,metalness));m.scale.set(size[0],size[1],size[2]);m.position.set(position[0],position[1],position[2]);m.receiveShadow=true;parent.add(m);return m;}
 export function cylinder(parent:T.Object3D,r:number,h:number,position:number[],color:number){const m=new T.Mesh(cylinders,material(color));m.scale.set(r,h,r);m.position.set(position[0],position[1],position[2]);parent.add(m);return m;}

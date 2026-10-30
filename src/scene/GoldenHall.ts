@@ -2,7 +2,7 @@ import * as T from 'three';
 import {box,cylinder,sphere,line,text,material} from './primitives';
 import {GOLDEN_HALL as H} from '../../shared/goldenHall';
 import {STAGE} from '../orchestra/layout';
-import {GALLERY_FLOORS,GALLERY_RAIL_HEIGHT,galleryRailSpans} from '../../shared/gallery';
+import {GALLERY_BRIDGE,GALLERY_FLOORS,GALLERY_RAIL_HEIGHT,galleryRailSpans} from '../../shared/gallery';
 const P={ivory:0xe8d6ac,gold:0xc69b49,light:0xe7c77a,deep:0x8e622a,wood:0x945d30,red:0x6f2830,shadow:0x49351e,glass:0xc5d4ce};
 const cylinderCache=new Map<string,T.BufferGeometry>();
 function profile(top:number,bottom:number,height:number){const key=`${top}/${bottom}/${height}`;let g=cylinderCache.get(key);if(!g){g=new T.CylinderGeometry(top,bottom,height,12);cylinderCache.set(key,g);}return g;}
@@ -36,7 +36,7 @@ function archedWindow(g:T.Object3D,y:number,blind=false){
 }
 function balustrade(g:T.Object3D,width:number){
  g.scale.y=GALLERY_RAIL_HEIGHT/1.58;
- box(g,[width,.28,.4],[0,0,.32],P.gold);box(g,[width,.11,.5],[0,.25,.32],P.light);box(g,[width,.2,.32],[0,1.48,.55],P.light);box(g,[width,1.05,.14],[0,.85,.46],P.ivory);
+ box(g,[width,.28,.4],[0,0,.32],P.gold);box(g,[width,.11,.5],[0,.25,.32],P.light);box(g,[width,.2,.32],[0,1.48,.55],P.light);box(g,[width,1.05,.14],[0,.85,.46],P.shadow);
  for(let x=-width/2+.22;x<width/2;x+=.46){const ring=new T.Mesh(geometryRing,material(P.gold,.35));ring.position.set(x,.85,.57);ring.scale.set(.14,.36,1);g.add(ring);box(g,[.035,1,.09],[x+.2,.84,.56],P.light);}
  for(const x of [-width/2+.08,width/2-.08]){box(g,[.19,1.4,.5],[x,.8,.5],P.gold);rosette(g,x,.9,.78,.1);}
 }
@@ -56,20 +56,46 @@ function organ(scene:T.Scene){
  const g=new T.Group();g.position.z=-29.1;scene.add(g);g.userData.landmark='pipe-organ';
  box(g,[23.5,1.4,1.25],[0,8.6,.25],P.gold);box(g,[22.6,.18,1.5],[0,9.4,.4],P.light);
  box(g,[18,11.8,.6],[0,15.5,0],P.ivory);
- for(const [cx,w,maxH,count]of [[-6.2,4.6,7.1,13],[0,6.2,9.3,17],[6.2,4.6,7.1,13]]){
+ for(const [cx,w,maxH,count]of [[-6.2,4.6,9.1,19],[0,6.2,9.1,25],[6.2,4.6,9.1,19]]){
   box(g,[w,10,.12],[cx,15.2,.36],P.shadow);
-  for(let i=0;i<count;i++){const u=(i/(count-1)-.5)*2,h=maxH-1.8*Math.abs(u),xx=cx+u*(w/2-.18);const p=cylinder(g,.10,h,[xx,10.6+h/2,.62],0xc4c7bc);p.material=material(0xbec2b6,.8,.25);const lip=box(g,[.13,.07,.045],[xx,11.15,.735],0x484a41);lip.rotation.x=-.2;cylinder(g,.12,.06,[xx,10.65+h,.62],P.light);}
+  for(let i=0;i<count;i++){const u=(i/(count-1)-.5)*2,h=maxH-.65*(1-Math.abs(u)),xx=cx+u*(w/2-.18);const p=cylinder(g,.10,h,[xx,10.6+h/2,.62],0xc4c7bc);p.material=material(0xbec2b6,.8,.25);const lip=box(g,[.13,.07,.045],[xx,11.15,.735],0x484a41);lip.rotation.x=-.2;cylinder(g,.12,.06,[xx,10.65+h,.62],P.light);}
  }
  for(const x of [-9.2,-3.45,3.45,9.2])gildedColumn(g,x,9.5,12,.28);
  for(const [cx,w]of [[-6.2,5.2],[0,7],[6.2,5.2]]){const head=new T.Group();head.position.x=cx;g.add(head);cornice(head,w,21.2,.4);box(head,[w,.18,.9],[0,9.7,.4],P.light);}
  // Triangular central pediment and small gilded sculpture silhouettes.
- const triangle=new T.Shape();triangle.moveTo(-5.1,0);triangle.lineTo(0,2.1);triangle.lineTo(5.1,0);triangle.closePath();const pediment=new T.Mesh(new T.ExtrudeGeometry(triangle,{depth:.45,bevelEnabled:false}),material(P.gold,.35));pediment.position.set(0,22,.1);g.add(pediment);
- line(g,new T.Vector3(-5.3,22,.65),new T.Vector3(0,24.2,.65),.095,P.light);line(g,new T.Vector3(0,24.2,.65),new T.Vector3(5.3,22,.65),.095,P.light);
+ const triangle=new T.Shape();triangle.moveTo(-5.1,0);triangle.lineTo(0,1.6);triangle.lineTo(5.1,0);triangle.closePath();const pediment=new T.Mesh(new T.ExtrudeGeometry(triangle,{depth:.45,bevelEnabled:false}),material(P.gold,.35));pediment.position.set(0,22,.1);g.add(pediment);
+ line(g,new T.Vector3(-5.3,22,.65),new T.Vector3(0,23.7,.65),.095,P.light);line(g,new T.Vector3(0,23.7,.65),new T.Vector3(5.3,22,.65),.095,P.light);
  for(const x of [-6.6,-3,0,3,6.6]){sphere(g,.22,[x,22.7+(x===0?1.6:0),.45],P.light);frustum(g,.13,.3,.65,[x,22.15+(x===0?1.6:0),.45],P.gold);}
- text(g,'MUSIKVEREIN',5.3,[0,21.9,.95],'#f5ddb0');
+ // Projecting three-part organ balcony, with dark panels and gilded lyres.
+ for(const [x,w,z]of [[-6.2,5.7,1.1],[0,6.5,1.65],[6.2,5.7,1.1]]){const balcony=new T.Group();balcony.position.set(x,9.65,z);g.add(balcony);balustrade(balcony,w);cornice(balcony,w,0,.25);}
+ for(const x of [-2.6,2.6]){box(g,[.28,9.5,.55],[x,15.1,.6],P.gold);box(g,[.48,.25,.7],[x,10.4,.6],P.light);}
  // The choir gallery and its framed doors below the organ are visible behind the band.
  for(const x of [-12.1,12.1]){const wing=new T.Group();wing.position.set(x,0,.1);g.add(wing);archedWindow(wing,14.1,true);gildedColumn(wing,-1.6,9.4,15.5,.23);gildedColumn(wing,1.6,9.4,15.5,.23);}
  for(const x of [-10,-5,0,5,10]){box(g,[3.7,5.4,.18],[x,3,.3],P.ivory);for(const xx of [-1.75,1.75])box(g,[.12,5.2,.2],[x+xx,3,.5],P.gold);rosette(g,x,4.65,.55,.25);box(g,[2.5,3.5,.15],[x,2.3,.53],x===0?P.red:0xd1bb8c);}
+}
+function upperDoor(g:T.Object3D,y:number){
+ box(g,[2.35,2.5,.18],[0,y+1.25,.31],P.light);box(g,[2.05,2.2,.2],[0,y+1.23,.43],P.wood);
+ for(const x of [-.5,.5])box(g,[.78,1.65,.1],[x,y+1.24,.57],P.shadow);
+ const pediment=new T.Group();pediment.position.set(0,y+2.8,.2);g.add(pediment);cornice(pediment,3.15,0,.25);
+ for(const side of [-1,1])line(g,new T.Vector3(side*1.6,y+3.2,.6),new T.Vector3(0,y+3.85,.6),.065,P.light);
+}
+function rearFacade(scene:T.Scene){
+ const g=new T.Group();g.position.z=51.68;g.rotation.y=Math.PI;scene.add(g);g.userData.landmark='rear-facade';
+ // Six high arched windows over an enclosed, ornamented rear gallery.
+ for(const x of [-10,-6,-2,2,6,10]){const bay=new T.Group();bay.position.x=x;g.add(bay);archedWindow(bay,19.3);box(bay,[3.75,3.7,.12],[0,15.2,.1],P.gold);box(bay,[3.48,3.42,.15],[0,15.2,.2],P.ivory);}
+ for(const x of [-14,14]){const wing=new T.Group();wing.position.x=x;g.add(wing);archedWindow(wing,20,true);upperDoor(wing,10.1);}
+ for(const y of [7.65,12.1,17.7,26.8])cornice(g,31.4,y,.3);
+ for(const x of [-12,-8,-4,4,8,12]){box(g,[3.3,5.9,.12],[x,3.25,.13],P.gold);box(g,[3.05,5.6,.15],[x,3.25,.23],P.ivory);}
+ // Columns are against the rear wall; the floating stairs have no support pillars.
+ for(const x of [-10.9,-3.9,3.9,10.9])gildedColumn(g,x,0,7.5,.27);
+ for(const r of GALLERY_FLOORS.filter(r=>r.minZ>=GALLERY_BRIDGE.minZ)){
+  const w=r.maxX-r.minX;box(scene,[w,.15,r.maxZ-r.minZ],[(r.minX+r.maxX)/2,H.balconyHeight-.32,(r.minZ+r.maxZ)/2],P.light);
+ }
+ const rail=new T.Group();rail.position.set(0,H.balconyHeight,GALLERY_BRIDGE.minZ);rail.rotation.y=Math.PI;scene.add(rail);balustrade(rail,25);
+ // A dark timber double entrance, recessed panels and a gilded classical surround.
+ box(g,[7.3,6.8,.28],[0,3.4,.33],P.gold);box(g,[6.75,6.4,.3],[0,3.2,.52],P.wood);
+ for(const side of [-1,1]){for(const y of [1.1,3.05,5.1]){box(g,[2.8,1.63,.14],[side*1.62,y,.73],P.deep);box(g,[2.53,1.38,.14],[side*1.62,y,.83],P.wood);}cylinder(g,.045,.45,[side*.18,2.65,.97],P.light);}
+ cornice(g,8.1,6.65,.55);
 }
 function paintedCeiling(scene:T.Scene){
  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=384;const c=canvas.getContext('2d')!;
@@ -99,19 +125,18 @@ export function buildGoldenHall(scene:T.Scene){
    for(const x of [-2.55,2.55]){const figure=new T.Group();figure.position.set(x,.45,.3);figure.scale.set(1,1.21,1);g.add(figure);caryatid(figure);}
    rosette(g,0,5.8,.38,.27);box(g,[5.9,.23,1.4],[0,7.8,.6],P.deep);
    for(const span of galleryRailSpans(z)){const rail=new T.Group();rail.position.set(side*((span.start+span.end)/2-z),H.balconyHeight,2.8);g.add(rail);balustrade(rail,span.end-span.start);}
-   for(const x of [-2.65,2.65])gildedColumn(g,x,10.1,17,.22);archedWindow(g,15.4);
+   for(const x of [-2.65,2.65])gildedColumn(g,x,10.1,17,.22);archedWindow(g,19.3);upperDoor(g,11.4);
    cornice(g,6,26.5,.16);box(g,[5.7,.28,.15],[0,12.4,.18],P.gold);rosette(g,0,11.1,.32,.22);
   }
 
  }
- for(const r of GALLERY_FLOORS)box(scene,[r.maxX-r.minX,.3,r.maxZ-r.minZ],[(r.minX+r.maxX)/2,H.balconyHeight-.15,(r.minZ+r.maxZ)/2],P.deep);
+ for(const r of GALLERY_FLOORS)box(scene,[r.maxX-r.minX,.3,r.maxZ-r.minZ],[(r.minX+r.maxX)/2,H.balconyHeight-.15,(r.minZ+r.maxZ)/2],P.ivory);
  const rear=box(scene,[32,H.height,.4],[0,H.height/2,H.rear],P.ivory),front=box(scene,[32,H.height,.4],[0,H.height/2,H.front],P.ivory);cameraWalls.push(rear,front);
- for(const z of [-28.15,50.7]){const rail=new T.Group();rail.position.set(0,H.balconyHeight,z);if(z>0)rail.rotation.y=Math.PI;scene.add(rail);balustrade(rail,29.5);}
+ for(const z of [-28.15]){const rail=new T.Group();rail.position.set(0,H.balconyHeight,z);if(z>0)rail.rotation.y=Math.PI;scene.add(rail);balustrade(rail,29.5);}
  organ(scene);paintedCeiling(scene);
  for(const x of [-7.4,7.4])for(const z of [-20,-7,6,19,32,45])crystalChandelier(scene,x,z);
  for(const z of [-22,4,30]){const light=new T.PointLight(0xffe3af,95,42,2);light.position.set(0,16,z);scene.add(light);}
  const stageLight=new T.SpotLight(0xffe4bd,300,42,1.05,.8,1.5);stageLight.position.set(0,18,-8);stageLight.target.position.set(0,1,-20);scene.add(stageLight,stageLight.target);
- // Rear wall doors and classical panels close the rectangular gallery.
- for(const x of [-12,-6,0,6,12]){box(scene,[4.8,6.6,.12],[x,3.5,51.7],P.gold);box(scene,[4.4,6.1,.13],[x,3.5,51.6],P.ivory);if(x!==0)box(scene,[2.6,3.8,.14],[x,2.3,51.5],P.red);}
+ rearFacade(scene);
  return {cameraWalls};
 }

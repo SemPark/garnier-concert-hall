@@ -48,3 +48,12 @@ test('widening the viewport restores musician instances without moving the camer
  const scene=new T.Scene(),root=new T.Group(),head=new T.Group();head.userData.animated=true;root.add(head);const mesh=new T.Mesh(new T.BoxGeometry(.1,.1,.1),new T.MeshLambertMaterial());mesh.position.set(4,0,-6);root.add(mesh);scene.add(root);
  const update=batchCharacters(scene,[root]),camera=new T.PerspectiveCamera(60,.5,.1,100);update(camera);const batch=scene.children.find(o=>o instanceof T.InstancedMesh) as T.InstancedMesh;assert.equal(batch.count,0);camera.aspect=2;camera.updateProjectionMatrix();update(camera);assert.equal(batch.count,1);
 });
+
+test('musician eyes and instrument details retain their original geometry at auditorium distance',()=>{
+ const scene=new T.Scene(),root=new T.Group(),eye=new T.Mesh(new T.SphereGeometry(1,8,6),new T.MeshLambertMaterial()),string=new T.Mesh(new T.CylinderGeometry(1,1,1,12),new T.MeshLambertMaterial());eye.scale.setScalar(.02);string.scale.set(.01,.8,.01);root.add(eye,string);scene.add(root);
+ const update=batchCharacters(scene,[root]),camera=new T.PerspectiveCamera(60,1,.1,150);camera.position.z=70;update(camera);
+ const batches=scene.children.filter(o=>o instanceof T.InstancedMesh) as T.InstancedMesh[];
+ assert.equal(batches.filter(b=>b.visible).reduce((n,b)=>n+b.count,0),2);
+ const sphere=batches.find(b=>b.geometry instanceof T.SphereGeometry)!;assert.equal((sphere.geometry as T.SphereGeometry).parameters.widthSegments,16);
+ assert.ok(batches.some(b=>b.geometry===string.geometry&&b.count===1));
+});

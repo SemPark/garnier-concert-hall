@@ -1,5 +1,5 @@
 import {GOLDEN_HALL as H} from './goldenHall';
-import {STAIR,hasGalleryFloor} from './gallery';
+import {STAIR,GALLERY_BRIDGE,hasGalleryFloor} from './gallery';
 export {STAIR} from './gallery';
 export type Zone='lobby'|'auditorium';
 export type Point={x:number;z:number;y?:number};
@@ -19,12 +19,12 @@ export const PALETTE=[0xc09a61,0x8c9c92,0x9c7181,0x71899c,0xc0ab87,0x9180a3];
 export function stairPoint(side:number,upper:boolean):Point{return {x:side*(upper?STAIR.topX:STAIR.bottomX),y:upper?STAIR.height:0,z:STAIR.z};}
 export function onStair(p:Point,padding=0){return Math.abs(p.x)>=STAIR.bottomX-padding&&Math.abs(p.x)<=STAIR.topX+padding&&Math.abs(p.z-STAIR.z)<=STAIR.width/2-padding;}
 export function stairHeight(x:number){return Math.max(0,Math.min(STAIR.height,(Math.abs(x)-STAIR.bottomX)/(STAIR.topX-STAIR.bottomX)*STAIR.height));}
-export function inGallery(p:Point,padding=.27){const side=Math.abs(p.x)>=12.9+padding&&Math.abs(p.x)<=15.9-padding&&p.z>=-26.5+padding&&p.z<=50.3-padding;const rear=Math.abs(p.x)<=15.9-padding&&p.z>=44.9+padding&&p.z<=47.1-padding;return (side||rear)&&hasGalleryFloor(p.x,p.z);}
+export function inGallery(p:Point,padding=.27){const side=Math.abs(p.x)>=12.9+padding&&Math.abs(p.x)<=15.9-padding&&p.z>=-26.5+padding&&p.z<=50.3-padding;const rear=Math.abs(p.x)<=15.9-padding&&p.z>=GALLERY_BRIDGE.minZ+padding&&p.z<=GALLERY_BRIDGE.maxZ-padding;return (side||rear)&&hasGalleryFloor(p.x,p.z);}
 /** Pick the surface contiguous with the visitor, never jump to another floor. */
 export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  if(!Number.isFinite(p.x)||!Number.isFinite(p.z)||!Number.isFinite(fromY))return null;
  if(zone==='lobby')return Math.abs(fromY)<.4?0:null;
- if(onStair(p)){const h=stairHeight(p.x);if(Math.abs(h-fromY)<.65)return h;return null;}
+ if(onStair(p)){const h=stairHeight(p.x);if(Math.abs(h-fromY)<.65)return h;if(Math.abs(fromY)<.4&&h>2)return 0;return null;}
  // Tiny landing margins let a step enter or leave the continuous stair slope.
  if(Math.abs(p.z-STAIR.z)<=STAIR.width/2&&Math.abs(p.x)>STAIR.topX&&Math.abs(p.x)<14.3&&fromY>H.balconyHeight-.65)return H.balconyHeight;
  if(fromY>H.balconyHeight-.45&&inGallery(p))return H.balconyHeight;

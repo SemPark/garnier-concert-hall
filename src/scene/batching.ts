@@ -1,5 +1,7 @@
 import * as T from 'three';
+import {detailedMaterial} from './primitives';
 import {coarseGeometry,detailDistance,LOD_NEAR} from './lodGeometry';
+const restoredSphere=new T.SphereGeometry(1,16,12);
 type Lit=T.MeshStandardMaterial|T.MeshLambertMaterial;
 type Item={mesh:T.Mesh;matrix:T.Matrix4;center:T.Vector3;radius:number;limit:number;min:number;color:T.Color|null;level:number;shown:boolean};
 type BatchGroup={material:T.Material;objects:T.Mesh[];colors:boolean};
@@ -7,15 +9,15 @@ function isLit(mat:T.Material):mat is Lit{return mat instanceof T.MeshStandardMa
 function collect(groups:Map<string,BatchGroup>,mesh:T.Mesh){
  if(Array.isArray(mesh.material))return;
  const mat=mesh.material,lit=isLit(mat)&&!mat.map;
- const key=mesh.geometry.uuid+'/'+(lit?JSON.stringify([mat.type,mat instanceof T.MeshStandardMaterial?mat.roughness:0,mat instanceof T.MeshStandardMaterial?mat.metalness:0,mat.emissive.getHex(),mat.emissiveIntensity,mat.transparent,mat.opacity,mat.depthWrite,mat.side]):mat.uuid);
+ const key=mesh.geometry.uuid+'/'+(mesh.userData.fullDetail?'full/':'adaptive/')+(lit?JSON.stringify([mat.type,mat instanceof T.MeshStandardMaterial?mat.roughness:0,mat instanceof T.MeshStandardMaterial?mat.metalness:0,mat.emissive.getHex(),mat.emissiveIntensity,mat.transparent,mat.opacity,mat.depthWrite,mat.side]):mat.uuid);
  let group=groups.get(key);if(!group){const material=lit?mat.clone():mat;if(lit)(material as Lit).color.setHex(0xffffff);group={material,objects:[],colors:lit};groups.set(key,group);}group.objects.push(mesh);
 }
 function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean){
- const geometry=group.objects[0].geometry,lowGeometry=coarseGeometry(geometry);
+ const geometry=group.objects[0].geometry,fullDetail=!!group.objects[0].userData.fullDetail,lowGeometry=fullDetail?geometry:coarseGeometry(geometry);
  const make=(g:T.BufferGeometry)=>{const batch=new T.InstancedMesh(g,group.material,group.objects.length);batch.instanceMatrix.setUsage(dynamic?T.DynamicDrawUsage:T.StaticDrawUsage);batch.matrixAutoUpdate=false;batch.frustumCulled=false;scene.add(batch);return batch;};
  const high=make(geometry),low=lowGeometry===geometry?high:make(lowGeometry);
  geometry.computeBoundingSphere();
- const items:Item[]=group.objects.map(mesh=>({mesh,matrix:mesh.matrixWorld.clone(),center:geometry.boundingSphere!.center.clone().applyMatrix4(mesh.matrixWorld),radius:geometry.boundingSphere!.radius*mesh.matrixWorld.getMaxScaleOnAxis(),limit:detailDistance(mesh),min:mesh.userData.lodMin??0,color:group.colors?(mesh.material as Lit).color.clone():null,level:0,shown:false}));
+ const items:Item[]=group.objects.map(mesh=>({mesh,matrix:mesh.matrixWorld.clone(),center:geometry.boundingSphere!.center.clone().applyMatrix4(mesh.matrixWorld),radius:geometry.boundingSphere!.radius*mesh.matrixWorld.getMaxScaleOnAxis(),limit:fullDetail?Infinity:detailDistance(mesh),min:mesh.userData.lodMin??0,color:group.colors?(mesh.material as Lit).color.clone():null,level:0,shown:false}));
  const frustum=new T.Frustum(),projection=new T.Matrix4(),sphere=new T.Sphere();
  let initialized=false;
  const write=(camera?:T.Camera)=>{
@@ -45,7 +47,7 @@ export function batchArchitecture(scene:T.Scene,exclude:T.Object3D[]){
 export function batchCharacters(scene:T.Scene,roots:T.Object3D[]){
  scene.updateMatrixWorld(true);const moving=new Map<string,BatchGroup>(),fixed=new Map<string,BatchGroup>();
  for(const root of roots){root.updateMatrixWorld(true);let marked=false;root.traverse(o=>{if(o.userData.animated)marked=true;});
-  const visit=(node:T.Object3D,animated:boolean)=>{animated=animated||!!node.userData.animated;if(node instanceof T.Mesh)collect(animated?moving:fixed,node);for(const child of node.children)visit(child,animated);};visit(root,!marked);
+  const visit=(node:T.Object3D,animated:boolean)=>{animated=animated||!!node.userData.animated;if(node instanceof T.Mesh){node.userData.fullDetail=true;if(!Array.isArray(node.material))node.material=detailedMaterial(node.material);if(node.geometry instanceof T.SphereGeometry&&node.geometry.parameters.widthSegments<16)node.geometry=restoredSphere;collect(animated?moving:fixed,node);}for(const child of node.children)visit(child,animated);};visit(root,!marked);
   if(marked){const freeze=(node:T.Object3D,animated:boolean)=>{animated=animated||!!node.userData.animated;node.updateMatrix();node.matrixAutoUpdate=animated;for(const child of node.children)freeze(child,animated);};freeze(root,false);}
   root.removeFromParent();
  }

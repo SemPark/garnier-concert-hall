@@ -1,5 +1,5 @@
 import * as T from 'three';
-import {box,cylinder,sphere,line,text,material,C} from './primitives';
+import {box,cylinder,sphere,line,text,material,detailedMaterial,C} from './primitives';
 import {SEATS,BOUNDS,type Zone} from '../../shared/venue';
 import type {Avatar} from '../character/Avatar';
 import {buildOrchestra} from '../orchestra/buildOrchestra';
@@ -37,11 +37,18 @@ function arch(parent:T.Object3D,width:number,height:number,position:number[],rot
  const curve=new T.EllipseCurve(0,height,width/2,width/2,0,Math.PI,false,0),pts=curve.getPoints(20).map(p=>new T.Vector3(p.x,p.y,0));
  g.add(new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts),24,.09,6,false),material(C.goldLight,.3)));return g;
 }
-function seat(parent:T.Object3D,x:number,z:number,interactive=false){
+// Shared curved timber and upholstered geometry: one set for all 456 seats.
+const chairShape=new T.Shape();chairShape.moveTo(-.55,-.4);chairShape.lineTo(.55,-.4);chairShape.lineTo(.55,.23);chairShape.quadraticCurveTo(.55,.48,0,.48);chairShape.quadraticCurveTo(-.55,.48,-.55,.23);chairShape.closePath();
+const chairBack=new T.ExtrudeGeometry(chairShape,{depth:.13,bevelEnabled:true,bevelSize:.035,bevelThickness:.025,bevelSegments:2,curveSegments:10});
+const cushionGeometry=new T.BoxGeometry(1,1,1,1,1,1);
+function seat(parent:T.Object3D,x:number,z:number){
  const g=new T.Group();g.position.set(x,0,z);parent.add(g);
- box(g,[1.1,.16,.95],[0,.49,0],C.redLight);const back=box(g,[1.1,.92,.19],[0,.94,.43],C.red);if(interactive)back.geometry=new T.BoxGeometry(1,1,1);
- for(const side of [-1,1]){box(g,[.08,.55,.07],[side*.49,.27,.3],C.wood);box(g,[.11,.1,.85],[side*.59,.8,.05],C.gold);}
- if(interactive)g.userData.seat=true;return g;
+ const timber=new T.Mesh(chairBack,material(0xa46d35,.15,.45));timber.position.set(0,.96,.39);timber.rotation.x=-.09;timber.userData.fullDetail=true;g.add(timber);
+ const pad=new T.Mesh(chairBack,material(C.red,.05,.85));pad.position.set(0,.96,.355);pad.scale.set(.88,.85,.38);pad.rotation.x=-.09;pad.userData.fullDetail=true;g.add(pad);
+ box(g,[1.12,.12,.98],[0,.41,0],0x9b6530);
+ const cushion=new T.Mesh(cushionGeometry,material(C.redLight,.05,.85));cushion.scale.set(1.05,.18,.89);cushion.position.set(0,.5,-.025);g.add(cushion);
+ for(const side of [-1,1]){for(const zz of [-.32,.33]){const leg=box(g,[.075,.44,.075],[side*.48,.22,zz],0x80522e);leg.rotation.z=side*-.045;}box(g,[.1,.32,.09],[side*.57,.65,.3],0xa46d35);box(g,[.13,.095,.86],[side*.57,.83,0],0xaf7e43);}
+ g.traverse(o=>{if(o instanceof T.Mesh&&!Array.isArray(o.material)){o.material=detailedMaterial(o.material);o.userData.fullDetail=true;}});return g;
 }
 function ceilingPainting(parent:T.Object3D,x:number,z:number,w:number,h:number,y:number){
  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=256;const ctx=canvas.getContext('2d')!;
@@ -85,7 +92,7 @@ export function createVenue(zone:Zone):Venue{
   for(const s of SEATS){const g=seat(scene,s.x,s.z);g.position.y=s.y;g.rotation.y=s.yaw;
    const target=new T.Mesh(hitGeometry,hitMaterial);target.position.set(s.x,s.y+.7,s.z);target.rotation.y=s.yaw;target.userData.seatId=s.id;scene.add(target);seatTargets.push(target);
   }
-  portal=box(scene,[3.2,4.8,.3],[0,2.4,GOLDEN_HALL.rear-.3],C.wood);portal.userData.portal=true;text(scene,'GRAND FOYER',4,[0,5.7,GOLDEN_HALL.rear-.5]).rotation.y=Math.PI;
+  portal=box(scene,[6.75,6.4,.3],[0,3.2,GOLDEN_HALL.rear-.18],C.wood);portal.userData.portal=true;text(scene,'GRAND FOYER',4,[0,7.2,GOLDEN_HALL.rear-1]).rotation.y=Math.PI;
   musicians.push(...buildOrchestra(scene));
  }
  cameraWalls.push(portal);
