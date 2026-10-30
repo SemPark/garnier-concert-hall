@@ -6,7 +6,11 @@ const geometries=new Map<string,T.BufferGeometry>();
 function geometry(key:string,create:()=>T.BufferGeometry){let g=geometries.get(key);if(!g){g=create();geometries.set(key,g);}return g;}
 function tube(g:T.Object3D,points:number[][],radius:number,color=brass){const key=JSON.stringify([points,radius]);const mesh=new T.Mesh(geometry(key,()=>new T.TubeGeometry(new T.CatmullRomCurve3(points.map(p=>new T.Vector3(...p as [number,number,number]))),24,radius,6,false)),material(color,.5));g.add(mesh);return mesh;}
 function bell(g:T.Object3D,r:number,length:number,pos:number[],rotation:number[],color=brass){
- const key=`bell/${r}/${length}`;const mesh=new T.Mesh(geometry(key,()=>new T.LatheGeometry([new T.Vector2(.025,0),new T.Vector2(.035,length*.4),new T.Vector2(r*.55,length*.82),new T.Vector2(r,length)],16)),material(color,.65));mesh.position.set(...pos as [number,number,number]);mesh.rotation.set(...rotation as [number,number,number]);g.add(mesh);return mesh;
+ const key=`bell/${r}/${length}`;const mesh=new T.Mesh(geometry(key,()=>new T.LatheGeometry([new T.Vector2(.025,0),new T.Vector2(.035,length*.4),new T.Vector2(r*.55,length*.82),new T.Vector2(r,length)],16)),material(color,.65));mesh.position.set(...pos as [number,number,number]);mesh.rotation.set(...rotation as [number,number,number]);g.add(mesh);
+ // A rolled rim and dark inner opening make a bell readable from the audience.
+ const rim=new T.Mesh(geometry(`bell-rim/${r}`,()=>new T.TorusGeometry(r,.012,6,28)),material(color,.7));rim.rotation.x=Math.PI/2;rim.position.y=length;mesh.add(rim);
+ const inner=new T.Mesh(geometry(`bell-mouth/${r}`,()=>new T.CircleGeometry(r*.83,28)),material(0x49351a,.15));inner.rotation.x=-Math.PI/2;inner.position.y=length*.91;mesh.add(inner);
+ mesh.userData.instrumentFeature='bell';return mesh;
 }
 function stringBody(g:T.Group,size:number){
  const outline=geometry('string-body',()=>{const s=new T.Shape();s.moveTo(0,-.5);s.bezierCurveTo(-.37,-.5,-.43,-.2,-.2,-.08);s.bezierCurveTo(-.1,0,-.16,.12,-.25,.19);s.bezierCurveTo(-.37,.43,-.17,.5,0,.5);s.bezierCurveTo(.17,.5,.37,.43,.25,.19);s.bezierCurveTo(.16,.12,.1,0,.2,-.08);s.bezierCurveTo(.43,-.2,.37,-.5,0,-.5);return new T.ExtrudeGeometry(s,{depth:.12,bevelEnabled:true,bevelSegments:1,bevelSize:.022,bevelThickness:.015,steps:1,curveSegments:8});});
@@ -35,17 +39,34 @@ export function buildInstrument(type:Instrument,g:T.Group,leftHand:T.Group,right
   else if(type==='english-horn'){sphere(w,.062,[0,-length,0],0x5a4432).scale.y*=1.6;tube(w,[[0,0,0],[0,.07,0],[0,.1,.06]],.015,silver);}
   else bell(w,type==='clarinet'?.067:.043,.13,[0,-length+.02,0],[Math.PI,0,0],ebony);
   for(let i=0;i<8;i++){sphere(w,.019,[r,-.07-i*(length*.085),-.018],silver);line(w,new T.Vector3(r,-.05,-.02),new T.Vector3(r,-length*.9,-.02),.006,silver);}
- }else if(type==='horn'||type==='tuba'){
-  const tuba=type==='tuba',h=new T.Group();g.add(h);h.position.set(0,tuba?.75:.91,-.44);
-  const ring=new T.Mesh(geometry(`horn-ring/${tuba}`,()=>new T.TorusGeometry(tuba?.23:.2,.035,6,24)),material(brass,.65));h.add(ring);
-  tube(h,[[-.08,.08,0],[-.13,-.12,-.035],[.12,-.12,-.035],[.14,.08,-.035],[-.05,.08,-.035]],.026);
-  tube(h,[[0,.19,0],[-.15,.26,0],[-.24,.26,0],[-.24,.2,0]],.02);
-  if(tuba){tube(h,[[.18,-.1,0],[.27,.06,0],[.27,.25,0]],.045);bell(h,.2,.32,[.27,.22,0],[0,0,0]);}else{tube(h,[[.18,-.04,0],[.29,-.05,0],[.32,-.03,-.1]],.04);bell(h,.17,.25,[.32,-.03,-.1],[-Math.PI/2,0,.2]);}
-  for(let i=0;i<3;i++)cylinder(h,.015,.12,[-.06+i*.055,.08,-.06],silver);
+ }else if(type==='horn'){
+  const h=new T.Group();g.add(h);h.position.set(-.02,.89,-.49);h.userData.instrumentFeature='horn-coil';
+  for(const [radius,z]of [[.27,0],[.205,-.055]]){const ring=new T.Mesh(geometry(`french-horn-coil/${radius}`,()=>new T.TorusGeometry(radius,.033,8,32)),material(brass,.7));ring.position.z=z;h.add(ring);}
+  tube(h,[[-.04,.27,0],[-.21,.34,0],[-.29,.31,-.02],[-.27,.22,-.06]],.021);
+  tube(h,[[.23,-.13,0],[.36,-.17,0],[.4,-.11,-.13]],.052);
+  bell(h,.23,.29,[.4,-.11,-.13],[-Math.PI/2,0,.2]);
+  for(let i=0;i<3;i++){cylinder(h,.018,.16,[-.08+i*.065,.08,-.08],silver);sphere(h,.027,[-.08+i*.065,.17,-.08],brass);}
+ }else if(type==='tuba'){
+  const h=new T.Group();g.add(h);h.position.set(-.08,.63,-.5);h.userData.instrumentFeature='tuba-body';
+  // Broad vertical U-bow and a separate upward-facing bell, unlike the round horn.
+  tube(h,[[-.29,.38,0],[-.33,-.12,0],[-.19,-.29,0],[.13,-.29,0],[.28,-.12,0],[.26,.32,0]],.072);
+  tube(h,[[-.14,.25,-.1],[-.17,-.1,-.1],[0,-.19,-.1],[.15,-.07,-.1],[.14,.26,-.1]],.043);
+  tube(h,[[.23,-.09,.015],[.34,.07,.015],[.34,.39,.015]],.066);
+  bell(h,.29,.49,[.34,.35,.015],[0,0,0]);
+  tube(h,[[-.27,.27,0],[-.35,.45,0],[-.18,.53,-.02],[-.08,.47,-.08]],.024);
+  for(let i=0;i<3;i++){cylinder(h,.025,.2,[-.14+i*.09,.22,-.14],brass);sphere(h,.035,[-.14+i*.09,.34,-.14],silver);}
  }else if(type==='trumpet'||type==='trombone'){
-  const trombone=type==='trombone',h=new T.Group();g.add(h);h.position.set(0,1.07,-.41);const length=trombone?.85:.57;
-  tube(h,[[0,0,0],[0,0,-length]],.027);bell(h,trombone?.13:.105,.21,[0,0,-length+.04],[-Math.PI/2,0,0]);
-  if(trombone)tube(h,[[.08,-.07,-.12],[.08,-.07,-.84],[0,-.07,-.91],[-.08,-.07,-.84],[-.08,-.07,-.12]],.018);else{tube(h,[[0,0,-.15],[.1,0,-.2],[.1,-.1,-.4],[0,-.1,-.4],[0,-.1,-.18]],.025);for(let i=0;i<3;i++){cylinder(h,.019,.12,[.02,.025,-.2-i*.065],brass);sphere(h,.027,[.02,.095,-.2-i*.065],silver);}}
+  const trombone=type==='trombone',h=new T.Group();g.add(h);h.position.set(0,1.11,-.42);
+  const length=trombone?.96:.7;h.userData.instrumentFeature=trombone?'trombone-slide':'trumpet-valves';
+  tube(h,[[0,0,0],[0,0,-length]],.032);
+  bell(h,trombone?.18:.145,.27,[0,0,-length+.04],[-Math.PI/2,0,0]);
+  if(trombone){
+   tube(h,[[.13,-.11,-.12],[.13,-.11,-1.1],[0,-.11,-1.2],[-.13,-.11,-1.1],[-.13,-.11,-.12]],.024);
+   for(const z of [-.16,-.73])line(h,new T.Vector3(-.13,-.11,z),new T.Vector3(.13,-.11,z),.018,silver);
+  }else{
+   tube(h,[[0,0,-.13],[.13,0,-.22],[.13,-.14,-.49],[0,-.14,-.49],[0,-.14,-.18]],.031);
+   for(let i=0;i<3;i++){cylinder(h,.024,.17,[.025,.025,-.24-i*.08],brass);sphere(h,.036,[.025,.125,-.24-i*.08],silver);}
+  }
  }else if(type==='harp'){
   const h=new T.Group();h.position.set(-.62,.04,-.55);g.add(h);box(h,[.85,.13,.5],[0,.06,0],brass);line(h,new T.Vector3(-.38,.1,0),new T.Vector3(-.31,1.72,0),.065,brass);line(h,new T.Vector3(.32,.1,0),new T.Vector3(.4,1.37,0),.105,wood);tube(h,[[-.31,1.72,0],[-.12,1.66,0],[.15,1.42,0],[.4,1.37,0]],.07);for(let i=0;i<16;i++)line(h,new T.Vector3(-.28+i*.043,1.65-i*.019,0),new T.Vector3(-.3+i*.04,.18,0),.004,0xf3db99);
  }else if(type==='piano'||type==='celesta'){

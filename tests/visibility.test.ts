@@ -18,3 +18,17 @@ test('all 102 faces remain partly visible above risers, stands and large instrum
   assert.ok(visible>=2,`${a.root.userData.section??'conductor'} / ${a.instrumentType}: face hidden`);
  }
 });
+
+test('all 15 brass instruments are visible from the concert camera, including the back trombones',()=>{
+ const {scene,actors}=orchestra(),eye=new T.Vector3(...CONCERT_CAMERA.eye),ray=new T.Raycaster();
+ const brass=actors.filter(a=>['horn','trumpet','trombone','tuba'].includes(a.instrumentType??''));assert.equal(brass.length,15);
+ for(const a of brass){let visible=0,total=0;const own=new Set<T.Object3D>();a.instrument.traverse(o=>own.add(o));
+  a.instrument.traverse(o=>{if(!(o instanceof T.Mesh))return;const vertices=o.geometry.getAttribute('position');
+   for(let i=0;i<vertices.count;i+=Math.max(1,Math.floor(vertices.count/12))){
+    const target=new T.Vector3().fromBufferAttribute(vertices,i).applyMatrix4(o.matrixWorld),d=target.clone().sub(eye);ray.set(eye,d.clone().normalize());ray.far=d.length()+.01;
+    const hit=ray.intersectObjects(scene.children,true)[0];total++;if(hit&&own.has(hit.object))visible++;
+   }
+  });
+  assert.ok(visible/total>=.25,`${a.instrumentType} at ${a.root.position.x}: brass hidden behind other players`);
+ }
+});
