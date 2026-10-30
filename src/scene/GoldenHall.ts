@@ -94,11 +94,6 @@ export function buildGoldenHall(scene:T.Scene){
    for(const x of [-2.55,2.55]){const figure=new T.Group();figure.position.set(x,.45,.3);figure.scale.set(1,1.21,1);g.add(figure);caryatid(figure);}
    rosette(g,0,5.8,.38,.27);box(g,[5.9,.23,1.4],[0,7.8,.6],P.deep);
    const rail=new T.Group();rail.position.set(0,H.balconyHeight,1);g.add(rail);balustrade(rail,6);
-   for(const x of [-1.8,-.6,.6,1.8]){
-    const chair=new T.Group();chair.position.set(x,H.balconyHeight,.3);g.add(chair);
-    box(chair,[.86,.14,.72],[0,.53,.35],0xe5d7b7);box(chair,[.86,1.1,.13],[0,1.08,.02],P.shadow);box(chair,[.73,.92,.035],[0,1.12,.1],0xe9dfc5);
-    for(const xx of [-.33,.33])for(const z of [.1,.58])box(chair,[.045,.47,.045],[xx,.25,z],P.deep);
-   }
    for(const x of [-2.65,2.65])gildedColumn(g,x,10.1,17,.22);archedWindow(g,15.4);
    cornice(g,6,26.5,.16);box(g,[5.7,.28,.15],[0,12.4,.18],P.gold);rosette(g,0,11.1,.32,.22);
   }

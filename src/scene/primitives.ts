@@ -1,7 +1,7 @@
 import * as T from 'three';
 const cache=new Map<string,T.MeshStandardMaterial>();
 export function material(color:number,metalness=0,roughness=.72){const key=`${color}/${metalness}/${roughness}`;let m=cache.get(key);if(!m){m=new T.MeshStandardMaterial({color,metalness,roughness});cache.set(key,m);}return m;}
-const boxes=new T.BoxGeometry(1,1,1),cylinders=new T.CylinderGeometry(1,1,1,12),spheres=new T.SphereGeometry(1,16,12);
+const boxes=new T.BoxGeometry(1,1,1),cylinders=new T.CylinderGeometry(1,1,1,8),spheres=new T.SphereGeometry(1,8,6);
 export function box(parent:T.Object3D,size:number[],position:number[],color:number,metalness=0){const m=new T.Mesh(boxes,material(color,metalness));m.scale.set(size[0],size[1],size[2]);m.position.set(position[0],position[1],position[2]);m.receiveShadow=true;parent.add(m);return m;}
 export function cylinder(parent:T.Object3D,r:number,h:number,position:number[],color:number){const m=new T.Mesh(cylinders,material(color));m.scale.set(r,h,r);m.position.set(position[0],position[1],position[2]);parent.add(m);return m;}
 export function sphere(parent:T.Object3D,r:number,position:number[],color:number){const m=new T.Mesh(spheres,material(color));m.scale.setScalar(r);m.position.set(position[0],position[1],position[2]);parent.add(m);return m;}

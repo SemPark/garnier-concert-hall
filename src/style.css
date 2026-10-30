@@ -5,3 +5,13 @@
 .settings-info a{color:var(--gold);text-underline-offset:3px}
 
 .framing-toggle{position:absolute;top:102px;right:278px;background:#211b15b8;border:1px solid #c7ad784d;border-radius:25px;padding:11px 17px;font-size:11px}.framing-toggle:hover{background:#463828}@media(max-width:900px){.framing-toggle{top:85px;right:252px}}@media(max-width:540px){.framing-toggle{top:84px;right:232px;font-size:10px;padding:11px 12px}}
+
+/* Dense rows remain selectable without covering the hall with hundreds of controls. */
+.seat-panel{width:360px;max-width:calc(100vw - 34px);max-height:calc(100dvh - 240px);overflow-y:auto}
+.seat-filters{display:flex;gap:10px;margin-top:15px}.seat-filters select{min-width:0;flex:1;background:#322b22;color:#e1cda4;border:1px solid #8d785555;padding:9px;border-radius:4px;font-size:12px}
+.seat-grid{grid-template-columns:repeat(8,minmax(0,1fr));gap:5px}.seat-grid button{padding:9px 1px;gap:4px}.seat-grid button:nth-child(4n+2),.seat-grid button:nth-child(4n+3){margin:0}.seat-grid button:nth-child(8n+4){margin-right:4px}.seat-grid button:nth-child(8n+5){margin-left:4px}
+.music-summary{display:none;align-items:center;gap:8px;width:100%;background:none;color:var(--gold);padding:0;font-size:11px;text-align:left}.music-summary span:first-of-type{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}.compact-music{left:20px;top:94px;bottom:auto;width:230px;max-width:calc(100vw - 40px);padding:11px 13px;border:1px solid #d5ba8040;border-radius:24px;background:#201b16b8}.compact-music .music-summary{display:flex}.compact-music .music-details{display:none}
+.now-playing:has(.music-summary[aria-expanded=true]) .music-summary{display:flex;margin-bottom:12px}
+@media(max-width:900px){.compact-music{top:135px;bottom:auto;left:18px;width:210px}.now-playing:not(.compact-music){max-height:200px}.seat-panel{top:133px}}
+@media(max-width:540px){.compact-music{width:200px;top:135px;bottom:auto;padding:10px 12px}.music-summary{font-size:10px}.seat-grid button{padding:9px 1px}.seat-panel{width:calc(100vw - 34px)}}
+.seat-panel{z-index:5}.toast{z-index:6}

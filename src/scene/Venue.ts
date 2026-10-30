@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {box,cylinder,sphere,line,text,material,C} from './primitives';
-import {SEATS,DECORATIVE_SEATS,BOUNDS,type Zone} from '../../shared/venue';
+import {SEATS,BOUNDS,type Zone} from '../../shared/venue';
 import type {Avatar} from '../character/Avatar';
 import {buildOrchestra} from '../orchestra/buildOrchestra';
 import {GOLDEN_HALL} from '../../shared/goldenHall';
@@ -78,13 +78,14 @@ export function createVenue(zone:Zone):Venue{
   const rug=box(scene,[3.4,.012,9],[0,.025,-11.8],C.red);rug.receiveShadow=true;
  }else{
   cameraWalls.push(...buildGoldenHall(scene).cameraWalls);
-  for(const s of SEATS){const g=seat(scene,s.x,s.z,true);g.userData.seatId=s.id;g.traverse(o=>o.userData.seatId=s.id);seatTargets.push(g);
-   const light=new T.Mesh(new T.RingGeometry(.17,.23,24),new T.MeshBasicMaterial({color:C.goldLight,transparent:true,opacity:.8,depthWrite:false}));light.rotation.x=-Math.PI/2;light.position.set(s.x,.02,s.z+1.05);scene.add(light);seatLights.set(s.id,light);
+  const hitGeometry=new T.BoxGeometry(1.2,1.5,1.15),hitMaterial=new T.MeshBasicMaterial({visible:false});
+  for(const s of SEATS){const g=seat(scene,s.x,s.z);g.position.y=s.y;g.rotation.y=s.yaw;
+   const target=new T.Mesh(hitGeometry,hitMaterial);target.position.set(s.x,s.y+.7,s.z);target.rotation.y=s.yaw;target.userData.seatId=s.id;scene.add(target);seatTargets.push(target);
   }
-  for(const s of DECORATIVE_SEATS)seat(scene,s.x,s.z).scale.setScalar(.94);
   portal=box(scene,[3.2,4.8,.3],[0,2.4,GOLDEN_HALL.rear-.3],C.wood);portal.userData.portal=true;text(scene,'GRAND FOYER',4,[0,5.7,GOLDEN_HALL.rear-.5]).rotation.y=Math.PI;
   musicians.push(...buildOrchestra(scene));
  }
+ cameraWalls.push(portal);
  batchArchitecture(scene,[floor,portal,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
  const updateMusicians=batchCharacters(scene,musicians.map(a=>a.root));updateMusicians();
  return {scene,floor,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians};

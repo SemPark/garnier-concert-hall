@@ -78,8 +78,8 @@ export class VenueRoom extends DurableObject<Env>{
    this.send(ws,{type:'seatResult',ok:true,seatId:seat.id,requestId:msg.requestId});
   }else if(msg.type==='seated'){
    const seat=SEATS.find(s=>s.id===msg.seatId),claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE seatId=? AND visitorId=?',msg.seatId,v.id).toArray()[0];
-   if(!seat||!claim||v.zone!=='auditorium'||distance(v,seat.approach)>1.7){this.send(ws,{type:'error',message:'좌석 가까이로 이동해 주세요.'});return;}
-   this.ctx.storage.sql.exec("UPDATE claims SET status='seated',expiresAt=NULL WHERE seatId=?",seat.id);Object.assign(v,{x:seat.x,z:seat.z,yaw:0,pose:'sit',seatId:seat.id});
+   if(!seat||!claim||v.zone!=='auditorium'||(seat.level==='parterre'&&distance(v,seat.approach)>1.7)){this.send(ws,{type:'error',message:'좌석 가까이로 이동해 주세요.'});return;}
+   this.ctx.storage.sql.exec("UPDATE claims SET status='seated',expiresAt=NULL WHERE seatId=?",seat.id);Object.assign(v,{x:seat.x,z:seat.z,yaw:seat.yaw,pose:'sit',seatId:seat.id});
   }else if(msg.type==='release'){
    if(msg.requestId&&msg.requestId!==a.reservationRequest)return;
    const seat=SEATS.find(s=>s.id===v.seatId);this.release(v.id);if(v.pose==='sit'&&seat)Object.assign(v,seat.approach);v.seatId=null;v.pose='idle';

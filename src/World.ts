@@ -20,15 +20,17 @@ export class World{
  private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private route:Point[]=[];private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
  private seatedTarget:T.Vector3|null=null;
  private ray=new T.Raycaster();private ndc=new T.Vector2();private frame=0;private last=performance.now();private sentAt=0;private lastPose='';private renewAt=0;private lastUI=0;private look=new T.Vector3();private gesture:'wave'|'clap'|null=null;private gestureAt=0;
+ private orchestraAt=0;private quality='balanced';private slowFrames=0;
  private marker:T.Mesh;private statsTime=0;private frames=0;private reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
  constructor(host:HTMLElement,private net:Presence,private audio:ConcertAudio){
-  this.renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.18;this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFShadowMap;
+  this.renderer=new T.WebGLRenderer({antialias:false,powerPreference:'high-performance'});this.renderer.setPixelRatio(Math.min(devicePixelRatio,1));this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.18;this.renderer.shadowMap.enabled=false;this.renderer.shadowMap.type=T.PCFShadowMap;
   const canvas=this.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','캐릭터 뒤에서 둘러보는 가르니에 음악당. 바닥 클릭으로 이동하고 드래그로 둘러봅니다.');host.append(canvas);
   this.venues={lobby:createVenue('lobby'),auditorium:createVenue('auditorium')};
   this.marker=new T.Mesh(new T.RingGeometry(.16,.24,24),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.8,depthWrite:false}));this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.venues.lobby.scene.add(this.marker);
   this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>{this.cameraYaw-=dx*.0034;if(this.zone==='auditorium'&&this.concertView)this.cameraYaw=T.MathUtils.clamp(this.cameraYaw,-.5,.5);this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0022,-.15,.5);},zoom:f=>{this.cameraDistance=T.MathUtils.clamp(this.cameraDistance*f,2.2,13);},escape:()=>this.stand()});
   window.addEventListener('resize',this.resize);canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.onToast('화면 연결이 끊겼어요. 새로고침해 주세요.');});this.resize();this.snapCamera();this.animate();
  }
+ setQuality(quality:string){this.quality=quality;this.renderer.setPixelRatio(Math.min(devicePixelRatio,quality==='low'?.8:1));}
  get venue(){return this.venues[this.zone];}
  toggleFraming(){this.hallOverview=!this.hallOverview;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.onChange();}
  toggleConcertView(){this.concertView=!this.concertView;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.onChange();}
@@ -37,8 +39,8 @@ export class World{
   const self=state.visitors.find(v=>v.id===this.net.selfId);if(self){const initial=!this.self,changedZone=this.zone!==self.zone,stood=this.pose==='sit'&&self.pose!=='sit';this.self=self;
    if(!this.avatar){this.avatar=new Avatar(self.color,undefined,parseInt(self.id.slice(0,2),16)||0);this.venue.scene.add(this.avatar.root);}
    if(initial||changedZone||stood||self.pose==='sit'){
-    if(self.pose==='sit'&&!initial&&!changedZone)this.seatedTarget=new T.Vector3(self.x,0,self.z);
-    else{this.position.set(self.x,0,self.z);this.seatedTarget=null;}
+    if(self.pose==='sit'&&!initial&&!changedZone)this.seatedTarget=new T.Vector3(self.x,SEATS.find(s=>s.id===self.seatId)?.y??0,self.z);
+    else{this.position.set(self.x,self.pose==='sit'?(SEATS.find(s=>s.id===self.seatId)?.y??0):0,self.z);this.seatedTarget=null;}
     this.yaw=self.yaw;this.pose=self.pose;
     if(initial||changedZone){this.zone=self.zone;this.avatar.root.removeFromParent();this.venue.scene.add(this.avatar.root);this.marker.removeFromParent();this.venue.scene.add(this.marker);this.route=[];this.marker.visible=false;this.reservedSeat=null;this.cameraYaw=0;this.audio.setZone(this.zone);this.snapCamera();}
     if(self.pose==='sit'){this.route=[];this.seating=false;this.marker.visible=false;}
@@ -57,9 +59,9 @@ export class World{
  async chooseSeat(id:string){
   if(this.zone!=='auditorium'||!this.entered)return;const seat=SEATS.find(s=>s.id===id);if(!seat)return;
   if(this.pose==='sit'){this.stand();this.onToast('일어난 뒤 좌석을 선택해 주세요.');return;}
-  const path=findPath(this.zone,{x:this.position.x,z:this.position.z},seat.approach);if(!path){this.onToast('이 좌석으로 가는 길을 찾지 못했어요.');return;}
+  const path=seat.level==='balcony'?[]:findPath(this.zone,{x:this.position.x,z:this.position.z},seat.approach);if(!path){this.onToast('이 좌석으로 가는 길을 찾지 못했어요.');return;}
   this.cancelSeat();const version=++this.reserveVersion,requestId=crypto.randomUUID();const ok=await this.net.reserve(id,requestId);if(version!==this.reserveVersion){this.net.send({type:'release',requestId});return;}
-  if(!ok){this.net.send({type:'release',requestId});return;}this.reservedSeat=id;this.seating=false;this.route=path;this.renewAt=performance.now();this.marker.visible=true;this.marker.position.set(seat.approach.x,.035,seat.approach.z);this.onToast('선택한 좌석으로 이동합니다.');
+  if(!ok){this.net.send({type:'release',requestId});return;}this.reservedSeat=id;if(seat.level==='balcony'){this.net.send({type:'seated',seatId:id});this.concertView=false;this.cameraYaw=seat.yaw;this.snapCamera();this.onToast('발코니 좌석으로 이동했어요.');return;}this.seating=false;this.route=path;this.renewAt=performance.now();this.marker.visible=true;this.marker.position.set(seat.approach.x,.035,seat.approach.z);this.onToast('선택한 좌석으로 이동합니다.');
  }
  stand(){this.seatedTarget=null;if(this.pose==='sit'||this.reservedSeat){const seat=SEATS.find(s=>s.id===(this.self?.seatId??this.reservedSeat));this.net.send({type:'release'});if(this.pose==='sit'&&seat)this.position.set(seat.approach.x,0,seat.approach.z);this.pose='idle';}this.cancelSeat();this.route=[];this.onChange();}
  private cancelSeat(){this.reserveVersion++;if(this.reservedSeat)this.net.send({type:'release'});this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
@@ -74,7 +76,9 @@ export class World{
  private sendPosition(now:number,force=false){if(!this.entered||!this.self||this.pose==='sit')return;if(force||now-this.sentAt>300||this.lastPose!==this.pose){this.sentAt=now;this.lastPose=this.pose;this.net.send({type:'move',x:this.position.x,z:this.position.z,yaw:this.yaw,pose:this.pose});}}
  private snapCamera(){const f=this.cameraFrame();this.look.copy(f.look);this.camera.position.copy(f.position);this.camera.lookAt(this.look);}
  private cameraFrame(){
-  const sitting=this.pose==='sit',baseY=sitting?2.05:1.05,look=new T.Vector3(this.position.x,baseY,this.position.z-1.5),d=this.cameraDistance;
+  const sitting=this.pose==='sit',baseY=(sitting?2.05:1.05)+this.position.y,look=new T.Vector3(this.position.x,baseY,this.position.z-1.5),d=this.cameraDistance;
+  const gallerySeat=sitting?SEATS.find(s=>s.id===this.self?.seatId&&s.level==='balcony'):undefined;
+  if(gallerySeat){return {look:new T.Vector3(0,3,-19),position:new T.Vector3(Math.sign(gallerySeat.x)*13.2,gallerySeat.y+3,gallerySeat.z+2)};}
   if(!this.entered){return {look:new T.Vector3(0,5,-8),position:new T.Vector3(3.7,4.2,13.5)};}
   if(this.zone==='auditorium'&&this.concertView){
    const preset=this.hallOverview?HALL_CAMERA:CONCERT_CAMERA,center=new T.Vector3(...preset.look),offset=new T.Vector3(...preset.eye).sub(center);
@@ -84,6 +88,7 @@ export class World{
    return {look:center,position};
   }
   const target=new T.Vector3(this.position.x,baseY+.6+this.cameraPitch*4,this.position.z);target.x+=Math.sin(this.cameraYaw)*d;target.z+=Math.cos(this.cameraYaw)*d;look.x-=Math.sin(this.cameraYaw)*2;look.z=this.position.z-Math.cos(this.cameraYaw)*2;
+  if(this.zone==='auditorium'){target.z=Math.min(target.z,GOLDEN_HALL.rear-1);target.x=T.MathUtils.clamp(target.x,-13.8,13.8);}
   const origin=new T.Vector3(this.position.x,baseY,this.position.z),dir=target.clone().sub(origin),length=dir.length();this.ray.set(origin,dir.normalize());const hit=this.ray.intersectObjects(this.venue.cameraWalls,false)[0];if(hit&&hit.distance<length)target.copy(origin).addScaledVector(dir,Math.max(.6,hit.distance-.3));return {look,position:target};
  }
  private animate=()=>{
@@ -104,13 +109,14 @@ export class World{
    if(this.zone==='lobby'&&this.position.z<-15.6&&Math.abs(this.position.x)<2)this.changeZone();
   }
   if(this.pose==='sit'&&this.seatedTarget)this.position.lerp(this.seatedTarget,1-Math.exp(-dt*12));
-  if(this.avatar){this.avatar.root.position.copy(this.position);this.avatar.root.position.y=0;this.avatar.root.rotation.y=this.yaw;this.avatar.update(this.net.now()/1000,speed,this.pose==='sit',false,this.gesture,(this.net.now()-this.gestureAt)/1000,dt);this.avatar.root.visible=this.entered;}
+  if(this.avatar){this.avatar.root.position.copy(this.position);this.avatar.root.rotation.y=this.yaw;this.avatar.update(this.net.now()/1000,speed,this.pose==='sit',false,this.gesture,(this.net.now()-this.gestureAt)/1000,dt);this.avatar.root.visible=this.entered;}
   for(const r of this.remotes.values()){
-   const v=r.visitor;r.avatar.root.visible=v.zone===this.zone;const target=new T.Vector3(v.x,0,v.z);r.avatar.root.position.lerp(target,1-Math.exp(-dt*9));const dy=T.MathUtils.euclideanModulo(v.yaw-r.avatar.root.rotation.y+Math.PI,Math.PI*2)-Math.PI;r.avatar.root.rotation.y+=dy*(1-Math.exp(-dt*9));r.avatar.update(this.net.now()/1000,v.pose==='walk'?2.6:0,v.pose==='sit',false,v.gesture,(this.net.now()-v.gestureAt)/1000,dt);
+   const v=r.visitor;r.avatar.root.visible=v.zone===this.zone;const target=new T.Vector3(v.x,v.pose==='sit'?(SEATS.find(s=>s.id===v.seatId)?.y??0):0,v.z);r.avatar.root.position.lerp(target,1-Math.exp(-dt*9));const dy=T.MathUtils.euclideanModulo(v.yaw-r.avatar.root.rotation.y+Math.PI,Math.PI*2)-Math.PI;r.avatar.root.rotation.y+=dy*(1-Math.exp(-dt*9));r.avatar.update(this.net.now()/1000,v.pose==='walk'?2.6:0,v.pose==='sit',false,v.gesture,(this.net.now()-v.gestureAt)/1000,dt);
   }
-  const playback=this.audio.playback;for(const a of this.venue.musicians)a.update(this.reduced?0:this.net.now()/1000,0,musicianSits(a.instrumentType),playback.playing&&!this.reduced,null,10,dt);this.venue.updateMusicians();
+  const playback=this.audio.playback;if(now-this.orchestraAt>=50){const animationDt=Math.min(.1,(now-this.orchestraAt)/1000);this.orchestraAt=now;for(const a of this.venue.musicians)a.update(this.reduced?0:this.net.now()/1000,0,musicianSits(a.instrumentType),playback.playing&&!this.reduced,null,10,animationDt);this.venue.updateMusicians();}
   this.audio.tick(dt);const f=this.cameraFrame(),smooth=1-Math.exp(-dt*7);this.camera.position.lerp(f.position,smooth);this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);for(const object of this.venue.overviewHidden)object.visible=!this.concertView;this.renderer.render(this.venue.scene,this.camera);
-  if(now-this.lastUI>250){this.lastUI=now;this.onChange();}
+  if(this.quality==='balanced'&&dt>.035){if(++this.slowFrames>75){this.renderer.setPixelRatio(Math.min(devicePixelRatio,.85));this.slowFrames=-100000;}}
+  if(now-this.lastUI>500){this.lastUI=now;this.onChange();}
  };
  destroy(){cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.renderer.dispose();this.renderer.domElement.remove();}
 }
