@@ -2,7 +2,7 @@ import * as T from 'three';
 import {box,cylinder,sphere,line,text,material} from './primitives';
 import {GOLDEN_HALL as H} from '../../shared/goldenHall';
 import {STAGE} from '../orchestra/layout';
-import {GALLERY_FLOORS,galleryRailSpans} from '../../shared/gallery';
+import {GALLERY_FLOORS,GALLERY_RAIL_HEIGHT,galleryRailSpans} from '../../shared/gallery';
 const P={ivory:0xe8d6ac,gold:0xc69b49,light:0xe7c77a,deep:0x8e622a,wood:0x945d30,red:0x6f2830,shadow:0x49351e,glass:0xc5d4ce};
 const cylinderCache=new Map<string,T.BufferGeometry>();
 function profile(top:number,bottom:number,height:number){const key=`${top}/${bottom}/${height}`;let g=cylinderCache.get(key);if(!g){g=new T.CylinderGeometry(top,bottom,height,12);cylinderCache.set(key,g);}return g;}
@@ -35,6 +35,7 @@ function archedWindow(g:T.Object3D,y:number,blind=false){
  for(const yy of [1.9,3.8,5.1])box(g,[2.2,.07,.06],[0,y+yy,.2],P.gold);
 }
 function balustrade(g:T.Object3D,width:number){
+ g.scale.y=GALLERY_RAIL_HEIGHT/1.58;
  box(g,[width,.28,.4],[0,0,.32],P.gold);box(g,[width,.11,.5],[0,.25,.32],P.light);box(g,[width,.2,.32],[0,1.48,.55],P.light);box(g,[width,1.05,.14],[0,.85,.46],P.ivory);
  for(let x=-width/2+.22;x<width/2;x+=.46){const ring=new T.Mesh(geometryRing,material(P.gold,.35));ring.position.set(x,.85,.57);ring.scale.set(.14,.36,1);g.add(ring);box(g,[.035,1,.09],[x+.2,.84,.56],P.light);}
  for(const x of [-width/2+.08,width/2-.08]){box(g,[.19,1.4,.5],[x,.8,.5],P.gold);rosette(g,x,.9,.78,.1);}

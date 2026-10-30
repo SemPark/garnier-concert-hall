@@ -1,5 +1,7 @@
 import {GOLDEN_HALL as H} from './goldenHall';
 export const STAIR={bottomX:2,topX:13.5,z:49,width:2,steps:48,height:H.balconyHeight};
+// Standing avatars are about 1.63 units tall.
+export const GALLERY_RAIL_HEIGHT=.8;
 export type FloorRect={minX:number;maxX:number;minZ:number;maxZ:number};
 export const GALLERY_BRIDGE={minX:-12.5,maxX:12.5,minZ:44.9,maxZ:47.1};
 /** Disjoint slabs: a stairwell cutout at each end, plus a flush rear bridge. */
