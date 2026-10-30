@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {SEATS,SPAWN,walkable} from '../shared/venue';import {findPath,segmentClear} from '../src/navigation/path';
+test('every selectable seat is reachable from the entrance without passing through a chair',()=>{for(const seat of SEATS){const path=findPath('auditorium',SPAWN.auditorium,seat.approach);assert.ok(path,seat.id);let previous=SPAWN.auditorium;for(const step of path){assert.ok(segmentClear('auditorium',previous,step),seat.id);previous=step;}assert.deepEqual(path.at(-1),seat.approach);}});
+test('chair centers and the stage are not walking targets',()=>{for(const s of SEATS)assert.equal(walkable('auditorium',s),false);assert.equal(findPath('auditorium',SPAWN.auditorium,{x:0,z:-16}),null);});
+test('routes around a foyer column do not cut its corners',()=>{const start={x:-5.4,z:7},end={x:-5.4,z:15},path=findPath('lobby',start,end);assert.ok(path);assert.equal(segmentClear('lobby',start,end),false);let previous=start;for(const p of path){assert.ok(segmentClear('lobby',previous,p));previous=p;}});

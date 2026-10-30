@@ -1,0 +1,20 @@
+{
+  "version": "figaro-1",
+  "epochMs": 1793327798000,
+  "tracks": [
+    {
+      "id": "mozart-figaro-overture",
+      "title": "피가로의 결혼 — 서곡",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-figaro-overture.mp3",
+      "durationSeconds": 239.938292,
+      "gapAfterSeconds": 8,
+      "credit": {
+        "sourceName": "Wikimedia Commons / Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart,_The_Marriage_of_Figaro_(overture).ogg",
+        "licenseName": "CC0 1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
+      }
+    }
+  ]
+}
