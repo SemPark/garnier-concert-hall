@@ -22,6 +22,7 @@ export class World{
  private seatedTarget:T.Vector3|null=null;
  private ray=new T.Raycaster();private ndc=new T.Vector2();private frame=0;private last=performance.now();private sentAt=0;private lastPose='';private renewAt=0;private lastUI=0;private look=new T.Vector3();private gesture:'wave'|'clap'|null=null;private gestureAt=0;
  private disposed=false;private lodAt=0;private orchestraAt=0;quality:RenderQuality='balanced';readonly mobile=matchMedia('(pointer: coarse)').matches||/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);private renderedAt=0;
+ diagnosticActive=false;diagnosticMode:'normal'|'no-draw'|'audio-only'='normal';drawCount=0;frameCost={at:0,cpu:0,submit:0};
  private marker:T.Mesh;private statsTime=0;private frames=0;private reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
  constructor(host:HTMLElement,private net:Presence,private audio:ConcertAudio){
   try{const saved=localStorage.getItem('concert-quality');if(saved==='balanced'||saved==='sharp'||saved==='low')this.quality=saved;}catch{/* Storage can be unavailable in private browsing. */}
@@ -100,6 +101,8 @@ export class World{
  }
  private animate=()=>{
   this.frame=requestAnimationFrame(this.animate);const now=performance.now(),interval=1000/frameRate(this.mobile,this.quality);if(now-this.renderedAt<interval)return;this.renderedAt=interval?now-((now-this.renderedAt)%interval):now;const elapsed=(now-this.last)/1000,dt=Math.min(.1,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
+  const workStart=this.diagnosticActive?performance.now():0;
+  if(this.diagnosticActive&&this.diagnosticMode==='audio-only'){this.frameCost={at:now,cpu:0,submit:0};if(now-this.lastUI>500){this.lastUI=now;this.onChange();}return;}
   let speed=0;const keys=this.input.keys,kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'));
   if(this.entered&&this.net.status==='connected'){
    if((kx||kz)&&this.pose==='sit')this.stand();
@@ -122,7 +125,7 @@ export class World{
    const v=r.visitor;r.avatar.root.visible=v.zone===this.zone;const target=new T.Vector3(v.x,v.y??(v.pose==='sit'?(SEATS.find(s=>s.id===v.seatId)?.y??0):0),v.z);r.avatar.root.position.lerp(target,1-Math.exp(-dt*9));const dy=T.MathUtils.euclideanModulo(v.yaw-r.avatar.root.rotation.y+Math.PI,Math.PI*2)-Math.PI;r.avatar.root.rotation.y+=dy*(1-Math.exp(-dt*9));r.avatar.update(this.net.now()/1000,v.pose==='walk'?2.6:0,v.pose==='sit',false,v.gesture,(this.net.now()-v.gestureAt)/1000,dt);
   }
   const playback=this.audio.playback;if(now-this.orchestraAt>=1000/30){const animationDt=Math.min(.15,(now-this.orchestraAt)/1000);this.orchestraAt=now-((now-this.orchestraAt)%(1000/30));for(const actor of this.venue.musicians)actor.update(this.reduced?0:this.net.now()/1000,0,musicianSits(actor.instrumentType),playback.playing&&!this.reduced,null,10,animationDt);this.venue.updateMusicians(this.camera);}
-  this.audio.tick(dt);const f=this.cameraFrame(),smooth=1-Math.exp(-dt*7);this.camera.position.lerp(f.position,smooth);this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;this.renderer.render(this.venue.scene,this.camera);
+  const f=this.cameraFrame(),smooth=1-Math.exp(-dt*7);this.camera.position.lerp(f.position,smooth);this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;const submitStart=this.diagnosticActive?performance.now():0;if(!this.diagnosticActive||this.diagnosticMode==='normal'){this.renderer.render(this.venue.scene,this.camera);this.drawCount++;}if(this.diagnosticActive){const end=performance.now();this.frameCost={at:now,cpu:end-workStart,submit:end-submitStart};}
   if(now-this.lastUI>500){this.lastUI=now;this.onChange();}
  };
  destroy(){this.disposed=true;cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.renderer.dispose();this.renderer.domElement.remove();}
