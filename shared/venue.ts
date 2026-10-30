@@ -1,11 +1,12 @@
 import {GOLDEN_HALL as H} from './goldenHall';
+import {STAIR,hasGalleryFloor} from './gallery';
+export {STAIR} from './gallery';
 export type Zone='lobby'|'auditorium';
 export type Point={x:number;z:number;y?:number};
 export type Pose='idle'|'walk'|'sit';
 export type Visitor={id:string;name:string;color:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;gesture:'wave'|'clap'|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
 export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
-export const STAIR={bottomX:2,topX:13.5,z:49,width:2,steps:48,height:H.balconyHeight};
 export const SEAT_COLUMNS=[-12.3,-10.8,-9.3,-7.8,-6.3,-4.8,-3.3,-1.8,1.8,3.3,4.8,6.3,7.8,9.3,10.8,12.3];
 export const FLOOR_SEATS:Seat[]=Array.from({length:22},(_,row)=>SEAT_COLUMNS.map((x,column)=>({id:`parterre-${row*16+column+1}`,x,z:-1+row*2.1,approach:{x,y:0,z:-2.05+row*2.1},row:row+1,column:column+1,level:'parterre' as const,y:0,yaw:0}))).flat();
 export const BALCONY_SEATS:Seat[]=[-1,1].flatMap(side=>H.bayCenters.flatMap((z,row)=>[-1.8,-.6,.6,1.8].map((offset,column)=>({id:`balcony-${side<0?'left':'right'}-${row*4+column+1}`,x:side*15,z:z-side*offset,approach:{x:side*13.95,y:H.balconyHeight,z:z-side*offset},row:row+1,column:column+1+(side>0?4:0),level:'balcony' as const,y:H.balconyHeight,yaw:side<0?-Math.PI/2:Math.PI/2}))));
@@ -18,7 +19,7 @@ export const PALETTE=[0xc09a61,0x8c9c92,0x9c7181,0x71899c,0xc0ab87,0x9180a3];
 export function stairPoint(side:number,upper:boolean):Point{return {x:side*(upper?STAIR.topX:STAIR.bottomX),y:upper?STAIR.height:0,z:STAIR.z};}
 export function onStair(p:Point,padding=0){return Math.abs(p.x)>=STAIR.bottomX-padding&&Math.abs(p.x)<=STAIR.topX+padding&&Math.abs(p.z-STAIR.z)<=STAIR.width/2-padding;}
 export function stairHeight(x:number){return Math.max(0,Math.min(STAIR.height,(Math.abs(x)-STAIR.bottomX)/(STAIR.topX-STAIR.bottomX)*STAIR.height));}
-export function inGallery(p:Point,padding=.27){const side=Math.abs(p.x)>=12.9+padding&&Math.abs(p.x)<=15.9-padding&&p.z>=-26.5+padding&&p.z<=50.3-padding;const rear=Math.abs(p.x)<=15.9-padding&&p.z>=44.9+padding&&p.z<=47.1-padding;return side||rear;}
+export function inGallery(p:Point,padding=.27){const side=Math.abs(p.x)>=12.9+padding&&Math.abs(p.x)<=15.9-padding&&p.z>=-26.5+padding&&p.z<=50.3-padding;const rear=Math.abs(p.x)<=15.9-padding&&p.z>=44.9+padding&&p.z<=47.1-padding;return (side||rear)&&hasGalleryFloor(p.x,p.z);}
 /** Pick the surface contiguous with the visitor, never jump to another floor. */
 export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  if(!Number.isFinite(p.x)||!Number.isFinite(p.z)||!Number.isFinite(fromY))return null;

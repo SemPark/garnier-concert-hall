@@ -2,6 +2,7 @@ import * as T from 'three';
 import {createVenue,type Venue} from './scene/Venue';
 import {Avatar,musicianSits} from './character/Avatar';
 import {Input} from './controls/Input';
+import {galleryCameraFrame} from './controls/galleryCamera';
 import {findPath,segmentClear} from './navigation/path';
 import {SPAWN,SEATS,BOUNDS,walkable,distance,surfaceHeight,stairPoint,type Visitor,type Zone,type Point} from '../shared/venue';
 import type {Snapshot} from '../shared/protocol';
@@ -86,7 +87,7 @@ export class World{
  private cameraFrame(){
   const sitting=this.pose==='sit',baseY=(sitting?2.05:1.05)+this.position.y,look=new T.Vector3(this.position.x,baseY,this.position.z-1.5),d=this.cameraDistance;
   const gallerySeat=sitting?SEATS.find(s=>s.id===this.self?.seatId&&s.level==='balcony'):undefined;
-  if(gallerySeat){return {look:new T.Vector3(0,3,-19),position:new T.Vector3(Math.sign(gallerySeat.x)*13.2,gallerySeat.y+3,gallerySeat.z+2)};}
+  if(gallerySeat&&!this.concertView)return galleryCameraFrame(gallerySeat,this.cameraYaw,this.cameraPitch,this.cameraDistance);
   if(!this.entered){return {look:new T.Vector3(0,5,-8),position:new T.Vector3(3.7,4.2,13.5)};}
   if(this.zone==='auditorium'&&this.concertView){
    const preset=this.hallOverview?HALL_CAMERA:CONCERT_CAMERA,center=new T.Vector3(...preset.look),offset=new T.Vector3(...preset.eye).sub(center);

@@ -1,6 +1,7 @@
 import * as T from 'three';
 import {STAIR} from '../../shared/venue';
 import {GOLDEN_HALL as H} from '../../shared/goldenHall';
+import {GALLERY_FLOORS} from '../../shared/gallery';
 import {box,cylinder,line,text,C} from './primitives';
 /** Two real stair flights connect the rear aisle to both side galleries. */
 export function buildStairs(scene:T.Scene){
@@ -17,7 +18,7 @@ export function buildStairs(scene:T.Scene){
   text(scene,'2F / BALCONY',2.8,[side*7.5,1.7,STAIR.z-1.07]).rotation.y=Math.PI;
  }
  // The rear connecting gallery is offset from the stairs so it does not cap their headroom.
- const rear=box(scene,[31.8,.25,2.2],[0,H.balconyHeight-.125,46],0x805a34);surfaces.push(rear);
+ for(const r of GALLERY_FLOORS){const target=new T.Mesh(new T.BoxGeometry(r.maxX-r.minX,.01,r.maxZ-r.minZ),new T.MeshBasicMaterial({visible:false}));target.position.set((r.minX+r.maxX)/2,H.balconyHeight-.005,(r.minZ+r.maxZ)/2);scene.add(target);surfaces.push(target);}
  for(const z of [44.85,47.15]){box(scene,[25.2,1.05,.08],[0,H.balconyHeight+.55,z],C.gold);box(scene,[25.2,.09,.16],[0,H.balconyHeight+1.12,z],C.goldLight);}
  return {surfaces,collision};
 }
