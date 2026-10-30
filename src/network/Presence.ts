@@ -1,6 +1,9 @@
+import {LocalConcert} from './LocalConcert';
 import type {ClientMessage,ServerMessage,Snapshot} from '../../shared/protocol';
 
 export class Presence{
+ readonly local=import.meta.env.VITE_STATIC_PREVIEW==='true';
+ private preview:LocalConcert|null=null;
  selfId='';state:Snapshot|null=null;status:'connecting'|'connected'|'offline'='offline';
  onState:(state:Snapshot)=>void=()=>{};onStatus:()=>void=()=>{};onError:(message:string)=>void=()=>{};
  private socket:WebSocket|null=null;private retry=0;private stopped=false;private timer=0;private heartbeat=0;
@@ -8,6 +11,7 @@ export class Presence{
  private requests=new Map<string,{resolve:(ok:boolean)=>void;timer:number}>();
  now=()=>this.origin+performance.now()+this.offset;
  connect(){
+  if(this.local){this.preview=new LocalConcert();this.selfId=this.preview.visitor.id;this.status='connected';this.accept(this.preview.snapshot());this.onStatus();return;}
   this.stopped=false;this.status='connecting';this.onStatus();
   const url=new URL('/api/presence',location.href);url.protocol=location.protocol==='https:'?'wss:':'ws:';
   const token=sessionStorage.getItem('garnier-resume'),room=sessionStorage.getItem('garnier-room');if(token&&room){url.searchParams.set('resume',token);url.searchParams.set('room',room);}
@@ -30,7 +34,7 @@ export class Presence{
  }
  private accept(state:Snapshot){this.state=state;this.onState(state);}
  private ping(){this.bestRTT=Infinity;for(let i=0;i<3;i++)window.setTimeout(()=>this.send({type:'clock',sentAt:performance.now()}),i*150);}
- send(msg:ClientMessage){if(this.socket?.readyState===WebSocket.OPEN&&this.status==='connected'){this.socket.send(JSON.stringify(msg));return true;}return false;}
- reserve(seatId:string,requestId=crypto.randomUUID()){if(this.status!=='connected')return Promise.resolve(false);return new Promise<boolean>(resolve=>{const timer=window.setTimeout(()=>{this.requests.delete(requestId);resolve(false);},6000);this.requests.set(requestId,{resolve,timer});this.send({type:'reserve',seatId,requestId});});}
+ send(msg:ClientMessage){if(this.preview){const ok=this.preview.send(msg);this.accept(this.preview.snapshot());return ok;}if(this.socket?.readyState===WebSocket.OPEN&&this.status==='connected'){this.socket.send(JSON.stringify(msg));return true;}return false;}
+ reserve(seatId:string,requestId=crypto.randomUUID()){if(this.preview){const ok=this.preview.send({type:'reserve',seatId,requestId});this.accept(this.preview.snapshot());return Promise.resolve(ok);}if(this.status!=='connected')return Promise.resolve(false);return new Promise<boolean>(resolve=>{const timer=window.setTimeout(()=>{this.requests.delete(requestId);resolve(false);},6000);this.requests.set(requestId,{resolve,timer});this.send({type:'reserve',seatId,requestId});});}
  destroy(){this.stopped=true;clearTimeout(this.timer);clearInterval(this.heartbeat);this.socket?.close();}
 }
