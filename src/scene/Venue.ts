@@ -47,7 +47,7 @@ function ceilingPainting(parent:T.Object3D,x:number,z:number,w:number,h:number,y
  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=256;const ctx=canvas.getContext('2d')!;
  const gr=ctx.createRadialGradient(260,120,10,260,120,280);gr.addColorStop(0,'#d9c9a9');gr.addColorStop(.6,'#9e9d87');gr.addColorStop(1,'#746f5b');ctx.fillStyle=gr;ctx.fillRect(0,0,512,256);
  for(let i=0;i<18;i++){const xx=256+Math.cos(i*2.4)*i*11,yy=128+Math.sin(i*1.8)*i*5;ctx.fillStyle=i%2?'#bdab83':'#c7bb9b';ctx.beginPath();ctx.ellipse(xx,yy,35,14,i*.3,0,Math.PI*2);ctx.fill();}
- const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;const p=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshStandardMaterial({map:texture,roughness:1}));p.rotation.x=Math.PI/2;p.position.set(x,y,z);parent.add(p);
+ const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;const p=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshLambertMaterial({map:texture}));p.rotation.x=Math.PI/2;p.position.set(x,y,z);parent.add(p);
 }
 export function createVenue(zone:Zone):Venue{
  const scene=new T.Scene();scene.background=new T.Color(0x24201b);scene.fog=new T.FogExp2(zone==='lobby'?0x292119:0xc2a372,zone==='lobby'?.009:.002);

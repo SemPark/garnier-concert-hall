@@ -23,3 +23,12 @@ test('distance LOD switches to coarse spheres and drops subpixel decoration, the
  camera.position.z=60;update(camera);assert.equal(high.count,0);const low=batches.find(b=>b.geometry!==geometry)!;assert.equal(low.count,1);assert.ok(low.geometry.getAttribute('position').count<geometry.getAttribute('position').count/3);
  camera.position.z=4;update(camera);assert.equal(high.count,2);assert.equal(low.count,0);
 });
+
+test('fixed musician meshes keep their GPU buffers while head/arm transforms continue animating',()=>{
+ const scene=new T.Scene(),root=new T.Group(),body=new T.Group(),arm=new T.Group();arm.userData.animated=true;root.add(body);body.add(arm);scene.add(root);
+ const geometry=new T.BoxGeometry(1,1,1),material=new T.MeshLambertMaterial({color:0xaabbcc}),fixed=new T.Mesh(geometry,material),hand=new T.Mesh(geometry,material);body.add(fixed);arm.add(hand);
+ const update=batchCharacters(scene,[root]),camera=new T.PerspectiveCamera();camera.position.z=4;update(camera);
+ assert.equal(fixed.parent,null);assert.equal(hand.parent,arm);const batches=scene.children.filter(o=>o instanceof T.InstancedMesh) as T.InstancedMesh[];
+ const staticBatch=batches.find(b=>b.instanceMatrix.usage===T.StaticDrawUsage)!,movingBatch=batches.find(b=>b.instanceMatrix.usage===T.DynamicDrawUsage)!;
+ const version=staticBatch.instanceMatrix.version;arm.position.x=2;update(camera);assert.equal(staticBatch.instanceMatrix.version,version);const matrix=new T.Matrix4();movingBatch.getMatrixAt(0,matrix);assert.equal(new T.Vector3().setFromMatrixPosition(matrix).x,2);
+});

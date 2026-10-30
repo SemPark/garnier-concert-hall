@@ -23,9 +23,9 @@ export function buildOrchestra(scene:T.Scene){
  for(const p of SIDE_PLATFORMS)riser(scene,p.x,p.z,p.width,p.depth,p.rise);
  const musicians:Avatar[]=[];
  ORCHESTRA_LAYOUT.forEach((p,i)=>{
-  const actor=new Avatar(0x2d3033,p.instrument,i);actor.root.userData.section=p.section;actor.phase=i*.43;actor.root.position.set(p.x,STAGE_FLOOR+p.rise,p.z);actor.root.rotation.y=p.yaw;actor.root.scale.setScalar(MUSICIAN_SCALE);scene.add(actor.root);musicians.push(actor);
+  const actor=new Avatar(0x2d3033,p.instrument,i);actor.root.userData.section=p.section;actor.phase=i*.43;actor.root.position.set(p.x,STAGE_FLOOR+p.rise,p.z);actor.root.rotation.y=p.yaw;actor.root.scale.setScalar(MUSICIAN_SCALE);actor.settlePose(musicianSits(p.instrument));scene.add(actor.root);musicians.push(actor);
   const furniture=new T.Group();furniture.position.copy(actor.root.position);furniture.rotation.y=p.yaw;furniture.scale.setScalar(MUSICIAN_SCALE);scene.add(furniture);if(musicianSits(p.instrument))chair(furniture);if(!PERCUSSION.includes(p.instrument)&&!['piano','celesta','harp'].includes(p.instrument))stand(furniture);
  });
  const podium=.24;box(scene,[1.7,podium,1.25],[0,STAGE_FLOOR+podium/2,CONDUCTOR.z],0x67452f);box(scene,[1.5,.025,1.05],[0,STAGE_FLOOR+podium+.01,CONDUCTOR.z],C.red);
- const conductor=new Avatar(0x272b2b,'conductor');conductor.root.position.set(0,STAGE_FLOOR+podium,CONDUCTOR.z);scene.add(conductor.root);musicians.push(conductor);return musicians;
+ const conductor=new Avatar(0x272b2b,'conductor');conductor.root.position.set(0,STAGE_FLOOR+podium,CONDUCTOR.z);conductor.settlePose(false);scene.add(conductor.root);musicians.push(conductor);return musicians;
 }

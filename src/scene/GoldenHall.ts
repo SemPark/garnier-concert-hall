@@ -25,7 +25,7 @@ function caryatid(g:T.Object3D){
 }
 const paneShape=new T.Shape();paneShape.moveTo(-1.1,0);paneShape.lineTo(1.1,0);paneShape.lineTo(1.1,5.2);paneShape.absarc(0,5.2,1.1,0,Math.PI,false);paneShape.lineTo(-1.1,0);
 const paneGeometry=new T.ShapeGeometry(paneShape,20),archGeometry=new T.TubeGeometry(new T.CatmullRomCurve3(Array.from({length:25},(_,i)=>{const a=i/24*Math.PI;return new T.Vector3(Math.cos(a)*1.23,Math.sin(a)*1.23,0);})),24,.09,6,false);
-const glassMaterial=new T.MeshStandardMaterial({color:P.glass,emissive:0xb4c8c0,emissiveIntensity:.3,roughness:.32,metalness:.1});
+const glassMaterial=new T.MeshLambertMaterial({color:P.glass,emissive:0xb4c8c0,emissiveIntensity:.3});
 function archedWindow(g:T.Object3D,y:number,blind=false){
  const pane=new T.Mesh(paneGeometry,blind?material(0xcebc98):glassMaterial);pane.position.set(0,y,.14);g.add(pane);
  for(const x of [-1.23,1.23])box(g,[.14,5.3,.18],[x,y+2.6,.24],P.light);
@@ -44,9 +44,12 @@ function crystalChandelier(scene:T.Scene,x:number,z:number){
  const crystal=material(0xffedbf,.12,.2);crystal.emissive.setHex(0xffe2a3);crystal.emissiveIntensity=.45;
  for(const [r,y]of [[1.05,2.4],[.95,.5],[.6,0]]){const ring=new T.Mesh(chandelierRing,material(P.light,.55));ring.position.y=y;ring.scale.set(r,1,r);g.add(ring);}
  for(let i=0;i<32;i++){const a=i/32*Math.PI*2,xx=Math.cos(a),zz=Math.sin(a);const strand=line(g,new T.Vector3(xx*.55,0,zz*.55),new T.Vector3(xx*1.05,2.4,zz*1.05),.025,0xffedca);strand.material=crystal;for(const y of [.05,.48,1.05,1.64,2.3]){const r=.55+y/2.4*.5;const bead=sphere(g,.048,[xx*r,y,zz*r],0xfff0cd);bead.material=crystal;bead.scale.y*=1.7;}}
+ g.traverse(o=>{if(o instanceof T.Mesh)o.userData.lodMax=26;});
+ const shell=new T.Mesh(farChandelierGeometry,farChandelierMaterial);shell.userData.lodMin=24;g.add(shell);
  sphere(g,.19,[0,-.27,0],P.light);for(let i=0;i<8;i++){const a=i/8*Math.PI*2;const candle=cylinder(g,.045,.33,[Math.cos(a)*.83,.7,Math.sin(a)*.83],0xffefc7);candle.material=crystal;}
 }
 const chandelierRing=new T.TorusGeometry(1,.025,5,32);
+const farChandelierGeometry=new T.LatheGeometry([new T.Vector2(.15,-.2),new T.Vector2(.58,0),new T.Vector2(.96,1.9),new T.Vector2(1.05,2.4),new T.Vector2(.83,2.55)],10),farChandelierMaterial=new T.MeshLambertMaterial({color:0xf6dfac,emissive:0x3e2e16});
 function organ(scene:T.Scene){
  const g=new T.Group();g.position.z=-29.1;scene.add(g);g.userData.landmark='pipe-organ';
  box(g,[23.5,1.4,1.25],[0,8.6,.25],P.gold);box(g,[22.6,.18,1.5],[0,9.4,.4],P.light);
@@ -73,7 +76,7 @@ function paintedCeiling(scene:T.Scene){
  // Original stylized allegorical figures, not a reproduction of the photographed mural.
  for(let i=0;i<3;i++){c.save();c.translate(125+i*120,160+(i%2)*75);c.rotate((i-1)*.4);c.fillStyle=['#a96f59','#d8bb82','#596e79'][i];c.beginPath();c.moveTo(-17,-15);c.bezierCurveTo(-55,45,-48,65,-78,100);c.bezierCurveTo(-15,80,35,130,55,80);c.bezierCurveTo(20,50,35,15,17,-15);c.closePath();c.fill();c.fillStyle='#d4b18a';c.beginPath();c.ellipse(0,-38,17,23,0,0,Math.PI*2);c.fill();c.strokeStyle='#c8a780';c.lineWidth=13;c.lineCap='round';c.beginPath();c.moveTo(-20,-5);c.quadraticCurveTo(-55,-40,-63,-65);c.moveTo(20,-5);c.quadraticCurveTo(55,-35,69,-26);c.stroke();c.restore();}
  const paintingGeometry=new T.PlaneGeometry(4.85,5.45);
- const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;const paintingMat=new T.MeshStandardMaterial({map:texture,roughness:1});
+ const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;const paintingMat=new T.MeshLambertMaterial({map:texture});
  box(scene,[H.width,.35,H.rear-H.front],[0,H.height,(H.front+H.rear)/2],P.deep);
  for(let iz=0;iz<12;iz++)for(let ix=0;ix<5;ix++){const x=(ix-2)*5.8,z=-25.8+iz*6.5,g=new T.Group();g.position.set(x,H.height-.25,z);scene.add(g);
   box(g,[5.65,.18,6.3],[0,0,0],P.gold);box(g,[5.15,.16,5.8],[0,-.12,0],P.shadow);const image=new T.Mesh(paintingGeometry,paintingMat);image.rotation.x=Math.PI/2;image.position.y=-.22;g.add(image);

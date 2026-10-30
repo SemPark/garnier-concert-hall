@@ -40,6 +40,8 @@ export class Avatar{
   const shadow=new T.Mesh(shadowGeometry,shadowMaterial);shadow.rotation.x=-Math.PI/2;shadow.position.y=.012;this.root.add(shadow);
   if(instrument)buildInstrument(instrument,this.instrument,this.leftHand,this.rightHand);
  }
+ /** Orchestra bodies are settled once; only the head and rigid arms need live transforms. */
+ settlePose(sitting:boolean){this.sitAmount=sitting?1:0;this.update(0,0,sitting,false,null,10,0);for(const group of [this.head,this.leftArm,this.rightArm])group.userData.animated=true;}
  /** Each arm is one rigid piece: rotate only at the shoulder, never stretch or bend. */
  private aimAt(arm:Arm,x:number,y:number,z:number,weight=1){this.direction.set(x,y,z).sub(arm.shoulder.position).normalize();this.armRotation.setFromUnitVectors(DOWN,this.direction);arm.shoulder.quaternion.slerp(this.armRotation,weight);}
  update(time:number,speed:number,sitting:boolean,performing:boolean,gesture?:'wave'|'clap'|null,gestureAge=10,dt=1/60){
@@ -51,7 +53,7 @@ export class Avatar{
   if(type==='violin'||type==='viola'){this.aimAt(this.left,-.15,1.04,-.35);this.aimAt(this.right,.17+Math.sin(t*2.8)*.055*play,.94,-.38);}
   if(type==='cello'||type==='bass'){this.aimAt(this.left,-.11,1.02,-.35);this.aimAt(this.right,.2+Math.sin(t*2.8)*.05*play,.86,-.35);}
   if(type==='flute'||type==='piccolo'){this.aimAt(this.left,-.08,1.1,-.33);this.aimAt(this.right,.23,1.07,-.37);}
-  if(type&&['oboe','english-horn','clarinet','bass-clarinet','bassoon','contrabassoon','horn','trumpet','trombone','tuba'].includes(type)){this.aimAt(this.left,-.12,.99,-.36);this.aimAt(this.right,.14,.92,-.37);this.body.rotation.z=Math.sin(t*1.4)*.018*play;}
+  if(type&&['oboe','english-horn','clarinet','bass-clarinet','bassoon','contrabassoon','horn','trumpet','trombone','tuba'].includes(type)){this.aimAt(this.left,-.12,.99,-.36);this.aimAt(this.right,.14,.92,-.37);}
   if(type&&PERCUSSION.includes(type)){this.aimAt(this.left,-.24,.88+Math.sin(t*3.2)*.08*play,-.37);this.aimAt(this.right,.24,.88+Math.cos(t*3.2)*.08*play,-.37);}
   if(type==='harp'||type==='piano'||type==='celesta'){this.aimAt(this.left,-.2,.9+Math.sin(t*3.2)*.025*play,-.38);this.aimAt(this.right,.2,.9+Math.cos(t*3.2)*.025*play,-.38);}
   if(type==='conductor'){this.aimAt(this.left,-.6,1.08+Math.sin(t*2.2)*.12*play,-.2);this.aimAt(this.right,.6,1.13+Math.cos(t*2.2)*.13*play,-.2);}
