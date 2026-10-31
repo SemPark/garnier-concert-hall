@@ -50,6 +50,8 @@ export class Avatar{
   for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const)hip.rotation.set(T.MathUtils.lerp(walk*.45*sign,Math.PI/2,sit),0,0);
   this.leftArm.rotation.set(-walk*.28,0,-.06);this.rightArm.rotation.set(walk*.28,0,.06);
   const type=this.instrumentType;
+  // Floor-standing keyboards and harps must not rise with the seated torso.
+  if(type==='piano'||type==='celesta'||type==='harp')this.instrument.position.y=-sit*.1;
   if(type==='violin'||type==='viola'){this.aimAt(this.left,-.15,1.04,-.35);this.aimAt(this.right,.17+Math.sin(t*2.8)*.055*play,.94,-.38);}
   if(type==='cello'||type==='bass'){this.aimAt(this.left,-.11,1.02,-.35);this.aimAt(this.right,.2+Math.sin(t*2.8)*.05*play,.86,-.35);}
   if(type==='flute'||type==='piccolo'){this.aimAt(this.left,-.08,1.1,-.33);this.aimAt(this.right,.23,1.07,-.37);}

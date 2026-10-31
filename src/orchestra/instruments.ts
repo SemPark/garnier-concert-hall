@@ -75,7 +75,7 @@ export function buildInstrument(type:Instrument,g:T.Group,leftHand:T.Group,right
   for(let i=0;i<21;i++){box(g,[width/22,.04,.27],[-width/2+.04+i*width/21,1.0,-.4],0xf0e6cf);if(i%7!==2&&i%7!==6)box(g,[width/35,.06,.16],[-width/2+.07+i*width/21,1.03,-.45],ebony);}
   if(grand){const lid=box(g,[width,.05,depth],[0,1.1,-1.18],ebony);lid.rotation.z=-.2;line(g,new T.Vector3(-.6,.95,-1.7),new T.Vector3(-.6,1.23,-1.7),.018,brass);}else{box(g,[width,1,.16],[0,.65,-.95],0x6b3a25);for(const x of [-.45,.45])box(g,[.035,.7,.025],[x,.7,-.85],brass);}
  }else if(type==='timpani'){
-  for(const [x,z,r]of [[-.7,-.65,.36],[-.04,-.55,.33],[.57,-.72,.30],[.38,-1.32,.265],[-.19,-1.42,.23]]){sphere(g,r,[x,.5,z],0xb07a3d).scale.y*=.9;cylinder(g,r,.035,[x,.72,z],0xe3d7b8);cylinder(g,r+.015,.04,[x,.69,z],brass);for(const xx of [-.18,.18])cylinder(g,.018,.4,[x+xx,.2,z],ebony);}
+  for(const [x,z,r]of [[-.67,-.75,.36],[0,-.57,.33],[.64,-.8,.30]]){sphere(g,r,[x,.5,z],0xb07a3d).scale.y*=.9;cylinder(g,r,.035,[x,.72,z],0xe3d7b8);cylinder(g,r+.015,.04,[x,.69,z],brass);for(const xx of [-.18,.18])cylinder(g,.018,.4,[x+xx,.2,z],ebony);}
  }else if(type==='bass-drum'||type==='gong'){
   g.position.x=.68;const gong=type==='gong';const d=cylinder(g,gong?.65:.55,gong?.045:.45,[0,.95,-.85],gong?brass:0x98542c);d.rotation.x=Math.PI/2;const face=cylinder(g,gong?.14:.52,.035,[0,.95,-.61],gong?0x967339:0xe8dfc9);face.rotation.x=Math.PI/2;
   for(const x of [-.73,.73])cylinder(g,.025,1.7,[x,.85,-.85],ebony);box(g,[1.5,.05,.08],[0,1.7,-.85],ebony);box(g,[1.5,.04,.6],[0,.035,-.85],ebony);

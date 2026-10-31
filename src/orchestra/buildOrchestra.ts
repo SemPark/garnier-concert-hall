@@ -2,7 +2,7 @@ import * as T from 'three';
 import {Avatar,musicianSits,PERCUSSION} from '../character/Avatar';
 import {box,cylinder,material,C} from '../scene/primitives';
 import {ORCHESTRA_LAYOUT,CONDUCTOR,STAGE,STAGE_FLOOR,STAGE_TERRACES,TERRACE_BACK,terraceOutline,stageRiseAt,MUSICIAN_SCALE} from './layout';
-/** Five wall-to-wall chevron terraces from the SCL Golden Hall plan. */
+/** Five continuous curved terraces with broad ordinary keyboard wings. */
 function terraces(scene:T.Scene){
  for(const tier of STAGE_TERRACES){
   const half=STAGE.width/2,outline=terraceOutline(tier),points=[[-half,TERRACE_BACK],[half,TERRACE_BACK],...[...outline].reverse().map(p=>[p.x,p.z])];
@@ -24,8 +24,8 @@ export function buildOrchestra(scene:T.Scene){
  terraces(scene);
  const musicians:Avatar[]=[],desks=new Map<string,{x:number;z:number;count:number}>();
  ORCHESTRA_LAYOUT.forEach((p,i)=>{
-  const actor=new Avatar(0x2d3033,p.instrument,i);actor.root.userData.section=p.section;actor.phase=i*.43;actor.root.position.set(p.x,STAGE_FLOOR+p.rise,p.z);actor.root.rotation.y=p.yaw;actor.root.scale.setScalar(MUSICIAN_SCALE);actor.settlePose(musicianSits(p.instrument));scene.add(actor.root);musicians.push(actor);
-  if(musicianSits(p.instrument)){const furniture=new T.Group();furniture.position.copy(actor.root.position);furniture.rotation.y=p.yaw;furniture.scale.setScalar(MUSICIAN_SCALE);scene.add(furniture);chair(furniture);}
+  const actor=new Avatar(0x2d3033,p.instrument,i);actor.root.userData.section=p.section;actor.root.userData.placement=i;actor.phase=i*.43;actor.root.position.set(p.x,STAGE_FLOOR+p.rise,p.z);actor.root.rotation.y=p.yaw;actor.root.scale.setScalar(MUSICIAN_SCALE);actor.settlePose(musicianSits(p.instrument));scene.add(actor.root);musicians.push(actor);
+  if(musicianSits(p.instrument)){const furniture=new T.Group();furniture.position.copy(actor.root.position);furniture.rotation.y=p.yaw;furniture.scale.setScalar(MUSICIAN_SCALE);furniture.userData.chairFor=i;scene.add(furniture);chair(furniture);}
   if(!PERCUSSION.includes(p.instrument)&&!['piano','celesta','harp'].includes(p.instrument)){
    const id=p.deskId??`player-${i}`,d=desks.get(id)??{x:0,z:0,count:0};d.x+=p.x;d.z+=p.z;d.count++;desks.set(id,d);
   }
