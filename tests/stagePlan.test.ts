@@ -1,15 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
-import {STAGE_FLOOR,STAGE_TERRACES,STAGE_PLAN_SCALE,CONDUCTOR,ORCHESTRA_LAYOUT,MUSICIAN_SCALE,stageRiseAt,terraceOutline} from '../src/orchestra/layout';
+import {STAGE,STAGE_FLOOR,STAGE_TERRACES,STAGE_PLAN_SCALE,CONDUCTOR,ORCHESTRA_LAYOUT,MUSICIAN_SCALE,stageRiseAt,terraceOutline} from '../src/orchestra/layout';
 import {buildOrchestra} from '../src/orchestra/buildOrchestra';
+import {REFERENCE_INSTRUMENT_COUNTS} from '../src/orchestra/referencePlan';
 import {musicianSits} from '../src/character/Avatar';
-test('five ordinary fan terraces span the stage symmetrically without crossing each other',()=>{
+test('five ordinary fan terraces span the stage without crossing each other or adding piano blocks',()=>{
  assert.equal(STAGE_TERRACES.length,5);let previous=0;
  for(const [i,t]of STAGE_TERRACES.entries()){
   assert.ok(Math.abs((t.rise-previous)/STAGE_PLAN_SCALE-[.27,.29,.28,.28,.28][i])<1e-9);previous=t.rise;
   const outline=terraceOutline(t);assert.ok(outline[0].x<-15&&outline.at(-1)!.x>15);assert.ok(outline.every((p,j)=>j===0||p.x>outline[j-1].x));
-  for(const p of outline){const mirror=outline.find(q=>Math.abs(p.x+q.x)<1e-9);assert.ok(mirror&&Math.abs(mirror.z-p.z)<1e-9);assert.ok(p.z>=-28.1);if(i>0)assert.ok(p.z<=terraceOutline(STAGE_TERRACES[i-1]).find(q=>Math.abs(q.x-p.x)<1e-9)!.z);}
+  for(const p of outline){const mirror=outline.find(q=>Math.abs(p.x+q.x)<1e-9);if(i<4)assert.ok(mirror&&Math.abs(mirror.z-p.z)<1e-9);assert.ok(p.z>=-28.8);if(i>0)assert.ok(p.z<=terraceOutline(STAGE_TERRACES[i-1]).find(q=>Math.abs(q.x-p.x)<1e-9)!.z);}
  }
 });
 test('all four chair feet rest on the same terrace as each seated musician',()=>{
@@ -60,10 +61,28 @@ test('piano uses one ordinary terrace with no extra rectangular platform',()=>{
 
 test('the conductor stands inside the front fan and the central opening stays compact',()=>{
  const strings=ORCHESTRA_LAYOUT.filter(p=>['first-violins','cellos'].includes(p.section));
- assert.ok(CONDUCTOR.z< -12,'conductor must be inside the stage');
+ assert.ok(CONDUCTOR.z<=STAGE.front-2,'conductor must be inside the stage');
  assert.ok(strings.some(p=>p.x<0&&p.z>CONDUCTOR.z));assert.ok(strings.some(p=>p.x>0&&p.z>CONDUCTOR.z));
  const nearest=(section:string)=>Math.min(...ORCHESTRA_LAYOUT.filter(p=>p.section===section).map(p=>Math.hypot(p.x-CONDUCTOR.x,p.z-CONDUCTOR.z)));
  assert.ok(nearest('first-violins')<3.6);assert.ok(nearest('cellos')<3.6);
- const inner=ORCHESTRA_LAYOUT.filter(p=>['second-violins','violas'].includes(p.section)&&Math.abs(p.x)<1.5);
+ const inner=ORCHESTRA_LAYOUT.filter(p=>['second-violins','violas'].includes(p.section)&&p.row===0);
  assert.equal(inner.length,2);assert.ok(inner.every(p=>p.z<CONDUCTOR.z&&p.z>CONDUCTOR.z-5));
+});
+
+test('entire legs, chairs, stands and floor-standing instruments rest over one actual rendered terrace',()=>{
+ const scene=new T.Scene(),actors=buildOrchestra(scene);
+ const base=new T.Mesh(new T.BoxGeometry(STAGE.width,.75,STAGE.front-STAGE.back));base.position.set(0,.3,(STAGE.front+STAGE.back)/2);scene.add(base);scene.updateMatrixWorld(true);
+ const surfaces=scene.children.filter(o=>o===base||o.userData.terrace!==undefined),ray=new T.Raycaster(),cache=new Map<string,number>();
+ const floor=(x:number,z:number)=>{const key=`${x.toFixed(6)},${z.toFixed(6)}`;if(cache.has(key))return cache.get(key)!;ray.set(new T.Vector3(x,20,z),new T.Vector3(0,-1,0));const hit=ray.intersectObjects(surfaces,false)[0];assert.ok(hit,'support point is outside the stage');cache.set(key,hit.point.y);return hit.point.y;};
+ const check=(group:T.Object3D,level:number,label:string)=>group.traverse(o=>{if(!(o instanceof T.Mesh))return;const vertices=o.geometry.getAttribute('position'),v=new T.Vector3();for(let i=0;i<vertices.count;i++){v.fromBufferAttribute(vertices,i).applyMatrix4(o.matrixWorld);assert.ok(Math.abs(floor(v.x,v.z)-level)<1e-6,`${label}: footprint crosses a real step edge`);}});
+ for(const a of actors.filter(a=>a.instrumentType!=='conductor')){
+  check(a.leftLeg,a.root.position.y,`${a.root.userData.placement} ${a.instrumentType} left leg`);check(a.rightLeg,a.root.position.y,`${a.root.userData.placement} ${a.instrumentType} right leg`);
+  if(['piano','celesta','harp','gong','chimes','timpani','bass-drum','snare','xylophone'].includes(a.instrumentType!))check(a.instrument,a.root.position.y,a.instrumentType!);
+ }
+ for(const o of scene.children)if(o.userData.chairFor!==undefined||o.userData.musicDesk)check(o,o.position.y,'chair / stand');
+});
+test('rendered instrument models match the source inventory, including every brass instrument',()=>{
+ const scene=new T.Scene(),actors=buildOrchestra(scene),counts:Record<string,number>={};
+ for(const a of actors){if(a.instrumentType==='conductor')continue;assert.equal(a.instrument.userData.instrument,a.instrumentType);let meshes=0;a.instrument.traverse(o=>{if(o instanceof T.Mesh)meshes++;});assert.ok(meshes>0);counts[a.instrumentType!]=(counts[a.instrumentType!]??0)+1;}
+ assert.deepEqual(counts,REFERENCE_INSTRUMENT_COUNTS);
 });

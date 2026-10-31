@@ -1,75 +1,75 @@
-import {musicianSits,type Instrument} from '../character/Avatar';
-import {STRING_SYMBOLS,OTHER_SYMBOLS} from './referencePlan';
+import type {Instrument} from '../character/Avatar';
 export type OrchestraSection='first-violins'|'second-violins'|'violas'|'cellos'|'basses'|'harps'|'keyboards'|'woodwinds'|'brass'|'percussion';
-export type MusicianPlacement={instrument:Instrument;section:OrchestraSection;x:number;z:number;rise:number;yaw:number;deskId?:string};
+export type MusicianPlacement={instrument:Instrument;section:OrchestraSection;x:number;z:number;rise:number;yaw:number;row:number;deskId?:string};
 export const STAGE_FLOOR=.675;
 export const STAGE={width:30.4,front:-9.5,back:-29,wallX:15.3};
 export const MUSICIAN_SCALE=1.1;
-export const CONCERT_CAMERA={eye:[0,13,-1.4],look:[0,2.3,-20.1]} as const;
-export const CONDUCTOR={x:0,z:-13};
-// Recounted from the supplied diagram: 102 musicians, plus the conductor.
+export const CONCERT_CAMERA={eye:[0,14,3.5],look:[0,2.3,-19.7]} as const;
+export const CONDUCTOR={x:0,z:-11.8};
 export const REFERENCE_COUNTS={
  'first-violins':13,'second-violins':14,violas:14,cellos:10,basses:6,harps:2,
  woodwinds:16,brass:16,percussion:9,keyboards:2,
 } as const;
 export const STAGE_PLAN_SCALE=STAGE.width/19.2;
-// Continuous shallow fan terraces. The curve follows the diagram's diagonal
-// string-section boundaries, rather than slicing its broad wedges into blocks.
-const heights=[.27,.56,.84,1.12,1.4],depths=[2.2,5.3,9.8,11.3,13.3];
-export const STAGE_TERRACES=heights.map((h,i)=>({index:i,radius:depths[i],centerZ:CONDUCTOR.z-depths[i],rise:h*STAGE_PLAN_SCALE}));
-export const TERRACE_BACK=-28.1;
+export const ROW_RADII=[2.4,4.6,6.8,9,11.2,13.4,16.2] as const;
+// Two front string rows share the stage floor. Each following row is centred
+// on its own continuous fan terrace, with room for straight legs and chair backs.
+const heights=[.27,.56,.84,1.12,1.4],radii=[5.65,7.85,10.05,12.25,14.45];
+export const STAGE_TERRACES=heights.map((h,i)=>({index:i,radius:radii[i],centerZ:CONDUCTOR.z-radii[i],rise:h*STAGE_PLAN_SCALE}));
+export const TERRACE_BACK=-28.8;
 export function terraceFront(t:typeof STAGE_TERRACES[number],x:number):number{
- const xx=Math.min(Math.abs(x),10)**2;
- const curve=t.index===0?-.025:t.index===1?-.01:.04;
- const front=t.centerZ+curve*xx;
- const u=Math.max(0,Math.min(1,(Math.abs(x)-8)/2)),gap=1.7+1.5*u*u*(3-2*u);
- return Math.max(TERRACE_BACK,t.index===0?front:Math.min(front,terraceFront(STAGE_TERRACES[t.index-1],x)-gap));
+ // Broaden the ordinary outer left wing for piano, celesta and harps; there
+ // is no separate platform. All five contours remain smooth, nested fans.
+ const u=Math.max(0,Math.min(1,(-x-8)/3));
+ const r=t.radius-(t.index===4?1.6*u*u*(3-2*u):0);
+ const xx=Math.abs(x),join=r*.975,end=r+.45;
+ if(xx<=join)return CONDUCTOR.z-Math.sqrt(r*r-xx*xx);
+ const start=CONDUCTOR.z-Math.sqrt(r*r-join*join),v=Math.min(1,(xx-join)/(end-join));
+ const smooth=v*v*(3-2*v);return start+(CONDUCTOR.z+2-start)*smooth;
 }
 export function terraceOutline(t:typeof STAGE_TERRACES[number]){
- const half=STAGE.width/2,xs=[];for(let i=0;i<=96;i++)xs.push(-half+i/96*STAGE.width);
- return xs.map(x=>({x,z:terraceFront(t,x)}));
+ const half=STAGE.width/2,points=[];for(let i=0;i<=160;i++){const x=-half+i/160*STAGE.width;points.push({x,z:terraceFront(t,x)});}return points;
 }
 export function stageRiseAt(x:number,z:number){let rise=0;for(const t of STAGE_TERRACES)if(z<=terraceFront(t,x)+1e-7)rise=t.rise;return rise;}
 const players:MusicianPlacement[]=[];
-function add(instrument:Instrument,section:OrchestraSection,x:number,z:number,deskId?:string){players.push({instrument,section,x,z,rise:stageRiseAt(x,z),yaw:Math.atan2(x-CONDUCTOR.x,z-CONDUCTOR.z),deskId});}
-// Preserve every string symbol's relative position, including the inside
-// second-violin / viola desks and the two staggered cello rows. The diagram
-// does not put every first violin at a smaller radius than every second violin.
-export function planToStage([x,y]:readonly [number,number]){return {x:(x-680)*.024,z:y>650?CONDUCTOR.z+(y-820)*.028:CONDUCTOR.z-4.76+(y-650)*.0204};}
-for(const [section,points]of Object.entries(STRING_SYMBOLS)){
- const instrument:Instrument=section==='basses'?'bass':section==='cellos'?'cello':section==='violas'?'viola':'violin';
- points.forEach((point,i)=>{const p=planToStage(point);add(instrument,section as OrchestraSection,p.x,p.z,section==='basses'?undefined:`${section}-${Math.floor(i/2)}`);});
+function place(instrument:Instrument,section:OrchestraSection,row:number,angle:number,radius:number=ROW_RADII[row]){
+ const x=Math.sin(angle)*radius,z=CONDUCTOR.z-Math.cos(angle)*radius;
+ players.push({instrument,section,row,x,z,rise:stageRiseAt(x,z),yaw:Math.atan2(x-CONDUCTOR.x,z-CONDUCTOR.z)});
 }
-for(const group of OTHER_SYMBOLS)for(const point of group.points){const p=planToStage(point);add(group.instrument,group.section,p.x,p.z);}
-// Paper symbols have different drawn sizes. Resolve the small clearance needed
-// by equal-sized 3D chairs locally, without changing their section or order.
-const anchors=players.map(p=>({x:p.x,z:p.z}));
-function chairFits(p:MusicianPlacement){
- if(!musicianSits(p.instrument))return true;
- const level=stageRiseAt(p.x,p.z),yaw=Math.atan2(p.x-CONDUCTOR.x,p.z-CONDUCTOR.z);
- return [[-.22,-.17],[.22,-.17],[-.22,.22],[.22,.22]].every(([dx,dz])=>stageRiseAt(p.x+(dx*Math.cos(yaw)+dz*Math.sin(yaw))*MUSICIAN_SCALE,p.z+(-dx*Math.sin(yaw)+dz*Math.cos(yaw))*MUSICIAN_SCALE)===level);
+function band(instrument:Instrument,section:OrchestraSection,row:number,count:number,from:number,to:number){
+ for(let i=0;i<count;i++)place(instrument,section,row,from+(to-from)*(count===1?.5:i/(count-1)));
 }
-for(let pass=0;pass<120;pass++){
- for(let i=0;i<players.length;i++)for(let j=i+1;j<players.length;j++){
-  const p=players[i],q=players[j],dx=p.x-q.x,dz=p.z-q.z,d=Math.hypot(dx,dz),gap=1.13;
-  if(d<gap){const move=(gap-d)/2+.00001;p.x+=dx/d*move;p.z+=dz/d*move;q.x-=dx/d*move;q.z-=dz/d*move;}
- }
- for(const [i,p]of players.entries()){
-  const a=anchors[i],dx=p.x-a.x,dz=p.z-a.z,d=Math.hypot(dx,dz);
-  if(d>.75){p.x=a.x+dx/d*.75;p.z=a.z+dz/d*.75;}
-  if(!chairFits(p)){const original=p.z;for(let step=1;step<=16;step++){
-   p.z=original+step*.04;if(chairFits(p))break;
-   p.z=original-step*.04;if(chairFits(p))break;p.z=original;
-  }}
- }
+// Counted from the source image: the two violin wedges, viola wedge and cello
+// wedge are packed onto actual curved rows rather than scattered pixel anchors.
+band('violin','first-violins',0,2,-1.7,-1.02);band('violin','second-violins',0,1,-.34,-.34);
+band('viola','violas',0,1,.34,.34);band('cello','cellos',0,2,1.02,1.7);
+band('violin','first-violins',1,4,-1.68,-.764);
+band('violin','second-violins',1,2,-.458,-.153);
+band('viola','violas',1,5,.153,1.375);band('cello','cellos',1,1,1.68,1.68);
+for(const row of [2,3]){
+ band('violin','first-violins',row,3,-1.7,-1.332);
+ band('violin','second-violins',row,3,-1.148,-.78);
+ band('viola','violas',row,3,.78,1.24);band('cello','cellos',row,2,1.47,1.7);
 }
-// Pair neighbouring string chairs, rather than joining distant symbol indices.
-for(const section of ['first-violins','second-violins','violas','cellos']){
- const unpaired=new Set(players.filter(p=>p.section===section));let desk=0;
- for(const p of unpaired){unpaired.delete(p);let nearest:MusicianPlacement|undefined,best=Infinity;
-  for(const q of unpaired){const d=Math.hypot(p.x-q.x,p.z-q.z);if(d<best){best=d;nearest=q;}}
-  p.deskId=`${section}-${desk++}`;if(nearest&&best<2.8){nearest.deskId=p.deskId;unpaired.delete(nearest);}
- }
+const windRows:Instrument[][]=[
+ ['flute','flute','flute','piccolo','oboe','oboe','english-horn','english-horn'],
+ ['clarinet','clarinet','clarinet','bass-clarinet','bassoon','bassoon','bassoon','contrabassoon'],
+];
+windRows.forEach((types,i)=>types.forEach((type,j)=>place(type,'woodwinds',i+2,-.59+j*1.18/7+(i===1?-.025:0))));
+band('violin','first-violins',4,1,-1.45,-1.45);band('violin','second-violins',4,5,-1.29,-.65);
+band('horn','brass',4,7,-.49,.47);band('tuba','brass',4,1,.63,.63);
+band('viola','violas',4,2,.79,.95);band('cello','cellos',4,1,1.11,1.11);
+const back:Instrument[]=['trumpet','trumpet','trumpet','trumpet','trombone','trombone','trombone','trombone','bass','bass','bass','bass','bass','bass','cello','cello'];
+back.forEach((type,i)=>place(type,type==='bass'?'basses':type==='cello'?'cellos':'brass',5,-.68+i*2.33/15));
+// Every percussion label in the diagram is retained, including the separate
+// sleigh-bell and triangle stations. Timpani is one three-drum set.
+const percussion:Instrument[]=['bass-drum','snare','cymbals','sleigh-bells','triangle','chimes','gong','timpani','xylophone'];
+percussion.forEach((type,i)=>place(type,'percussion',6,-.64+i*.125));
+place('harp','harps',6,-1.64,14.25);place('harp','harps',6,-1.44,14.5);
+place('celesta','keyboards',6,-1.26,14.9);place('piano','keyboards',6,-1.04,16.2);
+// Desks only pair neighbouring string chairs on the same physical row/level.
+for(const section of ['first-violins','second-violins','violas','cellos'])for(let row=0;row<7;row++){
+ const seats=players.filter(p=>p.section===section&&p.row===row).sort((p,q)=>Math.atan2(p.x,CONDUCTOR.z-p.z)-Math.atan2(q.x,CONDUCTOR.z-q.z));
+ seats.forEach((p,i)=>p.deskId=`${section}-${row}-${Math.floor(i/2)}`);
 }
-for(const p of players){p.rise=stageRiseAt(p.x,p.z);p.yaw=Math.atan2(p.x-CONDUCTOR.x,p.z-CONDUCTOR.z);}
 export const ORCHESTRA_LAYOUT:readonly MusicianPlacement[]=players;

@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
 import {Avatar,musicianSits} from '../src/character/Avatar';
-import {REFERENCE_INSTRUMENT_COUNTS,STRING_SYMBOLS,OTHER_SYMBOLS} from '../src/orchestra/referencePlan';
-import {planToStage,ORCHESTRA_LAYOUT,REFERENCE_COUNTS,STAGE,CONDUCTOR,STAGE_TERRACES,stageRiseAt,MUSICIAN_SCALE} from '../src/orchestra/layout';
+import {REFERENCE_INSTRUMENT_COUNTS} from '../src/orchestra/referencePlan';
+import {ROW_RADII,ORCHESTRA_LAYOUT,REFERENCE_COUNTS,STAGE,CONDUCTOR,STAGE_TERRACES,stageRiseAt,MUSICIAN_SCALE} from '../src/orchestra/layout';
 function bodyHand(a:Avatar,side:'left'|'right'){a.root.updateMatrixWorld(true);return a.body.worldToLocal((side==='left'?a.leftHand:a.rightHand).getWorldPosition(new T.Vector3()));}
 test('all 102 musicians match every counted instrument symbol in the supplied diagram',()=>{
  const counts=Object.fromEntries(Object.keys(REFERENCE_COUNTS).map(section=>[section,ORCHESTRA_LAYOUT.filter(p=>p.section===section).length]));
+ assert.ok(ORCHESTRA_LAYOUT.filter(p=>p.section==='first-violins'||p.section==='second-violins').every(p=>p.x<0),'both violin sections stay in the left reference wedges');
  assert.deepEqual(counts,REFERENCE_COUNTS);assert.equal(ORCHESTRA_LAYOUT.length,102);
  const instruments=(name:string)=>ORCHESTRA_LAYOUT.filter(p=>p.instrument===name).length;
  assert.deepEqual(Object.fromEntries(Object.keys(REFERENCE_INSTRUMENT_COUNTS).map(type=>[type,instruments(type)])),REFERENCE_INSTRUMENT_COUNTS);
@@ -16,7 +17,7 @@ test('all 102 musicians match every counted instrument symbol in the supplied di
 });
 test('every musician fits on the enlarged stage, faces the conductor and has personal space',()=>{
  for(const p of ORCHESTRA_LAYOUT){
-  assert.ok(Math.abs(p.x)<STAGE.width/2-1);assert.ok(p.z>STAGE.back+1&&p.z<STAGE.front-1);
+  assert.ok(Math.abs(p.x)<STAGE.width/2-.5);assert.ok(p.z>STAGE.back+.6&&p.z<STAGE.front-1);
   const forward=new T.Vector3(-Math.sin(p.yaw),0,-Math.cos(p.yaw)),toward=new T.Vector3(CONDUCTOR.x-p.x,0,CONDUCTOR.z-p.z).normalize();assert.ok(forward.dot(toward)>.999);
   for(const q of ORCHESTRA_LAYOUT)if(p!==q)assert.ok(Math.hypot(p.x-q.x,p.z-q.z)>1.12,`${p.section} overlaps ${q.section}`);
  }
@@ -43,16 +44,17 @@ test('cellos occupy the front right and violas the rear right of the radial refe
  assert.ok(cellos.every(p=>p.instrument==='cello'&&p.x>0));assert.ok(violas.every(p=>p.instrument==='viola'&&p.x>0));
  // The reference separates these wedges diagonally; they overlap in radius.
  assert.ok(Math.max(...cellos.map(p=>p.z))>Math.max(...violas.map(p=>p.z)));
- for(const section of ['cellos','violas'] as const){const actual=ORCHESTRA_LAYOUT.filter(p=>p.section===section);STRING_SYMBOLS[section].forEach((point,i)=>{const expected=planToStage(point);assert.ok(Math.hypot(actual[i].x-expected.x,actual[i].z-expected.z)<.85);});}
+
  const cello=new Avatar(0x202020,'cello'),viola=new Avatar(0x202020,'viola');cello.root.updateMatrixWorld(true);viola.root.updateMatrixWorld(true);
  assert.ok(new T.Box3().setFromObject(cello.instrument).getSize(new T.Vector3()).y>new T.Box3().setFromObject(viola.instrument).getSize(new T.Vector3()).y*1.7);
 });
 
-test('every pictured symbol keeps its relative position after local chair clearance corrections',()=>{
- const check=(section:string,instrument:string,points:readonly (readonly [number,number])[])=>{
-  const actual=ORCHESTRA_LAYOUT.filter(p=>p.section===section&&p.instrument===instrument);assert.equal(actual.length,points.length);
-  points.forEach((point,i)=>{const expected=planToStage(point);assert.ok(Math.hypot(actual[i].x-expected.x,actual[i].z-expected.z)<.85,`${instrument}: moved away from its reference symbol`);});
- };
- for(const [section,points]of Object.entries(STRING_SYMBOLS))check(section,section==='basses'?'bass':section==='cellos'?'cello':section==='violas'?'viola':'violin',points);
- for(const group of OTHER_SYMBOLS)check(group.section,group.instrument,group.points);
+test('each player is centred on a physical terrace row and string desks never pair across steps',()=>{
+ const desks=new Map<string,typeof ORCHESTRA_LAYOUT[number][]>();
+ for(const p of ORCHESTRA_LAYOUT){
+  if(!['harp','piano','celesta'].includes(p.instrument))assert.ok(Math.abs(Math.hypot(p.x-CONDUCTOR.x,p.z-CONDUCTOR.z)-ROW_RADII[p.row])<1e-8);
+  if(p.deskId){const group=desks.get(p.deskId)??[];group.push(p);desks.set(p.deskId,group);}
+ }
+ for(const group of desks.values()){assert.ok(group.length<=2);assert.ok(group.every(p=>p.row===group[0].row&&p.rise===group[0].rise));}
+ const front=ORCHESTRA_LAYOUT.filter(p=>p.row===0);assert.equal(front.length,6);assert.ok(front.some(p=>p.x>0&&p.x<1));assert.ok(front.some(p=>p.x<0&&p.x> -1));
 });

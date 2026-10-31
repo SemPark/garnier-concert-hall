@@ -32,3 +32,8 @@ test('all 16 brass instruments are visible from the concert camera, including th
   assert.ok(visible/total>=.25,`${a.instrumentType} at ${a.root.position.x}: brass hidden behind other players`);
  }
 });
+
+test('the full orchestra including the two outer harps fits inside the default concert frame',()=>{
+ const {actors}=orchestra(),camera=new T.PerspectiveCamera(61,1182/655,.08,150);camera.position.set(...CONCERT_CAMERA.eye);camera.lookAt(new T.Vector3(...CONCERT_CAMERA.look));camera.updateMatrixWorld(true);
+ for(const actor of actors){const b=new T.Box3().setFromObject(actor.root);for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const p=new T.Vector3(x,y,z).project(camera);assert.ok(Math.abs(p.x)<.98&&Math.abs(p.y)<.98,`${actor.instrumentType} is cropped out of the concert frame`);}}
+});

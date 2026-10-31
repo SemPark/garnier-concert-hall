@@ -24,7 +24,7 @@ export function buildOrchestra(scene:T.Scene){
  terraces(scene);
  const musicians:Avatar[]=[],desks=new Map<string,{x:number;z:number;count:number}>();
  ORCHESTRA_LAYOUT.forEach((p,i)=>{
-  const actor=new Avatar(0x2d3033,p.instrument,i);actor.root.userData.section=p.section;actor.root.userData.placement=i;actor.phase=i*.43;actor.root.position.set(p.x,STAGE_FLOOR+p.rise,p.z);actor.root.rotation.y=p.yaw;actor.root.scale.setScalar(MUSICIAN_SCALE);actor.settlePose(musicianSits(p.instrument));scene.add(actor.root);musicians.push(actor);
+  const actor=new Avatar(0x2d3033,p.instrument,i);actor.root.userData.section=p.section;actor.root.userData.placement=i;actor.root.userData.row=p.row;actor.phase=i*.43;actor.root.position.set(p.x,STAGE_FLOOR+p.rise,p.z);actor.root.rotation.y=p.yaw;actor.root.scale.setScalar(MUSICIAN_SCALE);actor.settlePose(musicianSits(p.instrument));scene.add(actor.root);musicians.push(actor);
   if(musicianSits(p.instrument)){const furniture=new T.Group();furniture.position.copy(actor.root.position);furniture.rotation.y=p.yaw;furniture.scale.setScalar(MUSICIAN_SCALE);furniture.userData.chairFor=i;scene.add(furniture);chair(furniture);}
   if(!PERCUSSION.includes(p.instrument)&&!['piano','celesta','harp'].includes(p.instrument)){
    const id=p.deskId??`player-${i}`,d=desks.get(id)??{x:0,z:0,count:0};d.x+=p.x;d.z+=p.z;d.count++;desks.set(id,d);
@@ -33,7 +33,7 @@ export function buildOrchestra(scene:T.Scene){
  // String players share a desk in pairs. Desks have their own floor contact,
  // so the front of a terrace never leaves a music stand suspended in midair.
  for(const d of desks.values()){
-  const x=d.x/d.count,z=d.z/d.count,yaw=Math.atan2(x-CONDUCTOR.x,z-CONDUCTOR.z),sx=x-Math.sin(yaw)*.7*MUSICIAN_SCALE,sz=z-Math.cos(yaw)*.7*MUSICIAN_SCALE;
+  const x=d.x/d.count,z=d.z/d.count,yaw=Math.atan2(x-CONDUCTOR.x,z-CONDUCTOR.z),sx=x-Math.sin(yaw)*.5*MUSICIAN_SCALE,sz=z-Math.cos(yaw)*.5*MUSICIAN_SCALE;
   const g=new T.Group();g.position.set(sx,STAGE_FLOOR+stageRiseAt(sx,sz),sz);g.rotation.y=yaw;g.scale.setScalar(MUSICIAN_SCALE);g.userData.musicDesk=true;scene.add(g);stand(g);
  }
  const podium=.24;box(scene,[1.7,podium,1.25],[0,STAGE_FLOOR+podium/2,CONDUCTOR.z],0x67452f);box(scene,[1.5,.025,1.05],[0,STAGE_FLOOR+podium+.01,CONDUCTOR.z],C.red);
