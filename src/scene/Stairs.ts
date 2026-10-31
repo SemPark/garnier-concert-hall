@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {STAIR} from '../../shared/venue';
 import {GOLDEN_HALL as H} from '../../shared/goldenHall';
-import {GALLERY_FLOORS,GALLERY_RAIL_HEIGHT} from '../../shared/gallery';
+import {GALLERY_FLOORS,GALLERY_RAIL_HEIGHT,STAIRWELL_INNER_X} from '../../shared/gallery';
 import {box,cylinder,line,C} from './primitives';
 import {hallImageMaterial} from './HallTextures';
 /** Keep the playable stair route; use the reference's dark timber treads and fine iron railing. */
@@ -25,6 +25,14 @@ export function buildStairs(scene:T.Scene){
     cylinder(root,.018,rail,[x,h+rail/2,z],0x353027);
     if(i%4===0){cylinder(root,.035,.07,[x,h+rail-.07,z],C.goldLight);cylinder(root,.035,.07,[x,h+.13,z],C.goldLight);}
    }
+  }
+  // Gallery-level railing around the opening the stair climbs through.
+  const top=H.balconyHeight,rail=GALLERY_RAIL_HEIGHT,near=STAIR.z-STAIR.width/2-.04,far=STAIR.z+STAIR.width/2+.04,inner=side*STAIRWELL_INNER_X,outer=side*(STAIR.topX-.05);
+  for(const [a,b]of [[[inner,near],[outer,near]],[[inner,far],[outer,far]],[[inner,near],[inner,far]]]){
+   const guard=line(root,new T.Vector3(a[0],top+rail,a[1]),new T.Vector3(b[0],top+rail,b[1]),.045,0x68462c);guard.userData.landmark='stairwell-rail';
+   line(root,new T.Vector3(a[0],top+.06,a[1]),new T.Vector3(b[0],top+.06,b[1]),.03,0x5c422c);
+   const count=Math.max(1,Math.round(Math.hypot(b[0]-a[0],b[1]-a[1])/.35));
+   for(let i=0;i<=count;i++){const t=i/count;cylinder(root,.018,rail,[a[0]+(b[0]-a[0])*t,top+rail/2,a[1]+(b[1]-a[1])*t],0x353027);}
   }
   root.traverse(o=>{if(o instanceof T.Mesh)o.userData.fullDetail=true;});
  }

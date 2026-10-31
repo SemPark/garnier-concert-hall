@@ -1,6 +1,6 @@
 import {GOLDEN_HALL as H} from './goldenHall';
 import type {Gesture} from './gestures';
-import {STAIR,GALLERY_BRIDGE,hasGalleryFloor} from './gallery';
+import {STAIR,GALLERY_BRIDGE,REAR_COLUMNS,hasGalleryFloor} from './gallery';
 export {STAIR} from './gallery';
 export type Zone='lobby'|'auditorium';
 export type Point={x:number;z:number;y?:number};
@@ -38,7 +38,7 @@ export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  if(Math.abs(fromY)<.4&&Math.abs(p.x)<=13.8&&p.z>=-8&&p.z<=50.3)return 0;
  return null;
 }
-const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.57,hz:.48,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y}))],lobby:[-10,-3,4,11].flatMap(z=>[-5.4,5.4].map(x=>({x,z,hx:.48,hz:.48,y:0})))};
+const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.57,hz:.48,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0}))],lobby:[-10,-3,4,11].flatMap(z=>[-5.4,5.4].map(x=>({x,z,hx:.48,hz:.48,y:0})))};
 const CELLS:Record<Zone,Map<string,Obstacle[]>>={lobby:new Map(),auditorium:new Map()};
 for(const zone of ['lobby','auditorium'] as const)for(const o of OBSTACLES[zone])for(let x=Math.floor((o.x-o.hx-1)/2);x<=Math.floor((o.x+o.hx+1)/2);x++)for(let z=Math.floor((o.z-o.hz-1)/2);z<=Math.floor((o.z+o.hz+1)/2);z++){const key=`${x},${z}`,items=CELLS[zone].get(key)??[];items.push(o);CELLS[zone].set(key,items);}
 export function obstacles(zone:Zone):Obstacle[]{return OBSTACLES[zone];}

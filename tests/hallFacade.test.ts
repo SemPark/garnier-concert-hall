@@ -3,7 +3,8 @@ import {readdirSync,readFileSync,statSync} from 'node:fs';
 import {rearFacade,buildGoldenHall,upperDoor,UPPER_DOOR} from '../src/scene/GoldenHall';
 import {buildStairs} from '../src/scene/Stairs';
 import {hallImageMaterial} from '../src/scene/HallTextures';
-import {STAIR,GALLERY_RAIL_HEIGHT} from '../shared/gallery';
+import {STAIR,GALLERY_RAIL_HEIGHT,GALLERY_BRIDGE,REAR_COLUMNS} from '../shared/gallery';
+import {FLOOR_AISLES,walkable} from '../shared/venue';
 import {GOLDEN_HALL as H} from '../shared/goldenHall';
 
 test('the repeatable architectural images stay below 192 KB and reuse one material per image',()=>{
@@ -13,10 +14,12 @@ test('the repeatable architectural images stay below 192 KB and reuse one materi
  for(const file of files.filter(f=>f.endsWith('.svg'))){const svg=readFileSync(new URL(file,dir),'utf8');assert.ok(!/<image\b|<script\b|https?:\/\/(?!www.w3.org)/.test(svg),'no photo, script or remote dependency belongs in the reusable art');}
 });
 
-test('the rear portico has four columns beneath the rear bridge, clear of the stair headroom',()=>{
+test('six timber columns carry the rear gallery front, in front of the stairs and clear of the aisles',()=>{
  const scene=new T.Scene(),facade=rearFacade(scene);scene.updateMatrixWorld(true);
- const columns=facade.children.filter(o=>o.userData.landmark==='rear-portico-column');assert.equal(columns.length,4);
- for(const column of columns){const b=new T.Box3().setFromObject(column);assert.ok(b.max.y<H.balconyHeight-.5);assert.ok(b.min.z>STAIR.z+STAIR.width/2+.27);}
+ const columns=facade.children.filter(o=>o.userData.landmark==='rear-portico-column');assert.equal(columns.length,REAR_COLUMNS.xs.length);
+ for(const column of columns){const b=new T.Box3().setFromObject(column);assert.ok(b.max.y<=H.balconyHeight-.3+1e-6,'below the gallery slab');assert.ok(b.max.z<STAIR.z-STAIR.width/2,'in front of the stairs');assert.ok(b.min.z>=GALLERY_BRIDGE.minZ-.01);
+  const x=(b.min.x+b.max.x)/2;for(const aisle of FLOOR_AISLES)assert.ok(Math.abs(x-aisle)>REAR_COLUMNS.radius+.6,'aisles stay open');}
+ for(const x of REAR_COLUMNS.xs)assert.equal(walkable('auditorium',{x,y:0,z:REAR_COLUMNS.z}),false,'visitors walk around columns');
  const doors:T.Object3D[]=[];facade.traverse(o=>{if(o.userData.landmark==='timber-door')doors.push(o);});assert.equal(doors.length,3,'the rear upper wall has no repeated row of invented pedimented doors');
 });
 

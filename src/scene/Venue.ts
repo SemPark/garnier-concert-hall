@@ -5,11 +5,12 @@ import type {Avatar} from '../character/Avatar';
 import {buildOrchestra} from '../orchestra/buildOrchestra';
 import {GOLDEN_HALL} from '../../shared/goldenHall';
 import {buildStairs} from './Stairs';
+import {buildSunlight,type Sunlight} from './Sunlight';
 import {buildGoldenHall} from './GoldenHall';
 import {woodMaterial,applyWoodSurface} from './HallTextures';
 import {batchArchitecture,batchCharacters} from './batching';
 import {EmoteLayer} from '../character/EmoteLayer';
-export type Venue={scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer};
+export type Venue={scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null};
 
 function chandelier(parent:T.Object3D,x:number,y:number,z:number,r=1){
  const g=new T.Group();g.position.set(x,y,z);parent.add(g);cylinder(g,.035,2,[0,1.1,0],C.gold);sphere(g,.18,[0,.35,0],C.goldLight);
@@ -101,5 +102,7 @@ export function createVenue(zone:Zone):Venue{
  const updateMusicians=batchCharacters(scene,musicians.map(a=>a.root));updateMusicians();
  // Visitor reaction icons share one draw call per hall.
  const emotes=new EmoteLayer(64);scene.add(emotes.points);
- return {scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes};
+ // Sun shafts use their own shaders, so they join after batching.
+ const sunlight=zone==='lobby'?null:buildSunlight(scene);
+ return {scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight};
 }

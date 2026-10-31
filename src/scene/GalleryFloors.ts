@@ -16,7 +16,7 @@ export function buildGalleryFloors(scene:T.Scene){
    const shape=new T.Shape();shape.moveTo(edge[0].x,edge[0].z);for(const p of edge.slice(1))shape.lineTo(p.x,p.z);shape.lineTo(r.maxX,r.maxZ);shape.lineTo(r.minX,r.maxZ);shape.closePath();
    mesh=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:.3,bevelEnabled:false,curveSegments:1}),material(0xe8d6ac));mesh.rotation.x=Math.PI/2;mesh.position.y=H.balconyHeight;scene.add(mesh);
   }else mesh=box(scene,[r.maxX-r.minX,.3,r.maxZ-r.minZ],[(r.minX+r.maxX)/2,H.balconyHeight-.15,(r.minZ+r.maxZ)/2],0xe8d6ac);
-  mesh.userData.landmark='gallery-floor';applyWoodSurface(mesh,'oak',true);slabs.push(mesh);
+  mesh.userData.landmark='gallery-floor';mesh.userData.rearGallery=r.minX<0&&r.maxX>0;applyWoodSurface(mesh,'oak',true);slabs.push(mesh);
  }
  return slabs;
 }

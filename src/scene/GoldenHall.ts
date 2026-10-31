@@ -4,7 +4,7 @@ import {GOLDEN_HALL as H} from '../../shared/goldenHall';
 import {STAGE} from '../orchestra/layout';
 import {crystalChandelier,paintedCeiling,friezeMaterial} from './HallDetails';
 import {WALL_DATUM,WALL_LEVELS,buildPerimeterCornices,buildPerimeterFriezes} from './HallWallBands';
-import {GALLERY_BRIDGE,GALLERY_RAIL_HEIGHT,galleryRailSpans} from '../../shared/gallery';
+import {GALLERY_BRIDGE,GALLERY_RAIL_HEIGHT,REAR_COLUMNS,STAIR,galleryRailSpans} from '../../shared/gallery';
 import {ORGAN_LOFT_BACK,ORGAN_LOFT_CONTOUR,ORGAN_RAIL_JOIN_X,ORGAN_RAIL_JOIN_Z,ORGAN_RAIL_POST_HALF,organBalconyFront} from '../../shared/organLoft';
 import {buildGalleryFloors} from './GalleryFloors';
 import {hallImage,hallImageMaterial,woodMaterial,applyWoodSurface} from './HallTextures';
@@ -32,7 +32,8 @@ function caryatid(g:T.Object3D){
 }
 const paneShape=new T.Shape();paneShape.moveTo(-1.1,0);paneShape.lineTo(1.1,0);paneShape.lineTo(1.1,4.45);paneShape.absarc(0,4.45,1.1,0,Math.PI,false);paneShape.lineTo(-1.1,0);
 const paneGeometry=new T.ShapeGeometry(paneShape,20),archGeometry=new T.TubeGeometry(new T.CatmullRomCurve3(Array.from({length:25},(_,i)=>{const a=i/24*Math.PI;return new T.Vector3(Math.cos(a)*1.23,Math.sin(a)*1.23,0);})),24,.09,6,false);
-const glassMaterial=new T.MeshLambertMaterial({color:0xbfd4dd,emissive:0x8ca3b8,emissiveIntensity:.15});
+// Side and rear panes glow with daylight; the front row is blind and stays dark.
+const glassMaterial=new T.MeshLambertMaterial({color:0xfff4dc,emissive:0xffe2b0,emissiveIntensity:1.05});
 const friezePlane=new T.PlaneGeometry(1,1);
 function archedWindow(g:T.Object3D,y:number,blind=false){
  const parent=g;g=new T.Group();parent.add(g);
@@ -218,6 +219,7 @@ export function upperDoor(g:T.Object3D,y:number){
  }
  return root;
 }
+const soffitLamp=new T.MeshLambertMaterial({color:0xffe7bd,emissive:0xffd9a0,emissiveIntensity:.9});
 export function rearFacade(scene:T.Scene){
  const g=new T.Group();g.position.z=WALL_DATUM.rear;g.rotation.y=Math.PI;scene.add(g);g.userData.landmark='rear-facade';
  // Six glazed arches and plain framed fields; the original rear has no row of pedimented doors.
@@ -228,17 +230,20 @@ export function rearFacade(scene:T.Scene){
   for(const side of [-1,1])box(wing,[.12,5.5,.2],[side*1.25,H.balconyHeight+2.75,.55],P.light);
  }
  for(const x of [-13.5,13.5])wallPanel(g,x,3.65,3.3,6.9);
- // Four warm timber Ionic columns below a deep rear portico, seen in the official panorama.
- for(const x of [-10.9,-3.9,3.9,10.9]){
-  const column=new T.Group();column.position.set(x,0,2.9);column.userData.landmark='rear-portico-column';g.add(column);
+ // Dark timber Ionic columns carry the deep rear gallery front, as in the original; the stairs sit behind them.
+ const front=WALL_DATUM.rear-REAR_COLUMNS.z;
+ for(const x of REAR_COLUMNS.xs){
+  const column=new T.Group();column.position.set(x,0,front);column.userData.landmark='rear-portico-column';g.add(column);
   cylinder(column,.49,.23,[0,.12,0],0x3e3025);cylinder(column,.40,.17,[0,.32,0],P.light);
-  const shaft=cylinder(column,.30,6.55,[0,3.75,0],0x9a6541);shaft.material=hallImageMaterial('walnut');
-  for(let i=0;i<12;i++){const a=i/12*Math.PI*2;cylinder(column,.014,6.45,[Math.cos(a)*.304,3.75,Math.sin(a)*.304],0xc18a55);}
-  box(column,[1.05,.25,.8],[0,7.25,0],P.light);
-  for(const side of [-1,1]){const volute=cylinder(column,.16,.2,[side*.38,7.04,.28],P.light);volute.rotation.x=Math.PI/2;}
+  const shaft=cylinder(column,.30,6.55,[0,3.75,0],0x6e4029);shaft.material=hallImageMaterial('walnut');
+  for(let i=0;i<12;i++){const a=i/12*Math.PI*2;cylinder(column,.014,6.45,[Math.cos(a)*.304,3.75,Math.sin(a)*.304],0x9a6a3f);}
+  box(column,[1.05,.25,.8],[0,7.25,0],P.gold);
+  for(const side of [-1,1]){const volute=cylinder(column,.16,.2,[side*.38,7.04,.28],P.gold);volute.rotation.x=Math.PI/2;}
  }
- box(g,[25.4,.36,.9],[0,7.68,2.9],P.deep);box(g,[25.8,.14,1.05],[0,7.93,2.95],P.light);
- hallImage(g,'scroll',24.5,.27,0,7.66,3.37);
+ // Gilded beam under the gallery front, and warm lamps in the shadowed standing area beneath.
+ box(g,[25.4,.36,.9],[0,7.68,front],P.deep);box(g,[25.8,.14,1.05],[0,7.93,front+.05],P.light);
+ hallImage(g,'scroll',24.5,.27,0,7.66,front+.47);
+ for(const [z,xs]of [[2.2,[-10.5,-5.25,0,5.25,10.5]],[WALL_DATUM.rear-STAIR.z,[-5.25,0,5.25]]] as const)for(const x of xs){const lamp=sphere(g,.17,[x,7.82,z],0xffefd4);lamp.scale.y=.45;lamp.material=soffitLamp;}
  for(const x of [-7.4,0,7.4]){
   const door=timberDoor(g,x,.15,3.8,6.4,.35);
   const glass=new T.MeshLambertMaterial({color:0xb7a98a,emissive:0x756440,emissiveIntensity:.16});
@@ -275,7 +280,7 @@ export function buildGoldenHall(scene:T.Scene){
   // The repeated bays stop short of both corners; finish those returns too.
   for(const [a,b]of [[WALL_DATUM.front,-27],[51,WALL_DATUM.rear]]){const end=new T.Group();end.position.set(side*WALL_DATUM.halfWidth,0,(a+b)/2);end.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(end);wallPanel(end,0,WALL_LEVELS.lowerPanelY,b-a,WALL_LEVELS.lowerPanelHeight);wallPanel(end,0,WALL_LEVELS.panelY,b-a,WALL_LEVELS.panelHeight);}
  }
- buildGalleryFloors(scene);
+ cameraWalls.push(...buildGalleryFloors(scene).filter(slab=>slab.userData.rearGallery));
  buildPerimeterCornices(scene);buildPerimeterFriezes(scene,friezeMaterial());
  buildFrontWindows(scene);buildOrgan(scene);paintedCeiling(scene);
  for(const x of [-7.4,7.4])for(const z of [-20,-7,6,19,32,45])crystalChandelier(scene,x,z);
