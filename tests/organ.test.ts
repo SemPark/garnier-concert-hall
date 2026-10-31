@@ -42,6 +42,11 @@ test('the organ has three manuals, stop knobs, pedals and a bench inside its pro
  // Check actual low parts, rather than the empty corners of an aggregate box
  // combining the wide case and the narrower pedalboard extending forward.
  let checked=0;console.traverse(o=>{if(!(o instanceof T.Mesh))return;const b=new T.Box3().setFromObject(o);if(b.min.y>H.balconyHeight+.3)return;for(const x of [b.min.x,b.max.x])for(const z of [b.min.z,b.max.z]){assert.ok(new T.Raycaster(new T.Vector3(x,H.balconyHeight+.1,z),new T.Vector3(0,-1,0)).intersectObject(floor).length,'console foot or pedalboard must be supported by the loft');checked++;}});assert.ok(checked>20);
+ for(const x of [bounds.min.x,0,bounds.max.x]){
+  const clearDepth=ORGAN_CASE.back+organBalconyFront(x)-.24-bounds.max.z;
+  assert.ok(clearDepth>=2,`the performer must have at least two units of free floor behind the bench, at x=${x}`);
+  for(const z of [bounds.max.z+.5,bounds.max.z+1.5])assert.ok(new T.Raycaster(new T.Vector3(x,H.balconyHeight+.1,z),new T.Vector3(0,-1,0)).intersectObject(floor).length);
+ }
 });
 
 test('the deeper organ balcony and corbels leave every musician face visible from the concert camera',()=>{

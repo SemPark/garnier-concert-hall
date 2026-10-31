@@ -54,9 +54,9 @@ export function buildFrontWindows(scene:T.Scene){
 export const ORGAN_CASE={width:23,back:WALL_DATUM.front+.12,bankDepth:[1.3,1.85,1.3],frameDepth:3.3,loftHeight:H.balconyHeight} as const;
 export function organBalconyFront(x:number){
  const a=Math.abs(x);
- if(a<=4.3)return 4.8+1.8*Math.cos(a/4.3*Math.PI/2)**2;
- if(a<=12.3)return 4.8+.9*Math.sin((a-4.3)/8*Math.PI)**2;
- const t=Math.min(1,(a-12.3)/3.05);return 4.8-1.7*t*t*(3-2*t);
+ if(a<=4.3)return 7.2+1.8*Math.cos(a/4.3*Math.PI/2)**2;
+ if(a<=12.3)return 7.2+.9*Math.sin((a-4.3)/8*Math.PI)**2;
+ const t=Math.min(1,(a-12.3)/3.05);return 7.2-4.1*t*t*(3-2*t);
 }
 function loftSlab(g:T.Group,thickness:number,y:number,inset=0){
  const outline=new T.Shape();outline.moveTo(-15.35,.05);outline.lineTo(15.35,.05);
