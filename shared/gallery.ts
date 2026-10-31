@@ -12,7 +12,7 @@ export const GALLERY_FLOORS:FloorRect[]=[...[-1,1].flatMap(side=>{
 /** Guardrails stop before the stair opening, including clearance for the visitor. */
 export function galleryRailSpans(bayZ:number){
  const start=Math.max(-26.5,bayZ-3),end=Math.min(51.8,bayZ+3);let spans=start<end?[{start,end}]:[];
- for(const [cutStart,cutEnd]of [[GALLERY_BRIDGE.minZ-.35,GALLERY_BRIDGE.maxZ+.35],[STAIR.z-STAIR.width/2-.35,STAIR.z+STAIR.width/2+.35]])spans=spans.flatMap(span=>span.end<=cutStart||span.start>=cutEnd?[span]:[...(span.start<cutStart?[{start:span.start,end:cutStart}]:[]),...(span.end>cutEnd?[{start:cutEnd,end:span.end}]:[])]);
+ for(const [cutStart,cutEnd]of [[GALLERY_BRIDGE.minZ,GALLERY_BRIDGE.maxZ+.35],[STAIR.z-STAIR.width/2-.35,STAIR.z+STAIR.width/2+.35]])spans=spans.flatMap(span=>span.end<=cutStart||span.start>=cutEnd?[span]:[...(span.start<cutStart?[{start:span.start,end:cutStart}]:[]),...(span.end>cutEnd?[{start:cutEnd,end:span.end}]:[])]);
  return spans;
 }
 export function hasGalleryFloor(x:number,z:number){return GALLERY_FLOORS.some(r=>x>=r.minX&&x<=r.maxX&&z>=r.minZ&&z<=r.maxZ);}

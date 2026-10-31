@@ -8,7 +8,8 @@ test('upper slabs never overlap and leave both stair flights open to the landing
  assert.equal(hasGalleryFloor(0,49),true);
 });
 test('gallery guardrail spans have a clear opening above each stair approach',()=>{
- for(const z of H.bayCenters)for(const span of galleryRailSpans(z)){assert.ok(span.end<=STAIR.z-STAIR.width/2-.35||span.start>=STAIR.z+STAIR.width/2+.35);assert.ok(span.start>=-26.5);assert.ok(span.end>span.start);assert.ok(span.end<=GALLERY_BRIDGE.minZ-.35||span.start>=GALLERY_BRIDGE.maxZ+.35);}
+ for(const z of H.bayCenters)for(const span of galleryRailSpans(z)){assert.ok(span.end<=STAIR.z-STAIR.width/2-.35||span.start>=STAIR.z+STAIR.width/2+.35);assert.ok(span.start>=-26.5);assert.ok(span.end>span.start);assert.ok(span.end<=GALLERY_BRIDGE.minZ||span.start>=GALLERY_BRIDGE.maxZ+.35);}
+ assert.equal(galleryRailSpans(H.bayCenters.at(-1)!).at(-1)!.end,GALLERY_BRIDGE.minZ,'the side rail must reach the rear rail without a corner gap');
 });
 test('floor and balcony seats use the same visitor-relative camera, including drag and zoom',()=>{
  const floor={x:0,y:0,z:0};

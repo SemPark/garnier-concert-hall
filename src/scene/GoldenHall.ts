@@ -3,6 +3,7 @@ import {box,cylinder,sphere,line,text,material} from './primitives';
 import {GOLDEN_HALL as H} from '../../shared/goldenHall';
 import {STAGE} from '../orchestra/layout';
 import {crystalChandelier,paintedCeiling,friezeMaterial} from './HallDetails';
+import {WALL_DATUM,WALL_LEVELS,buildPerimeterCornices,buildPerimeterFriezes} from './HallWallBands';
 import {GALLERY_BRIDGE,GALLERY_FLOORS,GALLERY_RAIL_HEIGHT,galleryRailSpans} from '../../shared/gallery';
 const P={ivory:0xe8d6ac,gold:0xc69b49,light:0xe7c77a,deep:0x8e622a,wood:0x945d30,red:0x6f2830,shadow:0x49351e,glass:0xc5d4ce};
 const cylinderCache=new Map<string,T.BufferGeometry>();
@@ -76,14 +77,6 @@ function wallPanel(g:T.Object3D,x:number,y:number,w:number,h:number){
  for(const side of [-1,1]){box(frame,[.035,h-.55,.04],[x+side*(w/2-.24),y,.43],P.light);box(frame,[w-.48,.035,.04],[x,y+side*(h/2-.24),.43],P.light);}
  frame.traverse(o=>{if(o instanceof T.Mesh)o.userData.fullDetail=true;});
 }
-/** Continuous wall bands cover the end bays and the former bare strip below the ceiling. */
-function wallBands(g:T.Object3D,width:number){
- for(const y of [7.55,18.45,26.35,28.8])cornice(g,width,y,.25);
- for(const [y,h]of [[17.95,.48],[27.75,1.05]]){
-  box(g,[width,h+.18,.18],[0,y,.19],P.deep);
-  const count=Math.ceil(width/2.1);for(let i=0;i<count;i++){const face=new T.Mesh(friezePlane,friezeMaterial());face.scale.set(width/count,h,1);face.position.set(-width/2+(i+.5)*width/count,y,.3);face.userData.fullDetail=true;g.add(face);}
- }
-}
 function sideBayDetails(g:T.Object3D){
  // Retain the ivory/red wall panels, with gilded reliefs and fluted pilasters.
  for(const side of [-1,1]){
@@ -119,18 +112,14 @@ function upperDoor(g:T.Object3D,y:number){
  whiteFigure(g,-.85,y+3.5);whiteFigure(g,.85,y+3.5);
 }
 function rearFacade(scene:T.Scene){
- const g=new T.Group();g.position.z=51.68;g.rotation.y=Math.PI;scene.add(g);g.userData.landmark='rear-facade';
+ const g=new T.Group();g.position.z=WALL_DATUM.rear;g.rotation.y=Math.PI;scene.add(g);g.userData.landmark='rear-facade';
  // Six high arched windows over an enclosed, ornamented rear gallery.
- for(const x of [-10,-6,-2,2,6,10]){const bay=new T.Group();bay.position.x=x;g.add(bay);archedWindow(bay,19.3);wallPanel(bay,0,15.4,3.75,5.4);upperDoor(bay,8.7);}
- for(const x of [-14,14]){const wing=new T.Group();wing.position.x=x;g.add(wing);archedWindow(wing,20,true);upperDoor(wing,10.1);}
- for(const y of [7.65,12.1,17.7,26.8])cornice(g,31.4,y,.3);
- for(const x of [-12,-8,-4,4,8,12])wallPanel(g,x,3.25,3.3,5.9);
+ for(const x of [-10,-6,-2,2,6,10]){const bay=new T.Group();bay.position.x=x;g.add(bay);archedWindow(bay,WALL_LEVELS.window);wallPanel(bay,0,WALL_LEVELS.panelY,3.75,WALL_LEVELS.panelHeight);upperDoor(bay,WALL_LEVELS.vent);}
+ for(const x of [-14,14]){const wing=new T.Group();wing.position.x=x;g.add(wing);archedWindow(wing,WALL_LEVELS.window,true);upperDoor(wing,WALL_LEVELS.vent);}
+ for(const x of [-12,-8,-4,4,8,12])wallPanel(g,x,WALL_LEVELS.lowerPanelY,3.3,WALL_LEVELS.lowerPanelHeight);
  // Columns are against the rear wall; the floating stairs have no support pillars.
  for(const x of [-10.9,-3.9,3.9,10.9])gildedColumn(g,x,0,7.5,.27);
- for(const r of GALLERY_FLOORS.filter(r=>r.minZ>=GALLERY_BRIDGE.minZ)){
-  const w=r.maxX-r.minX;box(scene,[w,.15,r.maxZ-r.minZ],[(r.minX+r.maxX)/2,H.balconyHeight-.32,(r.minZ+r.maxZ)/2],P.light);
- }
- const rail=new T.Group();rail.position.set(0,H.balconyHeight,GALLERY_BRIDGE.minZ);rail.rotation.y=Math.PI;scene.add(rail);balustrade(rail,25);
+ const rail=new T.Group();rail.position.set(0,H.balconyHeight,GALLERY_BRIDGE.minZ+.4);rail.rotation.y=Math.PI;scene.add(rail);balustrade(rail,25);
  // A dark timber double entrance, recessed panels and a gilded classical surround.
  box(g,[7.3,6.8,.28],[0,3.4,.33],P.gold);box(g,[6.75,6.4,.3],[0,3.2,.52],P.wood);
  for(const side of [-1,1]){for(const y of [1.1,3.05,5.1]){box(g,[2.8,1.63,.14],[side*1.62,y,.73],P.deep);box(g,[2.53,1.38,.14],[side*1.62,y,.83],P.wood);}cylinder(g,.045,.45,[side*.18,2.65,.97],P.light);}
@@ -143,21 +132,20 @@ export function buildGoldenHall(scene:T.Scene){
  // Fine lengthwise wood boards unify the stage and audience floor.
  for(let x=-15.5;x<16;x+=.5)box(scene,[.013,.008,H.rear-H.front],[x,.005,(H.rear+H.front)/2],0x8e683e);
  for(const side of [-1,1]){
-  for(const z of H.bayCenters){const g=new T.Group();g.position.set(side*15.72,0,z);g.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(g);
+  for(const z of H.bayCenters){const g=new T.Group();g.position.set(side*WALL_DATUM.halfWidth,0,z);g.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(g);
    box(g,[5.9,6.9,.16],[0,3.5,.08],P.ivory);box(g,[4.1,4.8,.12],[0,3.1,.2],0xc5a875);box(g,[3.7,4.4,.14],[0,3.1,.3],0xf0dfbb);
    for(const x of [-2.55,2.55]){const figure=new T.Group();figure.position.set(x,.45,.3);figure.scale.set(1,1.21,1);g.add(figure);caryatid(figure);}
-   wallPanel(g,0,3.4,4.2,5.4);rosette(g,0,5.8,.48,.27);box(g,[5.9,.23,1.4],[0,7.8,.6],P.deep);
-   for(const span of galleryRailSpans(z)){const rail=new T.Group();rail.position.set(side*((span.start+span.end)/2-z),H.balconyHeight,2.8);g.add(rail);balustrade(rail,span.end-span.start);}
+   wallPanel(g,0,WALL_LEVELS.lowerPanelY,4.2,WALL_LEVELS.lowerPanelHeight);rosette(g,0,5.8,.48,.27);
+   for(const span of galleryRailSpans(z)){const rail=new T.Group();rail.position.set(side*((span.start+span.end)/2-z),H.balconyHeight,WALL_DATUM.halfWidth-12.5-.4);g.add(rail);balustrade(rail,span.end-span.start);}
    for(const x of [-2.85,2.85]){box(g,[.2,17,.2],[x,18.1,.2],0x9a5646);box(g,[.065,17,.1],[x,18.1,.34],P.light);}
-   wallPanel(g,0,15.4,5.4,5.5);archedWindow(g,19.3);upperDoor(g,10.7);sideBayDetails(g);whiteFigure(g,2.8,18.1);
-   cornice(g,6,26.5,.16);box(g,[5.7,.28,.15],[0,12.4,.18],P.gold);rosette(g,0,11.1,.32,.22);g.traverse(o=>{if(o instanceof T.Mesh)o.userData.cameraOccluder=true;});
+   wallPanel(g,0,WALL_LEVELS.panelY,5.4,WALL_LEVELS.panelHeight);archedWindow(g,WALL_LEVELS.window);upperDoor(g,WALL_LEVELS.vent);sideBayDetails(g);whiteFigure(g,2.8,18.1);
+   g.traverse(o=>{if(o instanceof T.Mesh)o.userData.cameraOccluder=true;});
   }
-  const bands=new T.Group();bands.position.set(side*15.7,0,(H.front+H.rear)/2);bands.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(bands);wallBands(bands,H.rear-H.front);
   // The repeated bays stop short of both corners; finish those returns too.
-  for(const [z,w]of [[-28.4,3.1],[51.45,1.1]]){const end=new T.Group();end.position.set(side*15.71,0,z);end.rotation.y=bands.rotation.y;scene.add(end);wallPanel(end,0,3.7,w,6.9);wallPanel(end,0,15.5,w,5.5);}
+  for(const [a,b]of [[WALL_DATUM.front,-27],[51,WALL_DATUM.rear]]){const end=new T.Group();end.position.set(side*WALL_DATUM.halfWidth,0,(a+b)/2);end.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(end);wallPanel(end,0,WALL_LEVELS.lowerPanelY,b-a,WALL_LEVELS.lowerPanelHeight);wallPanel(end,0,WALL_LEVELS.panelY,b-a,WALL_LEVELS.panelHeight);}
  }
  for(const r of GALLERY_FLOORS)box(scene,[r.maxX-r.minX,.3,r.maxZ-r.minZ],[(r.minX+r.maxX)/2,H.balconyHeight-.15,(r.minZ+r.maxZ)/2],P.ivory);
- for(const z of [H.front+.23,H.rear-.23]){const bands=new T.Group();bands.position.z=z;if(z>0)bands.rotation.y=Math.PI;scene.add(bands);wallBands(bands,31.5);}
+ buildPerimeterCornices(scene);buildPerimeterFriezes(scene,friezeMaterial());
  const organCrown=new T.Group();organCrown.position.z=H.front+.28;scene.add(organCrown);
  for(const x of [-12,-8,-4,0,4,8,12]){const bay=new T.Group();bay.position.set(x,23.1,0);bay.scale.set(.86,.62,1);organCrown.add(bay);archedWindow(bay,0,true);}
  for(const z of [-28.15]){const rail=new T.Group();rail.position.set(0,H.balconyHeight,z);if(z>0)rail.rotation.y=Math.PI;scene.add(rail);balustrade(rail,29.5);}
