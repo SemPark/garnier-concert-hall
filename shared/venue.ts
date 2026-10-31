@@ -1,13 +1,14 @@
 import {GOLDEN_HALL as H} from './goldenHall';
+import type {Gesture} from './gestures';
 import {STAIR,GALLERY_BRIDGE,hasGalleryFloor} from './gallery';
 export {STAIR} from './gallery';
 export type Zone='lobby'|'auditorium';
 export type Point={x:number;z:number;y?:number};
 export type Pose='idle'|'walk'|'sit';
-export type Visitor={id:string;name:string;color:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;gesture:'wave'|'clap'|null;gestureAt:number};
+export type Visitor={id:string;name:string;color:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;gesture:Gesture|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
 export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
-export const SEAT_COLUMNS=[-12.3,-10.8,-9.3,-7.8,-6.3,-4.8,-3.3,-1.8,1.8,3.3,4.8,6.3,7.8,9.3,10.8,12.3];
+export const SEAT_COLUMNS=Array.from({length:16},(_,i)=>(i-7.5)*1.5);
 export const FLOOR_SEATS:Seat[]=Array.from({length:22},(_,row)=>SEAT_COLUMNS.map((x,column)=>({id:`parterre-${row*16+column+1}`,x,z:-1+row*2.1,approach:{x,y:0,z:-2.05+row*2.1},row:row+1,column:column+1,level:'parterre' as const,y:0,yaw:0}))).flat();
 export const BALCONY_SEATS:Seat[]=[-1,1].flatMap(side=>H.bayCenters.flatMap((z,row)=>[-1.8,-.6,.6,1.8].map((offset,column)=>({id:`balcony-${side<0?'left':'right'}-${row*4+column+1}`,x:side*15,z:z-side*offset,approach:{x:side*13.95,y:H.balconyHeight,z:z-side*offset},row:row+1,column:column+1+(side>0?4:0),level:'balcony' as const,y:H.balconyHeight,yaw:side<0?-Math.PI/2:Math.PI/2}))));
 export const SEATS:Seat[]=[...FLOOR_SEATS,...BALCONY_SEATS];

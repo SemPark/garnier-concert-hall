@@ -1,6 +1,7 @@
 import {DurableObject} from 'cloudflare:workers';
 import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,distance,canSit,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim} from '../shared/protocol';
+import {isGesture} from '../shared/gestures';
 
 type Attachment={visitor:Visitor;token:string;generation:string;lastMessage:number;windowAt:number;messageCount:number;reservationRequest?:string;roomId:string};
 type ClaimRow={seatId:string;visitorId:string;status:'reserved'|'seated';expiresAt:number|null};
@@ -87,7 +88,7 @@ export class VenueRoom extends DurableObject<Env>{
   }else if(msg.type==='renew'){
    this.ctx.storage.sql.exec("UPDATE claims SET expiresAt=? WHERE seatId=? AND visitorId=? AND status='reserved'",now+RESERVE_MS,msg.seatId,v.id);
   }else if(msg.type==='gesture'){
-   if(!['wave','clap'].includes(msg.gesture)||now-v.gestureAt<1200)return;v.gesture=msg.gesture;v.gestureAt=now;
+   if(!isGesture(msg.gesture)||now-v.gestureAt<1200)return;v.gesture=msg.gesture;v.gestureAt=now;
   }else return;
   a.lastMessage=now;ws.serializeAttachment({...a,roomId:this.roomId()});this.broadcast();await this.schedule();
  }

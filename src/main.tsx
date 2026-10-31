@@ -6,6 +6,8 @@ import {ConcertAudio} from './audio/ConcertAudio';
 import {SeatMap} from './SeatMap';
 import './style.css';
 import {runDeviceProbe} from './diagnostics/DeviceProbe';
+import {GESTURES,type Gesture} from '../shared/gestures';
+const GLYPH:Record<Gesture,string>={wave:'〜',clap:'♪',bravo:'!',ovation:'✦',bow:'⌒',moved:'♥',shh:'…',doze:'Zz'};
 
 function Icon({name,size=20}:{name:string;size?:number}){
  const paths:Record<string,React.ReactNode>={
@@ -20,13 +22,14 @@ function Icon({name,size=20}:{name:string;size?:number}){
   wave:<><path d="M8 12V5a1.5 1.5 0 0 1 3 0v6-8a1.5 1.5 0 0 1 3 0v8-7a1.5 1.5 0 0 1 3 0v8-5a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-13 4L3 13a1.7 1.7 0 0 1 2.5-2L8 14"/></>,
   clap:<><path d="m5 11 4 7a6 6 0 0 0 10-6l-3-6a1.5 1.5 0 0 0-2.5 1L16 12 10 3a1.5 1.5 0 0 0-2.5 1L12 12 6 5a1.5 1.5 0 0 0-2 2l5 7-4-3a1.5 1.5 0 0 0-2 2l4 5M18 2l1 2m3 1-2 1"/></>,
   seat:<><path d="M5 12V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7M4 10v7h16v-7M6 17v4m12-4v4M4 13h16"/></>,
-  door:<><path d="M4 21h16M6 21V3h12v18M12 12h1"/></>
+  door:<><path d="M4 21h16M6 21V3h12v18M12 12h1"/></>,
+  react:<><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/></>
  };
  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]??paths.hall}</svg>;
 }
 function format(t:number){return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;}
 function App(){
- const [app,setApp]=useState<{world:World;net:Presence;audio:ConcertAudio}|null>(null),[,redraw]=useState(0),[entered,setEntered]=useState(false),[settings,setSettings]=useState(false),[seats,setSeats]=useState(false),[musicExpanded,setMusicExpanded]=useState(false),[toast,setToast]=useState(''),[error,setError]=useState('');
+ const [app,setApp]=useState<{world:World;net:Presence;audio:ConcertAudio}|null>(null),[,redraw]=useState(0),[entered,setEntered]=useState(false),[settings,setSettings]=useState(false),[seats,setSeats]=useState(false),[musicExpanded,setMusicExpanded]=useState(false),[reactions,setReactions]=useState(false),[toast,setToast]=useState(''),[error,setError]=useState('');
  const [probeProgress,setProbeProgress]=useState(''),[probeReport,setProbeReport]=useState(''),[probeMessage,setProbeMessage]=useState('');
  const toastTimer=useRef(0),dialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{let world:World|undefined;const net=new Presence(),audio=new ConcertAudio(net.now);
@@ -36,6 +39,7 @@ function App(){
   }catch(e){setError(e instanceof Error?e.message:'3D 화면을 열지 못했어요.');}
   return ()=>{world?.destroy();net.destroy();audio.destroy();};
  },[]);
+ useEffect(()=>{const key=(e:KeyboardEvent)=>{const i=Number(e.code.replace('Digit',''))-1;if(!app||!entered||settings||!(i>=0&&i<GESTURES.length)||app.net.status!=='connected'||(e.target as HTMLElement)?.closest('input,textarea,select,dialog'))return;e.preventDefault();app.world.gestureAction(GESTURES[i].id);};window.addEventListener('keydown',key);return ()=>window.removeEventListener('keydown',key);},[app,entered,settings]);
  useEffect(()=>{if(settings){dialog.current?.showModal();app?.world.input.keys.clear();}else dialog.current?.close();},[settings,app]);
  const world=app?.world,net=app?.net,audio=app?.audio,p=audio?.playback,zone=world?.zone??'lobby',connected=net?.status==='connected',sitting=world?.pose==='sit';
  const enter=()=>{if(!app)return;setEntered(true);app.world.start();app.net.connect();void app.audio.unlock();};
@@ -68,7 +72,7 @@ function App(){
    {zone==='auditorium'&&<button className="seat-open" onClick={()=>{world?.input.keys.clear();setSeats(v=>!v);}} aria-expanded={seats}><Icon name="seat" size={16}/> 좌석 선택</button>}
    {seats&&zone==='auditorium'&&<SeatMap claims={net?.state?.seats??{}} selfId={net?.selfId??''} connected={connected} onClose={()=>setSeats(false)} onChoose={id=>{void world?.chooseSeat(id);}}/>}
    {zone==='auditorium'&&p&&<aside className={`now-playing ${(!world?.concertView||world?.pose==='walk')&&!musicExpanded?'compact-music':''}`}><button className="music-summary" aria-label={musicExpanded?'음악 정보 접기':'음악 정보 펼치기'} aria-expanded={musicExpanded} onClick={()=>setMusicExpanded(v=>!v)}><Icon name="music" size={14}/><span>{p.track.title}</span><span>{musicExpanded?'−':'+'}</span></button><div className="music-details"><div className="now-label"><span className={`equalizer ${audio?.enabled&&p.playing?'active':''}`}><i/><i/><i/></span>{p.playing?'NOW PLAYING':'INTERMISSION'}</div><h2>{p.playing?p.track.title:'잠시 쉬어가는 시간'}</h2><p>{p.playing?p.track.composer:`${Math.ceil(p.remaining)}초 후 다시 시작합니다`}</p><div className="progress-track"><span style={{width:`${p.playing?p.offset/p.track.durationSeconds*100:0}%`}}/></div><div className="track-meta"><span>{audio?.state}</span><span>{format(p.offset)} / {format(p.track.durationSeconds)}</span></div></div></aside>}
-   <div className="bottom-center"><div className="actionbar" aria-label="음악당에서 할 일"><button onClick={()=>world?.gestureAction('wave')} disabled={!connected}><Icon name="wave"/><span>인사</span></button><span className="divider"/><button className="primary-action" onClick={()=>sitting?world?.stand():world?.changeZone()} disabled={!connected}><Icon name={sitting?'seat':'door'}/><span>{sitting?'일어나기':zone==='lobby'?'공연장 입장':'로비로'}</span></button><span className="divider"/><button onClick={()=>world?.gestureAction('clap')} disabled={!connected}><Icon name="clap"/><span>박수</span></button></div><p className="controls-hint"><span>바닥 클릭으로 이동</span><i>·</i><span>드래그로 둘러보기</span><i>·</i><span>휠로 거리 조절</span></p></div>
+   <div className="bottom-center">{reactions&&<div className="reaction-panel" role="group" aria-label="리액션">{GESTURES.map((g,n)=><button key={g.id} onClick={()=>world?.gestureAction(g.id)} disabled={!connected}><b>{GLYPH[g.id]}</b><span>{g.label}</span><kbd>{n+1}</kbd></button>)}</div>}<div className="actionbar" aria-label="음악당에서 할 일"><button onClick={()=>world?.gestureAction('wave')} disabled={!connected}><Icon name="wave"/><span>인사</span></button><button onClick={()=>world?.gestureAction('clap')} disabled={!connected}><Icon name="clap"/><span>박수</span></button><span className="divider"/><button className="primary-action" onClick={()=>sitting?world?.stand():world?.changeZone()} disabled={!connected}><Icon name={sitting?'seat':'door'}/><span>{sitting?'일어나기':zone==='lobby'?'공연장 입장':'로비로'}</span></button><span className="divider"/><button className={reactions?'active':''} aria-expanded={reactions} onClick={()=>setReactions(v=>!v)} disabled={!connected}><Icon name="react"/><span>리액션</span></button></div><p className="controls-hint"><span>바닥 클릭으로 이동</span><i>·</i><span>드래그로 둘러보기</span><i>·</i><span>휠로 거리 조절</span><i>·</i><span>1–8 리액션</span></p></div>
   </>}
   {probeProgress&&<div className="diagnostic-overlay" role="status"><p>{probeProgress}<br/><small>측정 중 화면이 잠시 멈춥니다. 음악의 끊김을 비교하고 있어요.</small></p></div>}
   {toast&&<div className="toast" role="status">{toast}</div>}

@@ -7,7 +7,8 @@ import {GOLDEN_HALL} from '../../shared/goldenHall';
 import {buildStairs} from './Stairs';
 import {buildGoldenHall} from './GoldenHall';
 import {batchArchitecture,batchCharacters} from './batching';
-export type Venue={scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void};
+import {EmoteLayer} from '../character/EmoteLayer';
+export type Venue={scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer};
 
 function chandelier(parent:T.Object3D,x:number,y:number,z:number,r=1){
  const g=new T.Group();g.position.set(x,y,z);parent.add(g);cylinder(g,.035,2,[0,1.1,0],C.gold);sphere(g,.18,[0,.35,0],C.goldLight);
@@ -38,16 +39,15 @@ function arch(parent:T.Object3D,width:number,height:number,position:number[],rot
  g.add(new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts),24,.09,6,false),material(C.goldLight,.3)));return g;
 }
 // Shared curved timber and upholstered geometry: one set for all 456 seats.
-const chairShape=new T.Shape();chairShape.moveTo(-.55,-.4);chairShape.lineTo(.55,-.4);chairShape.lineTo(.55,.23);chairShape.quadraticCurveTo(.55,.48,0,.48);chairShape.quadraticCurveTo(-.55,.48,-.55,.23);chairShape.closePath();
-const chairBack=new T.ExtrudeGeometry(chairShape,{depth:.13,bevelEnabled:true,bevelSize:.035,bevelThickness:.025,bevelSegments:2,curveSegments:10});
-const cushionGeometry=new T.BoxGeometry(1,1,1,1,1,1);
+const chairShape=new T.Shape();chairShape.moveTo(-.51,-.28);chairShape.lineTo(.51,-.28);chairShape.lineTo(.51,.22);chairShape.quadraticCurveTo(.51,.3,.43,.3);chairShape.lineTo(-.43,.3);chairShape.quadraticCurveTo(-.51,.3,-.51,.22);chairShape.closePath();
+const chairBack=new T.ExtrudeGeometry(chairShape,{depth:.075,bevelEnabled:true,bevelSize:.018,bevelThickness:.012,bevelSegments:1,curveSegments:6});
+const cushionGeometry=new T.BoxGeometry(1,1,1);
 function seat(parent:T.Object3D,x:number,z:number){
- const g=new T.Group();g.position.set(x,0,z);parent.add(g);
- const timber=new T.Mesh(chairBack,material(0xa46d35,.15,.45));timber.position.set(0,.96,.39);timber.rotation.x=-.09;timber.userData.fullDetail=true;g.add(timber);
- const pad=new T.Mesh(chairBack,material(C.red,.05,.85));pad.position.set(0,.96,.355);pad.scale.set(.88,.85,.38);pad.rotation.x=-.09;pad.userData.fullDetail=true;g.add(pad);
- box(g,[1.12,.12,.98],[0,.41,0],0x9b6530);
- const cushion=new T.Mesh(cushionGeometry,material(C.redLight,.05,.85));cushion.scale.set(1.05,.18,.89);cushion.position.set(0,.5,-.025);g.add(cushion);
- for(const side of [-1,1]){for(const zz of [-.32,.33]){const leg=box(g,[.075,.44,.075],[side*.48,.22,zz],0x80522e);leg.rotation.z=side*-.045;}box(g,[.1,.32,.09],[side*.57,.65,.3],0xa46d35);box(g,[.13,.095,.86],[side*.57,.83,0],0xaf7e43);}
+ const g=new T.Group();g.position.set(x,0,z);g.userData.audienceChair=true;parent.add(g);
+ const timber=new T.Mesh(chairBack,material(0x9c622d,.05,.55));timber.position.set(0,.96,.37);timber.rotation.x=-.07;g.add(timber);
+ box(g,[.86,.44,.025],[0,.96,.345],0xb17b40);box(g,[1.04,.09,.86],[0,.42,0],0x8a542a);
+ const cushion=new T.Mesh(cushionGeometry,material(0x74342c,.02,.9));cushion.scale.set(.96,.13,.78);cushion.position.set(0,.50,-.035);g.add(cushion);
+ for(const side of [-1,1]){for(const zz of [-.3,.3])box(g,[.065,.45,.065],[side*.43,.225,zz],0x664326);box(g,[.075,.31,.075],[side*.53,.67,.31],0x8e5c2d);box(g,[.11,.075,.78],[side*.53,.82,-.01],0xad783b);}
  g.traverse(o=>{if(o instanceof T.Mesh&&!Array.isArray(o.material)){o.material=detailedMaterial(o.material);o.userData.fullDetail=true;}});return g;
 }
 function ceilingPainting(parent:T.Object3D,x:number,z:number,w:number,h:number,y:number){
@@ -98,5 +98,7 @@ export function createVenue(zone:Zone):Venue{
  cameraWalls.push(portal);
  const updateLOD=batchArchitecture(scene,[floor,portal,...walkTargets.filter(o=>o instanceof T.Mesh&&!Array.isArray(o.material)&&!o.material.visible),...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
  const updateMusicians=batchCharacters(scene,musicians.map(a=>a.root));updateMusicians();
- return {scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians};
+ // Visitor reaction icons share one draw call per hall.
+ const emotes=new EmoteLayer(64);scene.add(emotes.points);
+ return {scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes};
 }

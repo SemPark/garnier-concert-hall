@@ -23,10 +23,10 @@ test('every musician fits on the enlarged stage, faces the conductor and has per
  }
  for(let i=1;i<STAGE_TERRACES.length;i++)assert.ok(STAGE_TERRACES[i].rise>STAGE_TERRACES[i-1].rise);for(const p of ORCHESTRA_LAYOUT)assert.equal(p.rise,stageRiseAt(p.x,p.z));
 });
-test('straight arms wave beside the body and clap in front without crossing',()=>{
+test('straight arms wave one hand high and clap in front without crossing',()=>{
  const a=new Avatar();
  for(let age=.3;age<=2.3;age+=.025){
-  a.update(0,0,false,false,'wave',age);const l=bodyHand(a,'left'),r=bodyHand(a,'right');assert.ok(l.x<-.55&&r.x>.55);assert.ok(l.z>-.1&&r.z>-.1);
+  a.update(0,0,false,false,'wave',age);const l=bodyHand(a,'left'),r=bodyHand(a,'right');if(age<=2){assert.ok(r.y>1.1&&r.x>.45,'one hand waves high, clear of the head');assert.ok(l.y<.75,'the other arm stays down');}
   a.update(0,0,false,false,'clap',age);const cl=bodyHand(a,'left'),cr=bodyHand(a,'right');assert.ok(cl.z<-.27&&cr.z<-.27);assert.ok(cr.x-cl.x>=.119);assert.ok(cr.x-cl.x<.51);
   for(const [hand,arm]of [[a.leftHand,a.leftArm],[a.rightHand,a.rightArm]]){assert.equal(hand.parent,arm);assert.ok(Math.abs(hand.position.length()-.4)<1e-9);}
  }
