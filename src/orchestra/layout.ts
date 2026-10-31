@@ -58,8 +58,11 @@ const windRows:Instrument[][]=[
 windRows.forEach((types,i)=>types.forEach((type,j)=>place(type,'woodwinds',i+2,-.59+j*1.18/7+(i===1?-.025:0))));
 band('violin','first-violins',4,1,-1.45,-1.45);band('violin','second-violins',4,5,-1.29,-.65);
 band('horn','brass',4,7,-.49,.47);band('tuba','brass',4,1,.63,.63);
-band('viola','violas',4,2,.79,.95);band('cello','cellos',4,1,1.11,1.11);
-const back:Instrument[]=['trumpet','trumpet','trumpet','trumpet','trombone','trombone','trombone','trombone','bass','bass','bass','bass','bass','bass','cello','cello'];
+band('viola','violas',4,2,.79,.95);
+// Fill the third raised row's right-hand gap with the two cellists lowered
+// from the fourth raised row; keep the total cello complement unchanged.
+band('cello','cellos',4,3,1.11,1.43);
+const back:Instrument[]=['trumpet','trumpet','trumpet','trumpet','trombone','trombone','trombone','trombone','bass','bass','bass','bass','bass','bass'];
 back.forEach((type,i)=>place(type,type==='bass'?'basses':type==='cello'?'cellos':'brass',5,-.68+i*2.33/15));
 // Every percussion label in the diagram is retained, including the separate
 // sleigh-bell and triangle stations. Timpani is one three-drum set.
