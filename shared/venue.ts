@@ -19,6 +19,8 @@ export const FLOOR_SEATS:Seat[]=FLOOR_ROWS.flatMap((z,row)=>SEAT_COLUMNS.map((x,
 export const BALCONY_SEATS:Seat[]=[-1,1].flatMap(side=>H.bayCenters.flatMap((z,row)=>row===0?[]:[-1.8,-.6,.6,1.8].map((offset,column)=>({id:`balcony-${side<0?'left':'right'}-${row*4+column+1}`,x:side*15,z:z-side*offset,approach:{x:side*13.95,y:H.balconyHeight,z:z-side*offset},row:row+1,column:column+1+(side>0?4:0),level:'balcony' as const,y:H.balconyHeight,yaw:side<0?-Math.PI/2:Math.PI/2}))));
 export const SEATS:Seat[]=[...FLOOR_SEATS,...BALCONY_SEATS];
 export function seatLabel(s:Seat){return `${s.level==='parterre'?'1층':'2층'} ${s.row}열 ${s.column}번`;}
+/** The parterre runs right up to the stage lip (stage front is z -9.5). */
+export const STAGE_APRON_Z=-9.2;
 export const BOUNDS={lobby:{minX:-6.5,maxX:6.5,minZ:-16,maxZ:16},auditorium:{minX:-15.65,maxX:15.65,minZ:-26.5,maxZ:50.3}};
 export const SPAWN={lobby:{x:0,y:0,z:10},auditorium:{x:0,y:0,z:47}};
 export const CAPACITY=40;
@@ -35,7 +37,7 @@ export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  // Tiny landing margins let a step enter or leave the continuous stair slope.
  if(Math.abs(p.z-STAIR.z)<=STAIR.width/2&&Math.abs(p.x)>STAIR.topX&&Math.abs(p.x)<14.3&&fromY>H.balconyHeight-.65)return H.balconyHeight;
  if(fromY>H.balconyHeight-.45&&inGallery(p))return H.balconyHeight;
- if(Math.abs(fromY)<.4&&Math.abs(p.x)<=13.8&&p.z>=-8&&p.z<=50.3)return 0;
+ if(Math.abs(fromY)<.4&&Math.abs(p.x)<=13.8&&p.z>=STAGE_APRON_Z&&p.z<=50.3)return 0;
  return null;
 }
 const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.57,hz:.48,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0}))],lobby:[-10,-3,4,11].flatMap(z=>[-5.4,5.4].map(x=>({x,z,hx:.48,hz:.48,y:0})))};

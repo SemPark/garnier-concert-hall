@@ -11,3 +11,9 @@ test('a visitor can change direction halfway up a stair without dropping to the 
  const middle={x:7.75,y:4.15,z:STAIR.z},bottom=stairPoint(1,false),other={x:-7.75,y:4.15,z:STAIR.z};
  for(const end of [bottom,other]){const route=findPath('auditorium',middle,end);assert.ok(route);let p=middle;for(const point of route){assert.ok(segmentClear('auditorium',p,point));p={x:point.x,y:point.y??0,z:point.z};}}
 });
+
+test('the strip right in front of the stage is walkable from the aisles',async()=>{
+ const {findPath}=await import('../src/navigation/path');const {walkable,STAGE_APRON_Z}=await import('../shared/venue');
+ for(const x of [-12,-6.4,0,6.4,12]){const p={x,y:0,z:STAGE_APRON_Z+.3};assert.ok(walkable('auditorium',p),`x ${x}`);assert.ok(findPath('auditorium',{x:0,y:0,z:47},p),`reach x ${x}`);}
+ assert.ok(!walkable('auditorium',{x:0,y:0,z:-10}),'the stage itself stays off limits');
+});

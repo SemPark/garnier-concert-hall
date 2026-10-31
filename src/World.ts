@@ -5,7 +5,7 @@ import {Input} from './controls/Input';
 import {constrainCamera} from './controls/cameraCollision';
 import {localCameraFrame} from './controls/localCamera';
 import {findPath,segmentClear} from './navigation/path';
-import {SPAWN,SEATS,BOUNDS,walkable,distance,surfaceHeight,stairPoint,type Visitor,type Zone,type Point} from '../shared/venue';
+import {SPAWN,SEATS,BOUNDS,walkable,distance,surfaceHeight,stairPoint,STAGE_APRON_Z,type Visitor,type Zone,type Point} from '../shared/venue';
 import type {Snapshot} from '../shared/protocol';
 import type {Presence} from './network/Presence';
 import type {ConcertAudio} from './audio/ConcertAudio';
@@ -83,6 +83,8 @@ export class World{
   if(seatId){void this.chooseSeat(seatId);return;}
   if(this.pose==='sit'){this.stand();return;}
   const point={x:hit.point.x,y:surfaceHeight(this.zone,hit.point,hit.point.y)??hit.point.y,z:hit.point.z};if(this.zone==='lobby'&&point.z<-15&&Math.abs(point.x)<2){this.changeZone();return;}
+  // A tap on the stage lip, whose ray reaches the floor under the stage, walks to the front of the stage instead.
+  if(this.zone==='auditorium'&&Math.abs(point.y??0)<.4&&point.z<STAGE_APRON_Z&&point.z>STAGE_APRON_Z-3)point.z=STAGE_APRON_Z+.3;
   const path=findPath(this.zone,{x:this.position.x,y:this.position.y,z:this.position.z},point);if(!path){this.onToast('통로나 빈 바닥을 선택해 주세요.');return;}this.cancelSeat();this.route=path;this.marker.position.set(point.x,(point.y??0)+.035,point.z);this.marker.visible=true;
  }
  private sendPosition(now:number,force=false){if(!this.entered||!this.self||this.pose==='sit')return;if(force||now-this.sentAt>300||this.lastPose!==this.pose){this.sentAt=now;this.lastPose=this.pose;this.net.send({type:'move',x:this.position.x,y:this.position.y,z:this.position.z,yaw:this.yaw,pose:this.pose});}}
