@@ -7,27 +7,27 @@ export const SUN_DIRECTION=new T.Vector3(-.62,-.74,.2).normalize();
 const SUN_COLOR=new T.Color(1,.84,.58);
 /** Every other right-side window, so each shaft reads on its own; the bays by the organ and rear gallery stay plain. */
 export const SUN_WINDOWS=H.bayCenters.filter(z=>[-18,-6,6,18,30].includes(z)).map(z=>new T.Vector3(WALL_DATUM.halfWidth-.2,WALL_LEVELS.window+2.9,z));
-const DUST_PER_BEAM=46;
+const DUST_PER_BEAM=16;
 
 /** Where a shaft from this window reaches the parterre floor. */
 export function sunFloorPoint(window:T.Vector3){return window.clone().addScaledVector(SUN_DIRECTION,window.y/-SUN_DIRECTION.y);}
 
 const beamMaterial=new T.ShaderMaterial({
  transparent:true,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide,
- uniforms:{time:{value:0},color:{value:SUN_COLOR},strength:{value:1.6}},
+ uniforms:{time:{value:0},color:{value:SUN_COLOR},strength:{value:.55}},
  vertexShader:`attribute float seed;varying vec2 vUv;varying vec3 vNormal;varying vec3 vView;varying float vSeed;
 void main(){vUv=uv;vSeed=seed;vec4 world=modelMatrix*vec4(position,1.0);vNormal=normalize(mat3(modelMatrix)*normal);vView=cameraPosition-world.xyz;gl_Position=projectionMatrix*viewMatrix*world;}`,
  fragmentShader:`uniform float time;uniform vec3 color;uniform float strength;varying vec2 vUv;varying vec3 vNormal;varying vec3 vView;varying float vSeed;
 void main(){
  float along=vUv.y;
- float fade=smoothstep(0.0,0.04,along)*(1.0-0.55*smoothstep(0.3,1.0,along))*(1.0-smoothstep(0.93,1.0,along));
+ float fade=smoothstep(0.0,0.12,along)*(1.0-0.75*smoothstep(0.2,1.0,along))*(1.0-smoothstep(0.85,1.0,along));
  // Faces seen edge-on vanish, so the shaft reads as a soft volume rather than a tube.
- float edge=pow(abs(dot(normalize(vNormal),normalize(vView))),1.3);
+ float edge=pow(abs(dot(normalize(vNormal),normalize(vView))),2.4);
  // Window bars cast faint darker bands, and the air drifts slowly through the light.
- float bars=0.8+0.2*smoothstep(0.15,0.35,abs(fract(vUv.x*4.0)-0.5));
- float drift=0.78+0.22*sin(along*14.0-time*0.45+vSeed*7.0)*sin(vUv.x*18.85+time*0.2+vSeed*3.0);
+ float bars=0.94+0.06*smoothstep(0.15,0.35,abs(fract(vUv.x*4.0)-0.5));
+ float drift=0.92+0.08*sin(along*14.0-time*0.45+vSeed*7.0)*sin(vUv.x*18.85+time*0.2+vSeed*3.0);
  // Fade out when the camera is inside or right next to a shaft, and never burn to white.
- float a=min(strength*fade*edge*bars*drift*smoothstep(3.0,14.0,length(vView)),0.42);
+ float a=min(strength*fade*edge*bars*drift*smoothstep(4.0,18.0,length(vView)),0.13);
  gl_FragColor=vec4(color*a,1.0);
 }`,
 });
@@ -37,7 +37,7 @@ const poolMaterial=new T.ShaderMaterial({
  uniforms:{time:{value:0},color:{value:SUN_COLOR}},
  vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
  fragmentShader:`uniform float time;uniform vec3 color;varying vec2 vUv;
-void main(){vec2 p=vUv*2.0-1.0;float r=dot(p,p);float a=(1.0-smoothstep(0.15,1.0,r))*(0.38+0.04*sin(time*0.7));gl_FragColor=vec4(color*a,1.0);}`,
+void main(){vec2 p=vUv*2.0-1.0;float r=dot(p,p);float a=(1.0-smoothstep(0.0,1.0,r))*(0.11+0.01*sin(time*0.7));gl_FragColor=vec4(color*a,1.0);}`,
 });
 
 const dustMaterial=new T.ShaderMaterial({
@@ -50,9 +50,9 @@ void main(){
  p+=vec3(sin(time*0.21+seed.x*6.3),sin(time*0.17+seed.y*6.3)*0.6-mod(time*0.05+seed.z*3.0,1.2)+0.6,cos(time*0.19+seed.z*6.3))*0.45;
  vec4 mv=modelViewMatrix*vec4(p,1.0);
  vAlpha=0.35+0.65*pow(0.5+0.5*sin(time*(0.8+seed.x)+seed.y*12.0),3.0);
- gl_PointSize=0.07*scale/max(0.5,-mv.z);gl_Position=projectionMatrix*mv;}`,
+ gl_PointSize=0.045*scale/max(0.5,-mv.z);gl_Position=projectionMatrix*mv;}`,
  fragmentShader:`uniform vec3 color;varying float vAlpha;
-void main(){vec2 p=gl_PointCoord*2.0-1.0;float a=(1.0-smoothstep(0.0,1.0,dot(p,p)))*vAlpha*0.85;if(a<0.01)discard;gl_FragColor=vec4(color*a,1.0);}`,
+void main(){vec2 p=gl_PointCoord*2.0-1.0;float a=(1.0-smoothstep(0.0,1.0,dot(p,p)))*vAlpha*0.35;if(a<0.01)discard;gl_FragColor=vec4(color*a,1.0);}`,
 });
 
 function beamGeometry(length:number,seed:number){
@@ -88,7 +88,7 @@ export function buildSunlight(scene:T.Scene):Sunlight{
  const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(dust,3));geometry.setAttribute('seed',new T.Float32BufferAttribute(seeds,3));
  const motes=new T.Points(geometry,dustMaterial);motes.frustumCulled=false;motes.renderOrder=6;motes.userData.landmark='sun-dust';root.add(motes);
  // A warm key light from the same side gently lifts the surfaces facing the windows.
- const sun=new T.DirectionalLight(0xffd9a0,.55);sun.position.copy(SUN_DIRECTION).multiplyScalar(-40);sun.target.position.set(0,0,10);root.add(sun,sun.target);
+ const sun=new T.DirectionalLight(0xffd9a0,.3);sun.position.copy(SUN_DIRECTION).multiplyScalar(-40);sun.target.position.set(0,0,10);root.add(sun,sun.target);
  return {
   root,
   update(time){beamMaterial.uniforms.time.value=time;poolMaterial.uniforms.time.value=time;dustMaterial.uniforms.time.value=time;},

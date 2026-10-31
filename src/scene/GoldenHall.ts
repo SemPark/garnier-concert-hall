@@ -33,7 +33,7 @@ function caryatid(g:T.Object3D){
 const paneShape=new T.Shape();paneShape.moveTo(-1.1,0);paneShape.lineTo(1.1,0);paneShape.lineTo(1.1,4.45);paneShape.absarc(0,4.45,1.1,0,Math.PI,false);paneShape.lineTo(-1.1,0);
 const paneGeometry=new T.ShapeGeometry(paneShape,20),archGeometry=new T.TubeGeometry(new T.CatmullRomCurve3(Array.from({length:25},(_,i)=>{const a=i/24*Math.PI;return new T.Vector3(Math.cos(a)*1.23,Math.sin(a)*1.23,0);})),24,.09,6,false);
 // Side and rear panes glow with daylight; the front row is blind and stays dark.
-const glassMaterial=new T.MeshLambertMaterial({color:0xfff4dc,emissive:0xffe2b0,emissiveIntensity:1.05});
+const glassMaterial=new T.MeshLambertMaterial({color:0xfff4dc,emissive:0xffe2b0,emissiveIntensity:.55});
 const friezePlane=new T.PlaneGeometry(1,1);
 function archedWindow(g:T.Object3D,y:number,blind=false){
  const parent=g;g=new T.Group();parent.add(g);
