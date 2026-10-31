@@ -1,6 +1,7 @@
 import * as T from 'three';
 import {box,cylinder,sphere,line,material} from './primitives';
 import {GOLDEN_HALL as H} from '../../shared/goldenHall';
+import {hallImageMaterial,applyWoodSurface} from './HallTextures';
 const gold=0xc69b49,light=0xe6c882,dark=0x44301e;
 const ring=new T.TorusGeometry(1,.026,6,48);
 // The photographed fixture has a narrow crown, a widening skirt and a round bowl.
@@ -24,37 +25,31 @@ export function crystalChandelier(scene:T.Scene,x:number,z:number){
  // One internal emissive bulb; shared hall lights provide illumination cheaply.
  const bulb=sphere(g,.15,[0,1.15,0],0xfff4d9);bulb.material=material(0xfff4d9);bulb.material.emissive.setHex(0xffe7bc);bulb.material.emissiveIntensity=1.4;
 }
-function leaf(c:CanvasRenderingContext2D,x:number,y:number,r:number,a:number){c.save();c.translate(x,y);c.rotate(a);c.beginPath();c.moveTo(0,0);c.bezierCurveTo(r*.3,-r*.8,r,-r*.8,r,0);c.bezierCurveTo(r,r*.5,r*.3,r*.5,0,0);c.fill();c.stroke();c.restore();}
-function scroll(c:CanvasRenderingContext2D,x:number,y:number,r:number){
- c.save();c.translate(x,y);c.lineWidth=2;c.strokeStyle='#d7b46a';c.fillStyle='#ae7f39';for(const sign of [-1,1]){c.beginPath();for(let i=0;i<=90;i++){const a=i/90*Math.PI*3,rad=r*(1-i/110);const xx=sign*Math.cos(a)*rad,yy=Math.sin(a)*rad*.63;i?c.lineTo(xx,yy):c.moveTo(xx,yy);}c.stroke();for(let i=0;i<6;i++)leaf(c,sign*(i-2.5)*r*.32,Math.sin(i)*r*.25,r*.36,sign*i*.65);}c.restore();
-}
-let friezeMat:T.MeshLambertMaterial|undefined;
-export function friezeMaterial(){
- if(friezeMat)return friezeMat;const canvas=document.createElement('canvas');canvas.width=512;canvas.height=192;const c=canvas.getContext('2d')!;c.fillStyle='#3c2b1d';c.fillRect(0,0,512,192);
- for(const inset of [5,12]){c.strokeStyle=inset===5?'#f0d296':'#a16f2f';c.lineWidth=4;c.strokeRect(inset,inset,512-inset*2,192-inset*2);}
- scroll(c,128,96,85);scroll(c,384,96,85);c.strokeStyle='#e2c486';c.lineWidth=4;c.beginPath();c.ellipse(256,96,35,58,0,0,Math.PI*2);c.stroke();c.beginPath();c.moveTo(245,55);c.lineTo(236,124);c.quadraticCurveTo(256,147,276,124);c.lineTo(267,55);c.stroke();for(let i=0;i<5;i++){c.beginPath();c.moveTo(247+i*5,62);c.lineTo(243+i*6,123);c.stroke();}
- const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;texture.wrapS=T.RepeatWrapping;return friezeMat=new T.MeshLambertMaterial({map:texture,emissive:0x65471e,emissiveIntensity:.12});
-}
-function border(c:CanvasRenderingContext2D,x:number,y:number,w:number,h:number){for(const [inset,color,lw]of [[0,'#e3c483',4],[6,'#6f4824',4],[11,'#d4a952',3],[17,'#281d16',4]] as const){c.strokeStyle=color;c.lineWidth=lw;c.strokeRect(x+inset,y+inset,w-inset*2,h-inset*2);}}
-function painting(c:CanvasRenderingContext2D,x:number,y:number,w:number,h:number,seed:number){
- c.save();c.beginPath();c.rect(x,y,w,h);c.clip();const bg=c.createLinearGradient(x,y,x+w,y+h);bg.addColorStop(0,'#416c79');bg.addColorStop(.65,'#658685');bg.addColorStop(1,'#bdad8c');c.fillStyle=bg;c.fillRect(x,y,w,h);
- for(let i=0;i<15;i++){c.fillStyle=i%2?'#c5bca43b':'#dfcfaf47';c.beginPath();c.ellipse(x+(i*73+seed*41)%w,y+(i*37)%h,w*.22,h*.1,.1,0,Math.PI*2);c.fill();}
- for(let i=0;i<3;i++){c.save();c.translate(x+w*(.27+i*.23),y+h*(.42+(i%2)*.16));c.rotate((i-1)*.55+seed*.07);const s=h*.028;c.scale(s,s);c.fillStyle=['#a8563f','#b29c6d','#444e59'][(i+seed)%3];c.beginPath();c.moveTo(-2,-1);c.bezierCurveTo(-5,3,-7,5,-11,7);c.bezierCurveTo(-3,10,3,9,7,4);c.lineTo(2,-2);c.closePath();c.fill();c.fillStyle='#cda57d';c.beginPath();c.ellipse(0,-3,1.05,1.4,.15,0,Math.PI*2);c.fill();c.strokeStyle='#bf936d';c.lineWidth=.85;c.lineCap='round';c.beginPath();c.moveTo(-1.8,-.5);c.lineTo(-5,-2.5);c.lineTo(-7,-5);c.moveTo(1.8,-.5);c.lineTo(5,0);c.lineTo(7,-2);c.moveTo(-1,4);c.lineTo(-3,7);c.lineTo(-6,8);c.moveTo(2,4);c.lineTo(6,5);c.lineTo(8,4);c.stroke();c.restore();}
- c.restore();border(c,x,y,w,h);
-}
-function ceilingTexture(seed:number){
- const canvas=document.createElement('canvas');canvas.width=1536;canvas.height=384;const c=canvas.getContext('2d')!;c.fillStyle='#80602f';c.fillRect(0,0,1536,384);border(c,3,3,1530,378);
- for(let x=35;x<1520;x+=28){c.fillStyle='#d4ad5f';c.beginPath();c.arc(x,24,3.5,0,Math.PI*2);c.arc(x,360,3.5,0,Math.PI*2);c.fill();}
- painting(c,575,55,386,274,seed);
- for(const center of [280,1256]){c.save();c.translate(center,192);if(seed%2===0){c.rotate(.12*(center<700?-1:1));painting(c,-160,-115,320,230,seed+1);}else{c.fillStyle='#604121';c.beginPath();c.ellipse(0,0,165,142,0,0,Math.PI*2);c.fill();for(const r of [130,140]){c.strokeStyle='#d4b579';c.lineWidth=5;c.beginPath();c.ellipse(0,0,r*1.1,r,0,0,Math.PI*2);c.stroke();}scroll(c,0,0,92);}c.restore();}
- for(const center of [505,1031]){c.save();c.translate(center,192);c.rotate(Math.PI/4);c.fillStyle='#263d39';c.fillRect(-36,-36,72,72);border(c,-45,-45,90,90);c.restore();scroll(c,center,78,33);scroll(c,center,310,33);}
- for(const center of [62,1474])scroll(c,center,192,47);
- const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;texture.anisotropy=4;return new T.MeshLambertMaterial({map:texture,emissive:0x65471e,emissiveIntensity:.12});
+/** Shared ornament images replace per-bay painted canvases and fine mesh decoration. */
+export function friezeMaterial(){return hallImageMaterial('scroll');}
+// Four UV quadrants share one WebP texture; no per-panel image downloads or canvases.
+const frescoGeometry=Array.from({length:4},(_,variant)=>{
+ const geometry=new T.PlaneGeometry(1,1),uv=geometry.getAttribute('uv'),col=variant%2,row=Math.floor(variant/2);
+ for(let i=0;i<uv.count;i++)uv.setXY(i,col*.5+.003+uv.getX(i)*.494,(1-row)*.5+.003+uv.getY(i)*.494);
+ return geometry;
+});
+function addCeilingFresco(g:T.Group,variant:number,x:number,width:number,height:number){
+ const mesh=new T.Mesh(frescoGeometry[variant],hallImageMaterial('fresco'));mesh.scale.set(width,height,1);mesh.rotation.x=Math.PI/2;mesh.position.set(x,-.095,0);mesh.userData.landmark='ceiling-fresco';mesh.userData.variant=variant;mesh.userData.fullDetail=true;g.add(mesh);
+ for(const edge of [-1,1]){
+  box(g,[width+.10,.035,.045],[x,-.108,edge*height/2],light).userData.fullDetail=true;
+  box(g,[.045,.035,height],[x+edge*width/2,-.108,0],light).userData.fullDetail=true;
+ }
+ return mesh;
 }
 export function paintedCeiling(scene:T.Scene){
- box(scene,[H.width,.35,H.rear-H.front],[0,H.height,(H.front+H.rear)/2],0x5b3e20);
- const materials=[0,1,2].map(ceilingTexture),panel=new T.PlaneGeometry(29.5,5.5);
- H.bayCenters.forEach((z,i)=>{const g=new T.Group();g.position.set(0,H.height-.28,z);g.userData.landmark='painted-coffer';scene.add(g);const image=new T.Mesh(panel,materials[i%3]);image.rotation.x=Math.PI/2;image.position.y=-.08;g.add(image);
+ const backing=box(scene,[H.width,.35,H.rear-H.front],[0,H.height,(H.front+H.rear)/2],0x5b3e20);applyWoodSurface(backing,'walnut');backing.userData.landmark='ceiling-timber-backing';
+ // Each transverse beam is built once at a boundary, avoiding doubled coplanar joins.
+ let sharedBeam:T.BufferGeometry|undefined;for(const z of [...H.bayCenters.map(z=>z-3),H.bayCenters.at(-1)!+3]){const beam:T.Mesh=box(scene,[30.2,.24,.28],[0,H.height-.36,z],dark);applyWoodSurface(beam,'walnut');if(sharedBeam){beam.geometry.dispose();beam.geometry=sharedBeam;}else sharedBeam=beam.geometry;beam.userData.landmark='ceiling-timber-beam';}
+ for(const x of [-15.12,15.12]){const beam=box(scene,[.30,.20,78],[x,H.height-.35,12],dark);applyWoodSurface(beam,'walnut');beam.userData.landmark='ceiling-timber-beam';}
+ const materials=[hallImageMaterial('ceiling1'),hallImageMaterial('ceiling2')],panel=new T.PlaneGeometry(29.5,5.5);
+ H.bayCenters.forEach((z,i)=>{const g=new T.Group();g.position.set(0,H.height-.28,z);g.userData.landmark='painted-coffer';scene.add(g);const image=new T.Mesh(panel,materials[i%2]);image.rotation.x=Math.PI/2;image.position.y=-.08;image.userData.fullDetail=true;g.add(image);
+  addCeilingFresco(g,i%4,0,4.84,3.24);
+  if(i%2===1){addCeilingFresco(g,(i+1)%4,-9.85,3.92,3.03);addCeilingFresco(g,(i+2)%4,9.85,3.92,3.03);}
   for(const dz of [-2.88,2.88]){box(g,[30.2,.2,.18],[0,-.05,dz],gold);box(g,[30.2,.08,.07],[0,-.19,dz],light);}
   for(const x of [-15.12,15.12]){box(g,[.2,.16,5.85],[x,-.03,0],gold);box(g,[.07,.08,5.85],[x,-.16,0],light);}
  });

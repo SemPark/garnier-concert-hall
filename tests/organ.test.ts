@@ -12,7 +12,7 @@ test('the front has one symmetric, evenly spaced row of full-height blind arches
  const scene=new T.Scene();buildFrontWindows(scene);scene.updateMatrixWorld(true);const windows:T.Object3D[]=[];scene.traverse(o=>{if(o.userData.landmark==='front-window')windows.push(o);});
  assert.equal(windows.length,8);let previous:T.Box3|undefined;
  for(const [i,w]of windows.entries()){
-  const bounds=new T.Box3().setFromObject(w);assert.equal(w.position.x,FRONT_WINDOW_AXES[i]);assert.ok(bounds.min.y<WALL_LEVELS.window&&bounds.max.y>WALL_LEVELS.window+6);
+  const bounds=new T.Box3().setFromObject(w);assert.equal(w.position.x,FRONT_WINDOW_AXES[i]);assert.ok(bounds.min.y<WALL_LEVELS.window&&bounds.max.y>WALL_LEVELS.window+5.4&&bounds.max.y<WALL_LEVELS.window+6);
   if(previous){assert.ok(bounds.min.x>previous.max.x);assert.ok(Math.abs(bounds.min.y-previous.min.y)<1e-8);assert.ok(Math.abs(bounds.max.y-previous.max.y)<1e-8);}previous=bounds;
   assert.ok(Math.abs(FRONT_WINDOW_AXES[i]+FRONT_WINDOW_AXES[7-i])<1e-8);
  }

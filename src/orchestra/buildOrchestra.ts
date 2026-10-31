@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {woodMaterial,applyWoodSurface} from '../scene/HallTextures';
 import {Avatar,musicianSits,PERCUSSION} from '../character/Avatar';
 import {box,cylinder,material,detailedMaterial,C} from '../scene/primitives';
 import {ORCHESTRA_LAYOUT,CONDUCTOR,STAGE,STAGE_FLOOR,STAGE_TERRACES,TERRACE_BACK,terraceOutline,stageRiseAt,MUSICIAN_SCALE} from './layout';
@@ -7,13 +8,13 @@ function terraces(scene:T.Scene){
  for(const tier of STAGE_TERRACES){
   const half=STAGE.width/2,outline=terraceOutline(tier),points=[[-half,TERRACE_BACK],[half,TERRACE_BACK],...[...outline].reverse().map(p=>[p.x,p.z])];
   const shape=new T.Shape();points.forEach(([x,z],i)=>i?shape.lineTo(x,-z):shape.moveTo(x,-z));shape.closePath();
-  const mesh=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:tier.rise,bevelEnabled:false,steps:1}),material(0x9b7049));mesh.rotation.x=-Math.PI/2;mesh.position.y=STAGE_FLOOR;mesh.receiveShadow=true;mesh.userData.terrace=tier.index;scene.add(mesh);
+  const mesh=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:tier.rise,bevelEnabled:false,steps:1}),material(0x9b7049));mesh.rotation.x=-Math.PI/2;mesh.position.y=STAGE_FLOOR;mesh.receiveShadow=true;mesh.userData.terrace=tier.index;scene.add(mesh);applyWoodSurface(mesh);
   // Thin front nosing follows the same continuous contour, without gold blocks.
   for(let i=1;i<outline.length;i++){const p=outline[i-1],q=outline[i],a=new T.Vector3(p.x,STAGE_FLOOR+tier.rise-.025,p.z),b=new T.Vector3(q.x,a.y,q.z),edge=box(scene,[a.distanceTo(b),.035,.035],a.clone().add(b).multiplyScalar(.5).toArray(),0xc39967);edge.rotation.y=-Math.atan2(b.z-a.z,b.x-a.x);}
 
  }
 }
-function chair(parent:T.Object3D){box(parent,[.57,.11,.5],[0,.515,.015],0x392d29);box(parent,[.58,.42,.085],[0,.77,.29],0x45322c);for(const x of [-.22,.22])for(const z of [-.17,.22])cylinder(parent,.035,.48,[x,.24,z],0x292626);parent.traverse(o=>{if(o instanceof T.Mesh){o.userData.fullDetail=true;o.userData.orchestraFurniture=true;if(!Array.isArray(o.material))o.material=detailedMaterial(o.material);}});}
+function chair(parent:T.Object3D){box(parent,[.57,.11,.5],[0,.515,.015],0x392d29).material=woodMaterial('frame',true);box(parent,[.58,.42,.085],[0,.77,.29],0x45322c).material=woodMaterial('frame',true);for(const x of [-.22,.22])for(const z of [-.17,.22])cylinder(parent,.035,.48,[x,.24,z],0x292626);parent.traverse(o=>{if(o instanceof T.Mesh){o.userData.fullDetail=true;o.userData.orchestraFurniture=true;if(!Array.isArray(o.material))o.material=detailedMaterial(o.material);}});}
 function stand(parent:T.Object3D){
  cylinder(parent,.018,.74,[0,.37,0],0x302d28);box(parent,[.57,.025,.33],[0,.81,0],0x242522).rotation.x=.55;
  box(parent,[.52,.008,.29],[0,.83,0],0xe2d9be).rotation.x=.55;

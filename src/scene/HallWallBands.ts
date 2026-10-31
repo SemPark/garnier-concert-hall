@@ -4,7 +4,7 @@ import {box,material} from './primitives';
 
 /** The same finished wall plane and elevation grid apply around the entire hall. */
 export const WALL_DATUM={halfWidth:H.width/2-.28,front:H.front+.28,rear:H.rear-.28};
-export const WALL_LEVELS={cornices:[7.55,18.45,26.35,28.8],window:19.3,vent:10.7,panelY:15.4,panelHeight:5.5,lowerPanelY:3.4,lowerPanelHeight:5.4} as const;
+export const WALL_LEVELS={cornices:[7.55,18.45,26.35,28.8],window:20.05,vent:8.6,panelY:13.6,panelHeight:9.1,lowerPanelY:3.4,lowerPanelHeight:5.4} as const;
 const profiles=[{dy:0,height:.13,depth:.44},{dy:.18,height:.18,depth:.52},{dy:.38,height:.12,depth:.61}];
 
 function rectangle(path:T.Path,x:number,front:number,rear:number,reverse=false){

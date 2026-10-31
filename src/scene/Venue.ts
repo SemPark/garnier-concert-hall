@@ -6,6 +6,7 @@ import {buildOrchestra} from '../orchestra/buildOrchestra';
 import {GOLDEN_HALL} from '../../shared/goldenHall';
 import {buildStairs} from './Stairs';
 import {buildGoldenHall} from './GoldenHall';
+import {woodMaterial,applyWoodSurface} from './HallTextures';
 import {batchArchitecture,batchCharacters} from './batching';
 import {EmoteLayer} from '../character/EmoteLayer';
 export type Venue={scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer};
@@ -48,7 +49,7 @@ function seat(parent:T.Object3D,x:number,z:number){
  box(g,[.86,.44,.025],[0,.96,.345],0xb17b40);box(g,[1.04,.09,.86],[0,.42,0],0x8a542a);
  const cushion=new T.Mesh(cushionGeometry,material(0x74342c,.02,.9));cushion.scale.set(.96,.13,.78);cushion.position.set(0,.50,-.035);g.add(cushion);
  for(const side of [-1,1]){for(const zz of [-.3,.3])box(g,[.065,.45,.065],[side*.43,.225,zz],0x664326);box(g,[.075,.31,.075],[side*.53,.67,.31],0x8e5c2d);box(g,[.11,.075,.78],[side*.53,.82,-.01],0xad783b);}
- g.traverse(o=>{if(o instanceof T.Mesh&&!Array.isArray(o.material)){o.material=detailedMaterial(o.material);o.userData.fullDetail=true;}});return g;
+ g.traverse(o=>{if(o instanceof T.Mesh&&!Array.isArray(o.material)){o.material=(o.material as T.MeshLambertMaterial).color.getHex()===0x74342c?detailedMaterial(o.material):woodMaterial('frame',true);o.userData.fullDetail=true;}});return g;
 }
 function ceilingPainting(parent:T.Object3D,x:number,z:number,w:number,h:number,y:number){
  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=256;const ctx=canvas.getContext('2d')!;
@@ -61,7 +62,7 @@ export function createVenue(zone:Zone):Venue{
  scene.add(new T.HemisphereLight(0xffe6bf,0x7c6c5b,1.7));const ambient=new T.AmbientLight(0xffe5c4,.45);scene.add(ambient);
  const sun=new T.DirectionalLight(0xffe4b8,2.2);sun.position.set(-7,13,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-17,right:17,top:20,bottom:-20,near:1,far:55});sun.shadow.normalBias=.04;scene.add(sun);
  const b=BOUNDS[zone],floor=box(scene,[zone==='lobby'?b.maxX-b.minX+2:GOLDEN_HALL.width,.15,zone==='lobby'?38:GOLDEN_HALL.rear-GOLDEN_HALL.front],[0,-.09,zone==='lobby'?0:(GOLDEN_HALL.front+GOLDEN_HALL.rear)/2],zone==='lobby'?C.marble:0x44352b);
- floor.userData.floor=true;
+ floor.userData.floor=true;if(zone==='auditorium')applyWoodSurface(floor);
  const walkTargets:T.Object3D[]=[floor];
  const cameraWalls:T.Object3D[]=[],overviewHidden:T.Object3D[]=[],seatTargets:T.Object3D[]=[],musicians:Avatar[]=[],seatLights=new Map<string,T.Mesh>();
  let portal:T.Object3D;
