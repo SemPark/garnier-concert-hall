@@ -1,12 +1,13 @@
-import {BOUNDS,walkable,distance,stairPoint,type Point,type Zone} from '../../shared/venue';
+import {BOUNDS,FLOOR_AISLES,FLOOR_CROSS_AISLE,walkable,distance,stairPoint,type Point,type Zone} from '../../shared/venue';
 const STEP=.35;
 export function segmentClear(zone:Zone,a:Point,b:Point){const n=Math.max(1,Math.ceil(distance(a,b)/.12));for(let i=0;i<=n;i++)if(!walkable(zone,{x:a.x+(b.x-a.x)*i/n,z:a.z+(b.z-a.z)*i/n,y:(a.y??0)+((b.y??0)-(a.y??0))*i/n}))return false;return true;}
 function planarPath(zone:Zone,start:Point,end:Point):Point[]|null{
  if(!walkable(zone,end))return null;if(segmentClear(zone,start,end))return [end];
- // Continuous stall rows have side aisles, not a centre aisle. Try the two
- // short orthogonal aisle routes before expanding the navigation grid.
+ // Follow the actual gaps between the three seating blocks. The cross aisle
+ // also connects different blocks without sending visitors around the hall.
  if(zone==='auditorium'&&Math.abs(start.y??0)<.1&&Math.abs(end.y??0)<.1){
-  const candidates=[-13.5,13.5].map(x=>[{x,y:0,z:start.z},{x,y:0,z:end.z},end]);
+  const candidates:Point[][]=FLOOR_AISLES.map(x=>[{x,y:0,z:start.z},{x,y:0,z:end.z},end]);
+  for(const a of FLOOR_AISLES)for(const b of FLOOR_AISLES)if(a!==b)candidates.push([{x:a,y:0,z:start.z},{x:a,y:0,z:FLOOR_CROSS_AISLE},{x:b,y:0,z:FLOOR_CROSS_AISLE},{x:b,y:0,z:end.z},end]);
   let best:Point[]|null=null,cost=Infinity;
   for(const route of candidates){let p=start,total=0,clear=true;for(const q of route){if(!segmentClear(zone,p,q)){clear=false;break;}total+=distance(p,q);p=q;}if(clear&&total<cost){best=route;cost=total;}}
   if(best)return best;

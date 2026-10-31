@@ -71,7 +71,42 @@ function organ(scene:T.Scene){
  for(const x of [-13,13]){const wing=new T.Group();wing.position.x=x;g.add(wing);archedWindow(wing,19.3,true);}
 }
 function wallPanel(g:T.Object3D,x:number,y:number,w:number,h:number){
- box(g,[w,h,.12],[x,y,.16],0x9a5646);box(g,[w-.2,h-.2,.14],[x,y,.24],P.gold);box(g,[w-.32,h-.32,.15],[x,y,.33],0xe8dfc8);
+ const frame=new T.Group();frame.userData.landmark='wall-panel';g.add(frame);
+ box(frame,[w,h,.12],[x,y,.16],0x874537);box(frame,[w-.16,h-.16,.14],[x,y,.24],P.gold);box(frame,[w-.32,h-.32,.15],[x,y,.33],0xe8dfc8);
+ for(const side of [-1,1]){box(frame,[.035,h-.55,.04],[x+side*(w/2-.24),y,.43],P.light);box(frame,[w-.48,.035,.04],[x,y+side*(h/2-.24),.43],P.light);}
+ frame.traverse(o=>{if(o instanceof T.Mesh)o.userData.fullDetail=true;});
+}
+/** Continuous wall bands cover the end bays and the former bare strip below the ceiling. */
+function wallBands(g:T.Object3D,width:number){
+ for(const y of [7.55,18.45,26.35,28.8])cornice(g,width,y,.25);
+ for(const [y,h]of [[17.95,.48],[27.75,1.05]]){
+  box(g,[width,h+.18,.18],[0,y,.19],P.deep);
+  const count=Math.ceil(width/2.1);for(let i=0;i<count;i++){const face=new T.Mesh(friezePlane,friezeMaterial());face.scale.set(width/count,h,1);face.position.set(-width/2+(i+.5)*width/count,y,.3);face.userData.fullDetail=true;g.add(face);}
+ }
+}
+function sideBayDetails(g:T.Object3D){
+ // Retain the ivory/red wall panels, with gilded reliefs and fluted pilasters.
+ for(const side of [-1,1]){
+  const x=side*2.74;box(g,[.25,6.1,.18],[x,15.3,.28],P.gold);
+  for(const dx of [-.07,0,.07])box(g,[.022,5.5,.045],[x+dx,15.25,.4],P.light).userData.fullDetail=true;
+  box(g,[.55,.23,.36],[x,18.18,.3],P.light);rosette(g,x,18.65,.42,.17);
+ }
+ rosette(g,0,16.85,.52,.22);
+ for(const side of [-1,1])line(g,new T.Vector3(side*.25,16.7,.49),new T.Vector3(side*1.2,16.3,.49),.035,P.gold);
+ // The photographed gallery has a coffered underside and small ceiling lamps.
+ box(g,[5.85,.07,2.65],[0,7.98,1.45],P.deep);
+ for(const x of [-2.78,0,2.78])box(g,[.12,.09,2.8],[x,7.91,1.46],P.gold);
+ for(const z of [.12,2.8])box(g,[5.85,.09,.12],[0,7.91,z],P.light);
+ const coffer=new T.Mesh(friezePlane,friezeMaterial());coffer.rotation.x=Math.PI/2;coffer.scale.set(4.9,2.1,1);coffer.position.set(0,7.925,1.45);g.add(coffer);
+ const lamp=sphere(g,.15,[0,7.73,2.2],0xffefd4);lamp.scale.y=.45;lamp.userData.fullDetail=true;
+}
+/** The shell is always present. Only protruding decoration may be cut away near the camera. */
+export function buildHallShell(scene:T.Scene){
+ const walls:T.Mesh[]=[];
+ for(const side of [-1,1])walls.push(box(scene,[.4,H.height,H.rear-H.front],[side*16,H.height/2,(H.rear+H.front)/2],P.ivory));
+ for(const z of [H.front,H.rear])walls.push(box(scene,[32,H.height,.4],[0,H.height/2,z],P.ivory));
+ for(const wall of walls){wall.userData.landmark='hall-shell';wall.userData.fullDetail=true;}
+ return walls;
 }
 function whiteFigure(g:T.Object3D,x:number,y:number){
  sphere(g,.18,[x,y+.38,.4],P.ivory);frustum(g,.16,.28,.63,[x,y-.04,.4],P.ivory);for(const sign of [-1,1]){line(g,new T.Vector3(x+sign*.16,y+.12,.4),new T.Vector3(x+sign*.52,y-.13,.4),.07,P.ivory);line(g,new T.Vector3(x,y-.3,.4),new T.Vector3(x+sign*.42,y-.42,.4),.1,P.ivory);}
@@ -86,7 +121,7 @@ function upperDoor(g:T.Object3D,y:number){
 function rearFacade(scene:T.Scene){
  const g=new T.Group();g.position.z=51.68;g.rotation.y=Math.PI;scene.add(g);g.userData.landmark='rear-facade';
  // Six high arched windows over an enclosed, ornamented rear gallery.
- for(const x of [-10,-6,-2,2,6,10]){const bay=new T.Group();bay.position.x=x;g.add(bay);archedWindow(bay,19.3);box(bay,[3.75,3.7,.12],[0,15.2,.1],P.gold);box(bay,[3.48,3.42,.15],[0,15.2,.2],P.ivory);}
+ for(const x of [-10,-6,-2,2,6,10]){const bay=new T.Group();bay.position.x=x;g.add(bay);archedWindow(bay,19.3);wallPanel(bay,0,15.4,3.75,5.4);upperDoor(bay,8.7);}
  for(const x of [-14,14]){const wing=new T.Group();wing.position.x=x;g.add(wing);archedWindow(wing,20,true);upperDoor(wing,10.1);}
  for(const y of [7.65,12.1,17.7,26.8])cornice(g,31.4,y,.3);
  for(const x of [-12,-8,-4,4,8,12])wallPanel(g,x,3.25,3.3,5.9);
@@ -103,25 +138,28 @@ function rearFacade(scene:T.Scene){
 }
 export function buildGoldenHall(scene:T.Scene){
  scene.userData.venue='musikverein-golden-hall';
- const cameraWalls:T.Object3D[]=[];
+ const cameraWalls:T.Object3D[]=buildHallShell(scene);
  const stage=box(scene,[STAGE.width,.75,STAGE.front-STAGE.back],[0,.3,(STAGE.front+STAGE.back)/2],0xa77343);stage.receiveShadow=true;
  // Fine lengthwise wood boards unify the stage and audience floor.
  for(let x=-15.5;x<16;x+=.5)box(scene,[.013,.008,H.rear-H.front],[x,.005,(H.rear+H.front)/2],0x8e683e);
  for(const side of [-1,1]){
-  const wall=box(scene,[.4,H.height,H.rear-H.front],[side*16,H.height/2,(H.rear+H.front)/2],P.ivory);wall.userData.cameraOccluder=true;cameraWalls.push(wall);
   for(const z of H.bayCenters){const g=new T.Group();g.position.set(side*15.72,0,z);g.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(g);
    box(g,[5.9,6.9,.16],[0,3.5,.08],P.ivory);box(g,[4.1,4.8,.12],[0,3.1,.2],0xc5a875);box(g,[3.7,4.4,.14],[0,3.1,.3],0xf0dfbb);
    for(const x of [-2.55,2.55]){const figure=new T.Group();figure.position.set(x,.45,.3);figure.scale.set(1,1.21,1);g.add(figure);caryatid(figure);}
    wallPanel(g,0,3.4,4.2,5.4);rosette(g,0,5.8,.48,.27);box(g,[5.9,.23,1.4],[0,7.8,.6],P.deep);
    for(const span of galleryRailSpans(z)){const rail=new T.Group();rail.position.set(side*((span.start+span.end)/2-z),H.balconyHeight,2.8);g.add(rail);balustrade(rail,span.end-span.start);}
    for(const x of [-2.85,2.85]){box(g,[.2,17,.2],[x,18.1,.2],0x9a5646);box(g,[.065,17,.1],[x,18.1,.34],P.light);}
-   wallPanel(g,0,16.1,5.4,4.8);archedWindow(g,19.3);upperDoor(g,10.7);whiteFigure(g,2.8,18.1);
+   wallPanel(g,0,15.4,5.4,5.5);archedWindow(g,19.3);upperDoor(g,10.7);sideBayDetails(g);whiteFigure(g,2.8,18.1);
    cornice(g,6,26.5,.16);box(g,[5.7,.28,.15],[0,12.4,.18],P.gold);rosette(g,0,11.1,.32,.22);g.traverse(o=>{if(o instanceof T.Mesh)o.userData.cameraOccluder=true;});
   }
-
+  const bands=new T.Group();bands.position.set(side*15.7,0,(H.front+H.rear)/2);bands.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(bands);wallBands(bands,H.rear-H.front);
+  // The repeated bays stop short of both corners; finish those returns too.
+  for(const [z,w]of [[-28.4,3.1],[51.45,1.1]]){const end=new T.Group();end.position.set(side*15.71,0,z);end.rotation.y=bands.rotation.y;scene.add(end);wallPanel(end,0,3.7,w,6.9);wallPanel(end,0,15.5,w,5.5);}
  }
  for(const r of GALLERY_FLOORS)box(scene,[r.maxX-r.minX,.3,r.maxZ-r.minZ],[(r.minX+r.maxX)/2,H.balconyHeight-.15,(r.minZ+r.maxZ)/2],P.ivory);
- const rear=box(scene,[32,H.height,.4],[0,H.height/2,H.rear],P.ivory),front=box(scene,[32,H.height,.4],[0,H.height/2,H.front],P.ivory);rear.userData.cameraOccluder=front.userData.cameraOccluder=true;cameraWalls.push(rear,front);
+ for(const z of [H.front+.23,H.rear-.23]){const bands=new T.Group();bands.position.z=z;if(z>0)bands.rotation.y=Math.PI;scene.add(bands);wallBands(bands,31.5);}
+ const organCrown=new T.Group();organCrown.position.z=H.front+.28;scene.add(organCrown);
+ for(const x of [-12,-8,-4,0,4,8,12]){const bay=new T.Group();bay.position.set(x,23.1,0);bay.scale.set(.86,.62,1);organCrown.add(bay);archedWindow(bay,0,true);}
  for(const z of [-28.15]){const rail=new T.Group();rail.position.set(0,H.balconyHeight,z);if(z>0)rail.rotation.y=Math.PI;scene.add(rail);balustrade(rail,29.5);}
  organ(scene);paintedCeiling(scene);
  for(const x of [-7.4,7.4])for(const z of [-20,-7,6,19,32,45])crystalChandelier(scene,x,z);
