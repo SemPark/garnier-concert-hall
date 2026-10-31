@@ -8,3 +8,8 @@ test('the ticket map includes all 440 seats without overlapping targets',()=>{
  for(let i=0;i<placed.length;i++)for(let j=i+1;j<placed.length;j++){const a=placed[i],b=placed[j];assert.ok(Math.abs(a.x-b.x)>=20||Math.abs(a.y-b.y)>=22,`${a.s.id} overlaps ${b.s.id}`);}
  assert.ok(seatMapPosition(SEATS[0]).y<seatMapPosition(SEATS[351]).y);
 });
+
+test('the stage drawing stays clear of the balcony seats',async()=>{
+ const {SEAT_MAP_PARTS}=await import('../src/seatMapLayout');const st=SEAT_MAP_PARTS.stage;
+ for(const s of SEATS.filter(s=>s.level==='balcony')){const p=seatMapPosition(s);assert.ok(p.x+20<=st.left||p.x>=st.left+st.width||p.y>=st.top+st.height,s.id);}
+});
