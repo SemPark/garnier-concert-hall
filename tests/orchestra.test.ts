@@ -58,3 +58,11 @@ test('each player is centred on a physical terrace row and string desks never pa
  for(const group of desks.values()){assert.ok(group.length<=2);assert.ok(group.every(p=>p.row===group[0].row&&p.rise===group[0].rise));}
  const front=ORCHESTRA_LAYOUT.filter(p=>p.row===0);assert.equal(front.length,6);assert.ok(front.some(p=>p.x>0&&p.x<1));assert.ok(front.some(p=>p.x<0&&p.x> -1));
 });
+
+test('a seated cellist keeps both legs outside the cello body',()=>{
+ const a=new Avatar(0x202020,'cello');for(let i=0;i<120;i++)a.update(0,0,true,true,null,10);a.root.updateMatrixWorld(true);
+ const body=a.instrument.children.find(o=>o instanceof T.Mesh)!,box=new T.Box3().setFromObject(body);
+ for(const leg of [a.leftLeg,a.rightLeg])for(const part of leg.children){const p=part.getWorldPosition(new T.Vector3());
+  // Sample along the leg from hip to foot: no point may sit inside the cello's lower bout.
+  const hip=leg.getWorldPosition(new T.Vector3());for(let k=0;k<=10;k++){const q=hip.clone().lerp(p,k/10);assert.ok(!(box.containsPoint(q)&&Math.abs(q.x-box.getCenter(new T.Vector3()).x)<.2),'leg passes through the cello');}}
+});

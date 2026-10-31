@@ -77,7 +77,9 @@ export class Avatar{
   // Leaning sideways rises onto the lower foot so neither foot sinks into the floor.
   this.body.position.set(-this.hipOffset.x,sit*.1+pose.lift+HIP.y-this.hipOffset.y+.115*Math.abs(Math.sin(pose.sway))*(1-sit),-sit*.12-rise*.5-this.hipOffset.z);this.body.rotation.copy(this.tilt);
   this.head.rotation.set(-pose.headPitch,pose.headYaw,pose.headRoll);this.eyes.scale.y=pose.blink;
-  for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const)hip.rotation.set(T.MathUtils.lerp(pose.swing*.5*sign,Math.PI/2,sit)+pose.lean,0,-pose.sway);
+  // A seated cellist opens the knees around the instrument instead of kicking through it.
+  const splay=type==='cello'?.75*sit:0;
+  for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const){hip.rotation.order='YXZ';hip.rotation.set(T.MathUtils.lerp(pose.swing*.5*sign,Math.PI/2,sit)+pose.lean,splay*sign,-pose.sway);}
   this.leftArm.rotation.set(-pose.swing*.34,0,-.1);this.rightArm.rotation.set(pose.swing*.34,0,.1);
   // Floor-standing keyboards and harps must not rise with the seated torso.
   if(type==='piano'||type==='celesta'||type==='harp')this.instrument.position.y=-sit*.1;

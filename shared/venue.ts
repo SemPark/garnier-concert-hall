@@ -16,7 +16,8 @@ export const FLOOR_ROWS=Array.from({length:22},(_,row)=>-6+row*2.2+(row>=10?2:0)
 export const FLOOR_CROSS_AISLE=(FLOOR_ROWS[9]+FLOOR_ROWS[10])/2;
 export const FLOOR_SEATS:Seat[]=FLOOR_ROWS.flatMap((z,row)=>SEAT_COLUMNS.map((x,column)=>({id:`parterre-${row*16+column+1}`,x,z,approach:{x,y:0,z:z-1.05},row:row+1,column:column+1,level:'parterre' as const,y:0,yaw:0})));
 // Leave the four seats next to each organ-loft wing empty. Retain all other IDs.
-export const BALCONY_SEATS:Seat[]=[-1,1].flatMap(side=>H.bayCenters.flatMap((z,row)=>row===0?[]:[-1.8,-.6,.6,1.8].map((offset,column)=>({id:`balcony-${side<0?'left':'right'}-${row*4+column+1}`,x:side*15,z:z-side*offset,approach:{x:side*13.95,y:H.balconyHeight,z:z-side*offset},row:row+1,column:column+1+(side>0?4:0),level:'balcony' as const,y:H.balconyHeight,yaw:side<0?-Math.PI/2:Math.PI/2}))));
+// Chairs stand near the balustrade so they show from the hall; the bay by the stair top keeps them at the wall, clear of the landing.
+export const BALCONY_SEATS:Seat[]=[-1,1].flatMap(side=>H.bayCenters.flatMap((z,row)=>row===0?[]:[-1.8,-.6,.6,1.8].map((offset,column)=>({id:`balcony-${side<0?'left':'right'}-${row*4+column+1}`,x:side*(z>STAIR.z?15:14.4),z:z-side*offset,approach:{x:side*(z>STAIR.z?13.95:13.4),y:H.balconyHeight,z:z-side*offset},row:row+1,column:column+1+(side>0?4:0),level:'balcony' as const,y:H.balconyHeight,yaw:side<0?-Math.PI/2:Math.PI/2}))));
 export const SEATS:Seat[]=[...FLOOR_SEATS,...BALCONY_SEATS];
 export function seatLabel(s:Seat){return `${s.level==='parterre'?'1층':'2층'} ${s.row}열 ${s.column}번`;}
 /** The parterre runs right up to the stage lip (stage front is z -9.5). */
