@@ -52,7 +52,12 @@ export function buildFrontWindows(scene:T.Scene){
  for(const x of FRONT_WINDOW_AXES){const bay=new T.Group();bay.position.x=x;bay.userData.landmark='front-window';row.add(bay);archedWindow(bay,WALL_LEVELS.window,true);}
 }
 export const ORGAN_CASE={width:23,back:WALL_DATUM.front+.12,bankDepth:[1.3,1.85,1.3],frameDepth:3.3,loftHeight:H.balconyHeight} as const;
-export function organBalconyFront(x:number){return 3.1+1.65*(1-(x/15.35)**2)+.65*Math.exp(-((x/5.5)**2));}
+export function organBalconyFront(x:number){
+ const a=Math.abs(x);
+ if(a<=4.3)return 4.8+1.8*Math.cos(a/4.3*Math.PI/2)**2;
+ if(a<=12.3)return 4.8+.9*Math.sin((a-4.3)/8*Math.PI)**2;
+ const t=Math.min(1,(a-12.3)/3.05);return 4.8-1.7*t*t*(3-2*t);
+}
 function loftSlab(g:T.Group,thickness:number,y:number,inset=0){
  const outline=new T.Shape();outline.moveTo(-15.35,.05);outline.lineTo(15.35,.05);
  for(let i=0;i<=64;i++){const x=15.35-i/64*30.7;outline.lineTo(x,organBalconyFront(x)-inset);}outline.closePath();
@@ -62,7 +67,7 @@ function loftSlab(g:T.Group,thickness:number,y:number,inset=0){
 export function buildOrgan(scene:T.Scene,ornament:T.Material=friezeMaterial()){
  const g=new T.Group();g.position.z=ORGAN_CASE.back;g.userData.landmark='pipe-organ';scene.add(g);
  const back=box(g,[ORGAN_CASE.width,13.3,.42],[0,16.1,.28],0xb39b72);back.userData.landmark='organ-case-back';
- const banks=[{x:-7.15,w:5.9,count:19},{x:0,w:5.4,count:25},{x:7.15,w:5.9,count:19}];
+ const banks=[{x:-8.05,w:4.55,count:19},{x:0,w:4.7,count:25},{x:8.05,w:4.55,count:19}];
  banks.forEach(({x,w,count},bank)=>{
   const chamber=new T.Group();chamber.userData.landmark='organ-pipe-chamber';g.add(chamber);
   box(chamber,[w,11.2,.16],[x,15.85,.58],0x222722);
@@ -78,11 +83,12 @@ export function buildOrgan(scene:T.Scene,ornament:T.Material=friezeMaterial()){
    box(chamber,[r*1.8,.045,.06],[xx,bottom+.5,z+r+.015],0xe3e5d9).userData.fullDetail=true;
   }
  });
- for(const x of [-10.85,-3.55,3.55,10.85]){
-  box(g,[1.14,12.5,3.05],[x,16.1,1.72],P.ivory);
-  for(const side of [-1,1])box(g,[.09,12.35,.15],[x+side*.53,16.1,3.29],0x874537);
-  const column=new T.Group();column.position.z=ORGAN_CASE.frameDepth;g.add(column);gildedColumn(column,x,9.8,12.7,.28);
-  const figure=new T.Group();figure.position.set(x,15.4,3.45);figure.scale.set(.62,.85,.5);g.add(figure);caryatid(figure);
+ for(const x of [-4.125,4.125]){box(g,[1.8,12.5,3.05],[x,16.1,1.72],P.ivory);const panel=new T.Group();panel.position.set(x,0,2.85);g.add(panel);wallPanel(panel,0,16.1,1.4,10.7);}
+ for(const x of [-10.85,-5.25,-3,3,5.25,10.85]){
+  const pier=box(g,[.72,12.5,3.05],[x,16.1,1.72],P.ivory);pier.userData.landmark='organ-case-pier';
+  for(const side of [-1,1])box(g,[.07,12.35,.15],[x+side*.34,16.1,3.29],0x874537);
+  const column=new T.Group();column.position.z=ORGAN_CASE.frameDepth;g.add(column);gildedColumn(column,x,9.8,12.7,.23);
+  const figure=new T.Group();figure.position.set(x,15.4,3.45);figure.scale.set(.50,.85,.5);g.add(figure);caryatid(figure);
  }
  // The overhanging cornice and pediment have deep side faces, not a flat signboard.
  box(g,[23.8,.45,3.9],[0,22.05,1.95],P.gold);box(g,[23.3,.2,3.7],[0,21.72,1.9],P.light);cornice(g,24,22.2,3.92);
@@ -95,10 +101,11 @@ export function buildOrgan(scene:T.Scene,ornament:T.Material=friezeMaterial()){
  for(const x of [-8,-5,0,5,8]){const y=23.15+(x===0?2.15:.28),figure=new T.Group();figure.position.set(x,y,3.45);g.add(figure);sphere(figure,.2,[0,.45,0],P.ivory);frustum(figure,.16,.34,.65,[0,0,0],P.ivory);for(const side of [-1,1])line(figure,new T.Vector3(side*.15,.15,0),new T.Vector3(side*.48,-.05,.04),.065,P.ivory);}
  // The loft has its own slab, rounded apron and supporting brackets. Its wings
  // meet the existing galleries at the same 8.3-unit floor elevation.
- const floor=loftSlab(g,.32,H.balconyHeight);floor.userData.landmark='organ-loft-floor';floor.material=material(0xc39a59);
- const apron=loftSlab(g,.18,H.balconyHeight-.32,-.10);apron.userData.landmark='organ-loft-apron';apron.material=material(P.gold);
- for(let i=0;i<40;i++){
-  const x0=-15.35+i/40*30.7,x1=-15.35+(i+1)/40*30.7,a=new T.Vector3(x0,H.balconyHeight,organBalconyFront(x0)),b=new T.Vector3(x1,H.balconyHeight,organBalconyFront(x1)),segment=new T.Group();
+ const floor=loftSlab(g,.48,H.balconyHeight);floor.userData.landmark='organ-loft-floor';floor.material=material(0xc39a59);
+ const apron=loftSlab(g,.28,H.balconyHeight-.48,-.14);apron.userData.landmark='organ-loft-apron';apron.material=material(P.gold);
+ const lip=loftSlab(g,.16,H.balconyHeight-.76,-.23);lip.userData.landmark='organ-loft-lower-cornice';lip.material=material(P.light);
+ for(let i=0;i<80;i++){
+  const x0=-15.35+i/80*30.7,x1=-15.35+(i+1)/80*30.7,a=new T.Vector3(x0,H.balconyHeight,organBalconyFront(x0)),b=new T.Vector3(x1,H.balconyHeight,organBalconyFront(x1)),segment=new T.Group();
   const angle=-Math.atan2(b.z-a.z,b.x-a.x);segment.rotation.y=angle;segment.position.copy(a).add(b).multiplyScalar(.5).add(new T.Vector3(-Math.sin(angle)*.525,0,-Math.cos(angle)*.525));segment.userData.landmark='organ-loft-rail';g.add(segment);balustrade(segment,a.distanceTo(b)+.015,null,false);segment.scale.y=1.35/1.58;
  }
  // One continuous UV strip preserves the scroll pattern around the curved
@@ -106,13 +113,30 @@ export function buildOrgan(scene:T.Scene,ornament:T.Material=friezeMaterial()){
  const positions:number[]=[],uv:number[]=[],indices:number[]=[];let arc=0,previous:T.Vector2|undefined;
  for(let i=0;i<=80;i++){const x=-15.35+i/80*30.7,z=organBalconyFront(x)+.012,p=new T.Vector2(x,z);if(previous)arc+=p.distanceTo(previous);previous=p;for(const y of [H.balconyHeight+.17,H.balconyHeight+1.15])positions.push(x,y,z);uv.push(arc/3.6,0,arc/3.6,1);if(i<80){const a=i*2;indices.push(a,a+2,a+1,a+1,a+2,a+3);}}
  const strip=new T.BufferGeometry();strip.setAttribute('position',new T.Float32BufferAttribute(positions,3));strip.setAttribute('uv',new T.Float32BufferAttribute(uv,2));strip.setIndex(indices);strip.computeVertexNormals();const frieze=new T.Mesh(strip,ornament);frieze.userData.fullDetail=true;g.add(frieze);
- for(const x of [-15.35,-12,-8,-4,0,4,8,12,15.35])box(g,[.1,1.12,.09],[x,H.balconyHeight+.66,organBalconyFront(x)+.03],P.light);
- for(const x of [-13,-7,0,7,13]){const z=organBalconyFront(x)-.55;box(g,[.42,.75,1.05],[x,H.balconyHeight-.75,z-.3],P.deep);box(g,[.68,.2,1.15],[x,H.balconyHeight-.48,z-.3],P.light);}
- // A real console sits on the open floor between the case and the bowed rail.
- box(g,[2.6,.85,.65],[0,H.balconyHeight+.43,3.95],0x513520);box(g,[2.35,.12,.55],[0,H.balconyHeight+.93,4.18],0x28231c);
- for(let i=0;i<22;i++)box(g,[.09,.035,.33],[-1.03+i*.098,H.balconyHeight+1.02,4.23],0xe8dfcd);
+ for(const x of [-15.35,-12.3,-8.3,-4.3,0,4.3,8.3,12.3,15.35])box(g,[.1,1.12,.09],[x,H.balconyHeight+.66,organBalconyFront(x)+.03],P.light);
+ for(const x of [-13,-8.3,-4.3,4.3,8.3,13]){const z=organBalconyFront(x)-.55;box(g,[.42,.9,1.05],[x,H.balconyHeight-.97,z-.3],P.deep);box(g,[.68,.2,1.15],[x,H.balconyHeight-.82,z-.3],P.light);}
+ buildOrganConsole(g);
  for(const x of [-12,-6,0,6,12]){const panel=new T.Group();panel.position.set(x,0,.15);g.add(panel);wallPanel(panel,0,3.65,5.5,6.8);for(const xx of [-2.8,2.8])gildedColumn(panel,xx,.1,7.6,.18);box(panel,[2.4,.65,.1],[0,5.6,.4],P.gold);rosette(panel,0,5.6,.5,.2);}
  g.traverse(o=>{if(o instanceof T.Mesh)o.userData.fullDetail=true;});return g;
+}
+
+function buildOrganConsole(parent:T.Group){
+ const g=new T.Group();g.position.set(0,H.balconyHeight,4.7);g.userData.landmark='organ-console';parent.add(g);
+ const wood=0x583a24,trim=0x9d6c36;
+ box(g,[3.6,.16,1.25],[0,.08,0],wood);box(g,[3.3,1.75,.15],[0,1.03,-.48],wood);
+ for(const side of [-1,1]){box(g,[.22,1.85,1.18],[side*1.72,1,.05],wood);box(g,[.48,1.05,.14],[side*1.42,1.45,.42],trim);}
+ box(g,[3.7,.17,1.25],[0,2,0],trim);box(g,[2.5,.65,.15],[0,.5,.4],wood);
+ for(let level=0;level<3;level++){
+  const manual=new T.Group();manual.position.set(0,1+level*.24,.47-level*.19);manual.userData.landmark='organ-manual';g.add(manual);
+  box(manual,[2.35,.1,.44],[0,-.04,0],0x251e18);
+  for(let i=0;i<36;i++){const x=(i-17.5)*.061;box(manual,[.058,.035,.35],[x,.025,.035],0xf2e5c9);if([0,1,3,4,5].includes(i%7)&&i<35)box(manual,[.035,.065,.22],[x+.0305,.063,-.03],0x191714);}
+ }
+ for(const side of [-1,1])for(let row=0;row<4;row++)for(let column=0;column<3;column++){
+  const knob=sphere(g,.044,[side*(1.29+column*.115),1.15+row*.19,.55],0xe8dcc6);knob.userData.landmark='organ-stop';
+ }
+ const pedals=new T.Group();pedals.userData.landmark='organ-pedalboard';g.add(pedals);box(pedals,[2.45,.07,1.13],[0,.12,.72],0x302217);
+ for(let i=0;i<25;i++){box(pedals,[.076,.05,1],[(i-12)*.092,.175,.72],0xbd8c4d);if([0,1,3,4,5].includes(i%7))box(pedals,[.055,.09,.42],[(i-11.5)*.092,.215,.43],0x49301d);}
+ const bench=new T.Group();bench.userData.landmark='organ-bench';bench.position.z=1;g.add(bench);box(bench,[2.7,.13,.42],[0,.67,0],wood);for(const x of [-1.1,1.1])box(bench,[.12,.6,.3],[x,.3,0],wood);
 }
 
 function wallPanel(g:T.Object3D,x:number,y:number,w:number,h:number){
