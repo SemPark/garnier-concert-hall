@@ -3,6 +3,15 @@ const STEP=.35;
 export function segmentClear(zone:Zone,a:Point,b:Point){const n=Math.max(1,Math.ceil(distance(a,b)/.12));for(let i=0;i<=n;i++)if(!walkable(zone,{x:a.x+(b.x-a.x)*i/n,z:a.z+(b.z-a.z)*i/n,y:(a.y??0)+((b.y??0)-(a.y??0))*i/n}))return false;return true;}
 function planarPath(zone:Zone,start:Point,end:Point):Point[]|null{
  if(!walkable(zone,end))return null;if(segmentClear(zone,start,end))return [end];
+ // Continuous stall rows have side aisles, not a centre aisle. Try the two
+ // short orthogonal aisle routes before expanding the navigation grid.
+ if(zone==='auditorium'&&Math.abs(start.y??0)<.1&&Math.abs(end.y??0)<.1){
+  const candidates=[-13.5,13.5].map(x=>[{x,y:0,z:start.z},{x,y:0,z:end.z},end]);
+  let best:Point[]|null=null,cost=Infinity;
+  for(const route of candidates){let p=start,total=0,clear=true;for(const q of route){if(!segmentClear(zone,p,q)){clear=false;break;}total+=distance(p,q);p=q;}if(clear&&total<cost){best=route;cost=total;}}
+  if(best)return best;
+ }
+
  const b=BOUNDS[zone];const toCell=(p:Point)=>({x:Math.round((p.x-b.minX)/STEP),z:Math.round((p.z-b.minZ)/STEP)});const point=(x:number,z:number)=>({x:b.minX+x*STEP,z:b.minZ+z*STEP,y:end.y??0});const key=(x:number,z:number)=>`${x},${z}`;
  const a=toCell(start),goal=toCell(end);type Node={x:number;z:number;g:number;f:number;parent?:string};
  const freeCache=new Map<string,boolean>();const free=(x:number,z:number)=>{const k=key(x,z);let value=freeCache.get(k);if(value===undefined){value=walkable(zone,point(x,z));freeCache.set(k,value);}return value;};

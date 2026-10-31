@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {Avatar,musicianSits,PERCUSSION} from '../character/Avatar';
-import {box,cylinder,material,C} from '../scene/primitives';
+import {box,cylinder,material,detailedMaterial,C} from '../scene/primitives';
 import {ORCHESTRA_LAYOUT,CONDUCTOR,STAGE,STAGE_FLOOR,STAGE_TERRACES,TERRACE_BACK,terraceOutline,stageRiseAt,MUSICIAN_SCALE} from './layout';
 /** Five continuous curved terraces with broad ordinary keyboard wings. */
 function terraces(scene:T.Scene){
@@ -13,7 +13,7 @@ function terraces(scene:T.Scene){
 
  }
 }
-function chair(parent:T.Object3D){box(parent,[.57,.11,.5],[0,.515,.015],0x392d29);box(parent,[.58,.42,.085],[0,.77,.29],0x45322c);for(const x of [-.22,.22])for(const z of [-.17,.22])cylinder(parent,.025,.48,[x,.24,z],0x292626);}
+function chair(parent:T.Object3D){box(parent,[.57,.11,.5],[0,.515,.015],0x392d29);box(parent,[.58,.42,.085],[0,.77,.29],0x45322c);for(const x of [-.22,.22])for(const z of [-.17,.22])cylinder(parent,.035,.48,[x,.24,z],0x292626);parent.traverse(o=>{if(o instanceof T.Mesh){o.userData.fullDetail=true;o.userData.orchestraFurniture=true;if(!Array.isArray(o.material))o.material=detailedMaterial(o.material);}});}
 function stand(parent:T.Object3D){
  cylinder(parent,.018,.74,[0,.37,0],0x302d28);box(parent,[.57,.025,.33],[0,.81,0],0x242522).rotation.x=.55;
  box(parent,[.52,.008,.29],[0,.83,0],0xe2d9be).rotation.x=.55;
