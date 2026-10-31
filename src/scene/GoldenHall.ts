@@ -4,7 +4,10 @@ import {GOLDEN_HALL as H} from '../../shared/goldenHall';
 import {STAGE} from '../orchestra/layout';
 import {crystalChandelier,paintedCeiling,friezeMaterial} from './HallDetails';
 import {WALL_DATUM,WALL_LEVELS,buildPerimeterCornices,buildPerimeterFriezes} from './HallWallBands';
-import {GALLERY_BRIDGE,GALLERY_FLOORS,GALLERY_RAIL_HEIGHT,galleryRailSpans} from '../../shared/gallery';
+import {GALLERY_BRIDGE,GALLERY_RAIL_HEIGHT,galleryRailSpans} from '../../shared/gallery';
+import {ORGAN_LOFT_BACK,ORGAN_LOFT_CONTOUR,ORGAN_RAIL_JOIN_X,ORGAN_RAIL_JOIN_Z,ORGAN_RAIL_POST_HALF,organBalconyFront} from '../../shared/organLoft';
+import {buildGalleryFloors} from './GalleryFloors';
+export {organBalconyFront} from '../../shared/organLoft';
 const P={ivory:0xe8d6ac,gold:0xc69b49,light:0xe7c77a,deep:0x8e622a,wood:0x945d30,red:0x6f2830,shadow:0x49351e,glass:0xc5d4ce};
 const cylinderCache=new Map<string,T.BufferGeometry>();
 function profile(top:number,bottom:number,height:number){const key=`${top}/${bottom}/${height}`;let g=cylinderCache.get(key);if(!g){g=new T.CylinderGeometry(top,bottom,height,12);cylinderCache.set(key,g);}return g;}
@@ -40,7 +43,7 @@ function archedWindow(g:T.Object3D,y:number,blind=false){
  else{for(const x of [-1.38,1.38])box(g,[.09,5.35,.1],[x,y+2.6,.18],0x874537);const rim=new T.Mesh(archGeometry,material(0x874537));rim.position.set(0,y+5.2,.14);rim.scale.set(1.12,1.12,1);g.add(rim);}
  g.traverse(o=>{if(o instanceof T.Mesh)o.userData.fullDetail=true;});
 }
-function balustrade(g:T.Object3D,width:number,ornament:T.Material|null=friezeMaterial(),posts=true){
+export function balustrade(g:T.Object3D,width:number,ornament:T.Material|null=friezeMaterial(),posts=true){
  g.scale.y=GALLERY_RAIL_HEIGHT/1.58;
  box(g,[width,1.4,.22],[0,.78,.4],P.deep);box(g,[width,.12,.5],[0,.08,.43],P.light);box(g,[width,.17,.42],[0,1.48,.45],P.light);
  if(ornament){const count=Math.max(1,Math.ceil(width/2.1));for(let i=0;i<count;i++){const face=new T.Mesh(friezePlane,ornament);face.scale.set(width/count,1.14,1);face.position.set(-width/2+(i+.5)*width/count,.79,.525);g.add(face);}}
@@ -51,16 +54,10 @@ export function buildFrontWindows(scene:T.Scene){
  const row=new T.Group();row.position.z=WALL_DATUM.front;row.userData.landmark='front-window-row';scene.add(row);
  for(const x of FRONT_WINDOW_AXES){const bay=new T.Group();bay.position.x=x;bay.userData.landmark='front-window';row.add(bay);archedWindow(bay,WALL_LEVELS.window,true);}
 }
-export const ORGAN_CASE={width:23,back:WALL_DATUM.front+.12,bankDepth:[1.3,1.85,1.3],frameDepth:3.3,loftHeight:H.balconyHeight} as const;
-export function organBalconyFront(x:number){
- const a=Math.abs(x);
- if(a<=4.3)return 7.2+1.8*Math.cos(a/4.3*Math.PI/2)**2;
- if(a<=12.3)return 7.2+.9*Math.sin((a-4.3)/8*Math.PI)**2;
- const t=Math.min(1,(a-12.3)/3.05);return 7.2-4.1*t*t*(3-2*t);
-}
+export const ORGAN_CASE={width:23,back:ORGAN_LOFT_BACK,bankDepth:[1.3,1.85,1.3],frameDepth:3.3,loftHeight:H.balconyHeight} as const;
 function loftSlab(g:T.Group,thickness:number,y:number,inset=0){
  const outline=new T.Shape();outline.moveTo(-15.35,.05);outline.lineTo(15.35,.05);
- for(let i=0;i<=64;i++){const x=15.35-i/64*30.7;outline.lineTo(x,organBalconyFront(x)-inset);}outline.closePath();
+ for(const p of [...ORGAN_LOFT_CONTOUR].reverse())outline.lineTo(p.x,p.z-inset);outline.closePath();
  const mesh=new T.Mesh(new T.ExtrudeGeometry(outline,{depth:thickness,bevelEnabled:false,curveSegments:1}),material(P.light));mesh.rotation.x=Math.PI/2;mesh.position.y=y;mesh.userData.fullDetail=true;g.add(mesh);return mesh;
 }
 /** Deep, freestanding casework over a real projecting organ loft. */
@@ -104,16 +101,20 @@ export function buildOrgan(scene:T.Scene,ornament:T.Material=friezeMaterial()){
  const floor=loftSlab(g,.48,H.balconyHeight);floor.userData.landmark='organ-loft-floor';floor.material=material(0xc39a59);
  const apron=loftSlab(g,.28,H.balconyHeight-.48,-.14);apron.userData.landmark='organ-loft-apron';apron.material=material(P.gold);
  const lip=loftSlab(g,.16,H.balconyHeight-.76,-.23);lip.userData.landmark='organ-loft-lower-cornice';lip.material=material(P.light);
- for(let i=0;i<80;i++){
-  const x0=-15.35+i/80*30.7,x1=-15.35+(i+1)/80*30.7,a=new T.Vector3(x0,H.balconyHeight,organBalconyFront(x0)),b=new T.Vector3(x1,H.balconyHeight,organBalconyFront(x1)),segment=new T.Group();
-  const angle=-Math.atan2(b.z-a.z,b.x-a.x);segment.rotation.y=angle;segment.position.copy(a).add(b).multiplyScalar(.5).add(new T.Vector3(-Math.sin(angle)*.525,0,-Math.cos(angle)*.525));segment.userData.landmark='organ-loft-rail';g.add(segment);balustrade(segment,a.distanceTo(b)+.015,null,false);segment.scale.y=1.35/1.58;
+ const railPath=ORGAN_LOFT_CONTOUR.filter(p=>Math.abs(p.x)<=ORGAN_RAIL_JOIN_X-ORGAN_RAIL_POST_HALF);
+ for(let i=0;i<railPath.length-1;i++){
+  const p=railPath[i],q=railPath[i+1],a=new T.Vector3(p.x,H.balconyHeight,p.z),b=new T.Vector3(q.x,H.balconyHeight,q.z),segment=new T.Group();
+  const angle=-Math.atan2(b.z-a.z,b.x-a.x);segment.rotation.y=angle;segment.position.copy(a).add(b).multiplyScalar(.5).add(new T.Vector3(-Math.sin(angle)*.525,0,-Math.cos(angle)*.525));segment.userData.landmark='organ-loft-rail';g.add(segment);balustrade(segment,a.distanceTo(b),null,false);
  }
  // One continuous UV strip preserves the scroll pattern around the curved
  // balcony; repeating a complete motif on every little segment compressed it.
  const positions:number[]=[],uv:number[]=[],indices:number[]=[];let arc=0,previous:T.Vector2|undefined;
- for(let i=0;i<=80;i++){const x=-15.35+i/80*30.7,z=organBalconyFront(x)+.012,p=new T.Vector2(x,z);if(previous)arc+=p.distanceTo(previous);previous=p;for(const y of [H.balconyHeight+.17,H.balconyHeight+1.15])positions.push(x,y,z);uv.push(arc/3.6,0,arc/3.6,1);if(i<80){const a=i*2;indices.push(a,a+2,a+1,a+1,a+2,a+3);}}
+ const railScale=GALLERY_RAIL_HEIGHT/1.58;
+ for(let i=0;i<railPath.length;i++){const {x}=railPath[i],z=railPath[i].z+.012,p=new T.Vector2(x,z);if(previous)arc+=p.distanceTo(previous);previous=p;for(const y of [H.balconyHeight+.22*railScale,H.balconyHeight+1.36*railScale])positions.push(x,y,z);uv.push(arc/2.1,0,arc/2.1,1);if(i<railPath.length-1){const a=i*2;indices.push(a,a+2,a+1,a+1,a+2,a+3);}}
  const strip=new T.BufferGeometry();strip.setAttribute('position',new T.Float32BufferAttribute(positions,3));strip.setAttribute('uv',new T.Float32BufferAttribute(uv,2));strip.setIndex(indices);strip.computeVertexNormals();const frieze=new T.Mesh(strip,ornament);frieze.userData.fullDetail=true;g.add(frieze);
- for(const x of [-15.35,-12.3,-8.3,-4.3,0,4.3,8.3,12.3,15.35])box(g,[.1,1.12,.09],[x,H.balconyHeight+.66,organBalconyFront(x)+.03],P.light);
+ for(const x of [-8.3,-4.3,0,4.3,8.3])box(g,[.1,1.25*railScale,.09],[x,H.balconyHeight+.78*railScale,organBalconyFront(x)+.03],P.light);
+ const railTop=1.565*railScale;
+ for(const side of [-1,1]){const post=box(g,[ORGAN_RAIL_POST_HALF*2,railTop,ORGAN_RAIL_POST_HALF*2],[side*ORGAN_RAIL_JOIN_X,H.balconyHeight+railTop/2,ORGAN_RAIL_JOIN_Z-ORGAN_LOFT_BACK],P.light);post.userData.landmark='organ-rail-join';}
  for(const x of [-13,-8.3,-4.3,4.3,8.3,13]){const z=organBalconyFront(x)-.55;box(g,[.42,.9,1.05],[x,H.balconyHeight-.97,z-.3],P.deep);box(g,[.68,.2,1.15],[x,H.balconyHeight-.82,z-.3],P.light);}
  buildOrganConsole(g);
  for(const x of [-12,-6,0,6,12]){const panel=new T.Group();panel.position.set(x,0,.15);g.add(panel);wallPanel(panel,0,3.65,5.5,6.8);for(const xx of [-2.8,2.8])gildedColumn(panel,xx,.1,7.6,.18);box(panel,[2.4,.65,.1],[0,5.6,.4],P.gold);rosette(panel,0,5.6,.5,.2);}
@@ -204,7 +205,7 @@ export function buildGoldenHall(scene:T.Scene){
    box(g,[5.9,6.9,.16],[0,3.5,.08],P.ivory);box(g,[4.1,4.8,.12],[0,3.1,.2],0xc5a875);box(g,[3.7,4.4,.14],[0,3.1,.3],0xf0dfbb);
    for(const x of [-2.55,2.55]){const figure=new T.Group();figure.position.set(x,.45,.3);figure.scale.set(1,1.21,1);g.add(figure);caryatid(figure);}
    wallPanel(g,0,WALL_LEVELS.lowerPanelY,4.2,WALL_LEVELS.lowerPanelHeight);rosette(g,0,5.8,.48,.27);
-   for(const span of galleryRailSpans(z)){const rail=new T.Group();rail.position.set(side*((span.start+span.end)/2-z),H.balconyHeight,WALL_DATUM.halfWidth-12.5-.4);g.add(rail);balustrade(rail,span.end-span.start);}
+   for(const span of galleryRailSpans(z)){const rail=new T.Group();rail.position.set(side*((span.start+span.end)/2-z),H.balconyHeight,WALL_DATUM.halfWidth-12.5-.4);rail.userData.landmark='gallery-rail';g.add(rail);balustrade(rail,span.end-span.start);}
    for(const x of [-2.85,2.85]){box(g,[.2,17,.2],[x,18.1,.2],0x9a5646);box(g,[.065,17,.1],[x,18.1,.34],P.light);}
    wallPanel(g,0,WALL_LEVELS.panelY,5.4,WALL_LEVELS.panelHeight);archedWindow(g,WALL_LEVELS.window);upperDoor(g,WALL_LEVELS.vent);sideBayDetails(g);whiteFigure(g,2.8,18.1);
    g.traverse(o=>{if(o instanceof T.Mesh)o.userData.cameraOccluder=true;});
@@ -212,7 +213,7 @@ export function buildGoldenHall(scene:T.Scene){
   // The repeated bays stop short of both corners; finish those returns too.
   for(const [a,b]of [[WALL_DATUM.front,-27],[51,WALL_DATUM.rear]]){const end=new T.Group();end.position.set(side*WALL_DATUM.halfWidth,0,(a+b)/2);end.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(end);wallPanel(end,0,WALL_LEVELS.lowerPanelY,b-a,WALL_LEVELS.lowerPanelHeight);wallPanel(end,0,WALL_LEVELS.panelY,b-a,WALL_LEVELS.panelHeight);}
  }
- for(const r of GALLERY_FLOORS)box(scene,[r.maxX-r.minX,.3,r.maxZ-r.minZ],[(r.minX+r.maxX)/2,H.balconyHeight-.15,(r.minZ+r.maxZ)/2],P.ivory);
+ buildGalleryFloors(scene);
  buildPerimeterCornices(scene);buildPerimeterFriezes(scene,friezeMaterial());
  buildFrontWindows(scene);buildOrgan(scene);paintedCeiling(scene);
  for(const x of [-7.4,7.4])for(const z of [-20,-7,6,19,32,45])crystalChandelier(scene,x,z);

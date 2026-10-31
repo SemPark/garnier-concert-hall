@@ -1,4 +1,5 @@
 import {GOLDEN_HALL as H} from './goldenHall';
+import {ORGAN_RAIL_JOIN_Z,ORGAN_RAIL_POST_HALF} from './organLoft';
 export const STAIR={bottomX:2,topX:13.5,z:46,width:2,steps:48,height:H.balconyHeight};
 // Standing avatars are about 1.63 units tall.
 export const GALLERY_RAIL_HEIGHT=.8;
@@ -11,7 +12,7 @@ export const GALLERY_FLOORS:FloorRect[]=[...[-1,1].flatMap(side=>{
 }),GALLERY_BRIDGE];
 /** Guardrails stop before the stair opening, including clearance for the visitor. */
 export function galleryRailSpans(bayZ:number){
- const start=Math.max(-26.5,bayZ-3),end=Math.min(51.8,bayZ+3);let spans=start<end?[{start,end}]:[];
+ const start=Math.max(ORGAN_RAIL_JOIN_Z+ORGAN_RAIL_POST_HALF,bayZ-3),end=Math.min(51.8,bayZ+3);let spans=start<end?[{start,end}]:[];
  for(const [cutStart,cutEnd]of [[GALLERY_BRIDGE.minZ,GALLERY_BRIDGE.maxZ+.35],[STAIR.z-STAIR.width/2-.35,STAIR.z+STAIR.width/2+.35]])spans=spans.flatMap(span=>span.end<=cutStart||span.start>=cutEnd?[span]:[...(span.start<cutStart?[{start:span.start,end:cutStart}]:[]),...(span.end>cutEnd?[{start:cutEnd,end:span.end}]:[])]);
  return spans;
 }

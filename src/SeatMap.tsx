@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import {SEATS,seatLabel,type Seat} from '../shared/venue';
+import {SEATS,FLOOR_SEATS,BALCONY_SEATS,seatLabel,type Seat} from '../shared/venue';
 import type {SeatClaim} from '../shared/protocol';
 import {seatMapPosition,seatMapRowY,SEAT_MAP_SIZE} from './seatMapLayout';
 export function SeatMap({claims,selfId,connected,onClose,onChoose}:{claims:Record<string,SeatClaim>;selfId:string;connected:boolean;onClose:()=>void;onChoose:(id:string)=>void}){
@@ -8,7 +8,7 @@ export function SeatMap({claims,selfId,connected,onClose,onChoose}:{claims:Recor
  useEffect(()=>{dialog.current?.showModal();const el=viewport.current!;const resize=new ResizeObserver(()=>setFit(Math.min((el.clientWidth-20)/SEAT_MAP_SIZE.width,(el.clientHeight-20)/SEAT_MAP_SIZE.height)));resize.observe(el);return()=>resize.disconnect();},[]);
  const scale=fit*zoom,available=selected&&(!claims[selected.id]||claims[selected.id].visitorId===selfId);
  return <dialog ref={dialog} className="ticket-dialog" onCancel={e=>{e.preventDefault();onClose();}} aria-label="전체 좌석 선택">
-  <div className="ticket-heading"><div><h2>나의 자리</h2><p>전체 456석 · 1층 352석 / 2층 104석</p></div><button autoFocus onClick={onClose} aria-label="좌석 선택 닫기">✕</button></div>
+  <div className="ticket-heading"><div><h2>나의 자리</h2><p>전체 {SEATS.length}석 · 1층 {FLOOR_SEATS.length}석 / 2층 {BALCONY_SEATS.length}석</p></div><button autoFocus onClick={onClose} aria-label="좌석 선택 닫기">✕</button></div>
   <div className="ticket-toolbar"><div className="ticket-legend"><span>● 선택 가능</span><span className="selected">● 선택</span><span className="mine">● 내 자리</span><span className="occupied">● 이용 중</span></div><div><button aria-label="좌석 지도 축소" disabled={zoom<=1} onClick={()=>setZoom(z=>Math.max(1,z-.5))}>−</button><button onClick={()=>{setZoom(1);viewport.current?.scrollTo(0,0);}}>전체 보기</button><button aria-label="좌석 지도 확대" disabled={zoom>=4} onClick={()=>setZoom(z=>Math.min(4,z+.5))}>＋</button></div></div>
   <div className="ticket-viewport" ref={viewport}><div className="ticket-scroll" style={{width:SEAT_MAP_SIZE.width*scale,height:SEAT_MAP_SIZE.height*scale}}><div className="ticket-map" style={{width:SEAT_MAP_SIZE.width,height:SEAT_MAP_SIZE.height,transform:`scale(${scale})`}}>
    <div className="ticket-stage">무 대 <small>오케스트라</small></div><span className="ticket-floor-title">1층</span><span className="ticket-left-title">2층 왼쪽</span><span className="ticket-right-title">2층 오른쪽</span>

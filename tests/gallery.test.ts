@@ -2,13 +2,14 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {GALLERY_FLOORS,GALLERY_BRIDGE,STAIR,galleryRailSpans,hasGalleryFloor} from '../shared/gallery';
 import {GOLDEN_HALL as H} from '../shared/goldenHall';
 import {localCameraFrame} from '../src/controls/localCamera';
+import {ORGAN_RAIL_JOIN_Z,ORGAN_RAIL_POST_HALF} from '../shared/organLoft';
 test('upper slabs never overlap and leave both stair flights open to the landing',()=>{
  for(let i=0;i<GALLERY_FLOORS.length;i++)for(let j=i+1;j<GALLERY_FLOORS.length;j++){const a=GALLERY_FLOORS[i],b=GALLERY_FLOORS[j],overlapX=Math.min(a.maxX,b.maxX)-Math.max(a.minX,b.minX),overlapZ=Math.min(a.maxZ,b.maxZ)-Math.max(a.minZ,b.minZ);assert.ok(overlapX<=0||overlapZ<=0);}
  for(const side of [-1,1]){for(const x of [12.55,12.9,13.3])assert.equal(hasGalleryFloor(side*x,STAIR.z),false);assert.equal(hasGalleryFloor(side*13.8,STAIR.z),true);assert.equal(hasGalleryFloor(side*13.8,49),true);}
  assert.equal(hasGalleryFloor(0,49),true);
 });
 test('gallery guardrail spans have a clear opening above each stair approach',()=>{
- for(const z of H.bayCenters)for(const span of galleryRailSpans(z)){assert.ok(span.end<=STAIR.z-STAIR.width/2-.35||span.start>=STAIR.z+STAIR.width/2+.35);assert.ok(span.start>=-26.5);assert.ok(span.end>span.start);assert.ok(span.end<=GALLERY_BRIDGE.minZ||span.start>=GALLERY_BRIDGE.maxZ+.35);}
+ for(const z of H.bayCenters)for(const span of galleryRailSpans(z)){assert.ok(span.end<=STAIR.z-STAIR.width/2-.35||span.start>=STAIR.z+STAIR.width/2+.35);assert.ok(span.start>=ORGAN_RAIL_JOIN_Z+ORGAN_RAIL_POST_HALF);assert.ok(span.end>span.start);assert.ok(span.end<=GALLERY_BRIDGE.minZ||span.start>=GALLERY_BRIDGE.maxZ+.35);}
  assert.equal(galleryRailSpans(H.bayCenters.at(-1)!).at(-1)!.end,GALLERY_BRIDGE.minZ,'the side rail must reach the rear rail without a corner gap');
 });
 test('floor and balcony seats use the same visitor-relative camera, including drag and zoom',()=>{

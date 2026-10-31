@@ -15,7 +15,8 @@ export const FLOOR_AISLES=[-13.4,-6.4,6.4,13.4];
 export const FLOOR_ROWS=Array.from({length:22},(_,row)=>-6+row*2.2+(row>=10?2:0));
 export const FLOOR_CROSS_AISLE=(FLOOR_ROWS[9]+FLOOR_ROWS[10])/2;
 export const FLOOR_SEATS:Seat[]=FLOOR_ROWS.flatMap((z,row)=>SEAT_COLUMNS.map((x,column)=>({id:`parterre-${row*16+column+1}`,x,z,approach:{x,y:0,z:z-1.05},row:row+1,column:column+1,level:'parterre' as const,y:0,yaw:0})));
-export const BALCONY_SEATS:Seat[]=[-1,1].flatMap(side=>H.bayCenters.flatMap((z,row)=>[-1.8,-.6,.6,1.8].map((offset,column)=>({id:`balcony-${side<0?'left':'right'}-${row*4+column+1}`,x:side*15,z:z-side*offset,approach:{x:side*13.95,y:H.balconyHeight,z:z-side*offset},row:row+1,column:column+1+(side>0?4:0),level:'balcony' as const,y:H.balconyHeight,yaw:side<0?-Math.PI/2:Math.PI/2}))));
+// Leave the four seats next to each organ-loft wing empty. Retain all other IDs.
+export const BALCONY_SEATS:Seat[]=[-1,1].flatMap(side=>H.bayCenters.flatMap((z,row)=>row===0?[]:[-1.8,-.6,.6,1.8].map((offset,column)=>({id:`balcony-${side<0?'left':'right'}-${row*4+column+1}`,x:side*15,z:z-side*offset,approach:{x:side*13.95,y:H.balconyHeight,z:z-side*offset},row:row+1,column:column+1+(side>0?4:0),level:'balcony' as const,y:H.balconyHeight,yaw:side<0?-Math.PI/2:Math.PI/2}))));
 export const SEATS:Seat[]=[...FLOOR_SEATS,...BALCONY_SEATS];
 export function seatLabel(s:Seat){return `${s.level==='parterre'?'1층':'2층'} ${s.row}열 ${s.column}번`;}
 export const BOUNDS={lobby:{minX:-6.5,maxX:6.5,minZ:-16,maxZ:16},auditorium:{minX:-15.65,maxX:15.65,minZ:-26.5,maxZ:50.3}};
