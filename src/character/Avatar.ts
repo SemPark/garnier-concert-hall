@@ -46,10 +46,9 @@ export class Avatar{
   sphere(this.head,.04,[0,-.085,-.345],0xe8a77f).scale.set(.042,.03,.03);sphere(this.head,.03,[0,-.165,-.322],0x7a3b33).scale.set(.045,.014,.02);
   // One simple cap for everyone: it covers the crown and back but ends above the ears, with no fringe.
   const cap=sphere(this.head,.4,[0,.15,.045],hair);cap.scale.set(.42,.31,.39);cap.userData.hairPart='cap';
-  // Women are told apart by their eyes: lashes flick up from the outer corner of each eye.
-  if(this.appearance==='woman')for(const side of [-1,1])for(const [dx,dy,tilt]of [[.035,.03,.55],[.055,.012,.95]] as const){
-   const lash=box(this.eyes,[.05,.012,.012],[side*(.115+dx),-.025+dy,-.328],0x231c1a);lash.rotation.z=side*tilt;lash.userData.eyelash=true;
-  }
+  // Women wear their hair longer at the back: one smooth fall behind the head, narrower than the face so it
+  // never shows beside the cheeks from the front.
+  if(this.appearance==='woman'){const back=sphere(this.head,.4,[0,-.09,.23],hair);back.scale.set(.31,.34,.19);back.userData.hairPart='back';}
   this.left={shoulder:this.leftArm,hand:this.leftHand};this.right={shoulder:this.rightArm,hand:this.rightHand};
   for(const [side,arm]of [[-1,this.left],[1,this.right]] as const){
    arm.shoulder.position.set(side*.29,.99,0);arm.shoulder.add(arm.hand);arm.hand.position.y=-ARM_LENGTH;
