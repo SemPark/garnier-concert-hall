@@ -88,7 +88,6 @@ function App(){
      <button role="menuitem" className="icon-menu-item" aria-label={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} title={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} onClick={()=>{world?.goToGallery();}}><Icon name={(world?.position.y??0)>8?'floor1':'floor2'} size={20}/></button>
      <span className="icon-menu-divider"/>
      <button role="menuitem" className={`icon-menu-item ${!world?.concertView?'active':''}`} aria-label="걷기 시점" title="걷기 시점" onClick={()=>{if(world?.concertView)world.toggleConcertView();}}><Icon name="walk" size={20}/></button>
-     <button role="menuitem" className={`icon-menu-item ${world?.concertView&&!world?.hallOverview?'active':''}`} aria-label="무대 가까이 보기" title="무대 가까이 보기" onClick={()=>{if(!world?.concertView)world?.toggleConcertView();if(world?.hallOverview)world.toggleFraming();}}><Icon name="stage" size={20}/></button>
      <button role="menuitem" className={`icon-menu-item ${world?.concertView&&world?.hallOverview?'active':''}`} aria-label="홀 전체 보기" title="홀 전체 보기" onClick={()=>{if(!world?.concertView)world?.toggleConcertView();if(!world?.hallOverview)world?.toggleFraming();}}><Icon name="overview" size={20}/></button>
      <span className="icon-menu-divider"/>
      <button role="menuitem" className="icon-menu-item" aria-label="로비로 나가기" title="로비로 나가기" onClick={()=>{world?.changeZone();}}><Icon name="exit" size={20}/></button>

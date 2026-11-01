@@ -12,8 +12,8 @@ function atlas(){
  if(typeof document==='undefined')return null;
  const cell=128,canvas=document.createElement('canvas');canvas.width=cell*COLS;canvas.height=cell*ROWS;const c=canvas.getContext('2d');if(!c)return null;
  ICONS.forEach((icon,i)=>{const x=(i%COLS)*cell+cell/2,y=Math.floor(i/COLS)*cell+cell/2,g=GLYPHS[icon];
-  c.fillStyle='#fffaf0';c.strokeStyle='#5a4632';c.lineWidth=5;c.beginPath();c.arc(x,y-4,cell*.36,0,Math.PI*2);c.fill();c.stroke();
-  c.beginPath();c.moveTo(x-10,y+cell*.3);c.lineTo(x,y+cell*.44);c.lineTo(x+10,y+cell*.3);c.closePath();c.fill();c.stroke();c.fillStyle='#fffaf0';c.fillRect(x-8,y+cell*.27,16,6);
+  // Bubble and tail as one outline, so no seam line crosses the tail.
+  const r=cell*.36,gap=Math.asin(10/r);c.fillStyle='#fffaf0';c.strokeStyle='#5a4632';c.lineWidth=5;c.lineJoin='round';c.beginPath();c.arc(x,y-4,r,Math.PI/2+gap,Math.PI/2-gap+Math.PI*2);c.lineTo(x,y+cell*.44);c.closePath();c.fill();c.stroke();
   c.fillStyle=g.color;c.font=`bold ${g.text.length>1?48:62}px Arial, sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(g.text,x,y-2);
  });
  const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;return texture;

@@ -2,7 +2,9 @@ import {LocalConcert} from './LocalConcert';
 import {applyDelta,type ClientMessage,type ServerMessage,type Snapshot} from '../../shared/protocol';
 
 export class Presence{
- readonly local=import.meta.env.VITE_STATIC_PREVIEW==='true';
+ // The Pages build talks to the Cloudflare server when one is set; without it, it plays solo.
+ private server=import.meta.env.VITE_PRESENCE_ORIGIN as string|undefined;
+ readonly local=import.meta.env.VITE_STATIC_PREVIEW==='true'&&!this.server;
  private preview:LocalConcert|null=null;
  selfId='';state:Snapshot|null=null;status:'connecting'|'connected'|'offline'='offline';
  onState:(state:Snapshot)=>void=()=>{};onStatus:()=>void=()=>{};onError:(message:string)=>void=()=>{};
@@ -13,7 +15,7 @@ export class Presence{
  connect(){
   if(this.local){this.preview=new LocalConcert();this.selfId=this.preview.visitor.id;this.status='connected';this.accept(this.preview.snapshot());this.onStatus();return;}
   this.stopped=false;this.status='connecting';this.onStatus();
-  const url=new URL('/api/presence',location.href);url.protocol=location.protocol==='https:'?'wss:':'ws:';
+  const url=new URL('/api/presence',this.server||location.href);url.protocol=url.protocol==='https:'?'wss:':'ws:';
   const token=sessionStorage.getItem('garnier-resume'),room=sessionStorage.getItem('garnier-room');if(token&&room){url.searchParams.set('resume',token);url.searchParams.set('room',room);}
   const socket=new WebSocket(url);this.socket=socket;
   socket.onmessage=e=>{if(this.socket!==socket)return;let msg:ServerMessage;try{msg=JSON.parse(e.data) as ServerMessage;}catch{return;}

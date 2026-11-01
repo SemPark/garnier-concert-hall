@@ -77,11 +77,11 @@ export class Avatar{
   if(this.appearance==='man')box(this.body,[.075,.06,.03],[0,.96,-.165],0xa23c3c);else sphere(this.body,.04,[0,.97,-.16],0xe8b647);
   // Big round head with dot eyes, catch-lights, blush and a button nose.
   this.head.position.y=1.26;// The skull sits a little above the neck so raised shoulders clear the chin.
-  const skull=sphere(this.head,.35,[0,.03,0],skin);skull.scale.set(.37,.345,.35);
-  for(const side of [-1,1]){sphere(this.head,.07,[side*.345,-.03,0],skin);sphere(this.head,.06,[side*.2,-.105,-.29],cheek).scale.set(.065,.04,.03);}
+  const skull=sphere(this.head,.35,[0,.03,0],skin);skull.scale.set(.37,.345,.35);// Blush and mouth sit on this surface, not in front of it.
+  for(const side of [-1,1]){sphere(this.head,.07,[side*.345,-.03,0],skin);sphere(this.head,.06,[side*.2,-.105,-.25],cheek).scale.set(.065,.04,.03);}
   this.head.add(this.eyes);
   for(const side of [-1,1]){const eye=sphere(this.eyes,.05,[side*.115,-.025,-.315],0x231c1a);eye.scale.set(.045,.058,.03);sphere(this.eyes,.016,[side*.1,0,-.336],0xffffff);}
-  sphere(this.head,.04,[0,-.085,-.345],0xe8a77f).scale.set(.042,.03,.03);sphere(this.head,.03,[0,-.165,-.322],0x7a3b33).scale.set(.045,.014,.02);
+  sphere(this.head,.04,[0,-.085,-.345],0xe8a77f).scale.set(.042,.03,.03);sphere(this.head,.03,[0,-.165,-.284],0x7a3b33).scale.set(.045,.014,.02);
   // Men wear one simple cap: it covers the crown and back but ends above the ears, with no fringe.
   // Women wear the long hair in one piece instead, so nothing overlaps.
   if(this.appearance==='man'){const cap=sphere(this.head,.4,[0,.15,.045],hair);cap.scale.set(.42,.31,.39);cap.userData.hairPart='cap';}

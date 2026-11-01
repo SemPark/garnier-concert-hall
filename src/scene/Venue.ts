@@ -99,6 +99,7 @@ export function createVenue(zone:Zone):Venue{
   musicians.push(...buildOrchestra(scene));
  }
  cameraWalls.push(portal);
+ for(const wall of cameraWalls)wall.traverse(o=>{o.userData.cameraWall=true;});
  const updateLOD=batchArchitecture(scene,[floor,portal,...walkTargets.filter(o=>o instanceof T.Mesh&&!Array.isArray(o.material)&&!o.material.visible),...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
  const updateMusicians=batchCharacters(scene,musicians.map(a=>a.root));updateMusicians();
  // Visitor reaction icons share one draw call per hall.
