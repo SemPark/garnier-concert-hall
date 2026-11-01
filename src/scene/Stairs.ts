@@ -18,7 +18,9 @@ function corridor(scene:T.Scene,side:number){
  for(const z of [C.front+.05,C.back-.05]){box(root,[width,CEILING,.1],[midX,CEILING/2,z],WALL);box(root,[width,1.1,.06],[midX,.55,z+(z<midZ?.07:-.07)],DADO);}
  for(const x of [C.innerX,C.outerX])box(root,[.1,CEILING,depth],[X(x),CEILING/2,midZ],WALL);
  // Door leaves seen from the corridor side.
- const leaf=(x:number,y:number,w:number,h:number)=>{box(root,[w+.3,h+.25,.08],[X(x),y+h/2,C.front+.12],COLOR.ivory);box(root,[w,h,.08],[X(x),y+h/2,C.front+.17],COLOR.wood).material=hallImageMaterial('walnut');};
+ // Open doorways back into the bright hall, seen from the corridor side.
+ const hallLight=new T.MeshLambertMaterial({color:0xf3e2bd,emissive:0xf0d6a2,emissiveIntensity:.8});
+ const leaf=(x:number,y:number,w:number,h:number)=>{box(root,[w+.3,h+.25,.08],[X(x),y+h/2,C.front+.12],COLOR.ivory);box(root,[w,h,.08],[X(x),y+h/2,C.front+.17],0xf3e2bd).material=hallLight;};
  leaf(STAIR_DOORS.lower.x,0,1.9,3.3);leaf(STAIR_DOORS.upper.x,H.balconyHeight,1.9,3.1);
  // One straight walnut flight against the back wall, rising away from the centre.
  const run=(C.flightEnd-C.flightStart)/C.steps,rise=H.balconyHeight/C.steps;

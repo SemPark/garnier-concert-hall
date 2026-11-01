@@ -178,6 +178,20 @@ export function buildHallShell(scene:T.Scene){
 function whiteFigure(g:T.Object3D,x:number,y:number){
  sphere(g,.18,[x,y+.38,.4],P.ivory);frustum(g,.16,.28,.63,[x,y-.04,.4],P.ivory);for(const sign of [-1,1]){line(g,new T.Vector3(x+sign*.16,y+.12,.4),new T.Vector3(x+sign*.52,y-.13,.4),.07,P.ivory);line(g,new T.Vector3(x,y-.3,.4),new T.Vector3(x+sign*.42,y-.42,.4),.1,P.ivory);}
 }
+/** Stair doors stand open: both leaves swing into the hall and the doorway glows with the lamplit corridor beyond. */
+const corridorGlow=new T.MeshLambertMaterial({color:0x3a2918,emissive:0x8a6232,emissiveIntensity:.45});
+function openLeaves(frame:T.Object3D,width:number,height:number,z:number){
+ for(const side of [-1,1]){const hinge=new T.Group();hinge.position.set(side*width/2,0,z);hinge.rotation.y=side*1.62;hinge.userData.landmark='open-door-leaf';frame.add(hinge);
+  const leaf=box(hinge,[width/2-.03,height,.1],[-side*width/4,height/2,0],P.wood);leaf.material=hallImageMaterial('walnut');
+  for(const row of [.25,.62])box(hinge,[width*.3,height*.3,.04],[-side*width/4,height*row,.07],0x32261d);
+ }
+}
+function openDoor(g:T.Object3D,x:number,bottom:number,width:number,height:number,z=.57){
+ const frame=new T.Group();frame.position.set(x,bottom,z);frame.userData.landmark='timber-door';frame.userData.doorBottom=bottom;frame.userData.open=true;g.add(frame);
+ box(frame,[width+.36,height+.35,.18],[0,height/2,.02],P.ivory);
+ box(frame,[width,height,.05],[0,height/2,.12],0x3a2918).material=corridorGlow;
+ openLeaves(frame,width,height,.16);return frame;
+}
 function timberDoor(g:T.Object3D,x:number,bottom:number,width:number,height:number,z=.57,panels=3){
  const frame=new T.Group();frame.position.set(x,bottom,z);frame.userData.landmark='timber-door';frame.userData.doorBottom=bottom;g.add(frame);
  box(frame,[width+.36,height+.35,.18],[0,height/2,.02],P.ivory);
@@ -226,7 +240,7 @@ export function rearFacade(scene:T.Scene){
  for(const x of [-10,-6,-2,2,6,10]){const bay=new T.Group();bay.position.x=x;g.add(bay);archedWindow(bay,WALL_LEVELS.window);wallPanel(bay,0,14.1,3.75,8.1,false);}
  for(const x of [-14,14]){
   const wing=new T.Group();wing.position.x=x;g.add(wing);archedWindow(wing,WALL_LEVELS.window,true);
-  box(wing,[2.7,5.7,.2],[0,H.balconyHeight+2.85,.28],P.ivory);box(wing,[2.15,5.25,.2],[0,H.balconyHeight+2.625,.4],0x39362e);
+  box(wing,[2.7,5.7,.2],[0,H.balconyHeight+2.85,.28],P.ivory);box(wing,[2.15,5.25,.2],[0,H.balconyHeight+2.625,.4],0x39362e).material=corridorGlow;{const upper=new T.Group();upper.position.set(0,H.balconyHeight,.5);wing.add(upper);openLeaves(upper,2.15,5.25,0);}
   for(const side of [-1,1])box(wing,[.12,5.5,.2],[side*1.25,H.balconyHeight+2.75,.55],P.light);
  }
  // Under the gallery the original reads as a dark, shaded band: walnut panelling with slim mouldings behind the columns.
@@ -247,7 +261,9 @@ export function rearFacade(scene:T.Scene){
  box(g,[25.4,.36,.9],[0,7.68,front],P.deep);box(g,[25.8,.14,1.05],[0,7.93,front+.05],P.light);
  hallImage(g,'scroll',24.5,.27,0,7.66,front+.47);
  for(const [z,xs]of [[2.2,[-10.5,-5.25,0,5.25,10.5]],[WALL_DATUM.rear-46,[-5.25,0,5.25]]] as const)for(const x of xs){const lamp=sphere(g,.17,[x,7.82,z],0xffefd4);lamp.scale.y=.45;lamp.material=soffitLamp;}
- for(const x of [-7.4,0,7.4]){
+ // The two side doors lead to the corridor stairs and stand open; the centre door is the foyer entrance.
+ for(const x of [-7.4,7.4]){openDoor(g,x,.15,3.8,6.4,.35);hallImage(g,'relief',3.8,.7,x,7.1,.65);}
+ for(const x of [0]){
   const door=timberDoor(g,x,.15,3.8,6.4,.35);
   const glass=new T.MeshLambertMaterial({color:0x6f6552,emissive:0x5a4a2e,emissiveIntensity:.12});
   for(const side of [-1,1]){const pane=box(door,[1.28,4.7,.04],[side*.93,3.65,.375],0xb7a98a);pane.material=glass;box(door,[.055,4.8,.05],[side*.93,3.65,.405],P.wood).material=woodMaterial('walnut');box(door,[1.3,.075,.05],[side*.93,3.2,.405],P.wood).material=woodMaterial('walnut');}

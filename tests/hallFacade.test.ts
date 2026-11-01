@@ -68,3 +68,13 @@ test('ceiling paintings use all four atlas quadrants and frame beams have no dup
  for(const p of paintings){const uv=p.geometry.getAttribute('uv'),col=p.userData.variant%2,row=Math.floor(p.userData.variant/2);for(let i=0;i<uv.count;i++){assert.ok(uv.getX(i)>col*.5&&uv.getX(i)<(col+1)*.5);assert.ok(uv.getY(i)>(1-row)*.5&&uv.getY(i)<(2-row)*.5);}assert.ok(p.position.y<-.08,'the new painting must cover the old printed placeholder');}
  assert.equal(beams.length,16);assert.equal(new Set(beams.map(b=>b.position.toArray().join(','))).size,beams.length);
 });
+
+test('stair doors stand open on both floors and a tappable arrow lies in front of each',async()=>{
+ const {buildStairArrows,STAIR_ARROWS}=await import('../src/scene/StairArrows');
+ const scene=new T.Scene(),facade=rearFacade(scene);let open=0,leaves=0;facade.traverse(o=>{if(o.userData.open)open++;if(o.userData.landmark==='open-door-leaf')leaves++;});
+ assert.equal(open,2,'both parterre stair doors are open');assert.equal(leaves,8,'two leaves on each of the four stair doors');
+ const arrows=buildStairArrows(scene);assert.equal(arrows.targets.length,4);arrows.update(1);
+ for(const a of STAIR_ARROWS){const door=stairPoint(a.side,!a.up);assert.ok(walkable('auditorium',{x:a.x,y:a.up?0:H.balconyHeight,z:a.z}),'arrow lies on a walkable floor');
+  assert.ok(Math.abs(a.x-door.x)<.01&&a.z<door.z&&door.z-a.z<2,'arrow sits just in front of its door');}
+ for(const t of arrows.targets)assert.ok(t.userData.stairSide===-1||t.userData.stairSide===1);
+});
