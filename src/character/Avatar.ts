@@ -4,7 +4,7 @@ import {buildInstrument} from '../orchestra/instruments';
 import {poseVillager,type Icon} from './villager';
 import type {Gesture} from '../../shared/gestures';
 export type Instrument='violin'|'viola'|'cello'|'bass'|'harp'|'piano'|'celesta'|'flute'|'piccolo'|'oboe'|'english-horn'|'clarinet'|'bass-clarinet'|'bassoon'|'contrabassoon'|'horn'|'trumpet'|'trombone'|'tuba'|'bass-drum'|'snare'|'cymbals'|'sleigh-bells'|'triangle'|'chimes'|'gong'|'timpani'|'xylophone'|'marimba'|'vibraphone'|'conductor';
-export type HairStyle='short';
+export type HairStyle='short'|'long';
 type Arm={shoulder:T.Group;hand:T.Group};
 export const PERCUSSION:readonly Instrument[]=['bass-drum','snare','cymbals','sleigh-bells','triangle','chimes','gong','timpani','xylophone','marimba','vibraphone'];
 const ARM_LENGTH=.4,HIP=new T.Vector3(0,.55,0),DOWN=new T.Vector3(0,-1,0);
@@ -16,6 +16,44 @@ const bellGeometry=new T.LatheGeometry([[0,0],[.27,0],[.285,.04],[.27,.17],[.255
 const armGeometry=new T.CapsuleGeometry(.066,ARM_LENGTH-.13,4,10);
 // A short, chubby index finger for the hush gesture.
 const fingerGeometry=new T.CapsuleGeometry(.024,.07,4,8);
+/**
+ * Women's long hair, shared by every woman, as one smooth closed piece (no separate cap, so no seam or ledge).
+ * The crown is the same dome as the men's cap; below its widest line the hair hangs straight down, so the two
+ * join without a crease. It covers the ears, ends at the jaw beside the face (clear of the shoulders), falls
+ * past the shoulders at the back in soft locks, and curves into the head above the forehead.
+ */
+const LONG_HAIR_CENTER=[0,.15,.045] as const,LONG_HAIR_RADIUS=[.43,.31,.39] as const;
+function buildLongHair(cols:number,dome:number,hang:number){
+ const [,cy,cz]=LONG_HAIR_CENTER,[rx,ry,rz]=LONG_HAIR_RADIUS,fold=3,depth=.12;
+ const {smoothstep,lerp}=T.MathUtils,positions:number[]=[],index:number[]=[];
+ let ring=0;
+ for(let j=0;j<=cols;j++){
+  const phi=-Math.PI+2*Math.PI*j/cols,turn=Math.abs(phi),sx=Math.sin(phi),sz=Math.cos(phi);
+  // 0 behind the head, 1 beside the ears, then 1 again toward the face where the hair tucks in.
+  const side=smoothstep(turn,.7,1.35),face=smoothstep(turn,1.75,2.4);
+  const length=lerp(lerp(.7+.045*Math.cos(phi*5),.38,side),.22,face);
+  // Spread: a slight fullness at ear height and a gentle taper to the ends. Above the face the dome simply carries
+  // on round into the head, like the men's cap, so the forehead line has no brim.
+  const spread=(t:number)=>lerp(1+.02*(1-Math.cos(Math.min(t/.3,1)*Math.PI))-.16*(t/length)**2,Math.sqrt(Math.max(0,1-(t/ry)**2)),face);
+  const put=(k:number,y:number)=>positions.push(sx*rx*k,y,cz+sz*rz*k);
+  const start=positions.length;
+  for(let i=0;i<=dome;i++){const th=i/dome*Math.PI/2;put(Math.sin(th),cy+ry*Math.cos(th));}
+  for(let i=1;i<=hang;i++){const t=length*i/hang;put(spread(t),cy-t);}
+  // A rounded end that folds back up into the inside of the hair.
+  const end=spread(length);
+  for(let i=1;i<fold;i++){const a=Math.PI*i/fold;put(end-depth/2*(1-Math.cos(a)),cy-length-.022*Math.sin(a));}
+  // The inside is only glimpsed at the ends, so a few rows are enough.
+  for(const f of [1,2/3,1/3,0])put(spread(f*length)-depth,cy-f*length);
+  ring=(positions.length-start)/3;
+ }
+ // Leave out triangles buried inside the skull (the hair's tuck above the forehead): they can never be seen.
+ const buried=(v:number)=>(positions[v*3]/.37)**2+((positions[v*3+1]-.03)/.345)**2+(positions[v*3+2]/.35)**2<.97;
+ const face=(a:number,b:number,c:number)=>{if(!(buried(a)&&buried(b)&&buried(c)))index.push(a,b,c);};
+ for(let j=0;j<cols;j++)for(let i=0;i<ring-1;i++){const a=j*ring+i,b=a+ring;face(a,a+1,b);face(b,a+1,b+1);}
+ const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));geometry.setIndex(index);geometry.computeVertexNormals();return geometry;
+}
+// Far-away listeners get a coarser copy of the same shape.
+const longHairGeometry=buildLongHair(24,7,8),longHairFar=buildLongHair(12,4,4);
 /** Index finger seat on the right mitten: thumb side, toward the face, rising above the knuckles. */
 export const FINGER_OFFSET=[-.035,.105,-.045] as const;
 export function musicianSits(type:Instrument|undefined){return !!type&&type!=='bass'&&type!=='conductor'&&!PERCUSSION.includes(type);}
@@ -30,7 +68,7 @@ export class Avatar{
  private direction=new T.Vector3();private armRotation=new T.Quaternion();private hipOffset=new T.Vector3();private tilt=new T.Euler();
  readonly variant:number;
  constructor(color=0x252733,instrument?:Instrument,variant=0){this.variant=variant;
-  this.appearance=variant%8>=4?'woman':'man';this.hair='short';
+  this.appearance=variant%8>=4?'woman':'man';this.hair=this.appearance==='woman'?'long':'short';
   this.instrumentType=instrument;this.root.add(this.body);this.body.add(this.head,this.leftArm,this.rightArm,this.leftLeg,this.rightLeg,this.instrument);
   const skin=[0xf2c8a2,0xe5b48d,0xf7d5b4,0xd49e78][variant%4],hair=[0x3b2c27,0x5a3423,0x232022,0xb4552a][Math.floor(variant/2)%4],cheek=0xf0938a;
   // Bell body with a small white collar, like a village resident.
@@ -44,11 +82,10 @@ export class Avatar{
   this.head.add(this.eyes);
   for(const side of [-1,1]){const eye=sphere(this.eyes,.05,[side*.115,-.025,-.315],0x231c1a);eye.scale.set(.045,.058,.03);sphere(this.eyes,.016,[side*.1,0,-.336],0xffffff);}
   sphere(this.head,.04,[0,-.085,-.345],0xe8a77f).scale.set(.042,.03,.03);sphere(this.head,.03,[0,-.165,-.322],0x7a3b33).scale.set(.045,.014,.02);
-  // One simple cap for everyone: it covers the crown and back but ends above the ears, with no fringe.
-  const cap=sphere(this.head,.4,[0,.15,.045],hair);cap.scale.set(.42,.31,.39);cap.userData.hairPart='cap';
-  // Women wear their hair longer at the back: one smooth fall behind the head, narrower than the face so it
-  // never shows beside the cheeks from the front.
-  if(this.appearance==='woman'){const back=sphere(this.head,.4,[0,-.09,.23],hair);back.scale.set(.31,.34,.19);back.userData.hairPart='back';}
+  // Men wear one simple cap: it covers the crown and back but ends above the ears, with no fringe.
+  // Women wear the long hair in one piece instead, so nothing overlaps.
+  if(this.appearance==='man'){const cap=sphere(this.head,.4,[0,.15,.045],hair);cap.scale.set(.42,.31,.39);cap.userData.hairPart='cap';}
+  else{const long=new T.Mesh(longHairGeometry,material(hair));long.userData.hairPart='long';long.userData.lowDetail=longHairFar;this.head.add(long);}
   this.left={shoulder:this.leftArm,hand:this.leftHand};this.right={shoulder:this.rightArm,hand:this.rightHand};
   for(const [side,arm]of [[-1,this.left],[1,this.right]] as const){
    arm.shoulder.position.set(side*.29,.99,0);arm.shoulder.add(arm.hand);arm.hand.position.y=-ARM_LENGTH;

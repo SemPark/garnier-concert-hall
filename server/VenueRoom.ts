@@ -1,15 +1,19 @@
 import {DurableObject} from 'cloudflare:workers';
 import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,distance,canSit,stairLink,isLook,type Visitor} from '../shared/venue';
-import type {ClientMessage,ServerMessage,Snapshot,SeatClaim} from '../shared/protocol';
+import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shared/protocol';
 import {isGesture} from '../shared/gestures';
 
 type Attachment={visitor:Visitor;token:string;generation:string;lastMessage:number;windowAt:number;messageCount:number;reservationRequest?:string;roomId:string};
 type ClaimRow={seatId:string;visitorId:string;status:'reserved'|'seated';expiresAt:number|null};
 type SessionRow={id:string;token:string;visitor:string;until:number|null};
-const RESERVE_MS=20000,GRACE_MS=12000;
+const RESERVE_MS=20000,GRACE_MS=12000,FLUSH_MS=100;
+/** Millimetres are plenty for drawing; shorter numbers keep a full house's updates small. */
+const round=(n:number)=>Math.round(n*1000)/1000;
 
 export class VenueRoom extends DurableObject<Env>{
  private revision=0;
+ // What everyone was last sent, so each update carries only the changes.
+ private sentVisitors=new Map<string,string>();private sentSeats=new Map<string,string>();private flushTimer:ReturnType<typeof setTimeout>|null=null;private flushedAt=0;
  constructor(ctx:DurableObjectState,env:Env){super(ctx,env);
   this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,token TEXT UNIQUE,visitor TEXT NOT NULL,until INTEGER)');
   this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS claims(seatId TEXT PRIMARY KEY,visitorId TEXT UNIQUE,status TEXT NOT NULL,expiresAt INTEGER)');
@@ -17,12 +21,24 @@ export class VenueRoom extends DurableObject<Env>{
  private attachment(ws:WebSocket):Attachment|null{return ws.deserializeAttachment() as Attachment|null;}
  private send(ws:WebSocket,message:ServerMessage){try{ws.send(JSON.stringify(message));}catch{/* A close event will release this connection. */}}
  private active(){return this.ctx.getWebSockets().flatMap(ws=>{const a=this.attachment(ws);return a?[{ws,a}]:[]});}
- private snapshot(roomId:string):Snapshot{
-  const seats:Record<string,SeatClaim>={};for(const r of this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims').toArray())seats[r.seatId]={visitorId:r.visitorId,status:r.status,expiresAt:r.expiresAt};
-  return {revision:this.revision,visitors:this.active().map(({a})=>a.visitor),seats,serverNow:Date.now(),roomId};
- }
+ private claims(){const seats:Record<string,SeatClaim>={};for(const r of this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims').toArray())seats[r.seatId]={visitorId:r.visitorId,status:r.status,expiresAt:r.expiresAt};return seats;}
+ /** The whole hall, matching what everyone has been sent so far, so later deltas apply on top of it. */
+ private snapshot(roomId:string):Snapshot{this.flush();return {revision:this.revision,visitors:this.active().map(({a})=>a.visitor),seats:this.claims(),serverNow:Date.now(),roomId};}
  private roomId(){return this.active()[0]?.a.roomId??'hall-1';}
- private broadcast(){this.revision++;const state=this.snapshot(this.roomId());for(const {ws} of this.active())this.send(ws,{type:'state',state});}
+ /** Changes are gathered and sent at most ten times a second, as one message built once for everybody. */
+ private broadcast(){if(!this.flushTimer)this.flushTimer=setTimeout(()=>this.flush(),Math.max(0,this.flushedAt+FLUSH_MS-Date.now()));}
+ private flush(){
+  if(this.flushTimer){clearTimeout(this.flushTimer);this.flushTimer=null;}this.flushedAt=Date.now();
+  const visitors:Visitor[]=[],left:string[]=[],seats:Record<string,SeatClaim|null>={},present=new Set<string>(),active=this.active();
+  for(const {a} of active){const v=a.visitor,json=JSON.stringify(v);present.add(v.id);if(this.sentVisitors.get(v.id)!==json){this.sentVisitors.set(v.id,json);visitors.push(v);}}
+  for(const id of this.sentVisitors.keys())if(!present.has(id)){this.sentVisitors.delete(id);left.push(id);}
+  const claims=this.claims();
+  for(const [id,claim]of Object.entries(claims)){const json=JSON.stringify(claim);if(this.sentSeats.get(id)!==json){this.sentSeats.set(id,json);seats[id]=claim;}}
+  for(const id of this.sentSeats.keys())if(!claims[id]){this.sentSeats.delete(id);seats[id]=null;}
+  if(!visitors.length&&!left.length&&!Object.keys(seats).length)return;
+  const delta:Delta={revision:this.revision+1,base:this.revision,visitors,left,seats,serverNow:Date.now()};this.revision++;
+  const message=JSON.stringify({type:'delta',delta} satisfies ServerMessage);for(const {ws} of active){try{ws.send(message);}catch{/* A close event will release this connection. */}}
+ }
  private release(id:string){this.ctx.storage.sql.exec('DELETE FROM claims WHERE visitorId=?',id);}
  private async schedule(){
   const a=this.ctx.storage.sql.exec<{next:number|null}>('SELECT MIN(expiresAt) AS next FROM claims WHERE expiresAt IS NOT NULL').one().next;
@@ -51,7 +67,8 @@ export class VenueRoom extends DurableObject<Env>{
   this.ctx.storage.sql.exec('INSERT INTO sessions(id,token,visitor,until) VALUES(?,?,?,NULL) ON CONFLICT(id) DO UPDATE SET visitor=excluded.visitor,until=NULL',visitor.id,savedToken,JSON.stringify(visitor));
   const pair=new WebSocketPair(),server=pair[1];this.ctx.acceptWebSocket(server);
   server.serializeAttachment({visitor,token:savedToken,generation:crypto.randomUUID(),lastMessage:0,windowAt:Date.now(),messageCount:0,roomId});
-  this.send(server,{type:'welcome',selfId:visitor.id,resumeToken:savedToken,state:this.snapshot(roomId)});this.broadcast();await this.schedule();
+  // The snapshot first sends everyone (the newcomer ignores it) the delta that adds this visitor.
+  this.send(server,{type:'welcome',selfId:visitor.id,resumeToken:savedToken,state:this.snapshot(roomId)});await this.schedule();
   return new Response(null,{status:101,webSocket:pair[0]});
  }
  async webSocketMessage(ws:WebSocket,raw:string|ArrayBuffer){
@@ -67,7 +84,7 @@ export class VenueRoom extends DurableObject<Env>{
    if(!walkable(v.zone,{x:msg.x,y:msg.y??0,z:msg.z})||!Number.isFinite(msg.yaw)||!['idle','walk'].includes(msg.pose))return;
    // A generous per-packet allowance accommodates interpolation and mobile pauses.
    if(distance(v,msg)>Math.max(2.2,(now-a.lastMessage)/1000*4.5)&&a.lastMessage&&!stairLink(v,msg))return;
-   if(v.pose==='sit')return;Object.assign(v,{x:msg.x,y:msg.y??0,z:msg.z,yaw:msg.yaw,pose:msg.pose});
+   if(v.pose==='sit')return;Object.assign(v,{x:round(msg.x),y:round(msg.y??0),z:round(msg.z),yaw:round(msg.yaw),pose:msg.pose});
   }else if(msg.type==='zone'){
    if(!['lobby','auditorium'].includes(msg.zone)||msg.zone===v.zone)return;
    this.release(v.id);Object.assign(v,{zone:msg.zone,...SPAWN[msg.zone],seatId:null,pose:'idle'});
@@ -77,6 +94,8 @@ export class VenueRoom extends DurableObject<Env>{
    if(v.zone!=='auditorium'||!seat||(claim&&claim.visitorId!==v.id)){this.send(ws,{type:'seatResult',ok:false,seatId:msg.seatId,requestId:msg.requestId,reason:'다른 관객이 선택한 좌석이에요.'});return;}
    if(a.reservationRequest===msg.requestId&&claim?.visitorId===v.id){this.send(ws,{type:'seatResult',ok:true,seatId:seat.id,requestId:msg.requestId});return;}
    this.release(v.id);this.ctx.storage.sql.exec('INSERT INTO claims VALUES(?,?,?,?)',seat.id,v.id,'reserved',now+RESERVE_MS);v.seatId=seat.id;v.pose='idle';a.reservationRequest=msg.requestId;
+   // A claimed seat reaches everyone at once, before the reply, so no one picks it a moment later.
+   ws.serializeAttachment({...a,roomId:this.roomId()});this.flush();
    this.send(ws,{type:'seatResult',ok:true,seatId:seat.id,requestId:msg.requestId});
   }else if(msg.type==='seated'){
    const seat=SEATS.find(s=>s.id===msg.seatId),claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE seatId=? AND visitorId=?',msg.seatId,v.id).toArray()[0];

@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 import playlist from '../content/playlist.json';
-import type {ServerMessage,Snapshot,ClientMessage} from '../shared/protocol';
-import {SEATS,BALCONY_SEATS,stairPoint,stairLink,distance,type Point} from '../shared/venue';import {findPath} from '../src/navigation/path';
+import {applyDelta,type ServerMessage,type Snapshot,type ClientMessage} from '../shared/protocol';
+import {CAPACITY,SEATS,BALCONY_SEATS,stairPoint,stairLink,distance,type Point} from '../shared/venue';import {findPath} from '../src/navigation/path';
 const base=process.env.CONCERT_TEST_URL??'http://127.0.0.1:8787';
 const delay=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 async function until(check:()=>boolean,label:string,ms=7000){const end=Date.now()+ms;while(Date.now()<end){if(check())return;await delay(30);}throw new Error(`Timed out: ${label}`);}
 class Client{
  socket!:WebSocket;messages:ServerMessage[]=[];state!:Snapshot;id='';token='';
  async connect(token=''){const url=new URL('/api/presence',base);url.protocol=url.protocol==='https:'?'wss:':'ws:';url.searchParams.set('room','hall-99');if(token)url.searchParams.set('resume',token);
-  this.socket=new WebSocket(url,{origin:new URL(base).origin});this.socket.on('message',raw=>{const msg=JSON.parse(raw.toString()) as ServerMessage;this.messages.push(msg);if(msg.type==='welcome'){this.id=msg.selfId;this.token=msg.resumeToken;this.state=msg.state;}if(msg.type==='state')this.state=msg.state;});await until(()=>!!this.id,'welcome');return this;}
+  this.socket=new WebSocket(url,{origin:new URL(base).origin});this.socket.on('message',raw=>{const msg=JSON.parse(raw.toString()) as ServerMessage;this.messages.push(msg);if(msg.type==='welcome'){this.id=msg.selfId;this.token=msg.resumeToken;this.state=msg.state;}if(msg.type==='state')this.state=msg.state;if(msg.type==='delta'&&this.state){const next=applyDelta(this.state,msg.delta);if(next)this.state=next;else this.send({type:'sync'});}});await until(()=>!!this.id,'welcome',15000);return this;}
  send(msg:ClientMessage){this.socket.send(JSON.stringify(msg));}
  async walk(end:Point){const v=this.state.visitors.find(v=>v.id===this.id)!;const path=findPath('auditorium',v,end);assert.ok(path);let p:Point={x:v.x,y:v.y??0,z:v.z};for(const target of path){if(stairLink(p,target,.01)){p={x:target.x,y:target.y??0,z:target.z};this.send({type:'move',...p,yaw:0,pose:'walk'});await delay(80);continue;}while(distance(p,target)>.02){const d=distance(p,target),step=Math.min(1.5,d);p={x:p.x+(target.x-p.x)/d*step,y:(p.y??0)+((target.y??0)-(p.y??0))/d*step,z:p.z+(target.z-p.z)/d*step};this.send({type:'move',...p,yaw:0,pose:'walk'});await delay(80);}}this.send({type:'move',...end,yaw:0,pose:'idle'});await delay(100);}
  close(){this.socket.close();}
@@ -42,5 +42,15 @@ try{
  await resumed.walk(stairPoint(1,false));assert.ok((resumed.state.visitors.find(v=>v.id===oldId)?.y??0)<.1);
  resumed.send({type:'clock',sentAt:123});await until(()=>resumed.messages.some(m=>m.type==='clock'&&m.sentAt===123),'clock response');
  const crowd=await Promise.all(Array.from({length:18},()=>new Client().connect()));clients.push(...crowd);await until(()=>observer.state.visitors.length===20,'20 simultaneous clients');
- console.log('PASS: health, audio Range requests, 2-way presence, zone transfer, atomic seat race, distant seating rejection, route movement, seating, authenticated resume, stale-request protection, seat release, clock sync, physical stairs, upper-floor seating and descent, 20 simultaneous clients.');
+ // A full house: every seat's worth of visitors in one hall; the next one is turned away, and one person walking
+ // sends everybody only small updates.
+ for(let n=observer.state.visitors.length;n<CAPACITY;n+=40)clients.push(...await Promise.all(Array.from({length:Math.min(40,CAPACITY-n)},()=>new Client().connect())));
+ await until(()=>observer.state.visitors.length===CAPACITY,`${CAPACITY} visitors`,30000);
+ const overflow=await new Promise<number>(done=>{const u=new URL('/api/presence',base);u.protocol=u.protocol==='https:'?'wss:':'ws:';u.searchParams.set('room','hall-99');const w=new WebSocket(u,{origin:new URL(base).origin});w.on('unexpected-response',(_q,r)=>done(r.statusCode??0));w.on('open',()=>{done(101);w.close();});w.on('error',()=>{});});
+ assert.equal(overflow,503,'the hall turns the next visitor away');
+ const sizes:number[]=[];observer.socket.on('message',raw=>sizes.push(raw.toString().length));const walker=clients.at(-1)!;
+ for(let k=0;k<6;k++){walker.send({type:'move',x:0,z:10-k*.4,yaw:0,pose:'walk'});await delay(60);}await delay(300);
+ assert.ok(sizes.length>0&&sizes.length<=6,`${sizes.length} updates`);assert.ok(Math.max(...sizes)<1000,`update of ${Math.max(...sizes)} bytes`);
+ await until(()=>clients.filter(c=>c.socket.readyState===WebSocket.OPEN).every(c=>c.state.visitors.find(v=>v.id===walker.id)?.z===observer.state.visitors.find(v=>v.id===walker.id)?.z),'everyone agrees');
+ console.log('PASS: health, audio Range requests, 2-way presence, zone transfer, atomic seat race, distant seating rejection, route movement, seating, authenticated resume, stale-request protection, seat release, clock sync, physical stairs, upper-floor seating and descent, 20 simultaneous clients, a full house of '+CAPACITY+' with small updates.');
 }finally{for(const c of clients)c.close();}

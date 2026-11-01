@@ -1,12 +1,12 @@
 import {LocalConcert} from './LocalConcert';
-import type {ClientMessage,ServerMessage,Snapshot} from '../../shared/protocol';
+import {applyDelta,type ClientMessage,type ServerMessage,type Snapshot} from '../../shared/protocol';
 
 export class Presence{
  readonly local=import.meta.env.VITE_STATIC_PREVIEW==='true';
  private preview:LocalConcert|null=null;
  selfId='';state:Snapshot|null=null;status:'connecting'|'connected'|'offline'='offline';
  onState:(state:Snapshot)=>void=()=>{};onStatus:()=>void=()=>{};onError:(message:string)=>void=()=>{};
- private socket:WebSocket|null=null;private retry=0;private stopped=false;private timer=0;private heartbeat=0;
+ private socket:WebSocket|null=null;private syncing=false;private retry=0;private stopped=false;private timer=0;private heartbeat=0;
  private origin=Date.now()-performance.now();private offset=0;private bestRTT=Infinity;
  private requests=new Map<string,{resolve:(ok:boolean)=>void;timer:number}>();
  now=()=>this.origin+performance.now()+this.offset;
@@ -21,7 +21,9 @@ export class Presence{
     this.selfId=msg.selfId;sessionStorage.setItem('garnier-resume',msg.resumeToken);sessionStorage.setItem('garnier-room',msg.state.roomId);
     this.offset=msg.state.serverNow-(this.origin+performance.now());this.bestRTT=Infinity;this.retry=0;this.status='connected';this.accept(msg.state);this.onStatus();this.ping();
     window.clearInterval(this.heartbeat);this.heartbeat=window.setInterval(()=>this.ping(),30000);
-   }else if(msg.type==='state')this.accept(msg.state);
+   }else if(msg.type==='state'){this.syncing=false;this.accept(msg.state);}
+   // Updates carry only what changed; if one was missed, ask once for the whole hall.
+   else if(msg.type==='delta'){if(!this.state)return;const next=applyDelta(this.state,msg.delta);if(next)this.accept(next);else if(!this.syncing){this.syncing=true;this.send({type:'sync'});}}
    else if(msg.type==='clock'){
     const end=performance.now(),rtt=end-msg.sentAt;if(rtt<this.bestRTT){this.bestRTT=rtt;this.offset=msg.serverNow-(this.origin+(msg.sentAt+end)/2);}
    }else if(msg.type==='seatResult'){
