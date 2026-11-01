@@ -18,11 +18,13 @@ function Icon({name,size=20}:{name:string;size?:number}){
   mute:<><path d="m11 4-6 5H2v6h3l6 5V4Zm5 5 5 6m0-6-5 6"/></>,
   people:<><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3m1-17a3 3 0 0 1 0 6m3 11v-3a6 6 0 0 0-3-5"/></>,
   stairs:<path d="M4 20h4v-4h4v-4h4V8h4V4"/>,
-  walk:<><circle cx="13" cy="4.5" r="1.8"/><path d="m10 21 2.2-6.5-2.7-2.7 1.3-4.3 3.4 3 2.8 1M7.5 12.5l2.3-4.7"/></>,
-  stage:<path d="M3 19h18M4 19a8 8 0 0 1 16 0M8 19a4 4 0 0 1 8 0"/>,
-  overview:<><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h10M8 11h8M10 8h4"/></>,
+  walk:<><circle cx="13" cy="4.5" r="2"/><path d="M12.5 8 11 14l-2.5 7M11 14l3 3v4M8 11.5l4.2-3 3.3 2.5"/></>,
+  floor1:<text x="12" y="16.6" textAnchor="middle" fontSize="12.5" fontWeight="700" fill="currentColor" stroke="none">1F</text>,
+  floor2:<text x="12" y="16.6" textAnchor="middle" fontSize="12.5" fontWeight="700" fill="currentColor" stroke="none">2F</text>,
+  stage:<><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M10.5 7.5v6m-3-3h6"/></>,
+  overview:<path d="M4 9V4h5m6 0h5v5m0 6v5h-5m-6 0H4v-5M8 15h8M9 12h6M10.5 9h3"/>,
   menu:<><path d="M4 7h16M4 12h16M4 17h16"/></>,
-  settings:<><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/></>,
+  settings:<><path d="M19.0 10.3L21.5 10.6L21.5 13.4L19.0 13.7L18.2 15.7L19.7 17.7L17.7 19.7L15.7 18.2L13.7 19.0L13.4 21.5L10.6 21.5L10.3 19.0L8.3 18.2L6.3 19.7L4.3 17.7L5.8 15.7L5.0 13.7L2.5 13.4L2.5 10.6L5.0 10.3L5.8 8.3L4.3 6.3L6.3 4.3L8.3 5.8L10.3 5.0L10.6 2.5L13.4 2.5L13.7 5.0L15.7 5.8L17.7 4.3L19.7 6.3L18.2 8.3Z"/><circle cx="12" cy="12" r="3"/></>,
   arrow:<path d="M4 12h15m-6-6 6 6-6 6"/>,
   close:<path d="m6 6 12 12M6 18 18 6"/>,
   music:<><path d="M9 18V5l11-2v13M9 8l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="16" rx="3" ry="2"/></>,
@@ -30,6 +32,8 @@ function Icon({name,size=20}:{name:string;size?:number}){
   clap:<><path d="m5 11 4 7a6 6 0 0 0 10-6l-3-6a1.5 1.5 0 0 0-2.5 1L16 12 10 3a1.5 1.5 0 0 0-2.5 1L12 12 6 5a1.5 1.5 0 0 0-2 2l5 7-4-3a1.5 1.5 0 0 0-2 2l4 5M18 2l1 2m3 1-2 1"/></>,
   seat:<><path d="M5 12V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7M4 10v7h16v-7M6 17v4m12-4v4M4 13h16"/></>,
   door:<><path d="M4 21h16M6 21V3h12v18M12 12h1"/></>,
+  enter:<path d="M13 4h6v16h-6M3 12h11m-4-4 4 4-4 4"/>,
+  exit:<path d="M11 4H5v16h6m-1-8h11m-4-4 4 4-4 4"/>,
   react:<><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/></>
  };
  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]??paths.hall}</svg>;
@@ -81,19 +85,19 @@ function App(){
    {menu&&<><nav className="icon-menu" role="menu" aria-label="음악당 메뉴" title="음악당 메뉴" onKeyDown={e=>{if(e.key==='Escape')setMenu(false);}}>
     {zone==='auditorium'?<>
      <button role="menuitem" className="icon-menu-item" aria-label="좌석 고르기" title="좌석 고르기" onClick={()=>{world?.input.keys.clear();setSeats(true);}}><Icon name="seat" size={20}/></button>
-     <button role="menuitem" className="icon-menu-item" aria-label={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} title={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} onClick={()=>{world?.goToGallery();}}><Icon name="stairs" size={20}/></button>
+     <button role="menuitem" className="icon-menu-item" aria-label={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} title={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} onClick={()=>{world?.goToGallery();}}><Icon name={(world?.position.y??0)>8?'floor1':'floor2'} size={20}/></button>
      <span className="icon-menu-divider"/>
      <button role="menuitem" className={`icon-menu-item ${!world?.concertView?'active':''}`} aria-label="걷기 시점" title="걷기 시점" onClick={()=>{if(world?.concertView)world.toggleConcertView();}}><Icon name="walk" size={20}/></button>
      <button role="menuitem" className={`icon-menu-item ${world?.concertView&&!world?.hallOverview?'active':''}`} aria-label="무대 가까이 보기" title="무대 가까이 보기" onClick={()=>{if(!world?.concertView)world?.toggleConcertView();if(world?.hallOverview)world.toggleFraming();}}><Icon name="stage" size={20}/></button>
      <button role="menuitem" className={`icon-menu-item ${world?.concertView&&world?.hallOverview?'active':''}`} aria-label="홀 전체 보기" title="홀 전체 보기" onClick={()=>{if(!world?.concertView)world?.toggleConcertView();if(!world?.hallOverview)world?.toggleFraming();}}><Icon name="overview" size={20}/></button>
      <span className="icon-menu-divider"/>
-     <button role="menuitem" className="icon-menu-item" aria-label="로비로 나가기" title="로비로 나가기" onClick={()=>{world?.changeZone();}}><Icon name="door" size={20}/></button>
-    </>:<button role="menuitem" className="icon-menu-item" aria-label="공연장 들어가기" title="공연장 들어가기" onClick={()=>{world?.changeZone();}}><Icon name="door" size={20}/></button>}
+     <button role="menuitem" className="icon-menu-item" aria-label="로비로 나가기" title="로비로 나가기" onClick={()=>{world?.changeZone();}}><Icon name="exit" size={20}/></button>
+    </>:<button role="menuitem" className="icon-menu-item" aria-label="공연장 들어가기" title="공연장 들어가기" onClick={()=>{world?.changeZone();}}><Icon name="enter" size={20}/></button>}
     <button role="menuitem" className="icon-menu-item" aria-label="설정" title="설정" onClick={()=>{setSettings(true);}}><Icon name="settings" size={20}/></button>
    </nav></>}
    {seats&&zone==='auditorium'&&<SeatMap claims={net?.state?.seats??{}} selfId={net?.selfId??''} connected={connected} onClose={()=>setSeats(false)} onChoose={id=>{void world?.chooseSeat(id);}}/>}
    {zone==='auditorium'&&p&&<aside className={`now-playing ${(!world?.concertView||world?.pose==='walk'||window.innerWidth<700)&&!musicExpanded?'compact-music':''}`}><button className="music-summary" aria-label={musicExpanded?'음악 정보 접기':'음악 정보 펼치기'} aria-expanded={musicExpanded} onClick={()=>setMusicExpanded(v=>!v)}><Icon name="music" size={14}/><span>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</span><span>{musicExpanded?'−':'+'}</span></button><div className="music-details"><div className="now-label"><span className={`equalizer ${audio?.enabled&&p.playing?'active':''}`}><i/><i/><i/></span>{p.playing?(p.track.stage?'ON STAGE':'NOW PLAYING'):'잠시 후'}</div><h2>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</h2><p>{p.playing&&!p.track.stage?p.track.composer:`다음 곡: ${nextPiece(program as Playlist,p.index)?.title??''}`}{!p.playing&&` · ${Math.ceil(p.remaining)}초 후`}</p><div className="progress-track"><span style={{width:`${p.playing?p.offset/p.track.durationSeconds*100:0}%`}}/></div><div className="track-meta"><span>{audio?.state}</span><span>{format(p.offset)} / {format(p.track.durationSeconds)}</span></div></div></aside>}
-   <div className="bottom-center">{reactions&&<div className="reaction-panel" role="group" aria-label="리액션">{GESTURES.map((g,n)=><button key={g.id} onClick={()=>{world?.gestureAction(g.id);setReactions(false);}} disabled={!connected}><b>{GLYPH[g.id]}</b><span>{g.label}</span><kbd>{n+1}</kbd></button>)}</div>}<div className="actionbar" aria-label="음악당에서 할 일"><button onClick={()=>world?.gestureAction('wave')} disabled={!connected}><Icon name="wave"/><span>인사</span></button><button onClick={()=>world?.gestureAction('clap')} disabled={!connected}><Icon name="clap"/><span>박수</span></button><span className="divider"/><button className="primary-action" onClick={()=>{if(sitting)world?.stand();else if(zone==='lobby')world?.changeZone();else{world?.input.keys.clear();setSeats(true);}}} disabled={!connected}><Icon name={sitting?'seat':zone==='lobby'?'door':'seat'}/><span>{sitting?'일어나기':zone==='lobby'?'공연장 입장':'자리 앉기'}</span></button><span className="divider"/><button className={reactions?'active':''} aria-expanded={reactions} onClick={()=>setReactions(v=>!v)} disabled={!connected}><Icon name="react"/><span>리액션</span></button></div>{world?.mobile?<p className="controls-hint"><span>바닥을 눌러 이동</span><i>·</i><span>끌어서 둘러보기</span><i>·</i><span>두 손가락으로 확대</span></p>:<p className="controls-hint"><span>바닥 클릭으로 이동</span><i>·</i><span>드래그로 둘러보기</span><i>·</i><span>휠로 거리 조절</span><i>·</i><span>1–8 리액션</span></p>}</div>
+   <div className="bottom-center">{reactions&&<div className="reaction-panel" role="group" aria-label="리액션">{GESTURES.map((g,n)=><button key={g.id} onClick={()=>{world?.gestureAction(g.id);setReactions(false);}} disabled={!connected}><b>{GLYPH[g.id]}</b><span>{g.label}</span><kbd>{n+1}</kbd></button>)}</div>}<div className="actionbar" aria-label="음악당에서 할 일"><button onClick={()=>world?.gestureAction('wave')} disabled={!connected}><Icon name="wave"/><span>인사</span></button><button onClick={()=>world?.gestureAction('clap')} disabled={!connected}><Icon name="clap"/><span>박수</span></button><span className="divider"/><button className="primary-action" onClick={()=>{if(sitting)world?.stand();else if(zone==='lobby')world?.changeZone();else{world?.input.keys.clear();setSeats(true);}}} disabled={!connected}><Icon name={sitting?'seat':zone==='lobby'?'enter':'seat'}/><span>{sitting?'일어나기':zone==='lobby'?'공연장 입장':'자리 앉기'}</span></button><span className="divider"/><button className={reactions?'active':''} aria-expanded={reactions} onClick={()=>setReactions(v=>!v)} disabled={!connected}><Icon name="react"/><span>리액션</span></button></div>{world?.mobile?<p className="controls-hint"><span>바닥을 눌러 이동</span><i>·</i><span>끌어서 둘러보기</span><i>·</i><span>두 손가락으로 확대</span></p>:<p className="controls-hint"><span>바닥 클릭으로 이동</span><i>·</i><span>드래그로 둘러보기</span><i>·</i><span>휠로 거리 조절</span><i>·</i><span>1–8 리액션</span></p>}</div>
   </>}
   {probeProgress&&<div className="diagnostic-overlay" role="status"><p>{probeProgress}<br/><small>측정 중 화면이 잠시 멈춥니다. 음악의 끊김을 비교하고 있어요.</small></p></div>}
   {toast&&<div className="toast" role="status">{toast}</div>}
