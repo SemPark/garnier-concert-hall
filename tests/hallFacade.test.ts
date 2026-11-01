@@ -3,8 +3,8 @@ import {readdirSync,readFileSync,statSync} from 'node:fs';
 import {rearFacade,buildGoldenHall,upperDoor,UPPER_DOOR} from '../src/scene/GoldenHall';
 import {buildStairs} from '../src/scene/Stairs';
 import {hallImageMaterial} from '../src/scene/HallTextures';
-import {GALLERY_BRIDGE,REAR_COLUMNS,STAIR_DOORS} from '../shared/gallery';
-import {FLOOR_AISLES,walkable} from '../shared/venue';
+import {GALLERY_BRIDGE,REAR_COLUMNS,STAIR_DOORS,STAIR_CORRIDOR,corridorRoute,corridorStairHeight} from '../shared/gallery';
+import {FLOOR_AISLES,walkable,stairPoint} from '../shared/venue';
 import {GOLDEN_HALL as H} from '../shared/goldenHall';
 
 test('the repeatable architectural images stay below 192 KB and reuse one material per image',()=>{
@@ -30,10 +30,17 @@ test('upper doors start at balcony level and the repeated painted details are sh
  assert.equal(new Set([...images].map(m=>m.userData.hallImage)).size,9);
 });
 
-test('no staircase stands in the hall; the rear doors lead to the corridor stairs',()=>{
- const scene=new T.Scene(),stairs=buildStairs(scene),facade=rearFacade(scene);scene.updateMatrixWorld(true);
- assert.equal(scene.children.filter(o=>o.userData.landmark==='rear-stair').length,0);
- for(const s of stairs.surfaces)assert.ok(Math.abs(new T.Box3().setFromObject(s).max.y-H.balconyHeight)<.02,'only gallery floor targets remain');
+test('each staircase climbs in a corridor behind the rear wall, out of sight from the hall',()=>{
+ const scene=new T.Scene();buildStairs(scene);const facade=rearFacade(scene);scene.updateMatrixWorld(true);
+ const flights=scene.children.filter(o=>o.userData.landmark==='rear-stair');assert.equal(flights.length,2);
+ for(const flight of flights){const b=new T.Box3().setFromObject(flight);assert.ok(b.min.z>=H.rear+.2,'nothing of the stair reaches into the hall');
+  const treads=flight.children.filter(o=>o.userData.landmark==='stair-tread');assert.equal(treads.length,STAIR_CORRIDOR.steps);
+  treads.forEach((t,i)=>{const tb=new T.Box3().setFromObject(t);assert.ok(Math.abs(tb.max.y-(i+1)*H.balconyHeight/STAIR_CORRIDOR.steps)<1e-6);});}
+ for(const side of [-1,1]){const route=corridorRoute(side,true);assert.deepEqual(route[0],{...stairPoint(side,false)});assert.deepEqual(route.at(-1),{...stairPoint(side,true)});
+  // Every point on the climb stands on the corridor floor, the flight or the upper landing.
+  for(let i=1;i<route.length;i++)for(let k=0;k<=20;k++){const a=route[i-1],b=route[i],t=k/20,x=a.x+(b.x-a.x)*t,y=(a.y??0)+((b.y??0)-(a.y??0))*t,z=a.z+(b.z-a.z)*t;
+   if(z>H.rear&&Math.abs(z-STAIR_CORRIDOR.flightZ)<.2&&Math.abs(x)>STAIR_CORRIDOR.flightStart&&Math.abs(x)<STAIR_CORRIDOR.flightEnd)assert.ok(Math.abs(y-corridorStairHeight(x))<.05,'on the treads');}
+  assert.deepEqual(corridorRoute(side,false),[...route].reverse());}
  const doors:T.Object3D[]=[];facade.traverse(o=>{if(o.userData.landmark==='timber-door')doors.push(o);});
  for(const side of [-1,1])assert.ok(doors.some(d=>Math.abs(d.getWorldPosition(new T.Vector3()).x-side*STAIR_DOORS.lower.x)<.05),'a parterre door marks each stair');
 });

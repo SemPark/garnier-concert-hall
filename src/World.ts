@@ -3,6 +3,7 @@ import {createVenue,type Venue} from './scene/Venue';
 import {Avatar,musicianSits} from './character/Avatar';
 import {Input} from './controls/Input';
 import {constrainCamera} from './controls/cameraCollision';
+import {corridorRoute,STAIR_CORRIDOR} from '../shared/gallery';
 import {localCameraFrame} from './controls/localCamera';
 import {findPath,segmentClear} from './navigation/path';
 import {SPAWN,SEATS,BOUNDS,walkable,distance,surfaceHeight,stairPoint,stairLink,STAGE_APRON_Z,type Visitor,type Zone,type Point} from '../shared/venue';
@@ -21,7 +22,7 @@ export class World{
  concertView=true;hallOverview=true;
  position=new T.Vector3(0,0,10);pose:'idle'|'walk'|'sit'='idle';yaw=0;cameraYaw=0;cameraPitch=.13;cameraDistance=4.8;fps=60;entered=false;
  onChange:()=>void=()=>{};onToast:(message:string)=>void=()=>{};
- private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private route:Point[]=[];private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
+ private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private route:Point[]=[];private climb:{points:Point[];up:boolean}|null=null;private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
  private seatedTarget:T.Vector3|null=null;
  private ray=new T.Raycaster();private ndc=new T.Vector2();private frame=0;private last=performance.now();private sentAt=0;private lastPose='';private renewAt=0;private lastUI=0;private look=new T.Vector3();private gesture:Gesture|null=null;private headTop=new T.Vector3();private gestureAt=0;
  private disposed=false;private lodAt=0;private orchestraAt=0;quality:RenderQuality='balanced';readonly mobile=matchMedia('(pointer: coarse)').matches||/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);private renderedAt=0;
@@ -65,8 +66,8 @@ export class World{
   this.onChange();
  }
  start(){this.entered=true;this.renderer.domElement.focus();this.onChange();}
- changeZone(){if(!this.entered)return;if(this.net.status!=='connected'){this.onToast('음악당에 연결한 뒤 입장할 수 있어요.');return;}this.cancelSeat();this.route=[];this.net.send({type:'zone',zone:this.zone==='lobby'?'auditorium':'lobby'});}
- async chooseSeat(id:string){
+ changeZone(){if(!this.entered||this.climb)return;if(this.net.status!=='connected'){this.onToast('음악당에 연결한 뒤 입장할 수 있어요.');return;}this.cancelSeat();this.route=[];this.net.send({type:'zone',zone:this.zone==='lobby'?'auditorium':'lobby'});}
+ async chooseSeat(id:string){if(this.climb){this.onToast('계단을 다 올라간 뒤 좌석을 골라 주세요.');return;}
   if(this.zone!=='auditorium'||!this.entered)return;const seat=SEATS.find(s=>s.id===id);if(!seat)return;
   if(this.pose==='sit'){this.stand();this.onToast('일어난 뒤 좌석을 선택해 주세요.');return;}
   const path=findPath(this.zone,{x:this.position.x,y:this.position.y,z:this.position.z},seat.approach);if(!path){this.onToast('이 좌석으로 가는 길을 찾지 못했어요.');return;}
@@ -74,10 +75,10 @@ export class World{
   if(!ok){this.net.send({type:'release',requestId});return;}this.reservedSeat=id;if(seat.level==='balcony')this.concertView=false;this.seating=false;this.route=path;this.renewAt=performance.now();this.marker.visible=true;this.marker.position.set(seat.approach.x,seat.y+.035,seat.approach.z);this.onToast('선택한 좌석으로 이동합니다.');
  }
  stand(){this.seatedTarget=null;if(this.pose==='sit'||this.reservedSeat){const seat=SEATS.find(s=>s.id===(this.self?.seatId??this.reservedSeat));this.net.send({type:'release'});if(this.pose==='sit'&&seat)this.position.set(seat.approach.x,seat.y,seat.approach.z);this.pose='idle';}this.cancelSeat();this.route=[];this.onChange();}
- goToGallery(){if(this.zone!=='auditorium')return;if(this.pose==='sit')this.stand();const upper=this.position.y<GOLDEN_HALL.balconyHeight-.3,side=this.position.x<0?-1:1;const target=upper?{x:side*13.6,y:GOLDEN_HALL.balconyHeight,z:48.5}:{x:side*7.4,y:0,z:48.5};const path=findPath(this.zone,this.position,target);if(!path){this.onToast('계단으로 가는 길을 찾지 못했어요.');return;}this.cancelSeat();this.route=path;this.concertView=false;this.cameraYaw=0;this.onToast(upper?'계단을 따라 2층으로 올라갑니다.':'계단을 따라 1층으로 내려갑니다.');this.onChange();}
+ goToGallery(){if(this.zone!=='auditorium'||this.climb)return;if(this.pose==='sit')this.stand();const upper=this.position.y<GOLDEN_HALL.balconyHeight-.3,side=this.position.x<0?-1:1;const target=upper?{x:side*13.6,y:GOLDEN_HALL.balconyHeight,z:48.5}:{x:side*7.4,y:0,z:48.5};const path=findPath(this.zone,this.position,target);if(!path){this.onToast('계단으로 가는 길을 찾지 못했어요.');return;}this.cancelSeat();this.route=path;this.concertView=false;this.cameraYaw=0;this.onToast(upper?'계단을 따라 2층으로 올라갑니다.':'계단을 따라 1층으로 내려갑니다.');this.onChange();}
  private cancelSeat(){this.reserveVersion++;if(this.reservedSeat)this.net.send({type:'release'});this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
  gestureAction(gesture:Gesture){this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});}
- private click(x:number,y:number){if(!this.entered)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
+ private click(x:number,y:number){if(!this.entered||this.climb)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
   const hits=this.ray.intersectObjects([...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);if(!hits.length)return;const hit=hits[0];let obj:T.Object3D|null=hit.object,seatId:string|undefined;while(obj){seatId=seatId??obj.userData.seatId;if(obj.userData.portal){this.changeZone();return;}obj=obj.parent;}
   if(seatId){void this.chooseSeat(seatId);return;}
   if(this.pose==='sit'){this.stand();return;}
@@ -86,11 +87,15 @@ export class World{
   if(this.zone==='auditorium'&&Math.abs(point.y??0)<.4&&point.z<STAGE_APRON_Z&&point.z>STAGE_APRON_Z-3)point.z=STAGE_APRON_Z+.3;
   const path=findPath(this.zone,{x:this.position.x,y:this.position.y,z:this.position.z},point);if(!path){this.onToast('통로나 빈 바닥을 선택해 주세요.');return;}this.cancelSeat();this.route=path;this.marker.position.set(point.x,(point.y??0)+.035,point.z);this.marker.visible=true;
  }
- private sendPosition(now:number,force=false){if(!this.entered||!this.self||this.pose==='sit')return;if(force||now-this.sentAt>300||this.lastPose!==this.pose){this.sentAt=now;this.lastPose=this.pose;this.net.send({type:'move',x:this.position.x,y:this.position.y,z:this.position.z,yaw:this.yaw,pose:this.pose});}}
+ private sendPosition(now:number,force=false){if(!this.entered||!this.self||this.pose==='sit'||this.climb)return;if(force||now-this.sentAt>300||this.lastPose!==this.pose){this.sentAt=now;this.lastPose=this.pose;this.net.send({type:'move',x:this.position.x,y:this.position.y,z:this.position.z,yaw:this.yaw,pose:this.pose});}}
  private snapCamera(){const f=this.cameraFrame();this.look.copy(f.look);this.camera.position.copy(f.position);this.camera.lookAt(this.look);}
  private cameraFrame(){
   const sitting=this.pose==='sit',baseY=(sitting?2.05:1.05)+this.position.y,look=new T.Vector3(this.position.x,baseY,this.position.z-1.5),d=this.cameraDistance;
   if(!this.entered){return {look:new T.Vector3(0,5,-8),position:new T.Vector3(3.7,4.2,13.5)};}
+  // Inside the corridor stair: watch the climb from the passage side, kept within the stairwell walls.
+  if(this.climb||this.position.z>GOLDEN_HALL.rear){const c=STAIR_CORRIDOR,side=this.position.x<0?-1:1,ahead=this.climb?.up===false?1:-1;
+   const x=side*T.MathUtils.clamp(Math.abs(this.position.x)+ahead*2.2,c.innerX+.5,c.outerX-.5),y=T.MathUtils.clamp(this.position.y+2.1,1.6,12),z=this.position.z>GOLDEN_HALL.rear?c.front+.45:GOLDEN_HALL.rear-2.4;
+   return {look:new T.Vector3(this.position.x,this.position.y+1,this.position.z),position:new T.Vector3(x,y,z)};}
   if(this.zone==='auditorium'&&this.concertView){
    const preset=this.hallOverview?HALL_CAMERA:CONCERT_CAMERA,center=new T.Vector3(...preset.look),offset=new T.Vector3(...preset.eye).sub(center);
    offset.multiplyScalar(T.MathUtils.clamp(this.cameraDistance/4.8,.65,1.6)*Math.min(this.camera.aspect<.8?2.2:1.3,Math.max(1,1.65/this.camera.aspect)));
@@ -119,8 +124,9 @@ export class World{
   this.frame=requestAnimationFrame(this.animate);const now=performance.now(),interval=1000/frameRate(this.mobile,this.quality);if(now-this.renderedAt<interval)return;this.renderedAt=interval?now-((now-this.renderedAt)%interval):now;const elapsed=(now-this.last)/1000,dt=Math.min(.1,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
   const workStart=this.diagnosticActive?performance.now():0;
   if(this.diagnosticActive&&this.diagnosticMode==='audio-only'){this.frameCost={at:now,cpu:0,submit:0};if(now-this.lastUI>500){this.lastUI=now;this.onChange();}return;}
-  let speed=0;const keys=this.input.keys,kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft')),kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'));
+  let speed=0;const keys=this.input.keys;let kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'));let kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'));
   if(this.entered&&this.net.status==='connected'){
+   if(this.climb)kx=kz=0;
    if((kx||kz)&&this.pose==='sit')this.stand();
    const previous=this.position.clone();
    if(kx||kz){this.route=[];this.cancelSeat();const v=new T.Vector3(kx,0,kz).normalize().applyAxisAngle(new T.Vector3(0,1,0),this.cameraYaw).multiplyScalar(2.8*dt),candidate=this.position.clone().add(v);
@@ -128,8 +134,13 @@ export class World{
     if(!move(candidate.x,candidate.z)){if(!move(candidate.x,this.position.z))move(this.position.x,candidate.z);}
    }else if(this.route.length&&this.pose!=='sit'){
     const p=this.route[0],d=distance(this.position,p);
-    // Through a stair door: the climb happens in the corridor behind the wall, so arrive at the partner door.
-    if(d>1&&stairLink(this.position,p,.05)){this.sendPosition(now,true);this.position.set(p.x,p.y??0,p.z);this.route.shift();this.snapCamera();this.sendPosition(now,true);this.onToast(p.y?'복도 계단으로 2층에 올라왔어요.':'복도 계단으로 1층에 내려왔어요.');}
+    // Through a stair door: walk the corridor stair behind the rear wall, then come out at the partner door.
+    if(this.climb||(d>1&&stairLink(this.position,p,.05))){
+     if(!this.climb){this.sendPosition(now,true);const up=(p.y??0)>this.position.y;this.climb={points:corridorRoute(this.position.x<0?-1:1,up).slice(1),up};}
+     const target=this.climb.points[0],left=distance(this.position,target),step=Math.min(left,(this.reduced?40:3.4)*dt);
+     if(left<.001)this.climb.points.shift();else{this.position.x+=(target.x-this.position.x)/left*step;this.position.y+=((target.y??0)-this.position.y)/left*step;this.position.z+=(target.z-this.position.z)/left*step;}
+     if(!this.climb.points.length){const up=this.climb.up;this.climb=null;this.position.set(p.x,p.y??0,p.z);this.route.shift();this.sentAt=0;this.sendPosition(now,true);this.onToast(up?'계단을 올라 2층에 왔어요.':'계단을 내려 1층에 왔어요.');}
+    }
     else if(d<.035){this.position.set(p.x,p.y??0,p.z);this.route.shift();}else{const step=Math.min(d,2.6*dt);this.position.x+=(p.x-this.position.x)/d*step;this.position.z+=(p.z-this.position.z)/d*step;this.position.y+=((p.y??0)-this.position.y)/d*step;}
     if(!this.route.length){this.marker.visible=false;this.pose='idle';if(this.reservedSeat&&!this.seating){this.seating=true;this.sendPosition(now,true);this.net.send({type:'seated',seatId:this.reservedSeat});}}
    }
@@ -148,7 +159,7 @@ export class World{
   }
   this.showEmotes();
   const playback=this.audio.playback;if(now-this.orchestraAt>=1000/30){const animationDt=Math.min(.15,(now-this.orchestraAt)/1000);this.orchestraAt=now-((now-this.orchestraAt)%(1000/30));for(const actor of this.venue.musicians)actor.update(this.reduced?0:this.net.now()/1000,0,musicianSits(actor.instrumentType),playback.playing&&!this.reduced,null,10,animationDt);this.venue.updateMusicians(this.camera);}
-  const f=this.cameraFrame(),smooth=1-Math.exp(-dt*7);this.camera.position.lerp(f.position,smooth);if(this.entered&&!this.concertView){const origin=localCameraFrame(this.position,this.pose==='sit',this.cameraYaw,this.cameraPitch,this.cameraDistance).origin;this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));}this.venue.scene.userData.cameraFocus=this.entered?(this.concertView?f.look:localCameraFrame(this.position,this.pose==='sit',this.cameraYaw,this.cameraPitch,this.cameraDistance).origin):null;this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;const submitStart=this.diagnosticActive?performance.now():0;if(!this.diagnosticActive||this.diagnosticMode==='normal'){this.renderer.render(this.venue.scene,this.camera);this.drawCount++;}if(this.diagnosticActive){const end=performance.now();this.frameCost={at:now,cpu:end-workStart,submit:end-submitStart};}
+  const f=this.cameraFrame(),smooth=1-Math.exp(-dt*7);this.camera.position.lerp(f.position,smooth);if(this.entered&&!this.concertView&&!this.climb&&this.position.z<=GOLDEN_HALL.rear){const origin=localCameraFrame(this.position,this.pose==='sit',this.cameraYaw,this.cameraPitch,this.cameraDistance).origin;this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));}this.venue.scene.userData.cameraFocus=this.entered?(this.concertView?f.look:localCameraFrame(this.position,this.pose==='sit',this.cameraYaw,this.cameraPitch,this.cameraDistance).origin):null;this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;const submitStart=this.diagnosticActive?performance.now():0;if(!this.diagnosticActive||this.diagnosticMode==='normal'){this.renderer.render(this.venue.scene,this.camera);this.drawCount++;}if(this.diagnosticActive){const end=performance.now();this.frameCost={at:now,cpu:end-workStart,submit:end-submitStart};}
   if(now-this.lastUI>500){this.lastUI=now;this.onChange();}
  };
  destroy(){this.disposed=true;cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.renderer.dispose();this.renderer.domElement.remove();}

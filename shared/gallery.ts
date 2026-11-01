@@ -6,6 +6,20 @@ import {ORGAN_RAIL_JOIN_Z,ORGAN_RAIL_POST_HALF} from './organLoft';
  * with the gallery doorway at the end of the rear gallery.
  */
 export const STAIR_DOORS={lower:{x:7.4,z:50},upper:{x:14,z:50.2},height:H.balconyHeight} as const;
+/**
+ * The corridor stairwell behind the rear wall (one per side, mirrored in x). Two lanes run along the wall:
+ * the front lane is a ground-floor passage, the back lane holds one straight flight that rises away from
+ * the centre to an upper landing in front of the gallery doorway.
+ */
+export const STAIR_CORRIDOR={front:H.rear+.25,back:H.rear+4.25,innerX:2.1,outerX:15.8,passageZ:H.rear+1.1,flightZ:H.rear+3.1,flightWidth:1.9,flightStart:2.6,flightEnd:13,steps:30} as const;
+/** Height of the flight's walking surface at this |x|. */
+export function corridorStairHeight(x:number){const c=STAIR_CORRIDOR,t=(Math.abs(x)-c.flightStart)/(c.flightEnd-c.flightStart);return Math.max(0,Math.min(1,t))*H.balconyHeight;}
+/** Walking line through the corridor stair from one stair door to its partner; reversed for the way down. */
+export function corridorRoute(side:number,up:boolean){
+ const c=STAIR_CORRIDOR,y=H.balconyHeight,lo=STAIR_DOORS.lower,hi=STAIR_DOORS.upper;
+ const points=[[lo.x,0,lo.z],[lo.x,0,H.rear-.4],[lo.x,0,c.passageZ],[c.flightStart,0,c.passageZ],[c.flightStart,0,c.flightZ],[c.flightEnd,y,c.flightZ],[hi.x,y,c.passageZ],[hi.x,y,H.rear-.4],[hi.x,y,hi.z]].map(([x,py,z])=>({x:side*x,y:py,z}));
+ return up?points:points.reverse();
+}
 // Standing avatars are about 1.63 units tall.
 export const GALLERY_RAIL_HEIGHT=.8;
 export type FloorRect={minX:number;maxX:number;minZ:number;maxZ:number};

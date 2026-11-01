@@ -229,7 +229,10 @@ export function rearFacade(scene:T.Scene){
   box(wing,[2.7,5.7,.2],[0,H.balconyHeight+2.85,.28],P.ivory);box(wing,[2.15,5.25,.2],[0,H.balconyHeight+2.625,.4],0x39362e);
   for(const side of [-1,1])box(wing,[.12,5.5,.2],[side*1.25,H.balconyHeight+2.75,.55],P.light);
  }
- for(const x of [-13.5,13.5])wallPanel(g,x,3.65,3.3,6.9);
+ // Under the gallery the original reads as a dark, shaded band: walnut panelling with slim mouldings behind the columns.
+ const under=box(g,[31.2,7.45,.08],[0,3.72,.1],0x4a3324);under.material=woodMaterial('walnut');under.userData.landmark='rear-wainscot';
+ for(let x=-14.4;x<=14.41;x+=2.4){if(Math.abs(Math.abs(x)-7.4)<2.3||Math.abs(x)<2.3)continue;box(g,[1.9,5.4,.05],[x,3.9,.16],0x3a281c);box(g,[2.02,.06,.06],[x,6.63,.17],0x7a5634);box(g,[2.02,.06,.06],[x,1.17,.17],0x7a5634);}
+ box(g,[31.2,.14,.12],[0,.07,.14],0x2c1f16);box(g,[31.2,.12,.14],[0,7.38,.15],P.gold);
  // Dark timber Ionic columns carry the deep rear gallery front, as in the original.
  const front=WALL_DATUM.rear-REAR_COLUMNS.z;
  for(const x of REAR_COLUMNS.xs){
@@ -246,7 +249,7 @@ export function rearFacade(scene:T.Scene){
  for(const [z,xs]of [[2.2,[-10.5,-5.25,0,5.25,10.5]],[WALL_DATUM.rear-46,[-5.25,0,5.25]]] as const)for(const x of xs){const lamp=sphere(g,.17,[x,7.82,z],0xffefd4);lamp.scale.y=.45;lamp.material=soffitLamp;}
  for(const x of [-7.4,0,7.4]){
   const door=timberDoor(g,x,.15,3.8,6.4,.35);
-  const glass=new T.MeshLambertMaterial({color:0xb7a98a,emissive:0x756440,emissiveIntensity:.16});
+  const glass=new T.MeshLambertMaterial({color:0x6f6552,emissive:0x5a4a2e,emissiveIntensity:.12});
   for(const side of [-1,1]){const pane=box(door,[1.28,4.7,.04],[side*.93,3.65,.375],0xb7a98a);pane.material=glass;box(door,[.055,4.8,.05],[side*.93,3.65,.405],P.wood).material=woodMaterial('walnut');box(door,[1.3,.075,.05],[side*.93,3.2,.405],P.wood).material=woodMaterial('walnut');}
   hallImage(g,'relief',3.8,.7,x,7.1,.65);
  }
