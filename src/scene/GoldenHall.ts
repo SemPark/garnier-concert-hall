@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {wallWithOpenings,box,cylinder,sphere,line,text,material} from './primitives';
 import {GOLDEN_HALL as H} from '../../shared/goldenHall';
-import {STAGE} from '../orchestra/layout';
+import {STAGE,STAGE_FLOOR} from '../orchestra/layout';
 import {crystalChandelier,paintedCeiling,friezeMaterial} from './HallDetails';
 import {WALL_DATUM,WALL_LEVELS,buildPerimeterCornices,buildPerimeterFriezes} from './HallWallBands';
 import {GALLERY_BRIDGE,GALLERY_RAIL_HEIGHT,REAR_COLUMNS,REAR_SCREENS,STAIR_DOORS,STAIR_OPENINGS,galleryRailSpans} from '../../shared/gallery';
@@ -333,7 +333,7 @@ function rearCornice(scene:T.Scene){
 export function buildGoldenHall(scene:T.Scene){
  scene.userData.venue='musikverein-golden-hall';
  const cameraWalls:T.Object3D[]=buildHallShell(scene);
- const stage=box(scene,[STAGE.width,.75,STAGE.front-STAGE.back],[0,.3,(STAGE.front+STAGE.back)/2],0xa77343);applyWoodSurface(stage);stage.receiveShadow=true;
+ const stage=box(scene,[STAGE.width,STAGE_FLOOR+.075,STAGE.front-STAGE.back],[0,(STAGE_FLOOR-.075)/2,(STAGE.front+STAGE.back)/2],0xa77343);applyWoodSurface(stage);stage.receiveShadow=true;
  // Fine lengthwise wood boards unify the stage and audience floor.
  for(let x=-15.5;x<16;x+=.5)box(scene,[.013,.008,H.rear-H.front],[x,.005,(H.rear+H.front)/2],0x8e683e);
  for(const side of [-1,1]){

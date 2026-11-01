@@ -21,3 +21,11 @@ test('one simple cap with no fringe, nothing below the ears, and lashes for wome
    const q=p.clone().sub(skull.position);assert.ok(Math.hypot(q.x/skull.scale.x,q.y/skull.scale.y,q.z/skull.scale.z)<1,`hair shows below the ears at ${p.toArray().map(n=>n.toFixed(2))}`);}}
  const lashes=(a:Avatar)=>a.eyes.children.filter(o=>o.userData.eyelash).length;assert.equal(lashes(man),0);assert.equal(lashes(woman),4);
 });
+
+test('a visitor can choose to appear as a man or a woman, and everyone gets the same avatar',async()=>{
+ const {visitorVariant}=await import('../shared/venue');const {LocalConcert}=await import('../src/network/LocalConcert');
+ const room=new LocalConcert();assert.ok(room.send({type:'look',look:'woman'}));assert.equal(room.visitor.look,'woman');
+ assert.equal(new Avatar(0,undefined,visitorVariant(room.visitor)).appearance,'woman');
+ assert.ok(room.send({type:'look',look:'man'}));assert.equal(new Avatar(0,undefined,visitorVariant(room.visitor)).appearance,'man');
+ assert.equal(room.send({type:'look',look:'robot' as never}),false);
+});

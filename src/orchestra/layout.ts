@@ -1,7 +1,8 @@
 import type {Instrument} from '../character/Avatar';
 export type OrchestraSection='first-violins'|'second-violins'|'violas'|'cellos'|'basses'|'harps'|'keyboards'|'woodwinds'|'brass'|'percussion';
 export type MusicianPlacement={instrument:Instrument;section:OrchestraSection;x:number;z:number;rise:number;yaw:number;row:number;deskId?:string};
-export const STAGE_FLOOR=.675;
+/** The stage stands as high as the audience chair backs (about 1.3), so the front rows look up at the players. */
+export const STAGE_FLOOR=1.3;
 export const STAGE={width:30.4,front:-9.5,back:-29,wallX:15.3};
 export const MUSICIAN_SCALE=1.1;
 export const CONCERT_CAMERA={eye:[0,14,3.5],look:[0,2.3,-19.7]} as const;

@@ -16,7 +16,20 @@ export class ConcertAudio{
   this.timer=setInterval(()=>this.tick(.1),100);
  }
  private mediaUrl(url:string){return import.meta.env.VITE_STATIC_PREVIEW==='true'?import.meta.env.BASE_URL+url.replace(/^\/api\//,''):url;}
- get playback():Playback{return playbackAt(list as Playlist,this.now());}
+ /** A personal time shift: zero follows the shared concert; otherwise this visitor replays the program from the start. */
+ shift=0;
+ get personal(){return this.shift!==0;}
+ get playback():Playback{return playbackAt(list as Playlist,this.now()+this.shift);}
+ /** Start the whole program again for this visitor only, from the hall murmur and tuning. */
+ replayFromStart(){const program=list as Playlist,total=program.tracks.reduce((s,t)=>s+t.durationSeconds+t.gapAfterSeconds,0)*1000;
+  const into=(((this.now()-program.epochMs)%total)+total)%total;this.shift=-into+50;this.lastId='';this.sync.request();}
+ /** True during the quiet time after a piece, when the hall is silent unless visitors clap. */
+ get clapTime(){const p=this.playback;return p.playing&&(p.track.stage==='quiet'||p.track.stage==='applause'||p.track.stage==='farewell');}
+ /** A burst of applause for a visitor's clap; only heard in the quiet time between pieces. */
+ clap(gain=1){if(!this.enabled||this.zone!=='auditorium'||!this.clapTime||document.hidden)return false;
+  const a=new Audio(this.mediaUrl('/api/audio/hall-clap.mp3'));a.volume=Math.max(0,Math.min(1,this.volume*gain));void a.play().catch(()=>{});return true;}
+ /** Return to the concert everyone else is hearing. */
+ rejoin(){this.shift=0;this.lastId='';this.sync.request();}
  async unlock(){this.enabled=true;this.unlocking=true;this.media.src=this.mediaUrl(this.playback.track.url);this.lastId=this.playback.track.id;this.cycle=this.playback.cycle;this.media.volume=0;this.sync.request();
   try{await this.media.play();if(this.zone==='lobby')this.media.pause();this.sync.request();this.state=this.zone==='lobby'?'공연장에서 음악이 시작돼요':'함께 감상 중';return true;}
   catch{this.enabled=false;this.state='소리를 켜주세요';return false;}finally{this.unlocking=false;}

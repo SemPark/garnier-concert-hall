@@ -5,7 +5,11 @@ export {STAIR_DOORS} from './gallery';
 export type Zone='lobby'|'auditorium';
 export type Point={x:number;z:number;y?:number};
 export type Pose='idle'|'walk'|'sit';
-export type Visitor={id:string;name:string;color:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;gesture:Gesture|null;gestureAt:number};
+export type Look='man'|'woman';
+export const isLook=(v:unknown):v is Look=>v==='man'||v==='woman';
+/** Avatar variant for a visitor: the chosen look decides man or woman; skin and hair still vary by id. */
+export function visitorVariant(v:{id:string;look?:Look}){const base=parseInt(v.id.slice(0,2),16)||0,look=v.look??(base%8>=4?'woman':'man');return base%4+(look==='woman'?4:0);}
+export type Visitor={id:string;name:string;color:number;look?:Look;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;gesture:Gesture|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
 export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
 // Adapt the official three-block stalls to the app's existing 352 seats.

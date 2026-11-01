@@ -1,5 +1,8 @@
-/** Hall sounds that frame the music: murmur before, tuning, the conductor's entrance, applause, and the final bow. */
-export type Stage='murmur'|'tuning'|'entrance'|'applause'|'farewell';
+/**
+ * Hall sound between pieces. The program currently uses only 'quiet' (a calm hall, applause only when visitors clap);
+ * the staged opening (murmur, tuning, entrance) and closing bow are kept for later but not scheduled.
+ */
+export type Stage='quiet'|'murmur'|'tuning'|'entrance'|'applause'|'farewell';
 export type Track={id:string;title:string;composer:string;url:string;durationSeconds:number;gapAfterSeconds:number;stage?:Stage;work?:string;credit?:{sourceName:string;sourceUrl:string;licenseName:string;licenseUrl:string}};
 export type Playlist={version:string;epochMs:number;tracks:Track[]};
 export type Playback={track:Track;index:number;offset:number;playing:boolean;remaining:number;cycle:number};

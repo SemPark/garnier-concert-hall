@@ -3,51 +3,6 @@
   "epochMs": 1793327798000,
   "tracks": [
     {
-      "id": "hall-murmur",
-      "title": "공연 준비 — 객석이 자리를 잡습니다",
-      "composer": "공연장 현장음",
-      "url": "/api/audio/hall-murmur.mp3",
-      "durationSeconds": 14.045351,
-      "gapAfterSeconds": 0,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg",
-        "licenseName": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
-      },
-      "stage": "murmur"
-    },
-    {
-      "id": "hall-tuning",
-      "title": "조율 — 악장이 일어나 음을 맞춥니다",
-      "composer": "공연장 현장음",
-      "url": "/api/audio/hall-tuning.mp3",
-      "durationSeconds": 23.620499,
-      "gapAfterSeconds": 1,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:47383_gelo-papas_orchestra-tuning3.wav",
-        "licenseName": "CC BY 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
-      },
-      "stage": "tuning"
-    },
-    {
-      "id": "hall-entrance",
-      "title": "지휘자 입장",
-      "composer": "공연장 현장음",
-      "url": "/api/audio/hall-entrance.mp3",
-      "durationSeconds": 18.0,
-      "gapAfterSeconds": 1,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Slow_starting_applause.ogg",
-        "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
-      },
-      "stage": "entrance"
-    },
-    {
       "id": "mozart-figaro-overture",
       "title": "피가로의 결혼 K.492 — 서곡",
       "composer": "볼프강 아마데우스 모차르트",
@@ -63,19 +18,19 @@
       "work": "피가로의 결혼 서곡"
     },
     {
-      "id": "hall-applause-1",
-      "title": "박수",
+      "id": "hall-quiet-1",
+      "title": "곡 사이 — 조용한 공연장",
       "composer": "공연장 현장음",
-      "url": "/api/audio/hall-applause-1.mp3",
-      "durationSeconds": 16.0,
+      "url": "/api/audio/hall-quiet-1.mp3",
+      "durationSeconds": 15.998662,
       "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg",
-        "licenseName": "CC0",
-        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
-      "stage": "applause"
+      "stage": "quiet"
     },
     {
       "id": "mozart-magic-flute-overture",
@@ -93,19 +48,19 @@
       "work": "마술피리 서곡"
     },
     {
-      "id": "hall-applause-2",
-      "title": "박수",
+      "id": "hall-quiet-2",
+      "title": "곡 사이 — 조용한 공연장",
       "composer": "공연장 현장음",
-      "url": "/api/audio/hall-applause-2.mp3",
-      "durationSeconds": 18.0,
+      "url": "/api/audio/hall-quiet-2.mp3",
+      "durationSeconds": 17.999433,
       "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg",
-        "licenseName": "CC0",
-        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
-      "stage": "applause"
+      "stage": "quiet"
     },
     {
       "id": "mozart-symphony-35-1",
@@ -168,19 +123,19 @@
       "work": "교향곡 35번 ‘하프너’"
     },
     {
-      "id": "hall-applause-3",
-      "title": "박수",
+      "id": "hall-quiet-3",
+      "title": "곡 사이 — 조용한 공연장",
       "composer": "공연장 현장음",
-      "url": "/api/audio/hall-applause-3.mp3",
-      "durationSeconds": 23.996735,
+      "url": "/api/audio/hall-quiet-3.mp3",
+      "durationSeconds": 23.998662,
       "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg",
-        "licenseName": "CC0",
-        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
-      "stage": "applause"
+      "stage": "quiet"
     },
     {
       "id": "mozart-symphony-40-1",
@@ -243,19 +198,19 @@
       "work": "교향곡 40번"
     },
     {
-      "id": "hall-applause-4",
-      "title": "박수 — 앙코르를 청합니다",
+      "id": "hall-quiet-4",
+      "title": "곡 사이 — 조용한 공연장",
       "composer": "공연장 현장음",
-      "url": "/api/audio/hall-applause-4.mp3",
-      "durationSeconds": 34.0,
+      "url": "/api/audio/hall-quiet-4.mp3",
+      "durationSeconds": 29.997324,
       "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg",
-        "licenseName": "CC0",
-        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
-      "stage": "applause"
+      "stage": "quiet"
     },
     {
       "id": "mozart-symphony-34-3",
@@ -273,19 +228,19 @@
       "work": "앙코르: 교향곡 34번 피날레"
     },
     {
-      "id": "hall-farewell",
-      "title": "박수 — 지휘자가 인사하고 퇴장합니다",
+      "id": "hall-quiet-5",
+      "title": "곡 사이 — 조용한 공연장",
       "composer": "공연장 현장음",
-      "url": "/api/audio/hall-farewell.mp3",
-      "durationSeconds": 32.0,
-      "gapAfterSeconds": 12,
+      "url": "/api/audio/hall-quiet-5.mp3",
+      "durationSeconds": 23.998662,
+      "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg",
-        "licenseName": "CC0",
-        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
-      "stage": "farewell"
+      "stage": "quiet"
     }
   ]
 }

@@ -28,7 +28,8 @@ export class Avatar{
  icon:Icon|null=null;iconAlpha=0;
  private sitAmount=0;private left:Arm;private right:Arm;
  private direction=new T.Vector3();private armRotation=new T.Quaternion();private hipOffset=new T.Vector3();private tilt=new T.Euler();
- constructor(color=0x252733,instrument?:Instrument,variant=0){
+ readonly variant:number;
+ constructor(color=0x252733,instrument?:Instrument,variant=0){this.variant=variant;
   this.appearance=variant%8>=4?'woman':'man';this.hair='short';
   this.instrumentType=instrument;this.root.add(this.body);this.body.add(this.head,this.leftArm,this.rightArm,this.leftLeg,this.rightLeg,this.instrument);
   const skin=[0xf2c8a2,0xe5b48d,0xf7d5b4,0xd49e78][variant%4],hair=[0x3b2c27,0x5a3423,0x232022,0xb4552a][Math.floor(variant/2)%4],cheek=0xf0938a;

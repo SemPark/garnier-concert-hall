@@ -10,9 +10,9 @@
 
 약 1시간(59.6분) 모차르트 프로그램과 공연장 현장음. 모두 Wikimedia Commons에서 받았고, 파일 페이지에 표시된 사용 조건을 따른다. 설정 화면의 곡 정보에도 출처·라이선스 링크가 나온다.
 
-- 순서: 객석 웅성거림 → 조율(악장 기립) → 지휘자 입장·인사 → 피가로의 결혼 서곡 → 마술피리 서곡 → 교향곡 35번 ‘하프너’ 전 악장 → 교향곡 40번 전 악장 → 앙코르: 교향곡 34번 피날레 → 인사·퇴장. 곡 사이에는 박수, 악장 사이에는 7초 정적.
-- 변환: `scripts/build-program.py`로 FFmpeg/libmp3lame 320kbps CBR MP3. Musopen 녹음(피가로·마술피리·40번)은 무손실 FLAC 원본에서, 하프너·34번은 Ogg 원본(약 200–245kbps)에서 변환했다. 박수 구간은 하나의 박수 녹음에서 잘라 짧게 페이드했다.
-- 저작자 표시가 필요한 현장음: 조율 녹음(CC BY 3.0), 객석 웅성거림(CC BY-SA 3.0, Beeld en Geluid).
+- 순서: 피가로의 결혼 서곡 → 마술피리 서곡 → 교향곡 35번 ‘하프너’ 전 악장 → 교향곡 40번 전 악장 → 교향곡 34번 피날레, 반복. 곡 사이에는 조용한 공연장 소리(객석 녹음을 낮게 거르고 줄여 만든 실내음), 악장 사이에는 7초 정적. 관객이 곡 사이에 박수를 누르면 박수 녹음에서 자른 4.5초 클립(`hall-clap.mp3`)을 재생한다.
+- 변환: `scripts/build-program.py`로 FFmpeg/libmp3lame 320kbps CBR MP3. Musopen 녹음(피가로·마술피리·40번)은 무손실 FLAC 원본에서, 하프너·34번은 Ogg 원본(약 200–245kbps)에서 변환했다. 
+- 저작자 표시가 필요한 현장음: 객석 웅성거림(CC BY-SA 3.0, Beeld en Geluid) — 곡 사이 실내음의 원본. 조율·입장 박수 녹음은 지금 프로그램에서 쓰지 않는다.
 
 원본 목록:
 - Mozart - Le nozze di Figaro, K492 - Overture (Musopen Symphony).flac — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_-_Le_nozze_di_Figaro,_K492_-_Overture_(Musopen_Symphony).flac) · Wolfgang Amadeus Mozart

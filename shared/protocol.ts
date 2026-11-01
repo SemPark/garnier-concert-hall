@@ -1,4 +1,4 @@
-import type {Visitor,Zone,Pose} from './venue';
+import type {Visitor,Zone,Pose,Look} from './venue';
 import type {Gesture} from './gestures';
 export type SeatClaim={visitorId:string;status:'reserved'|'seated';expiresAt:number|null};
 export type Snapshot={revision:number;visitors:Visitor[];seats:Record<string,SeatClaim>;serverNow:number;roomId:string};
@@ -10,6 +10,7 @@ export type ClientMessage=
  |{type:'release';requestId?:string}
  |{type:'renew';seatId:string}
  |{type:'gesture';gesture:Gesture}
+ |{type:'look';look:Look}
  |{type:'sync'}
  |{type:'clock';sentAt:number};
 export type ServerMessage=

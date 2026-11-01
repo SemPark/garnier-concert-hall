@@ -71,7 +71,7 @@ test('the conductor stands inside the front fan and the central opening stays co
 
 test('entire legs, chairs, stands and floor-standing instruments rest over one actual rendered terrace',()=>{
  const scene=new T.Scene(),actors=buildOrchestra(scene);
- const base=new T.Mesh(new T.BoxGeometry(STAGE.width,.75,STAGE.front-STAGE.back));base.position.set(0,.3,(STAGE.front+STAGE.back)/2);scene.add(base);scene.updateMatrixWorld(true);
+ const base=new T.Mesh(new T.BoxGeometry(STAGE.width,STAGE_FLOOR+.075,STAGE.front-STAGE.back));base.position.set(0,(STAGE_FLOOR-.075)/2,(STAGE.front+STAGE.back)/2);scene.add(base);scene.updateMatrixWorld(true);
  const surfaces=scene.children.filter(o=>o===base||o.userData.terrace!==undefined),ray=new T.Raycaster(),cache=new Map<string,number>();
  const floor=(x:number,z:number)=>{const key=`${x.toFixed(6)},${z.toFixed(6)}`;if(cache.has(key))return cache.get(key)!;ray.set(new T.Vector3(x,20,z),new T.Vector3(0,-1,0));const hit=ray.intersectObjects(surfaces,false)[0];assert.ok(hit,'support point is outside the stage');cache.set(key,hit.point.y);return hit.point.y;};
  const check=(group:T.Object3D,level:number,label:string)=>group.traverse(o=>{if(!(o instanceof T.Mesh))return;const vertices=o.geometry.getAttribute('position'),v=new T.Vector3();for(let i=0;i<vertices.count;i++){v.fromBufferAttribute(vertices,i).applyMatrix4(o.matrixWorld);assert.ok(Math.abs(floor(v.x,v.z)-level)<1e-6,`${label}: footprint crosses a real step edge`);}});

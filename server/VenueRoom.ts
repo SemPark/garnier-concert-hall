@@ -1,5 +1,5 @@
 import {DurableObject} from 'cloudflare:workers';
-import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,distance,canSit,stairLink,type Visitor} from '../shared/venue';
+import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,distance,canSit,stairLink,isLook,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim} from '../shared/protocol';
 import {isGesture} from '../shared/gestures';
 
@@ -87,6 +87,8 @@ export class VenueRoom extends DurableObject<Env>{
    const seat=SEATS.find(s=>s.id===v.seatId);this.release(v.id);if(v.pose==='sit'&&seat)Object.assign(v,seat.approach);v.seatId=null;v.pose='idle';
   }else if(msg.type==='renew'){
    this.ctx.storage.sql.exec("UPDATE claims SET expiresAt=? WHERE seatId=? AND visitorId=? AND status='reserved'",now+RESERVE_MS,msg.seatId,v.id);
+  }else if(msg.type==='look'){
+   if(!isLook(msg.look))return;v.look=msg.look;
   }else if(msg.type==='gesture'){
    if(!isGesture(msg.gesture)||now-v.gestureAt<1200)return;v.gesture=msg.gesture;v.gestureAt=now;
   }else return;

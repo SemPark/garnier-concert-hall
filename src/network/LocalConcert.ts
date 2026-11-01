@@ -1,4 +1,4 @@
-import {SEATS,SPAWN,PALETTE,distance,walkable,canSit,stairLink,type Visitor} from '../../shared/venue';
+import {SEATS,SPAWN,PALETTE,distance,walkable,canSit,stairLink,isLook,type Visitor} from '../../shared/venue';
 import type {ClientMessage,Snapshot} from '../../shared/protocol';
 import {isGesture} from '../../shared/gestures';
 
@@ -16,6 +16,7 @@ export class LocalConcert{
    case 'reserve':if(v.zone!=='auditorium'||!SEATS.some(s=>s.id===msg.seatId))return false;this.release();this.reservationRequest=msg.requestId;v.seatId=msg.seatId;this.seats[msg.seatId]={visitorId:v.id,status:'reserved',expiresAt:null};return true;
    case 'seated':{const seat=SEATS.find(s=>s.id===msg.seatId);if(!seat||v.zone!=='auditorium'||v.seatId!==seat.id||!canSit(v,seat))return false;Object.assign(v,{x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw,pose:'sit'});this.seats[seat.id]={visitorId:v.id,status:'seated',expiresAt:null};return true;}
    case 'release':if(msg.requestId&&msg.requestId!==this.reservationRequest)return false;this.release();return true;
+   case 'look':if(!isLook(msg.look))return false;v.look=msg.look;return true;
    case 'gesture':if(!isGesture(msg.gesture))return false;v.gesture=msg.gesture;v.gestureAt=Date.now();return true;
    default:return true;
   }
