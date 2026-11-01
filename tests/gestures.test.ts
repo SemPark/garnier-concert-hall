@@ -27,8 +27,13 @@ test('icons appear only while a gesture plays and fade at its end',()=>{
   assert.equal(poseVillager({time:0,speed:0,sit:0,music:false,musician:false,gesture:g.id,age:g.seconds+.1}).icon,null);}
  const layer=new EmoteLayer(4);layer.set(1,new T.Vector3(1,2,3),'heart',1);assert.equal(layer.visibleCount(),1);assert.equal(layer.iconAt(1),'heart');layer.set(9,new T.Vector3(),'zz',1);layer.clear();assert.equal(layer.visibleCount(),0);
 });
-test('musicians keep facing the conductor with only a tiny nod',()=>{
- for(let t=0;t<20;t+=.37){const p=poseVillager({time:t,speed:0,sit:1,music:true,musician:true,gesture:null,age:10});assert.ok(Math.abs(p.headPitch)<=.035&&p.headYaw===0&&p.lean===0);}
+test('playing musicians move clearly with the music but keep facing the conductor',()=>{
+ let pitch=0,roll=0;
+ for(let t=0;t<20;t+=.37){const p=poseVillager({time:t,speed:0,sit:1,music:true,musician:true,gesture:null,age:10});
+  assert.ok(Math.abs(p.headYaw)<=.08&&p.lean===0,'eyes stay on the conductor');assert.ok(Math.abs(p.headPitch)<=.16&&Math.abs(p.headRoll)<=.1,'no wild head motion');
+  pitch=Math.max(pitch,Math.abs(p.headPitch));roll=Math.max(roll,Math.abs(p.headRoll));}
+ assert.ok(pitch>.1&&roll>.07,'the nod and sway are big enough to see from the back of the hall');
+ const still=poseVillager({time:3,speed:0,sit:1,music:false,musician:true,gesture:null,age:10});assert.equal(still.headPitch,0);
 });
 /** Deepest overlap between either arm (or mitten) and the skull, ears or any hair piece. */
 export function headClipping(a:Avatar){

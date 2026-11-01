@@ -42,8 +42,8 @@ export function poseVillager(input:PoseInput,phase=0):VillagerPose{
  // Round eyes close briefly every few seconds, at a different moment for each character.
  const cycle=((t*1+phase*1.7)%3.7+3.7)%3.7;if(cycle<.13)pose.blink=.12;
  if(input.musician){
-  // Players keep their eyes on the conductor; only a small nod follows the music.
-  pose.headPitch=input.music?Math.sin(t*1.7)*.035:0;pose.headRoll=Math.sin(t*1.3)*.02;
+  // Players keep their eyes on the conductor but move with the music: a clear nod and sway, readable from the back of the hall.
+  pose.headPitch=input.music?.05+Math.sin(t*1.7)*.1:0;pose.headRoll=input.music?Math.sin(t*1.3)*.09:Math.sin(t*1.3)*.02;pose.headYaw=input.music?Math.sin(t*.6)*.07:0;
  }else if(input.sit>.5){
   // Seated listeners sway gently while the music plays.
   if(input.music){pose.sway=Math.sin(t*1.6)*.05;pose.headRoll=Math.sin(t*1.6+.4)*.07;pose.headPitch=.04+Math.sin(t*.8)*.03;}

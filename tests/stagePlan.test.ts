@@ -45,7 +45,9 @@ test('no instrument geometry penetrates a terrace after the compact rearrangemen
 test('every rendered player, chair and desk faces the conductor rather than a fixed front direction',()=>{
  const scene=new T.Scene(),actors=buildOrchestra(scene);scene.updateMatrixWorld(true);
  const check=(o:T.Object3D)=>{const p=o.getWorldPosition(new T.Vector3()),forward=new T.Vector3(0,0,-1).applyQuaternion(o.getWorldQuaternion(new T.Quaternion())),target=new T.Vector3(CONDUCTOR.x-p.x,0,CONDUCTOR.z-p.z).normalize();assert.ok(forward.dot(target)>.999,'orientation misses the conductor');};
- for(const a of actors.filter(a=>a.instrumentType!=='conductor')){a.update(2,0,musicianSits(a.instrumentType),true,null,10,1);check(a.root);check(a.head);}
+ // While playing, heads nod and sway with the music but still look towards the conductor.
+ const looks=(o:T.Object3D)=>{const p=o.getWorldPosition(new T.Vector3()),forward=new T.Vector3(0,0,-1).applyQuaternion(o.getWorldQuaternion(new T.Quaternion())).setY(0).normalize(),target=new T.Vector3(CONDUCTOR.x-p.x,0,CONDUCTOR.z-p.z).normalize();assert.ok(forward.dot(target)>.99,'head turns away from the conductor');};
+ for(const a of actors.filter(a=>a.instrumentType!=='conductor')){a.update(2,0,musicianSits(a.instrumentType),true,null,10,1);check(a.root);looks(a.head);}
  for(const o of scene.children)if(typeof o.userData.chairFor==='number'||o.userData.musicDesk)check(o);
  const left=actors.find(a=>a.instrumentType==='violin')!;assert.ok(Math.abs(left.root.rotation.y)>1&&Math.abs(left.root.rotation.y)<2.1);
 });

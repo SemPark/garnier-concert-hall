@@ -28,3 +28,13 @@ test('the deep rear gallery overhangs the last row and is a solid floor',async()
  assert.ok(H.rear-GALLERY_BRIDGE.maxZ<.3);
  for(const side of [-1,1])for(const z of [GALLERY_BRIDGE.minZ+.1,44.5,48,51.5])assert.equal(hasGalleryFloor(side*11,z),true);
 });
+
+test('no visible surface shares the gallery floor plane, so the floor never flickers',async()=>{
+ const T=await import('three');const {buildGoldenHall}=await import('../src/scene/GoldenHall');
+ const scene=new T.Scene();buildGoldenHall(scene);scene.updateMatrixWorld(true);
+ const visible:InstanceType<typeof T.Mesh>[]=[];scene.traverse(o=>{if(o instanceof T.Mesh&&(o.material as {visible?:boolean}).visible!==false)visible.push(o);});
+ const ray=new T.Raycaster();
+ for(let x=-15.7;x<=15.7;x+=.4)for(let z=-26;z<=51.6;z+=.4){ray.set(new T.Vector3(x,20,z),new T.Vector3(0,-1,0));ray.far=11.75;
+  const tops=new Set(ray.intersectObjects(visible,false).filter(h=>Math.abs(h.point.y-H.balconyHeight)<.003).map(h=>h.object.uuid));
+  assert.ok(tops.size<=1,`two surfaces at the gallery floor height at ${x.toFixed(1)},${z.toFixed(1)}`);}
+});

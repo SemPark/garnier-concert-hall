@@ -78,3 +78,47 @@ button.brand .brand-sub{font-size:12px;letter-spacing:1px;color:#f3e7cc;margin-t
 @media(max-width:900px){.home-menu{left:auto;right:16px}}
 .menu-button{width:40px;height:40px;color:#f3e7cc}
 .menu-button.active{background:#d3bc8733;color:#ffe7b3}
+
+/* The menu opens as a vertical column of icon buttons under the top-right menu icon. */
+.icon-menu{position:absolute;top:84px;right:32px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;background:#221c17f2;border:1px solid #d0b98b45;border-radius:22px;box-shadow:0 18px 50px #0007}
+.icon-menu-item{width:64px;height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:16px;background:none;color:#f3e7cc}
+.icon-menu-item svg{color:var(--gold)}
+.icon-menu-item span{font-size:12px;line-height:1;color:#efe4cf}
+.icon-menu-item:hover,.icon-menu-item:focus-visible{background:#e8d4a61a}
+.icon-menu-item.active{background:#d3bc8733;outline:1px solid #d3bc87}
+.icon-menu-item.active svg,.icon-menu-item.active span{color:#ffe7b3}
+.icon-menu-divider{width:36px;height:1px;background:#d0b98b33;margin:2px 0}
+@media(max-width:900px){.icon-menu{top:70px;right:16px}}
+.icon-menu{max-height:calc(100dvh - 100px);overflow-y:auto;scrollbar-width:none}
+.icon-menu-item{height:54px;width:60px;gap:4px}
+@media(max-height:620px){.icon-menu-item{height:46px;gap:3px}.icon-menu-item svg{width:20px;height:20px}.icon-menu{gap:3px;padding:6px}}
+
+/* Icon-only menu: a slim pill matching the top-right controls, light shadow, evenly spaced round buttons. */
+.icon-menu{top:78px;right:32px;gap:2px;padding:5px;border-radius:30px;background:#1f1b17d9;border:1px solid #d0b98b38;box-shadow:0 6px 18px #0004;max-height:calc(100dvh - 96px)}
+.icon-menu-item{width:42px;height:42px;border-radius:50%;gap:0}
+.icon-menu-item.active{outline:none;background:#d3bc8740}
+.icon-menu-divider{width:20px;margin:3px 0}
+.menu-button{width:35px;height:35px}
+@media(max-width:900px){.icon-menu{top:66px;right:20px}}
+@media(max-width:540px){.icon-menu{right:17px}}
+@media(max-height:620px){.icon-menu-item{height:38px;width:38px}}
+
+/* One icon language: the same on-screen line weight at every size, one cream colour, gold only when active. */
+.tools svg *,.icon-menu svg *,.actionbar svg *,.reaction-panel svg *{vector-effect:non-scaling-stroke}
+.tools svg,.icon-menu svg,.actionbar svg{width:20px;height:20px}
+.tools .visitor-count svg{width:18px;height:18px}
+.icon-menu-item svg,.icon-button svg,.actionbar button svg{color:#ece1ca}
+.icon-menu-item.active svg,.actionbar .primary-action svg{color:var(--gold)}
+.tools,.icon-menu,.actionbar,.now-playing,.visitor-count{font-family:Arial,'Apple SD Gothic Neo','Malgun Gothic',sans-serif}
+.actionbar button span,.visitor-count{font-size:11px;font-weight:400;letter-spacing:0}
+/* The menu column is the top-right pill turned on its side: same background, border, padding and button circles,
+   centred under the menu button at every screen size. */
+.icon-menu{top:85px;right:36px;gap:6px;padding:6px;border-radius:30px;background:#1f1b17a6;border:1px solid #d0b98b38;box-shadow:none;backdrop-filter:blur(12px)}
+.icon-menu-item,.menu-button{width:35px;height:35px;border-radius:50%}
+.icon-menu-item.active,.menu-button.active{background:#d3bc8733}
+.icon-menu-divider{width:18px;margin:1px 0}
+@media(max-width:900px){.icon-menu{top:77px;right:24px}}
+@media(max-width:540px){.icon-menu{top:66px;right:19px;padding:3px;gap:2px}.icon-menu-item,.menu-button{width:32px;height:32px}}
+@media(max-height:620px){.icon-menu{gap:2px}.icon-menu-item{width:35px;height:35px}}
+@media(max-height:620px) and (max-width:540px){.icon-menu-item{width:32px;height:32px}}
+@media(pointer:coarse){.icon-menu{backdrop-filter:none;background:#29231def}}

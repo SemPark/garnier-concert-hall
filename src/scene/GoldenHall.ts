@@ -327,7 +327,8 @@ function rearCornice(scene:T.Scene){
  for(let x=-width/2+.41+.18;x<width/2-.41;x+=.36)box(g,[.13,.18,.25],[x,y-.16,face-.41+.125],0xc69b49);
  // The side galleries' stepped white edge continues across the rear: the railing's light base line stays visible,
  // then the white slab band, then a thin light lip, with the gold cornice below.
- const edge=box(g,[width,.33,.57],[0,8.135,43.235],0xe8d6ac);edge.userData.landmark='rear-gallery-edge';
+ // Its top stays just under the gallery floor so the two never share a plane (that flickered).
+ const edge=box(g,[width,.32,.57],[0,8.125,43.235],0xe8d6ac);edge.userData.landmark='rear-gallery-edge';
  box(g,[width,.09,.64],[0,7.925,43.2],P.light);
 }
 export function buildGoldenHall(scene:T.Scene){

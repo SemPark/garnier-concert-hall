@@ -82,13 +82,19 @@ export class Avatar{
   this.leftArm.rotation.set(-pose.swing*.34,0,-.1);this.rightArm.rotation.set(pose.swing*.34,0,.1);
   // Floor-standing keyboards and harps must not rise with the seated torso.
   if(type==='piano'||type==='celesta'||type==='harp')this.instrument.position.y=-sit*.1;
-  if(type==='violin'||type==='viola'){this.aimAt(this.left,-.15,1.04,-.35);this.aimAt(this.right,.17+Math.sin(t*2.8)*.055*play,.94,-.38);}
-  if(type==='cello'||type==='bass'){this.aimAt(this.left,-.11,1.02,-.35);this.aimAt(this.right,.2+Math.sin(t*2.8)*.05*play,.86,-.35);}
+  // Long bow strokes with a slight arc, and a vibrato in the left hand, so playing reads from far away.
+  if(type==='violin'||type==='viola'){this.aimAt(this.left,-.15,1.04+Math.sin(t*9)*.012*play,-.35);this.aimAt(this.right,.17+Math.sin(t*2.8)*.17*play,.94+Math.cos(t*5.6)*.035*play,-.38);}
+  if(type==='cello'||type==='bass'){this.aimAt(this.left,-.11,1.02+Math.sin(t*8)*.015*play,-.35);this.aimAt(this.right,.2+Math.sin(t*2.6)*.16*play,.86+Math.cos(t*2.6)*.05*play,-.35);}
   if(type==='flute'||type==='piccolo'){this.aimAt(this.left,-.08,1.1,-.33);this.aimAt(this.right,.23,1.07,-.37);}
   if(type&&['oboe','english-horn','clarinet','bass-clarinet','bassoon','contrabassoon','horn','trumpet','trombone','tuba'].includes(type)){this.aimAt(this.left,-.12,.99,-.36);this.aimAt(this.right,.14,.92,-.37);}
-  if(type&&PERCUSSION.includes(type)){this.aimAt(this.left,-.24,.88+Math.sin(t*3.2)*.08*play,-.37);this.aimAt(this.right,.24,.88+Math.cos(t*3.2)*.08*play,-.37);}
-  if(type==='harp'||type==='piano'||type==='celesta'){this.aimAt(this.left,-.2,.9+Math.sin(t*3.2)*.025*play,-.38);this.aimAt(this.right,.2,.9+Math.cos(t*3.2)*.025*play,-.38);}
-  if(type==='conductor'){this.aimAt(this.left,-.6,1.08+Math.sin(t*2.2)*.12*play,-.2);this.aimAt(this.right,.6,1.13+Math.cos(t*2.2)*.13*play,-.2);}
+  if(type&&PERCUSSION.includes(type)){this.aimAt(this.left,-.24,.92+Math.max(0,Math.sin(t*4))*.22*play,-.37);this.aimAt(this.right,.24,.92+Math.max(0,Math.sin(t*4+Math.PI))*.22*play,-.37);}
+  if(type==='harp'||type==='piano'||type==='celesta'){this.aimAt(this.left,-.2+Math.sin(t*1.6)*.06*play,.9+Math.sin(t*3.2)*.06*play,-.38);this.aimAt(this.right,.2+Math.cos(t*1.6)*.06*play,.9+Math.cos(t*3.2)*.06*play,-.38);}
+  if(type==='conductor'){
+   // A big, sweeping beat: the right hand draws the bar pattern high in front, the left shapes the phrase.
+   const u=t*2.2;
+   this.aimAt(this.right,.45+Math.sin(u)*.32*play,1.18+(Math.abs(Math.sin(u*2))*.42-.12)*play,-.25-Math.cos(u)*.08*play);
+   this.aimAt(this.left,-.45-Math.sin(u+.7)*.22*play,1.12+Math.sin(u*.5)*.3*play,-.22);
+  }
   if(pose.weight>0){if(pose.left)this.aimAt(this.left,...pose.left,pose.weight);if(pose.right)this.aimAt(this.right,...pose.right,pose.weight);}
   this.icon=pose.icon;this.iconAlpha=pose.iconAlpha;
   // The finger rises only once the hand has reached the chin.
