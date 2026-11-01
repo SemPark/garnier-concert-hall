@@ -104,11 +104,11 @@ export class World{
  get visitorLook():Look{return this.self?visitorVariant(this.self)>=4?'woman':'man':'man';}
  /** One drag rule for every view. */
  rotateView(dx:number,dy:number){
-  // Measured on screen, the same drag must move the scene the same way in every view: against the finger,
-  // horizontally and vertically. The stage views orbit a point far away, so their direction and speed are
-  // matched to the walking and seated views (which orbit the visitor) instead of using the same raw numbers.
+  // The same drag moves the scene the same way in every view: against the finger, horizontally and vertically.
+  // The hall and stage views turn the head in place, so the whole
+  // view follows the finger evenly, at the walking view's pace, instead of sliding the camera along the walls.
   const overview=this.zone==='auditorium'&&this.concertView;
-  if(overview){this.cameraYaw=T.MathUtils.clamp(this.cameraYaw+dx*.0008,-.5,.5);this.cameraPitch=T.MathUtils.clamp(this.cameraPitch-dy*.0009,-.15,.5);}
+  if(overview){this.cameraYaw=T.MathUtils.clamp(this.cameraYaw-dx*.0032,-.9,.9);this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0014,.13-.45,.13+.45);}
   else{this.cameraYaw-=dx*.0034;this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0022,-.15,.5);}
  }
  zoomView(f:number){this.cameraDistance=T.MathUtils.clamp(this.cameraDistance*f,2.2,13);}
@@ -136,9 +136,11 @@ export class World{
   if(this.zone==='auditorium'&&this.concertView){
    const preset=this.hallOverview?HALL_CAMERA:CONCERT_CAMERA,center=new T.Vector3(...preset.look),offset=new T.Vector3(...preset.eye).sub(center);
    offset.multiplyScalar(T.MathUtils.clamp(this.cameraDistance/4.8,.65,1.6)*Math.min(this.camera.aspect<.8?2.2:1.3,Math.max(1,1.65/this.camera.aspect)));
-   offset.applyAxisAngle(new T.Vector3(1,0,0),-(this.cameraPitch-.13)*.55);offset.applyAxisAngle(new T.Vector3(0,1,0),this.cameraYaw);
    const position=center.clone().add(offset);position.x=T.MathUtils.clamp(position.x,-13.8,13.8);position.y=T.MathUtils.clamp(position.y,1.2,GOLDEN_HALL.height-1.2);position.z=Math.min(position.z,GOLDEN_HALL.rear-2);
-   return {look:center,position};
+   // Turn the head where the camera stands: sideways about the vertical, then up or down.
+   const view=center.clone().sub(position).applyAxisAngle(new T.Vector3(0,1,0),this.cameraYaw),right=new T.Vector3().crossVectors(view,new T.Vector3(0,1,0)).normalize();
+   view.applyAxisAngle(right,-(this.cameraPitch-.13));
+   return {look:position.clone().add(view),position};
   }
   const local=localCameraFrame(this.position,sitting,this.cameraYaw,this.cameraPitch,d),target=local.position;look.copy(local.look);
   // On the parterre keep the camera clear of the carved wall bays; the gallery walkway needs the full width.
