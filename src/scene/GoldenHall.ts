@@ -100,7 +100,7 @@ export function buildOrgan(scene:T.Scene,ornament:T.Material=friezeMaterial()){
  // The overhanging cornice and pediment have deep side faces, not a flat signboard.
  box(g,[23.8,.45,1.7],[0,22.05,.85],P.gold);box(g,[23.3,.2,1.5],[0,21.72,.75],P.gold);cornice(g,24,22.2,1.7,P.gold);
  // The frieze carries the society's name in gilt letters.
- text(g,'GESELLSCHAFT DER MUSIKFREUNDE',7.6,[0,22.05,1.715],'#f3dc9c');
+ if(typeof document!=='undefined')text(g,'GESELLSCHAFT DER MUSIKFREUNDE',7.6,[0,22.05,1.715],'#f3dc9c');
  // Below the pipes, as in the hall: a row of framed cream panels behind the console, leaving room above it,
  // then a projecting gilded ledge; the herm pedestals and the pipes stand on that ledge.
  box(g,[23.3,3.3,1.2],[0,9.95,.6],P.gold);
