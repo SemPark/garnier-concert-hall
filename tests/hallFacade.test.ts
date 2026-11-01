@@ -33,7 +33,7 @@ test('upper doors start at balcony level and the repeated painted details are sh
 test('each staircase climbs in a corridor behind the rear wall, out of sight from the hall',()=>{
  const scene=new T.Scene();buildStairs(scene);const facade=rearFacade(scene);scene.updateMatrixWorld(true);
  const flights=scene.children.filter(o=>o.userData.landmark==='rear-stair');assert.equal(flights.length,2);
- for(const flight of flights){const b=new T.Box3().setFromObject(flight);assert.ok(b.min.z>=H.rear+.2,'nothing of the stair reaches into the hall');
+ for(const flight of flights){const b=new T.Box3().setFromObject(flight);assert.ok(b.min.z>=H.rear-.45,'only the door thresholds reach the wall line; nothing of the stair stands in the hall');
   const treads=flight.children.filter(o=>o.userData.landmark==='stair-tread');assert.equal(treads.length,STAIR_CORRIDOR.steps);
   treads.forEach((t,i)=>{const tb=new T.Box3().setFromObject(t);assert.ok(Math.abs(tb.max.y-(i+1)*H.balconyHeight/STAIR_CORRIDOR.steps)<1e-6);});}
  for(const side of [-1,1]){const route=corridorRoute(side,true);assert.deepEqual(route[0],{...stairPoint(side,false)});assert.deepEqual(route.at(-1),{...stairPoint(side,true)});

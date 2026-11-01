@@ -1,10 +1,10 @@
 import * as T from 'three';
-import {box,cylinder,sphere,line,text,material} from './primitives';
+import {wallWithOpenings,box,cylinder,sphere,line,text,material} from './primitives';
 import {GOLDEN_HALL as H} from '../../shared/goldenHall';
 import {STAGE} from '../orchestra/layout';
 import {crystalChandelier,paintedCeiling,friezeMaterial} from './HallDetails';
 import {WALL_DATUM,WALL_LEVELS,buildPerimeterCornices,buildPerimeterFriezes} from './HallWallBands';
-import {GALLERY_BRIDGE,GALLERY_RAIL_HEIGHT,REAR_COLUMNS,galleryRailSpans} from '../../shared/gallery';
+import {GALLERY_BRIDGE,GALLERY_RAIL_HEIGHT,REAR_COLUMNS,STAIR_OPENINGS,galleryRailSpans} from '../../shared/gallery';
 import {ORGAN_LOFT_BACK,ORGAN_LOFT_CONTOUR,ORGAN_RAIL_JOIN_X,ORGAN_RAIL_JOIN_Z,ORGAN_RAIL_POST_HALF,organBalconyFront} from '../../shared/organLoft';
 import {buildGalleryFloors} from './GalleryFloors';
 import {hallImage,hallImageMaterial,woodMaterial,applyWoodSurface} from './HallTextures';
@@ -171,7 +171,9 @@ function sideBayDetails(g:T.Object3D){
 export function buildHallShell(scene:T.Scene){
  const walls:T.Mesh[]=[];
  for(const side of [-1,1])walls.push(box(scene,[.4,H.height,H.rear-H.front],[side*16,H.height/2,(H.rear+H.front)/2],P.ivory));
- for(const z of [H.front,H.rear])walls.push(box(scene,[32,H.height,.4],[0,H.height/2,z],P.ivory));
+ walls.push(box(scene,[32,H.height,.4],[0,H.height/2,H.front],P.ivory));
+ // The rear wall is open at the four stair doors, so the corridor stairs can be seen through them.
+ walls.push(...wallWithOpenings(scene,-16,16,0,H.height,H.rear,.4,P.ivory,STAIR_OPENINGS));
  for(const wall of walls){wall.userData.landmark='hall-shell';wall.userData.fullDetail=true;}
  return walls;
 }
@@ -186,10 +188,15 @@ function openLeaves(frame:T.Object3D,width:number,height:number,z:number){
   for(const row of [.25,.62])box(hinge,[width*.3,height*.3,.04],[-side*width/4,height*row,.07],0x32261d);
  }
 }
+/** Ivory surround with reveals through the wall, leaving the doorway itself open. */
+function doorFrame(frame:T.Object3D,width:number,height:number,z:number,depth:number){
+ for(const side of [-1,1]){box(frame,[.18,height+.35,depth],[side*(width/2+.09),(height+.35)/2,z],P.ivory);box(frame,[.06,height,.7],[side*(width/2-.03),height/2,z-.3],P.ivory);}
+ box(frame,[width+.36,.35,depth],[0,height+.175,z],P.ivory);box(frame,[width,.06,.7],[0,height-.03,z-.3],P.ivory);
+ box(frame,[width,.04,.8],[0,-.13,z-.3],0x5a3d28);
+}
 function openDoor(g:T.Object3D,x:number,bottom:number,width:number,height:number,z=.57){
  const frame=new T.Group();frame.position.set(x,bottom,z);frame.userData.landmark='timber-door';frame.userData.doorBottom=bottom;frame.userData.open=true;g.add(frame);
- box(frame,[width+.36,height+.35,.18],[0,height/2,.02],P.ivory);
- box(frame,[width,height,.05],[0,height/2,.12],0x3a2918).material=corridorGlow;
+ doorFrame(frame,width,height,.02,.18);
  openLeaves(frame,width,height,.16);return frame;
 }
 function timberDoor(g:T.Object3D,x:number,bottom:number,width:number,height:number,z=.57,panels=3){
@@ -240,13 +247,13 @@ export function rearFacade(scene:T.Scene){
  for(const x of [-10,-6,-2,2,6,10]){const bay=new T.Group();bay.position.x=x;g.add(bay);archedWindow(bay,WALL_LEVELS.window);wallPanel(bay,0,14.1,3.75,8.1,false);}
  for(const x of [-14,14]){
   const wing=new T.Group();wing.position.x=x;g.add(wing);archedWindow(wing,WALL_LEVELS.window,true);
-  box(wing,[2.7,5.7,.2],[0,H.balconyHeight+2.85,.28],P.ivory);box(wing,[2.15,5.25,.2],[0,H.balconyHeight+2.625,.4],0x39362e).material=corridorGlow;{const upper=new T.Group();upper.position.set(0,H.balconyHeight,.5);wing.add(upper);openLeaves(upper,2.15,5.25,0);}
+  {const surround=new T.Group();surround.position.set(0,H.balconyHeight,.28);wing.add(surround);doorFrame(surround,2.15,5.25,0,.2);}{const upper=new T.Group();upper.position.set(0,H.balconyHeight,.5);wing.add(upper);openLeaves(upper,2.15,5.25,0);}
   for(const side of [-1,1])box(wing,[.12,5.5,.2],[side*1.25,H.balconyHeight+2.75,.55],P.light);
  }
  // Under the gallery the original reads as a dark, shaded band: walnut panelling with slim mouldings behind the columns.
- const under=box(g,[31.2,7.45,.08],[0,3.72,.1],0x4a3324);under.material=woodMaterial('walnut');under.userData.landmark='rear-wainscot';
+ for(const [a,b]of [[-15.6,-9.3],[-5.5,5.5],[9.3,15.6]]){const under=box(g,[b-a,7.45,.08],[(a+b)/2,3.72,.1],0x4a3324);under.material=woodMaterial('walnut');under.userData.landmark='rear-wainscot';}
  for(let x=-14.4;x<=14.41;x+=2.4){if(Math.abs(Math.abs(x)-7.4)<2.3||Math.abs(x)<2.3)continue;box(g,[1.9,5.4,.05],[x,3.9,.16],0x3a281c);box(g,[2.02,.06,.06],[x,6.63,.17],0x7a5634);box(g,[2.02,.06,.06],[x,1.17,.17],0x7a5634);}
- box(g,[31.2,.14,.12],[0,.07,.14],0x2c1f16);box(g,[31.2,.12,.14],[0,7.38,.15],P.gold);
+ for(const [a,b]of [[-15.6,-9.3],[-5.5,5.5],[9.3,15.6]])box(g,[b-a,.14,.12],[(a+b)/2,.07,.14],0x2c1f16);box(g,[31.2,.12,.14],[0,7.38,.15],P.gold);
  // Dark timber Ionic columns carry the deep rear gallery front, as in the original.
  const front=WALL_DATUM.rear-REAR_COLUMNS.z;
  for(const x of REAR_COLUMNS.xs){

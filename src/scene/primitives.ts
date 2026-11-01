@@ -17,3 +17,14 @@ export function text(parent:T.Object3D,value:string,width:number,position:number
  const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;const m=new T.Mesh(new T.PlaneGeometry(width,width/4),new T.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false,side:T.DoubleSide}));m.position.set(position[0],position[1],position[2]);parent.add(m);return m;
 }
 export const C={gold:0xb58a47,goldLight:0xd9bd7d,cream:0xe7d5ad,ivory:0xc7bfa9,wood:0x503628,dark:0x211b18,red:0x632331,redLight:0x8e3646,marble:0xd0c5ad};
+
+export type Opening={minX:number;maxX:number;minY:number;maxY:number};
+/** A flat wall (in the XY plane at z) built from boxes around rectangular openings, so the openings are truly see-through. */
+export function wallWithOpenings(parent:T.Object3D,minX:number,maxX:number,minY:number,maxY:number,z:number,depth:number,color:number,openings:Opening[]){
+ const xs=[...new Set([minX,maxX,...openings.flatMap(o=>[o.minX,o.maxX])].filter(x=>x>=minX&&x<=maxX))].sort((a,b)=>a-b),pieces:T.Mesh[]=[];
+ for(let i=0;i<xs.length-1;i++){const a=xs[i],b=xs[i+1],mid=(a+b)/2;if(b-a<1e-6)continue;
+  const holes=openings.filter(o=>o.minX<mid&&o.maxX>mid).sort((p,q)=>p.minY-q.minY);let y=minY;
+  for(const h of [...holes,{minY:maxY,maxY:maxY}]){const top=Math.min(h.minY,maxY);if(top-y>1e-6)pieces.push(box(parent,[b-a,top-y,depth],[mid,(y+top)/2,z],color));y=Math.max(y,h.maxY);}
+ }
+ return pieces;
+}

@@ -1,10 +1,10 @@
 import * as T from 'three';
 import {GOLDEN_HALL as H} from '../../shared/goldenHall';
-import {GALLERY_FLOORS,GALLERY_RAIL_HEIGHT,STAIR_CORRIDOR as C,STAIR_DOORS,corridorStairHeight} from '../../shared/gallery';
-import {box,cylinder,line,sphere,C as COLOR} from './primitives';
+import {GALLERY_FLOORS,GALLERY_RAIL_HEIGHT,STAIR_CORRIDOR as C,STAIR_DOORS,STAIR_OPENINGS,corridorStairHeight} from '../../shared/gallery';
+import {box,cylinder,line,sphere,wallWithOpenings,C as COLOR} from './primitives';
 import {hallImageMaterial} from './HallTextures';
 
-const CEILING=12.6,WALL=0xe3d3b2,DADO=0x8a5e3a;
+const CEILING=14,WALL=0xe3d3b2,DADO=0x8a5e3a;
 /**
  * As in the original hall, the staircases are not in the room: each one climbs in a corridor behind the rear
  * wall, so the hall view stays clear and the climb is only seen when a visitor walks through the door.
@@ -15,13 +15,19 @@ function corridor(scene:T.Scene,side:number){
  // Shell: floor, ceiling, and walls facing inwards (the front wall also hides the corridor from the hall).
  box(root,[width,.1,depth],[midX,-.05,midZ],0x9a7148).material=hallImageMaterial('walnut');
  box(root,[width,.12,depth],[midX,CEILING,midZ],WALL);
- for(const z of [C.front+.05,C.back-.05]){box(root,[width,CEILING,.1],[midX,CEILING/2,z],WALL);box(root,[width,1.1,.06],[midX,.55,z+(z<midZ?.07:-.07)],DADO);}
+ // The front wall has the two real doorways back into the hall; the back wall is solid.
+ const lo=Math.min(X(C.innerX),X(C.outerX)),hi=Math.max(X(C.innerX),X(C.outerX));
+ wallWithOpenings(root,lo,hi,0,CEILING,C.front+.05,.1,WALL,STAIR_OPENINGS);
+ box(root,[width,CEILING,.1],[midX,CEILING/2,C.back-.05],WALL);box(root,[width,1.1,.06],[midX,.55,C.back-.12],DADO);
  for(const x of [C.innerX,C.outerX])box(root,[.1,CEILING,depth],[X(x),CEILING/2,midZ],WALL);
  // Door leaves seen from the corridor side.
  // Open doorways back into the bright hall, seen from the corridor side.
- const hallLight=new T.MeshLambertMaterial({color:0xf3e2bd,emissive:0xf0d6a2,emissiveIntensity:.8});
- const leaf=(x:number,y:number,w:number,h:number)=>{box(root,[w+.3,h+.25,.08],[X(x),y+h/2,C.front+.12],COLOR.ivory);box(root,[w,h,.08],[X(x),y+h/2,C.front+.17],0xf3e2bd).material=hallLight;};
- leaf(STAIR_DOORS.lower.x,0,1.9,3.3);leaf(STAIR_DOORS.upper.x,H.balconyHeight,1.9,3.1);
+ const leaf=(x:number,y:number,w:number,h:number)=>{
+  for(const s of [-1,1])box(root,[.15,h+.2,.08],[X(x)+s*(w/2+.075),y+(h+.2)/2,C.front+.12],COLOR.ivory);box(root,[w+.3,.2,.08],[X(x),y+h+.1,C.front+.12],COLOR.ivory);
+  // Threshold bridging the wall thickness between the hall floor and the corridor.
+  box(root,[w,.06,.8],[X(x),y-.03,H.rear],0x6b4a30);
+ };
+ leaf(STAIR_DOORS.lower.x,0,3.8,6.55);leaf(STAIR_DOORS.upper.x,H.balconyHeight,2.15,5.25);
  // One straight walnut flight against the back wall, rising away from the centre.
  const run=(C.flightEnd-C.flightStart)/C.steps,rise=H.balconyHeight/C.steps;
  for(let i=0;i<C.steps;i++){

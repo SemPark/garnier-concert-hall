@@ -11,6 +11,11 @@ export const STAIR_DOORS={lower:{x:7.4,z:50},upper:{x:14,z:50.2},height:H.balcon
  * the front lane is a ground-floor passage, the back lane holds one straight flight that rises away from
  * the centre to an upper landing in front of the gallery doorway.
  */
+/** Real openings through the rear wall into each corridor: the parterre door and the gallery doorway (world x, y). */
+export const STAIR_OPENINGS=[-1,1].flatMap(side=>[
+ {minX:side*STAIR_DOORS.lower.x-1.9,maxX:side*STAIR_DOORS.lower.x+1.9,minY:0,maxY:6.55},
+ {minX:side*STAIR_DOORS.upper.x-1.075,maxX:side*STAIR_DOORS.upper.x+1.075,minY:H.balconyHeight,maxY:H.balconyHeight+5.25},
+]);
 export const STAIR_CORRIDOR={front:H.rear+.25,back:H.rear+4.25,innerX:2.1,outerX:15.8,passageZ:H.rear+1.1,flightZ:H.rear+3.1,flightWidth:1.9,flightStart:2.6,flightEnd:13,steps:30} as const;
 /** Height of the flight's walking surface at this |x|. */
 export function corridorStairHeight(x:number){const c=STAIR_CORRIDOR,t=(Math.abs(x)-c.flightStart)/(c.flightEnd-c.flightStart);return Math.max(0,Math.min(1,t))*H.balconyHeight;}
