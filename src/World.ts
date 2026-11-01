@@ -110,8 +110,8 @@ export class World{
   // The hall and stage views turn the head in place, so the whole
   // view follows the finger evenly, at the walking view's pace, instead of sliding the camera along the walls.
   const overview=this.zone==='auditorium'&&this.concertView;
-  if(overview){this.cameraYaw=T.MathUtils.clamp(this.cameraYaw-dx*.0032,-.9,.9);this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0014,.13-.45,.13+.45);}
-  else{this.cameraYaw-=dx*.0034;this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0022,-.15,.5);}
+  if(overview){this.cameraYaw=T.MathUtils.clamp(this.cameraYaw-dx*.0032,-.9,.9);this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0014,.13-1.3,.13+.9);}
+  else{this.cameraYaw-=dx*.0034;this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0022,-.9,.5);}
  }
  zoomView(f:number){this.cameraDistance=T.MathUtils.clamp(this.cameraDistance*f,2.2,13);}
  gestureAction(gesture:Gesture){this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});if(CLAPS.includes(gesture))this.audio.clap();}

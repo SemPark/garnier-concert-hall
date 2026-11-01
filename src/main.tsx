@@ -36,7 +36,8 @@ function Icon({name,size=20}:{name:string;size?:number}){
 }
 function format(t:number){return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;}
 function App(){
- const [menu,setMenu]=useState(false);
+ // The icon menu stays listed from the start; ☰ hides or shows it.
+ const [menu,setMenu]=useState(true);
  const [app,setApp]=useState<{world:World;net:Presence;audio:ConcertAudio}|null>(null),[,redraw]=useState(0),[entered,setEntered]=useState(false),[settings,setSettings]=useState(false),[seats,setSeats]=useState(false),[musicExpanded,setMusicExpanded]=useState(false),[reactions,setReactions]=useState(false),[toast,setToast]=useState(''),[error,setError]=useState('');
  const [probeProgress,setProbeProgress]=useState(''),[probeReport,setProbeReport]=useState(''),[probeMessage,setProbeMessage]=useState('');
  const toastTimer=useRef(0),dialog=useRef<HTMLDialogElement>(null);
@@ -74,18 +75,18 @@ function App(){
   {entered&&<>
    {!connected&&<div className="connection-banner" role="status">{net?.status==='connecting'?'음악당의 문을 여는 중이에요…':'연결이 잠시 끊겼어요. 다시 연결하고 있습니다.'}</div>}
    {connected&&zone==='lobby'&&<aside className="room-note"><span>LE GRAND FOYER</span><h2>오늘의 자리는 <br/>비워두었어요.</h2><p>앞쪽 문이나 아래 ‘공연장 입장’을 눌러 들어가세요.</p></aside>}
-   {menu&&<><div className="menu-scrim" onClick={()=>setMenu(false)}/><nav className="icon-menu" role="menu" aria-label="음악당 메뉴" title="음악당 메뉴" onKeyDown={e=>{if(e.key==='Escape')setMenu(false);}}>
+   {menu&&<><nav className="icon-menu" role="menu" aria-label="음악당 메뉴" title="음악당 메뉴" onKeyDown={e=>{if(e.key==='Escape')setMenu(false);}}>
     {zone==='auditorium'?<>
-     <button role="menuitem" className="icon-menu-item" aria-label="좌석 고르기" title="좌석 고르기" onClick={()=>{setMenu(false);world?.input.keys.clear();setSeats(true);}}><Icon name="seat" size={20}/></button>
-     <button role="menuitem" className="icon-menu-item" aria-label={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} title={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} onClick={()=>{setMenu(false);world?.goToGallery();}}><Icon name="stairs" size={20}/></button>
+     <button role="menuitem" className="icon-menu-item" aria-label="좌석 고르기" title="좌석 고르기" onClick={()=>{world?.input.keys.clear();setSeats(true);}}><Icon name="seat" size={20}/></button>
+     <button role="menuitem" className="icon-menu-item" aria-label={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} title={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} onClick={()=>{world?.goToGallery();}}><Icon name="stairs" size={20}/></button>
      <span className="icon-menu-divider"/>
-     <button role="menuitem" className={`icon-menu-item ${!world?.concertView?'active':''}`} aria-label="걷기 시점" title="걷기 시점" onClick={()=>{if(world?.concertView)world.toggleConcertView();setMenu(false);}}><Icon name="walk" size={20}/></button>
-     <button role="menuitem" className={`icon-menu-item ${world?.concertView&&!world?.hallOverview?'active':''}`} aria-label="무대 가까이 보기" title="무대 가까이 보기" onClick={()=>{if(!world?.concertView)world?.toggleConcertView();if(world?.hallOverview)world.toggleFraming();setMenu(false);}}><Icon name="stage" size={20}/></button>
-     <button role="menuitem" className={`icon-menu-item ${world?.concertView&&world?.hallOverview?'active':''}`} aria-label="홀 전체 보기" title="홀 전체 보기" onClick={()=>{if(!world?.concertView)world?.toggleConcertView();if(!world?.hallOverview)world?.toggleFraming();setMenu(false);}}><Icon name="overview" size={20}/></button>
+     <button role="menuitem" className={`icon-menu-item ${!world?.concertView?'active':''}`} aria-label="걷기 시점" title="걷기 시점" onClick={()=>{if(world?.concertView)world.toggleConcertView();}}><Icon name="walk" size={20}/></button>
+     <button role="menuitem" className={`icon-menu-item ${world?.concertView&&!world?.hallOverview?'active':''}`} aria-label="무대 가까이 보기" title="무대 가까이 보기" onClick={()=>{if(!world?.concertView)world?.toggleConcertView();if(world?.hallOverview)world.toggleFraming();}}><Icon name="stage" size={20}/></button>
+     <button role="menuitem" className={`icon-menu-item ${world?.concertView&&world?.hallOverview?'active':''}`} aria-label="홀 전체 보기" title="홀 전체 보기" onClick={()=>{if(!world?.concertView)world?.toggleConcertView();if(!world?.hallOverview)world?.toggleFraming();}}><Icon name="overview" size={20}/></button>
      <span className="icon-menu-divider"/>
-     <button role="menuitem" className="icon-menu-item" aria-label="로비로 나가기" title="로비로 나가기" onClick={()=>{setMenu(false);world?.changeZone();}}><Icon name="door" size={20}/></button>
-    </>:<button role="menuitem" className="icon-menu-item" aria-label="공연장 들어가기" title="공연장 들어가기" onClick={()=>{setMenu(false);world?.changeZone();}}><Icon name="door" size={20}/></button>}
-    <button role="menuitem" className="icon-menu-item" aria-label="설정" title="설정" onClick={()=>{setMenu(false);setSettings(true);}}><Icon name="settings" size={20}/></button>
+     <button role="menuitem" className="icon-menu-item" aria-label="로비로 나가기" title="로비로 나가기" onClick={()=>{world?.changeZone();}}><Icon name="door" size={20}/></button>
+    </>:<button role="menuitem" className="icon-menu-item" aria-label="공연장 들어가기" title="공연장 들어가기" onClick={()=>{world?.changeZone();}}><Icon name="door" size={20}/></button>}
+    <button role="menuitem" className="icon-menu-item" aria-label="설정" title="설정" onClick={()=>{setSettings(true);}}><Icon name="settings" size={20}/></button>
    </nav></>}
    {seats&&zone==='auditorium'&&<SeatMap claims={net?.state?.seats??{}} selfId={net?.selfId??''} connected={connected} onClose={()=>setSeats(false)} onChoose={id=>{void world?.chooseSeat(id);}}/>}
    {zone==='auditorium'&&p&&<aside className={`now-playing ${(!world?.concertView||world?.pose==='walk'||window.innerWidth<700)&&!musicExpanded?'compact-music':''}`}><button className="music-summary" aria-label={musicExpanded?'음악 정보 접기':'음악 정보 펼치기'} aria-expanded={musicExpanded} onClick={()=>setMusicExpanded(v=>!v)}><Icon name="music" size={14}/><span>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</span><span>{musicExpanded?'−':'+'}</span></button><div className="music-details"><div className="now-label"><span className={`equalizer ${audio?.enabled&&p.playing?'active':''}`}><i/><i/><i/></span>{p.playing?(p.track.stage?'ON STAGE':'NOW PLAYING'):'잠시 후'}</div><h2>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</h2><p>{p.playing&&!p.track.stage?p.track.composer:`다음 곡: ${nextPiece(program as Playlist,p.index)?.title??''}`}{!p.playing&&` · ${Math.ceil(p.remaining)}초 후`}</p><div className="progress-track"><span style={{width:`${p.playing?p.offset/p.track.durationSeconds*100:0}%`}}/></div><div className="track-meta"><span>{audio?.state}</span><span>{format(p.offset)} / {format(p.track.durationSeconds)}</span></div></div></aside>}
