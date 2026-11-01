@@ -104,7 +104,9 @@ export class World{
  get visitorLook():Look{return this.self?visitorVariant(this.self)>=4?'woman':'man':'man';}
  /** One drag rule for every view. */
  rotateView(dx:number,dy:number){
-  // The same drag moves the scene the same way in every view: against the finger, horizontally and vertically.
+  // The same drag moves the scene the same way in every view: the scene follows the finger, as if grabbed,
+  // horizontally and vertically.
+  dx=-dx;dy=-dy;
   // The hall and stage views turn the head in place, so the whole
   // view follows the finger evenly, at the walking view's pace, instead of sliding the camera along the walls.
   const overview=this.zone==='auditorium'&&this.concertView;
