@@ -4,7 +4,7 @@ import {GOLDEN_HALL as H} from '../../shared/goldenHall';
 import {STAGE} from '../orchestra/layout';
 import {crystalChandelier,paintedCeiling,friezeMaterial} from './HallDetails';
 import {WALL_DATUM,WALL_LEVELS,buildPerimeterCornices,buildPerimeterFriezes} from './HallWallBands';
-import {GALLERY_BRIDGE,GALLERY_RAIL_HEIGHT,REAR_COLUMNS,STAIR,galleryRailSpans} from '../../shared/gallery';
+import {GALLERY_BRIDGE,GALLERY_RAIL_HEIGHT,REAR_COLUMNS,galleryRailSpans} from '../../shared/gallery';
 import {ORGAN_LOFT_BACK,ORGAN_LOFT_CONTOUR,ORGAN_RAIL_JOIN_X,ORGAN_RAIL_JOIN_Z,ORGAN_RAIL_POST_HALF,organBalconyFront} from '../../shared/organLoft';
 import {buildGalleryFloors} from './GalleryFloors';
 import {hallImage,hallImageMaterial,woodMaterial,applyWoodSurface} from './HallTextures';
@@ -230,7 +230,7 @@ export function rearFacade(scene:T.Scene){
   for(const side of [-1,1])box(wing,[.12,5.5,.2],[side*1.25,H.balconyHeight+2.75,.55],P.light);
  }
  for(const x of [-13.5,13.5])wallPanel(g,x,3.65,3.3,6.9);
- // Dark timber Ionic columns carry the deep rear gallery front, as in the original; the stairs sit behind them.
+ // Dark timber Ionic columns carry the deep rear gallery front, as in the original.
  const front=WALL_DATUM.rear-REAR_COLUMNS.z;
  for(const x of REAR_COLUMNS.xs){
   const column=new T.Group();column.position.set(x,0,front);column.userData.landmark='rear-portico-column';g.add(column);
@@ -243,7 +243,7 @@ export function rearFacade(scene:T.Scene){
  // Gilded beam under the gallery front, and warm lamps in the shadowed standing area beneath.
  box(g,[25.4,.36,.9],[0,7.68,front],P.deep);box(g,[25.8,.14,1.05],[0,7.93,front+.05],P.light);
  hallImage(g,'scroll',24.5,.27,0,7.66,front+.47);
- for(const [z,xs]of [[2.2,[-10.5,-5.25,0,5.25,10.5]],[WALL_DATUM.rear-STAIR.z,[-5.25,0,5.25]]] as const)for(const x of xs){const lamp=sphere(g,.17,[x,7.82,z],0xffefd4);lamp.scale.y=.45;lamp.material=soffitLamp;}
+ for(const [z,xs]of [[2.2,[-10.5,-5.25,0,5.25,10.5]],[WALL_DATUM.rear-46,[-5.25,0,5.25]]] as const)for(const x of xs){const lamp=sphere(g,.17,[x,7.82,z],0xffefd4);lamp.scale.y=.45;lamp.material=soffitLamp;}
  for(const x of [-7.4,0,7.4]){
   const door=timberDoor(g,x,.15,3.8,6.4,.35);
   const glass=new T.MeshLambertMaterial({color:0xb7a98a,emissive:0x756440,emissiveIntensity:.16});

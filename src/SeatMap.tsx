@@ -1,5 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
-import {SEATS,FLOOR_SEATS,BALCONY_SEATS,seatLabel,type Seat} from '../shared/venue';
+import {SEATS,FLOOR_SEATS,BALCONY_SEATS,seatLabel,seatNumber,type Seat} from '../shared/venue';
 import type {SeatClaim} from '../shared/protocol';
 import {GOLDEN_HALL} from '../shared/goldenHall';
 const H_REAR=GOLDEN_HALL.rear;
@@ -17,9 +17,9 @@ export function SeatMap({claims,selfId,connected,onClose,onChoose}:{claims:Recor
    {[-6.4,6.4].map(x=><span key={x} className="ticket-aisle" style={{left:mapX(x)-6,top:M.floorTop+40,height:M.floorBottom-M.floorTop-40}}>통로</span>)}
    <span className="ticket-cross-aisle" style={{top:(seatMapRowY(10)+seatMapRowY(11))/2+5}}>가로 통로</span>
    {Array.from({length:22},(_,i)=><span className="ticket-row" key={i} style={{top:seatMapRowY(i+1)}}>{i+1}열</span>)}
-   {SEATS.map(s=>{const claim=claims[s.id],mine=!!claim&&claim.visitorId===selfId,occupied=!!claim&&!mine,pos=seatMapPosition(s);return <button key={s.id} className={`ticket-seat ${s.level} ${selected?.id===s.id?'selected':mine?'mine':occupied?'occupied':''}`} style={{left:pos.x,top:pos.y}} disabled={!connected||occupied} aria-label={`${seatLabel(s)}${occupied?' 이용 중':mine?' 내 자리':''}`} aria-pressed={selected?.id===s.id} title={seatLabel(s)} onClick={()=>setSelected(s)}>{s.column}</button>;})}
+   {SEATS.map(s=>{const claim=claims[s.id],mine=!!claim&&claim.visitorId===selfId,occupied=!!claim&&!mine,pos=seatMapPosition(s);return <button key={s.id} className={`ticket-seat ${s.level} ${selected?.id===s.id?'selected':mine?'mine':occupied?'occupied':''}`} style={{left:pos.x,top:pos.y}} disabled={!connected||occupied} aria-label={`${seatLabel(s)}${occupied?' 이용 중':mine?' 내 자리':''}`} aria-pressed={selected?.id===s.id} title={seatLabel(s)} onClick={()=>setSelected(s)}>{seatNumber(s)}</button>;})}
    <div className="ticket-entry" style={{top:mapY(H_REAR)-40}}>중앙 입구</div>
   </div></div></div>
-  <div className="ticket-footer"><div><strong>{selected?seatLabel(selected):'원하는 좌석을 선택하세요'}</strong><small>{selected?.level==='balcony'?'계단을 걸어 올라가 좌석 앞에서 앉습니다.':'확대 후 지도를 밀어 좌석을 선택할 수 있어요.'}</small></div><button className="ticket-confirm" disabled={!available||!connected} onClick={()=>{if(selected){onChoose(selected.id);onClose();}}}>이 좌석으로 이동</button></div>
+  <div className="ticket-footer"><div><strong>{selected?seatLabel(selected):'원하는 좌석을 선택하세요'}</strong><small>{selected?.level==='balcony'?'뒤쪽 문으로 나가 복도 계단을 올라 2층 좌석에 앉습니다.':'확대 후 지도를 밀어 좌석을 선택할 수 있어요.'}</small></div><button className="ticket-confirm" disabled={!available||!connected} onClick={()=>{if(selected){onChoose(selected.id);onClose();}}}>이 좌석으로 이동</button></div>
  </dialog>;
 }

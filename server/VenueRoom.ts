@@ -1,5 +1,5 @@
 import {DurableObject} from 'cloudflare:workers';
-import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,distance,canSit,type Visitor} from '../shared/venue';
+import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,distance,canSit,stairLink,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim} from '../shared/protocol';
 import {isGesture} from '../shared/gestures';
 
@@ -66,7 +66,7 @@ export class VenueRoom extends DurableObject<Env>{
   if(msg.type==='move'){
    if(!walkable(v.zone,{x:msg.x,y:msg.y??0,z:msg.z})||!Number.isFinite(msg.yaw)||!['idle','walk'].includes(msg.pose))return;
    // A generous per-packet allowance accommodates interpolation and mobile pauses.
-   if(distance(v,msg)>Math.max(2.2,(now-a.lastMessage)/1000*4.5)&&a.lastMessage)return;
+   if(distance(v,msg)>Math.max(2.2,(now-a.lastMessage)/1000*4.5)&&a.lastMessage&&!stairLink(v,msg))return;
    if(v.pose==='sit')return;Object.assign(v,{x:msg.x,y:msg.y??0,z:msg.z,yaw:msg.yaw,pose:msg.pose});
   }else if(msg.type==='zone'){
    if(!['lobby','auditorium'].includes(msg.zone)||msg.zone===v.zone)return;

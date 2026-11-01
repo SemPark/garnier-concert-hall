@@ -1,7 +1,7 @@
 import {GOLDEN_HALL as H} from './goldenHall';
 import type {Gesture} from './gestures';
-import {STAIR,GALLERY_BRIDGE,REAR_COLUMNS,hasGalleryFloor} from './gallery';
-export {STAIR} from './gallery';
+import {STAIR_DOORS,GALLERY_BRIDGE,REAR_COLUMNS,hasGalleryFloor} from './gallery';
+export {STAIR_DOORS} from './gallery';
 export type Zone='lobby'|'auditorium';
 export type Point={x:number;z:number;y?:number};
 export type Pose='idle'|'walk'|'sit';
@@ -17,26 +17,31 @@ export const FLOOR_CROSS_AISLE=(FLOOR_ROWS[9]+FLOOR_ROWS[10])/2;
 export const FLOOR_SEATS:Seat[]=FLOOR_ROWS.flatMap((z,row)=>SEAT_COLUMNS.map((x,column)=>({id:`parterre-${row*16+column+1}`,x,z,approach:{x,y:0,z:z-1.05},row:row+1,column:column+1,level:'parterre' as const,y:0,yaw:0})));
 // Leave the four seats next to each organ-loft wing empty. Retain all other IDs.
 // Chairs stand near the balustrade so they show from the hall; the bay by the stair top stays empty.
-export const BALCONY_SEATS:Seat[]=[-1,1].flatMap(side=>H.bayCenters.flatMap((z,row)=>row===0||z>STAIR.z?[]:[-1.8,-.6,.6,1.8].map((offset,column)=>({id:`balcony-${side<0?'left':'right'}-${row*4+column+1}`,x:side*14.4,z:z-side*offset,approach:{x:side*13.4,y:H.balconyHeight,z:z-side*offset},row:row+1,column:column+1+(side>0?4:0),level:'balcony' as const,y:H.balconyHeight,yaw:side<0?-Math.PI/2:Math.PI/2}))));
+export const BALCONY_SEATS:Seat[]=[-1,1].flatMap(side=>H.bayCenters.flatMap((z,row)=>row===0||z>GALLERY_BRIDGE.minZ?[]:[-1.8,-.6,.6,1.8].map((offset,column)=>({id:`balcony-${side<0?'left':'right'}-${row*4+column+1}`,x:side*14.4,z:z-side*offset,approach:{x:side*13.4,y:H.balconyHeight,z:z-side*offset},row:row+1,column:column+1+(side>0?4:0),level:'balcony' as const,y:H.balconyHeight,yaw:side<0?-Math.PI/2:Math.PI/2}))));
 export const SEATS:Seat[]=[...FLOOR_SEATS,...BALCONY_SEATS];
-export function seatLabel(s:Seat){return `${s.level==='parterre'?'1층':'2층'} ${s.row}열 ${s.column}번`;}
+/** Gallery seats are numbered 1, 2, 3… along each side, from the stage end towards the back. */
+const BALCONY_NUMBER=new Map([-1,1].flatMap(side=>BALCONY_SEATS.filter(s=>Math.sign(s.x)===side).sort((a,b)=>a.z-b.z).map((s,i)=>[s.id,i+1] as const)));
+export function seatNumber(s:Seat){return s.level==='parterre'?s.column:BALCONY_NUMBER.get(s.id)!;}
+export function seatLabel(s:Seat){return s.level==='parterre'?`1층 ${s.row}열 ${s.column}번`:`2층 ${s.x<0?'왼쪽':'오른쪽'} ${seatNumber(s)}번`;}
 /** The parterre runs right up to the stage lip (stage front is z -9.5). */
 export const STAGE_APRON_Z=-9.2;
 export const BOUNDS={lobby:{minX:-6.5,maxX:6.5,minZ:-16,maxZ:16},auditorium:{minX:-15.65,maxX:15.65,minZ:-26.5,maxZ:50.3}};
 export const SPAWN={lobby:{x:0,y:0,z:10},auditorium:{x:0,y:0,z:47}};
 export const CAPACITY=40;
 export const PALETTE=[0xc09a61,0x8c9c92,0x9c7181,0x71899c,0xc0ab87,0x9180a3];
-export function stairPoint(side:number,upper:boolean):Point{return {x:side*(upper?STAIR.topX:STAIR.bottomX),y:upper?STAIR.height:0,z:STAIR.z};}
-export function onStair(p:Point,padding=0){return Math.abs(p.x)>=STAIR.bottomX-padding&&Math.abs(p.x)<=STAIR.topX+padding&&Math.abs(p.z-STAIR.z)<=STAIR.width/2-padding;}
-export function stairHeight(x:number){return Math.max(0,Math.min(STAIR.height,(Math.abs(x)-STAIR.bottomX)/(STAIR.topX-STAIR.bottomX)*STAIR.height));}
+/** The door on one level that leads to the hidden corridor stair on that side. */
+export function stairPoint(side:number,upper:boolean):Point{const d=upper?STAIR_DOORS.upper:STAIR_DOORS.lower;return {x:side*d.x,y:upper?STAIR_DOORS.height:0,z:d.z};}
+/** True when a step from a to b is a pass through the corridor stair: from one stair door to its partner on the same side. */
+export function stairLink(a:Point,b:Point,tolerance=1.6){
+ for(const side of [-1,1]){const lo=stairPoint(side,false),hi=stairPoint(side,true);
+  if((distance(a,lo)<tolerance&&distance(b,hi)<tolerance)||(distance(a,hi)<tolerance&&distance(b,lo)<tolerance))return true;}
+ return false;
+}
 export function inGallery(p:Point,padding=.27){const side=Math.abs(p.x)>=12.9+padding&&Math.abs(p.x)<=15.9-padding&&p.z>=-26.5+padding&&p.z<=50.3-padding;const rear=Math.abs(p.x)<=15.9-padding&&p.z>=GALLERY_BRIDGE.minZ+padding&&p.z<=GALLERY_BRIDGE.maxZ-padding;return (side||rear)&&hasGalleryFloor(p.x,p.z);}
 /** Pick the surface contiguous with the visitor, never jump to another floor. */
 export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  if(!Number.isFinite(p.x)||!Number.isFinite(p.z)||!Number.isFinite(fromY))return null;
  if(zone==='lobby')return Math.abs(fromY)<.4?0:null;
- if(onStair(p)){const h=stairHeight(p.x);if(Math.abs(h-fromY)<.65)return h;if(Math.abs(fromY)<.4&&h>2)return 0;return null;}
- // Tiny landing margins let a step enter or leave the continuous stair slope.
- if(Math.abs(p.z-STAIR.z)<=STAIR.width/2&&Math.abs(p.x)>STAIR.topX&&Math.abs(p.x)<14.3&&fromY>H.balconyHeight-.65)return H.balconyHeight;
  if(fromY>H.balconyHeight-.45&&inGallery(p))return H.balconyHeight;
  if(Math.abs(fromY)<.4&&Math.abs(p.x)<=13.8&&p.z>=STAGE_APRON_Z&&p.z<=50.3)return 0;
  return null;

@@ -3,7 +3,7 @@ import {readdirSync,readFileSync,statSync} from 'node:fs';
 import {rearFacade,buildGoldenHall,upperDoor,UPPER_DOOR} from '../src/scene/GoldenHall';
 import {buildStairs} from '../src/scene/Stairs';
 import {hallImageMaterial} from '../src/scene/HallTextures';
-import {STAIR,GALLERY_RAIL_HEIGHT,GALLERY_BRIDGE,REAR_COLUMNS} from '../shared/gallery';
+import {GALLERY_BRIDGE,REAR_COLUMNS,STAIR_DOORS} from '../shared/gallery';
 import {FLOOR_AISLES,walkable} from '../shared/venue';
 import {GOLDEN_HALL as H} from '../shared/goldenHall';
 
@@ -14,10 +14,10 @@ test('the repeatable architectural images stay below 192 KB and reuse one materi
  for(const file of files.filter(f=>f.endsWith('.svg'))){const svg=readFileSync(new URL(file,dir),'utf8');assert.ok(!/<image\b|<script\b|https?:\/\/(?!www.w3.org)/.test(svg),'no photo, script or remote dependency belongs in the reusable art');}
 });
 
-test('six timber columns carry the rear gallery front, in front of the stairs and clear of the aisles',()=>{
+test('six timber columns carry the rear gallery front, under the gallery front and clear of the aisles',()=>{
  const scene=new T.Scene(),facade=rearFacade(scene);scene.updateMatrixWorld(true);
  const columns=facade.children.filter(o=>o.userData.landmark==='rear-portico-column');assert.equal(columns.length,REAR_COLUMNS.xs.length);
- for(const column of columns){const b=new T.Box3().setFromObject(column);assert.ok(b.max.y<=H.balconyHeight-.3+1e-6,'below the gallery slab');assert.ok(b.max.z<STAIR.z-STAIR.width/2,'in front of the stairs');assert.ok(b.min.z>=GALLERY_BRIDGE.minZ-.01);
+ for(const column of columns){const b=new T.Box3().setFromObject(column);assert.ok(b.max.y<=H.balconyHeight-.3+1e-6,'below the gallery slab');assert.ok(b.max.z<GALLERY_BRIDGE.minZ+1.2,'under the gallery front');assert.ok(b.min.z>=GALLERY_BRIDGE.minZ-.01);
   const x=(b.min.x+b.max.x)/2;for(const aisle of FLOOR_AISLES)assert.ok(Math.abs(x-aisle)>REAR_COLUMNS.radius+.6,'aisles stay open');}
  for(const x of REAR_COLUMNS.xs)assert.equal(walkable('auditorium',{x,y:0,z:REAR_COLUMNS.z}),false,'visitors walk around columns');
  const doors:T.Object3D[]=[];facade.traverse(o=>{if(o.userData.landmark==='timber-door')doors.push(o);});assert.equal(doors.length,3,'the rear upper wall has no repeated row of invented pedimented doors');
@@ -30,15 +30,13 @@ test('upper doors start at balcony level and the repeated painted details are sh
  assert.equal(new Set([...images].map(m=>m.userData.hallImage)).size,9);
 });
 
-test('dark timber stair treads retain the full walkable slope with no support pillars',()=>{
- const scene=new T.Scene(),stairs=buildStairs(scene);scene.updateMatrixWorld(true);
- const flights=scene.children.filter(o=>o.userData.landmark==='rear-stair');assert.equal(flights.length,2);
- for(const flight of flights){const treads=flight.children.filter(o=>o.userData.landmark==='stair-tread');assert.equal(treads.length,STAIR.steps);
-  treads.forEach((tread,i)=>{const b=new T.Box3().setFromObject(tread);assert.ok(Math.abs(b.max.y-(i+1)*STAIR.height/STAIR.steps)<1e-6);assert.ok(b.max.y-b.min.y<=.101);assert.ok(stairs.surfaces.includes(tread as T.Mesh));});
-  const rails=flight.children.filter(o=>o.userData.landmark==='stair-handrail');assert.equal(rails.length,2);for(const rail of rails)assert.ok(new T.Box3().setFromObject(rail).max.y<=STAIR.height+GALLERY_RAIL_HEIGHT+.05);
- }
+test('no staircase stands in the hall; the rear doors lead to the corridor stairs',()=>{
+ const scene=new T.Scene(),stairs=buildStairs(scene),facade=rearFacade(scene);scene.updateMatrixWorld(true);
+ assert.equal(scene.children.filter(o=>o.userData.landmark==='rear-stair').length,0);
+ for(const s of stairs.surfaces)assert.ok(Math.abs(new T.Box3().setFromObject(s).max.y-H.balconyHeight)<.02,'only gallery floor targets remain');
+ const doors:T.Object3D[]=[];facade.traverse(o=>{if(o.userData.landmark==='timber-door')doors.push(o);});
+ for(const side of [-1,1])assert.ok(doors.some(d=>Math.abs(d.getWorldPosition(new T.Vector3()).x-side*STAIR_DOORS.lower.x)<.05),'a parterre door marks each stair');
 });
-
 
 test('the upper door keeps a tall two-leaf opening and its sculpted pediment fits below the next cornice',()=>{
  const scene=new T.Scene(),door=upperDoor(scene,8.6);scene.updateMatrixWorld(true);assert.ok(UPPER_DOOR.height/UPPER_DOOR.width>1.8);

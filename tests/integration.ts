@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 import playlist from '../content/playlist.json';
 import type {ServerMessage,Snapshot,ClientMessage} from '../shared/protocol';
-import {SEATS,BALCONY_SEATS,stairPoint,distance,type Point} from '../shared/venue';import {findPath} from '../src/navigation/path';
+import {SEATS,BALCONY_SEATS,stairPoint,stairLink,distance,type Point} from '../shared/venue';import {findPath} from '../src/navigation/path';
 const base=process.env.CONCERT_TEST_URL??'http://127.0.0.1:8787';
 const delay=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 async function until(check:()=>boolean,label:string,ms=7000){const end=Date.now()+ms;while(Date.now()<end){if(check())return;await delay(30);}throw new Error(`Timed out: ${label}`);}
@@ -11,7 +11,7 @@ class Client{
  async connect(token=''){const url=new URL('/api/presence',base);url.protocol=url.protocol==='https:'?'wss:':'ws:';url.searchParams.set('room','hall-99');if(token)url.searchParams.set('resume',token);
   this.socket=new WebSocket(url,{origin:new URL(base).origin});this.socket.on('message',raw=>{const msg=JSON.parse(raw.toString()) as ServerMessage;this.messages.push(msg);if(msg.type==='welcome'){this.id=msg.selfId;this.token=msg.resumeToken;this.state=msg.state;}if(msg.type==='state')this.state=msg.state;});await until(()=>!!this.id,'welcome');return this;}
  send(msg:ClientMessage){this.socket.send(JSON.stringify(msg));}
- async walk(end:Point){const v=this.state.visitors.find(v=>v.id===this.id)!;const path=findPath('auditorium',v,end);assert.ok(path);let p:Point={x:v.x,y:v.y??0,z:v.z};for(const target of path){while(distance(p,target)>.02){const d=distance(p,target),step=Math.min(1.5,d);p={x:p.x+(target.x-p.x)/d*step,y:(p.y??0)+((target.y??0)-(p.y??0))/d*step,z:p.z+(target.z-p.z)/d*step};this.send({type:'move',...p,yaw:0,pose:'walk'});await delay(80);}}this.send({type:'move',...end,yaw:0,pose:'idle'});await delay(100);}
+ async walk(end:Point){const v=this.state.visitors.find(v=>v.id===this.id)!;const path=findPath('auditorium',v,end);assert.ok(path);let p:Point={x:v.x,y:v.y??0,z:v.z};for(const target of path){if(stairLink(p,target,.01)){p={x:target.x,y:target.y??0,z:target.z};this.send({type:'move',...p,yaw:0,pose:'walk'});await delay(80);continue;}while(distance(p,target)>.02){const d=distance(p,target),step=Math.min(1.5,d);p={x:p.x+(target.x-p.x)/d*step,y:(p.y??0)+((target.y??0)-(p.y??0))/d*step,z:p.z+(target.z-p.z)/d*step};this.send({type:'move',...p,yaw:0,pose:'walk'});await delay(80);}}this.send({type:'move',...end,yaw:0,pose:'idle'});await delay(100);}
  close(){this.socket.close();}
 }
 const clients:Client[]=[];

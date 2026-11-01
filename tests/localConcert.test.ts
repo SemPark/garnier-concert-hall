@@ -1,8 +1,8 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {LocalConcert} from '../src/network/LocalConcert';
-import {SEATS,BALCONY_SEATS,SPAWN,distance,type Point} from '../shared/venue';
+import {SEATS,BALCONY_SEATS,SPAWN,distance,stairLink,type Point} from '../shared/venue';
 import {findPath} from '../src/navigation/path';
-function walk(room:LocalConcert,end:Point){const path=findPath('auditorium',room.visitor,end);assert.ok(path);for(const target of path){while(distance(room.visitor,target)>.01){const p=room.visitor,d=distance(p,target),t=Math.min(1,d)/d;assert.ok(room.send({type:'move',x:p.x+(target.x-p.x)*t,y:(p.y??0)+((target.y??0)-(p.y??0))*t,z:p.z+(target.z-p.z)*t,yaw:0,pose:'walk'}));}}}
+function walk(room:LocalConcert,end:Point){const path=findPath('auditorium',room.visitor,end);assert.ok(path);for(const target of path){if(stairLink(room.visitor,target,.01)){assert.ok(room.send({type:'move',x:target.x,y:target.y??0,z:target.z,yaw:0,pose:'walk'}));continue;}while(distance(room.visitor,target)>.01){const p=room.visitor,d=distance(p,target),t=Math.min(1,d)/d;assert.ok(room.send({type:'move',x:p.x+(target.x-p.x)*t,y:(p.y??0)+((target.y??0)-(p.y??0))*t,z:p.z+(target.z-p.z)*t,yaw:0,pose:'walk'}));}}}
 test('static visitor enters, walks to the front, sits and stands without crossing the backrest',()=>{
  const room=new LocalConcert(),seat=SEATS[0];assert.equal(room.send({type:'reserve',seatId:seat.id,requestId:'a'}),false);
  room.send({type:'zone',zone:'auditorium'});assert.equal(room.visitor.z,SPAWN.auditorium.z);
