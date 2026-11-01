@@ -1,10 +1,9 @@
 import * as T from 'three';
-/** The original floor-seat/walking camera: orbit the visitor, never the stage. */
+/** Walking/seated camera: a plain orbit around the visitor, always looking at them. */
 export function localCameraFrame(point:{x:number;y:number;z:number},sitting:boolean,yaw:number,pitch:number,distance:number){
- const baseY=point.y+(sitting?2.05:1.05);
- // Below the lowest orbit the camera stays at eye height and the gaze tilts up instead, toward the ceiling.
- // Above the highest orbit it stays put too and the gaze tilts down, toward the floor.
- const up=Math.max(0,-.15-pitch),down=Math.max(0,pitch-.5),look=new T.Vector3(point.x-Math.sin(yaw)*2,baseY+up*14-down*10,point.z-Math.cos(yaw)*2);
- const position=new T.Vector3(point.x+Math.sin(yaw)*distance,baseY+.6+T.MathUtils.clamp(pitch,-.15,.5)*4,point.z+Math.cos(yaw)*distance);
- return {look,position,origin:new T.Vector3(point.x,baseY,point.z)};
+ const origin=new T.Vector3(point.x,point.y+(sitting?2.05:1.05),point.z);
+ // Keep the camera just above the floor when the orbit dips low.
+ const lowest=Math.asin(T.MathUtils.clamp((point.y+.25-origin.y)/distance,-1,1)),p=Math.max(pitch,lowest);
+ const position=new T.Vector3(origin.x+Math.sin(yaw)*Math.cos(p)*distance,origin.y+Math.sin(p)*distance,origin.z+Math.cos(yaw)*Math.cos(p)*distance);
+ return {look:origin.clone(),position,origin};
 }

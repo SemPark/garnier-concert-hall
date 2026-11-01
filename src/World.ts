@@ -110,8 +110,10 @@ export class World{
   // The hall and stage views turn the head in place, so the whole
   // view follows the finger evenly, at the walking view's pace, instead of sliding the camera along the walls.
   const overview=this.zone==='auditorium'&&this.concertView;
-  if(overview){this.cameraYaw=T.MathUtils.clamp(this.cameraYaw-dx*.0064,-.9,.9);this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0028,.13-1.3,.13+1.4);}
-  else{this.cameraYaw-=dx*.0068;this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0044,-2.15,2.5);}
+  // One pace for every view; only the reach differs (the walking camera circles the visitor).
+  const yaw=this.cameraYaw-dx*.0068,pitch=this.cameraPitch+dy*.0044;
+  if(overview){this.cameraYaw=T.MathUtils.clamp(yaw,-.9,.9);this.cameraPitch=T.MathUtils.clamp(pitch,.13-1.3,.13+1.4);}
+  else{this.cameraYaw=yaw;this.cameraPitch=T.MathUtils.clamp(pitch,-.25,1.45);}
  }
  zoomView(f:number){this.cameraDistance=Math.max(.3,this.cameraDistance*f);}
  gestureAction(gesture:Gesture){this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});if(CLAPS.includes(gesture))this.audio.clap();}
@@ -145,8 +147,6 @@ export class World{
    return {look:position.clone().add(view),position};
   }
   const local=localCameraFrame(this.position,sitting,this.cameraYaw,this.cameraPitch,d),target=local.position;look.copy(local.look);
-  // On the parterre keep the camera clear of the carved wall bays; the gallery walkway needs the full width.
-  if(this.zone==='auditorium'){target.z=Math.min(target.z,GOLDEN_HALL.rear-1);const limit=this.position.y<GOLDEN_HALL.balconyHeight-1?14.4:15.4;target.x=T.MathUtils.clamp(target.x,-limit,limit);}
   return {look,position:constrainCamera(local.origin,target,this.venue.cameraWalls)};
  }
  /** Reaction icons float above every visible visitor's head, with a short pop when they appear. */
@@ -207,8 +207,8 @@ export class World{
     actor.update(clock,0,musicianSits(actor.instrumentType),show.orchestraPlays&&!this.reduced,null,10,animationDt);
    }this.venue.updateMusicians(this.camera);}
   if(this.introUntil&&now>this.introUntil){this.introUntil=0;if(this.zone==='auditorium'&&this.concertView&&this.pose!=='sit'){this.concertView=false;this.introEase=2.5;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.onChange();}}
-  // While dragging the camera sits exactly where the finger puts it; easing would lag and cut inside the orbit.
-  const f=this.cameraFrame(),smooth=now-this.dragAt<150?1:1-Math.exp(-dt*(this.introEase>0?1.6:7));if(this.introEase>0)this.introEase=Math.max(0,this.introEase-dt);this.camera.position.lerp(f.position,smooth);if(this.entered&&!this.concertView&&!this.climb&&this.position.z<=GOLDEN_HALL.rear){const origin=localCameraFrame(this.position,this.pose==='sit',this.cameraYaw,this.cameraPitch,this.cameraDistance).origin;this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));}this.venue.scene.userData.cameraFocus=this.entered?(this.concertView?f.look:localCameraFrame(this.position,this.pose==='sit',this.cameraYaw,this.cameraPitch,this.cameraDistance).origin):null;this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;const submitStart=this.diagnosticActive?performance.now():0;if(!this.diagnosticActive||this.diagnosticMode==='normal'){this.crowds[this.zone].update(this.remoteAvatars(),this.camera);this.renderer.render(this.venue.scene,this.camera);this.drawCount++;}if(this.diagnosticActive){const end=performance.now();this.frameCost={at:now,cpu:end-workStart,submit:end-submitStart};}
+  // The walking camera stays locked to its orbit (no trailing glide); easing is kept only for big view changes.
+  const f=this.cameraFrame(),snap=now-this.dragAt<150||!this.concertView&&this.introEase<=0&&this.camera.position.distanceTo(f.position)<1.5,smooth=snap?1:1-Math.exp(-dt*(this.introEase>0?1.6:7));if(this.introEase>0)this.introEase=Math.max(0,this.introEase-dt);this.camera.position.lerp(f.position,smooth);if(this.entered&&!this.concertView&&!this.climb&&this.position.z<=GOLDEN_HALL.rear){const origin=localCameraFrame(this.position,this.pose==='sit',this.cameraYaw,this.cameraPitch,this.cameraDistance).origin;this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));}this.venue.scene.userData.cameraFocus=this.entered?(this.concertView?f.look:localCameraFrame(this.position,this.pose==='sit',this.cameraYaw,this.cameraPitch,this.cameraDistance).origin):null;this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;const submitStart=this.diagnosticActive?performance.now():0;if(!this.diagnosticActive||this.diagnosticMode==='normal'){this.crowds[this.zone].update(this.remoteAvatars(),this.camera);this.renderer.render(this.venue.scene,this.camera);this.drawCount++;}if(this.diagnosticActive){const end=performance.now();this.frameCost={at:now,cpu:end-workStart,submit:end-submitStart};}
   if(now-this.lastUI>500){this.lastUI=now;this.onChange();}
  };
  destroy(){this.disposed=true;cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.renderer.dispose();this.renderer.domElement.remove();}

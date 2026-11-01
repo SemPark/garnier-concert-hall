@@ -266,7 +266,8 @@ export function rearFacade(scene:T.Scene){
   for(let i=0;i<12;i++){const a=i/12*Math.PI*2;cylinder(column,.014,6.45,[Math.cos(a)*.304,3.75,Math.sin(a)*.304],0x9a6a3f);}
   box(column,[1.05,.25,.8],[0,7.25,0],P.gold);
   for(const side of [-1,1]){const volute=cylinder(column,.16,.2,[side*.38,7.04,.28],P.gold);volute.rotation.x=Math.PI/2;}
-  column.traverse(o=>{if(o instanceof T.Mesh)o.userData.hideFromBehindBelow=H.balconyHeight;});
+  // Hidden only while it stands between the camera and the visitor.
+  column.userData.occluderGroup=true;
  }
  // Gilded beam under the gallery front, and warm lamps in the shadowed standing area beneath.
  for(const [z,xs]of [[2.2,[-10.5,-5.25,0,5.25,10.5]],[WALL_DATUM.rear-46,[-5.25,0,5.25]]] as const)for(const x of xs){const lamp=sphere(g,.17,[x,7.82,z],0xffefd4);lamp.scale.y=.45;lamp.material=soffitLamp;}
