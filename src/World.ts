@@ -78,12 +78,12 @@ export class World{
  /** Walk to the stair door on this side, through the corridor stair, and out onto the other floor. */
  useStair(side:number,up:boolean){
   if(this.zone!=='auditorium'||this.climb)return;if(this.pose==='sit')this.stand();
-  const from=stairPoint(side,!up),to=stairPoint(side,up),out=up?{x:side*13.6,y:GOLDEN_HALL.balconyHeight,z:48.5}:{x:side*7.4,y:0,z:48.5};
+  const from=stairPoint(side,!up),to=stairPoint(side,up),out=up?{x:side*13.6,y:GOLDEN_HALL.balconyHeight,z:48.5}:{x:side*7.4,y:0,z:49.8};
   const path=findPath(this.zone,this.position,from);if(!path){this.onToast('계단으로 가는 길을 찾지 못했어요.');return;}
   this.cancelSeat();this.route=[...path,to,out];this.concertView=false;this.cameraYaw=0;this.marker.position.set(out.x,out.y+.035,out.z);this.marker.visible=true;
   this.onToast(up?'계단을 따라 2층으로 올라갑니다.':'계단을 따라 1층으로 내려갑니다.');this.onChange();
  }
- goToGallery(){if(this.zone!=='auditorium'||this.climb)return;if(this.pose==='sit')this.stand();const upper=this.position.y<GOLDEN_HALL.balconyHeight-.3,side=this.position.x<0?-1:1;const target=upper?{x:side*13.6,y:GOLDEN_HALL.balconyHeight,z:48.5}:{x:side*7.4,y:0,z:48.5};const path=findPath(this.zone,this.position,target);if(!path){this.onToast('계단으로 가는 길을 찾지 못했어요.');return;}this.cancelSeat();this.route=path;this.concertView=false;this.cameraYaw=0;this.onToast(upper?'계단을 따라 2층으로 올라갑니다.':'계단을 따라 1층으로 내려갑니다.');this.onChange();}
+ goToGallery(){if(this.zone!=='auditorium'||this.climb)return;if(this.pose==='sit')this.stand();const upper=this.position.y<GOLDEN_HALL.balconyHeight-.3,side=this.position.x<0?-1:1;const target=upper?{x:side*13.6,y:GOLDEN_HALL.balconyHeight,z:48.5}:{x:side*7.4,y:0,z:49.8};const path=findPath(this.zone,this.position,target);if(!path){this.onToast('계단으로 가는 길을 찾지 못했어요.');return;}this.cancelSeat();this.route=path;this.concertView=false;this.cameraYaw=0;this.onToast(upper?'계단을 따라 2층으로 올라갑니다.':'계단을 따라 1층으로 내려갑니다.');this.onChange();}
  private cancelSeat(){this.reserveVersion++;if(this.reservedSeat)this.net.send({type:'release'});this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
  gestureAction(gesture:Gesture){this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});}
  private click(x:number,y:number){if(!this.entered||this.climb)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);

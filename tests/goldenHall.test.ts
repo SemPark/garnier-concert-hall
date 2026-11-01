@@ -9,7 +9,7 @@ test('the rectangular hall follows the reference length, width and height propor
 test('three seating blocks have two inner aisles, wall-side aisles and a cross aisle',()=>{
  assert.equal(FLOOR_SEATS.length,352);assert.equal(BALCONY_SEATS.length,88);assert.equal(SEATS.length,440);
  const first=FLOOR_SEATS.slice(0,16);assert.deepEqual([first.filter(s=>s.x<-6.4).length,first.filter(s=>Math.abs(s.x)<6.4).length,first.filter(s=>s.x>6.4).length],[4,8,4]);
- for(const x of FLOOR_AISLES){assert.ok(segmentClear('auditorium',{x,z:-7.2},{x,z:44}));const path=findPath('auditorium',SPAWN.auditorium,{x,z:-7.2});assert.ok(path);let previous=SPAWN.auditorium;for(const p of path){assert.ok(segmentClear('auditorium',previous,p));previous=p;}}
+ for(const x of FLOOR_AISLES){assert.ok(segmentClear('auditorium',{x,z:-7.2},{x,z:43}),'aisles run to the rear screens');const path=findPath('auditorium',SPAWN.auditorium,{x,z:-7.2});assert.ok(path);let previous=SPAWN.auditorium;for(const p of path){assert.ok(segmentClear('auditorium',previous,p));previous=p;}}
  assert.ok(segmentClear('auditorium',{x:-13.4,z:FLOOR_CROSS_AISLE},{x:13.4,z:FLOOR_CROSS_AISLE}));
 });
 
