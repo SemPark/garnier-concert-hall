@@ -1,9 +1,9 @@
 import * as T from 'three';
+import {constrainCamera} from './controls/cameraCollision';
 import {createVenue,type Venue} from './scene/Venue';
 import {Crowd} from './scene/Crowd';
 import {Avatar,musicianSits} from './character/Avatar';
 import {Input} from './controls/Input';
-import {constrainCamera} from './controls/cameraCollision';
 import {stageShow} from './orchestra/stageShow';
 /** Gestures that make applause heard in the quiet time between pieces. */
 const CLAPS:Gesture[]=['clap','bravo','ovation'];
@@ -111,9 +111,9 @@ export class World{
   // view follows the finger evenly, at the walking view's pace, instead of sliding the camera along the walls.
   const overview=this.zone==='auditorium'&&this.concertView;
   if(overview){this.cameraYaw=T.MathUtils.clamp(this.cameraYaw-dx*.0032,-.9,.9);this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0014,.13-1.3,.13+1.4);}
-  else{this.cameraYaw-=dx*.0034;this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0022,-.9,1.2);}
+  else{this.cameraYaw-=dx*.0034;this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0022,-2.15,2.5);}
  }
- zoomView(f:number){this.cameraDistance=T.MathUtils.clamp(this.cameraDistance*f,2.2,13);}
+ zoomView(f:number){this.cameraDistance=Math.max(.3,this.cameraDistance*f);}
  gestureAction(gesture:Gesture){this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});if(CLAPS.includes(gesture))this.audio.clap();}
  private click(x:number,y:number){if(!this.entered||this.climb)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
   const hits=this.ray.intersectObjects([...(this.venue.stairArrows?.targets??[]),...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);if(!hits.length)return;const hit=hits[0];
