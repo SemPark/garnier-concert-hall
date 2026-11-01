@@ -37,7 +37,10 @@ export class World{
   const canvas=this.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','캐릭터 뒤에서 둘러보는 가르니에 음악당. 바닥 클릭으로 이동하고 드래그로 둘러봅니다.');host.append(canvas);
   this.venues={lobby:createVenue('lobby'),auditorium:createVenue('auditorium')};
   this.marker=new T.Mesh(new T.RingGeometry(.16,.24,24),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.8,depthWrite:false}));this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.venues.lobby.scene.add(this.marker);
-  this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>{this.cameraYaw-=dx*.0034;if(this.zone==='auditorium'&&this.concertView)this.cameraYaw=T.MathUtils.clamp(this.cameraYaw,-.5,.5);this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0022,-.15,.5);},zoom:f=>{this.cameraDistance=T.MathUtils.clamp(this.cameraDistance*f,2.2,13);},escape:()=>this.stand()});
+  this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>{
+   // Dragging turns the view toward the drag (the scene moves against the finger), in the stage view and the
+   // visitor view alike, so choosing a seat never reverses the direction.
+   const overview=this.zone==='auditorium'&&this.concertView;this.cameraYaw+=(overview?1:-1)*dx*.0034;if(this.zone==='auditorium'&&this.concertView)this.cameraYaw=T.MathUtils.clamp(this.cameraYaw,-.5,.5);this.cameraPitch=T.MathUtils.clamp(this.cameraPitch+dy*.0022,-.15,.5);},zoom:f=>{this.cameraDistance=T.MathUtils.clamp(this.cameraDistance*f,2.2,13);},escape:()=>this.stand()});
   window.addEventListener('resize',this.resize);canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.onToast('화면 연결이 끊겼어요. 새로고침해 주세요.');});this.resize();this.snapCamera();this.animate();void this.warmHall();if(new URLSearchParams(location.search).has('diagnostics'))Object.assign(window,{__concertMetrics:()=>({fps:this.fps,calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,pixelRatio:this.renderer.getPixelRatio(),buffer:[this.renderer.domElement.width,this.renderer.domElement.height],quality:this.quality,mobile:this.mobile,targetFPS:frameRate(this.mobile,this.quality),animationHz:30,antialias:this.renderer.getContext().getContextAttributes()?.antialias})});
  }
  private async warmHall(){

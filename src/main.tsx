@@ -17,6 +17,7 @@ function Icon({name,size=20}:{name:string;size?:number}){
   sound:<><path d="m11 4-6 5H2v6h3l6 5V4Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></>,
   mute:<><path d="m11 4-6 5H2v6h3l6 5V4Zm5 5 5 6m0-6-5 6"/></>,
   people:<><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3m1-17a3 3 0 0 1 0 6m3 11v-3a6 6 0 0 0-3-5"/></>,
+  menu:<><path d="M4 7h16M4 12h16M4 17h16"/></>,
   settings:<><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="8" cy="18" r="2"/></>,
   arrow:<path d="M4 12h15m-6-6 6 6-6 6"/>,
   close:<path d="m6 6 12 12M6 18 18 6"/>,
@@ -50,11 +51,12 @@ function App(){
  return <>
   <div className="vignette"/>
   <header className="topbar">
-   <button className="brand" aria-label="메뉴" aria-expanded={menu} aria-haspopup="menu" disabled={!entered} onClick={()=>setMenu(v=>!v)}><span className="brand-mark"><Icon name="hall" size={25}/></span><div><span className="brand-name">GARNIER</span><span className="brand-sub">{entered?<>메뉴 <b className="brand-caret">{menu?'▴':'▾'}</b></>:'함께 듣는 음악당'}</span></div></button>
+   <div className="brand"><span className="brand-mark"><Icon name="hall" size={25}/></span><div><span className="brand-name">GARNIER</span><span className="brand-sub">함께 듣는 음악당</span></div></div>
    {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LE GRAND FOYER':'GOLDENER SAAL'}</span><span>{zone==='lobby'?'그랑 푸아예':'황금홀'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ')??'입장 중'}</span></div>}
    <nav className="tools" aria-label="음악당 설정">
     {entered&&<span className="visitor-count" title={connected?'함께 있는 관객':'연결을 기다리고 있어요'}><span className={`connection ${connected?'online':''}`}/><Icon name="people" size={17}/>{net?.local?'혼자 감상':net?.state?.visitors.length??'—'}</span>}
     <button className="icon-button" aria-label={audio?.enabled?'소리 끄기':'소리 켜기'} onClick={()=>{audio?.toggle();redraw(n=>n+1);}}><Icon name={audio?.enabled?'sound':'mute'}/></button>
+    {entered&&<button className={`icon-button menu-button ${menu?'active':''}`} aria-label="메뉴" aria-expanded={menu} aria-haspopup="menu" onClick={()=>setMenu(v=>!v)}><Icon name={menu?'close':'menu'} size={22}/></button>}
    </nav>
   </header>
   {!entered&&!error&&<section className="welcome">

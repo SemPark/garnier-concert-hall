@@ -61,3 +61,20 @@ button.brand:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .music-summary span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 /* On narrow screens the lobby welcome sits under the top bar instead of over the visitor. */
 @media(max-width:700px){.room-note{top:78px;left:18px;right:18px;max-width:none}.room-note h2{font-size:17px;line-height:1.45;margin:8px 0 6px}.room-note h2 br{display:none}}
+/* Larger, higher-contrast menu text so it reads easily on phones too. */
+button.brand .brand-sub{font-size:12px;letter-spacing:1px;color:#f3e7cc;margin-top:6px}
+.brand-caret{font-size:11px}
+.home-menu{width:min(340px,calc(100vw - 32px));padding:10px}
+.home-menu>button{font-size:17px;padding:14px 14px;gap:15px;color:#fbf2df}
+.home-menu>button svg{width:20px;height:20px}
+.home-menu small{font-size:13px;margin-top:4px;color:#d6c9ae}
+.menu-views{padding:12px 14px}
+.menu-views>span{font-size:14px;color:#d6c9ae}
+.menu-views button{font-size:14px;padding:10px 8px}
+@media(max-width:540px){button.brand .brand-sub{font-size:12px}}
+
+/* The menu lives at the top right as an icon next to sound; the panel drops down from there. */
+.home-menu{left:auto;right:32px}
+@media(max-width:900px){.home-menu{left:auto;right:16px}}
+.menu-button{width:40px;height:40px;color:#f3e7cc}
+.menu-button.active{background:#d3bc8733;color:#ffe7b3}
