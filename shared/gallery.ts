@@ -16,13 +16,15 @@ export const STAIR_OPENINGS=[-1,1].flatMap(side=>[
  {minX:side*STAIR_DOORS.lower.x-1.9,maxX:side*STAIR_DOORS.lower.x+1.9,minY:0,maxY:6.55},
  {minX:side*STAIR_DOORS.upper.x-1.075,maxX:side*STAIR_DOORS.upper.x+1.075,minY:H.balconyHeight,maxY:H.balconyHeight+5.25},
 ]);
-export const STAIR_CORRIDOR={front:H.rear+.25,back:H.rear+4.25,innerX:2.1,outerX:15.8,passageZ:H.rear+1.1,flightZ:H.rear+3.1,flightWidth:1.9,flightStart:2.6,flightEnd:13,steps:30} as const;
+export const STAIR_CORRIDOR={front:H.rear+.25,back:H.rear+5.9,innerX:.4,outerX:15.8,passageZ:H.rear+1.7,flightZ:H.rear+4.55,flightWidth:2.4,flightStart:2.6,flightEnd:12.8,landingX:12.6,steps:30} as const;
 /** Height of the flight's walking surface at this |x|. */
 export function corridorStairHeight(x:number){const c=STAIR_CORRIDOR,t=(Math.abs(x)-c.flightStart)/(c.flightEnd-c.flightStart);return Math.max(0,Math.min(1,t))*H.balconyHeight;}
 /** Walking line through the corridor stair from one stair door to its partner; reversed for the way down. */
 export function corridorRoute(side:number,up:boolean){
  const c=STAIR_CORRIDOR,y=H.balconyHeight,lo=STAIR_DOORS.lower,hi=STAIR_DOORS.upper;
- const points=[[lo.x,0,lo.z],[lo.x,0,H.rear-.4],[lo.x,0,c.passageZ],[c.flightStart,0,c.passageZ],[c.flightStart,0,c.flightZ],[c.flightEnd,y,c.flightZ],[hi.x,y,c.passageZ],[hi.x,y,H.rear-.4],[hi.x,y,hi.z]].map(([x,py,z])=>({x:side*x,y:py,z}));
+ // A roomy turn at the foot (clear of the end wall and the first baluster) and a wide upper landing.
+ const turn=(c.innerX+c.flightStart)/2+.2;
+ const points=[[lo.x,0,lo.z],[lo.x,0,H.rear-.4],[lo.x,0,c.passageZ],[turn,0,c.passageZ],[turn,0,c.flightZ],[c.flightStart,0,c.flightZ],[c.flightEnd,y,c.flightZ],[14.6,y,c.flightZ],[hi.x,y,c.passageZ],[hi.x,y,H.rear-.4],[hi.x,y,hi.z]].map(([x,py,z])=>({x:side*x,y:py,z}));
  return up?points:points.reverse();
 }
 // Standing avatars are about 1.63 units tall.

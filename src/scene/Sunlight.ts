@@ -5,8 +5,8 @@ import {WALL_DATUM,WALL_LEVELS} from './HallWallBands';
 /** Late-afternoon sun entering through the right-hand windows, slanting down across the hall. */
 export const SUN_DIRECTION=new T.Vector3(-.62,-.74,.2).normalize();
 const SUN_COLOR=new T.Color(1,.84,.58);
-/** Every other right-side window, so each shaft reads on its own; the bays by the organ and rear gallery stay plain. */
-export const SUN_WINDOWS=H.bayCenters.filter(z=>[-18,-6,6,18,30].includes(z)).map(z=>new T.Vector3(WALL_DATUM.halfWidth-.2,WALL_LEVELS.window+2.9,z));
+/** Every other right-side window, away from the stage, so each shaft reads on its own and never veils the orchestra. */
+export const SUN_WINDOWS=H.bayCenters.filter(z=>[-6,6,18,30].includes(z)).map(z=>new T.Vector3(WALL_DATUM.halfWidth-.2,WALL_LEVELS.window+2.9,z));
 const DUST_PER_BEAM=16;
 
 /** Where a shaft from this window reaches the parterre floor. */
@@ -26,8 +26,8 @@ void main(){
  // Window bars cast faint darker bands, and the air drifts slowly through the light.
  float bars=0.94+0.06*smoothstep(0.15,0.35,abs(fract(vUv.x*4.0)-0.5));
  float drift=0.92+0.08*sin(along*14.0-time*0.45+vSeed*7.0)*sin(vUv.x*18.85+time*0.2+vSeed*3.0);
- // Fade out when the camera is inside or right next to a shaft, and never burn to white.
- float a=min(strength*fade*edge*bars*drift*smoothstep(4.0,18.0,length(vView)),0.13);
+ // Fade out right next to a shaft and far away, so distant shafts never stack up over the stage.
+ float a=min(strength*fade*edge*bars*drift*smoothstep(2.5,9.0,length(vView))*(1.0-smoothstep(16.0,30.0,length(vView))),0.13);
  gl_FragColor=vec4(color*a,1.0);
 }`,
 });

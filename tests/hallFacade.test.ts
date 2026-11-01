@@ -73,8 +73,8 @@ test('stair doors stand open on both floors and a tappable arrow lies in front o
  const {buildStairArrows,STAIR_ARROWS}=await import('../src/scene/StairArrows');
  const scene=new T.Scene(),facade=rearFacade(scene);let open=0,leaves=0;facade.traverse(o=>{if(o.userData.open)open++;if(o.userData.landmark==='open-door-leaf')leaves++;});
  assert.equal(open,2,'both parterre stair doors are open');assert.equal(leaves,8,'two leaves on each of the four stair doors');
- const arrows=buildStairArrows(scene);assert.equal(arrows.targets.length,4);arrows.update(1);
+ const arrows=buildStairArrows(scene);assert.equal(arrows.targets.length,5);assert.equal(arrows.targets.filter(t=>t.userData.lobbyExit).length,1);arrows.update(1);
  for(const a of STAIR_ARROWS){const door=stairPoint(a.side,!a.up);assert.ok(walkable('auditorium',{x:a.x,y:a.up?0:H.balconyHeight,z:a.z}),'arrow lies on a walkable floor');
   assert.ok(Math.abs(a.x-door.x)<.01&&a.z<door.z&&door.z-a.z<2,'arrow sits just in front of its door');}
- for(const t of arrows.targets)assert.ok(t.userData.stairSide===-1||t.userData.stairSide===1);
+ for(const t of arrows.targets)assert.ok(t.userData.lobbyExit||t.userData.stairSide===-1||t.userData.stairSide===1);
 });

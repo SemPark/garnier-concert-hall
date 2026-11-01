@@ -23,7 +23,8 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean){
  const write=(camera?:T.Camera)=>{
   let changed=!initialized;const eye=camera?.position;if(camera){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));}
   for(const item of items){if(dynamic){item.matrix.copy(item.mesh.matrixWorld);item.center.copy(geometry.boundingSphere!.center).applyMatrix4(item.matrix);item.radius=geometry.boundingSphere!.radius*item.matrix.getMaxScaleOnAxis();}
-   const focus=scene.userData.cameraFocus as T.Vector3|undefined;let occluded=false;if(eye&&focus&&item.occluder){occlusionRay.origin.copy(eye);occlusionRay.direction.copy(focus).sub(eye);const length=occlusionRay.direction.length();occlusionRay.direction.normalize();const hit=occlusionRay.intersectBox(item.occluder,intersection);occluded=item.occluder.containsPoint(eye)||!!hit&&eye.distanceTo(hit)<Math.min(3,length-.05);}
+   const focus=scene.userData.cameraFocus as T.Vector3|undefined;let occluded=false;if(eye&&focus&&item.occluder){occlusionRay.origin.copy(eye);occlusionRay.direction.copy(focus).sub(eye);const length=occlusionRay.direction.length();occlusionRay.direction.normalize();const hit=occlusionRay.intersectBox(item.occluder,intersection);// Decoration right beside the camera, or between it and the visitor, steps aside so it never fills the view.
+   occluded=item.occluder.distanceToPoint(eye)<1.1||!!hit&&eye.distanceTo(hit)<Math.min(5,length-.05);}
    const distance=eye?item.center.distanceTo(eye):0,nearLimit=item.level===0?LOD_NEAR+1.5:LOD_NEAR-1.5,level=distance<nearLimit?0:1,shown=!occluded&&distance<=item.limit&&distance>=item.min&&(!camera||frustum.intersectsSphere(sphere.set(item.center,item.radius+.3)));
    if(level!==item.level||shown!==item.shown)changed=true;item.level=level;item.shown=shown;
   }

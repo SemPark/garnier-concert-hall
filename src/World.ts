@@ -88,7 +88,8 @@ export class World{
  gestureAction(gesture:Gesture){this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});}
  private click(x:number,y:number){if(!this.entered||this.climb)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
   const hits=this.ray.intersectObjects([...(this.venue.stairArrows?.targets??[]),...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);if(!hits.length)return;const hit=hits[0];
-  if(hit.object.userData.stairSide){this.useStair(hit.object.userData.stairSide,hit.object.userData.stairUp);return;}let obj:T.Object3D|null=hit.object,seatId:string|undefined;while(obj){seatId=seatId??obj.userData.seatId;if(obj.userData.portal){this.changeZone();return;}obj=obj.parent;}
+  if(hit.object.userData.stairSide){this.useStair(hit.object.userData.stairSide,hit.object.userData.stairUp);return;}
+  if(hit.object.userData.lobbyExit){this.changeZone();return;}let obj:T.Object3D|null=hit.object,seatId:string|undefined;while(obj){seatId=seatId??obj.userData.seatId;if(obj.userData.portal){this.changeZone();return;}obj=obj.parent;}
   if(seatId){void this.chooseSeat(seatId);return;}
   if(this.pose==='sit'){this.stand();return;}
   const point={x:hit.point.x,y:surfaceHeight(this.zone,hit.point,hit.point.y)??hit.point.y,z:hit.point.z};if(this.zone==='lobby'&&point.z<-15&&Math.abs(point.x)<2){this.changeZone();return;}
@@ -113,7 +114,8 @@ export class World{
    return {look:center,position};
   }
   const local=localCameraFrame(this.position,sitting,this.cameraYaw,this.cameraPitch,d),target=local.position;look.copy(local.look);
-  if(this.zone==='auditorium'){target.z=Math.min(target.z,GOLDEN_HALL.rear-1);target.x=T.MathUtils.clamp(target.x,-15.4,15.4);}
+  // On the parterre keep the camera clear of the carved wall bays; the gallery walkway needs the full width.
+  if(this.zone==='auditorium'){target.z=Math.min(target.z,GOLDEN_HALL.rear-1);const limit=this.position.y<GOLDEN_HALL.balconyHeight-1?14.4:15.4;target.x=T.MathUtils.clamp(target.x,-limit,limit);}
   return {look,position:constrainCamera(local.origin,target,this.venue.cameraWalls)};
  }
  /** Reaction icons float above every visible visitor's head, with a short pop when they appear. */

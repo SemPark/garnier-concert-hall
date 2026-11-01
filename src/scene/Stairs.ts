@@ -25,7 +25,7 @@ function corridor(scene:T.Scene,side:number){
  const leaf=(x:number,y:number,w:number,h:number)=>{
   for(const s of [-1,1])box(root,[.15,h+.2,.08],[X(x)+s*(w/2+.075),y+(h+.2)/2,C.front+.12],COLOR.ivory);box(root,[w+.3,.2,.08],[X(x),y+h+.1,C.front+.12],COLOR.ivory);
   // Threshold bridging the wall thickness between the hall floor and the corridor.
-  box(root,[w,.06,.8],[X(x),y-.03,H.rear],0x6b4a30);
+  box(root,[w-.02,.06,.9],[X(x),y-.02,H.rear+.05],0x6b4a30);
  };
  leaf(STAIR_DOORS.lower.x,0,3.8,6.55);leaf(STAIR_DOORS.upper.x,H.balconyHeight,2.15,5.25);
  // One straight walnut flight against the back wall, rising away from the centre.
@@ -33,20 +33,20 @@ function corridor(scene:T.Scene,side:number){
  for(let i=0;i<C.steps;i++){
   const top=(i+1)*rise,x=C.flightStart+(i+.5)*run;
   const tread=box(root,[run+.02,.09,C.flightWidth],[X(x),top-.045,C.flightZ],0x875c36);tread.material=hallImageMaterial('walnut');tread.userData.landmark='stair-tread';
-  box(root,[.04,rise,C.flightWidth],[X(C.flightStart+i*run),top-rise/2,C.flightZ],0x503824);
+  box(root,[.04,rise-.01,C.flightWidth-.03],[X(C.flightStart+i*run),top-rise/2-.005,C.flightZ],0x503824);
  }
  // A closed stringer below the flight, so the treads read as a solid stair from the passage.
  const slope=new T.Mesh(new T.BoxGeometry(1,1,1),new T.MeshLambertMaterial({color:0xcbb68f}));
- const length=Math.hypot(C.flightEnd-C.flightStart,H.balconyHeight);slope.scale.set(length,.3,C.flightWidth);
+ const length=Math.hypot(C.flightEnd-C.flightStart,H.balconyHeight);slope.scale.set(length,.3,C.flightWidth-.07);
  slope.position.set(X((C.flightStart+C.flightEnd)/2),H.balconyHeight/2-.3,C.flightZ);slope.rotation.z=side*Math.atan2(H.balconyHeight,C.flightEnd-C.flightStart);root.add(slope);
  // Upper landing in front of the gallery doorway.
- box(root,[C.outerX-C.flightEnd,.3,depth],[X((C.flightEnd+C.outerX)/2),H.balconyHeight-.15,midZ],0x9a7148).material=hallImageMaterial('walnut');
+ box(root,[C.outerX-C.landingX,.3,depth-.02],[X((C.landingX+C.outerX)/2),H.balconyHeight-.152,midZ],0x9a7148).material=hallImageMaterial('walnut');
  // Handrail with slim balusters along the open side of the flight, and a guard at the landing edge.
  const railZ=C.flightZ-C.flightWidth/2-.03,rail=GALLERY_RAIL_HEIGHT;
  const handrail=line(root,new T.Vector3(X(C.flightStart),rail,railZ),new T.Vector3(X(C.flightEnd),H.balconyHeight+rail,railZ),.04,0x5c3b24);handrail.userData.landmark='stair-handrail';
  for(let i=0;i<=C.steps;i+=2){const x=C.flightStart+i*run,h=corridorStairHeight(x);cylinder(root,.016,rail,[X(x),h+rail/2,railZ],0x353027);}
- line(root,new T.Vector3(X(C.flightEnd),H.balconyHeight+rail,C.front+.2),new T.Vector3(X(C.flightEnd),H.balconyHeight+rail,railZ),.04,0x5c3b24);
- for(let z=C.front+.3;z<railZ;z+=.35)cylinder(root,.016,rail,[X(C.flightEnd),H.balconyHeight+rail/2,z],0x353027);
+ line(root,new T.Vector3(X(C.landingX+.05),H.balconyHeight+rail,C.front+.2),new T.Vector3(X(C.landingX+.05),H.balconyHeight+rail,railZ),.04,0x5c3b24);
+ for(let z=C.front+.3;z<railZ;z+=.35)cylinder(root,.016,rail,[X(C.landingX+.05),H.balconyHeight+rail/2,z],0x353027);
  // Warm wall lamps light the climb.
  const lamp=new T.MeshLambertMaterial({color:0xffe7bd,emissive:0xffd9a0,emissiveIntensity:.9});
  for(const [x,y]of [[4,3.2],[8.5,6.2],[12.5,10.4],[6,3.2]])sphere(root,.16,[X(x),y,C.back-.2],0xffefd4).material=lamp;
