@@ -129,3 +129,8 @@ button.brand .brand-sub{font-size:12px;letter-spacing:1px;color:#f3e7cc;margin-t
 .toast{top:auto!important;bottom:128px!important}
 @media(max-width:900px){.now-playing,.compact-music{top:72px!important;left:20px!important}}
 @media(max-width:540px){.now-playing,.compact-music{top:62px!important;left:17px!important}.toast{bottom:112px!important}}
+
+/* Seat grades: one colour per price zone; selected, mine and occupied still win. */
+.ticket-seat.grade-R{background:#a8323e;border-color:#7d222c}.ticket-seat.grade-S{background:#6d4aa0;border-color:#4f3478}.ticket-seat.grade-A{background:#2f6db0;border-color:#225186}.ticket-seat.grade-B{background:#d08a2e;border-color:#a06420}.ticket-seat.grade-C{background:#7d8691;border-color:#5d656e}
+.ticket-seat.selected{background:#1d1a16!important;outline:3px solid #e7b73b}.ticket-seat.mine{background:#32816e!important}.ticket-seat.occupied{background:#d3cec3!important}
+.ticket-legend .grade i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}.ticket-legend .grade-R i{background:#a8323e}.ticket-legend .grade-S i{background:#6d4aa0}.ticket-legend .grade-A i{background:#2f6db0}.ticket-legend .grade-B i{background:#d08a2e}.ticket-legend .grade-C i{background:#7d8691}

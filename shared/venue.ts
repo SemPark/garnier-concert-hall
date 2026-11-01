@@ -28,6 +28,18 @@ export const CAPACITY=SEATS.length;
 /** Gallery seats are numbered 1, 2, 3… along each side, from the stage end towards the back. */
 const BALCONY_NUMBER=new Map([-1,1].flatMap(side=>BALCONY_SEATS.filter(s=>Math.sign(s.x)===side).sort((a,b)=>a.z-b.z).map((s,i)=>[s.id,i+1] as const)));
 export function seatNumber(s:Seat){return s.level==='parterre'?s.column:BALCONY_NUMBER.get(s.id)!;}
+export type SeatGrade='R'|'S'|'A'|'B'|'C';
+export const SEAT_GRADES:SeatGrade[]=['R','S','A','B','C'];
+const balconyMid=(()=>{const z=BALCONY_SEATS.map(s=>s.z).sort((a,b)=>a-b);return z[Math.floor(z.length/2)];})();
+/** Price zones run in arcs around the front of the stage, as in real halls: R from the front rows, then S, then A at the back;
+ * seats further to the side drop sooner. The balcony half nearer the stage is B, the rear C. */
+export function seatGrade(s:Seat):SeatGrade{
+ if(s.level==='balcony')return s.z<balconyMid?'B':'C';
+ const d=Math.hypot(s.x*1.35,s.z+9.2);
+ if(d<20)return 'R';
+ if(d<40)return 'S';
+ return 'A';
+}
 export function seatLabel(s:Seat){return s.level==='parterre'?`1층 ${s.row}열 ${s.column}번`:`2층 ${s.x<0?'왼쪽':'오른쪽'} ${seatNumber(s)}번`;}
 /** The parterre runs right up to the stage lip (stage front is z -9.5). */
 export const STAGE_APRON_Z=-9.2;
