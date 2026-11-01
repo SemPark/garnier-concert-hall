@@ -4,9 +4,10 @@ export const ORGAN_RAIL_JOIN_X=12.5;
 export const ORGAN_RAIL_POST_HALF=.28;
 export function organBalconyFront(x:number){
  const a=Math.abs(x);
- if(a<=4.3)return 7.2+1.8*Math.cos(a/4.3*Math.PI/2)**2;
- if(a<=12.3)return 7.2+.9*Math.sin((a-4.3)/8*Math.PI)**2;
- const t=Math.min(1,(a-12.3)/3.05);return 7.2-4.1*t*t*(3-2*t);
+ // A shallow loft, as in the hall: the console stands right at the organ and the rail is just in front.
+ if(a<=4.3)return 3.4+1.8*Math.cos(a/4.3*Math.PI/2)**2;
+ if(a<=12.3)return 3.4+.9*Math.sin((a-4.3)/8*Math.PI)**2;
+ const t=Math.min(1,(a-12.3)/3.05);return 3.4-.3*t*t*(3-2*t);
 }
 export const ORGAN_RAIL_JOIN_Z=ORGAN_LOFT_BACK+organBalconyFront(ORGAN_RAIL_JOIN_X);
 /** Every adjoining slab and rail uses these exact vertices, including the joins. */

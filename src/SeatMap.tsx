@@ -8,10 +8,7 @@ export function SeatMap({claims,selfId,connected,onClose,onChoose}:{claims:Recor
  const [measured,setMeasured]=useState(false),[selected,setSelected]=useState<Seat|null>(null),[zoom,setZoom]=useState(1),[fit,setFit]=useState(.5);
  const viewport=useRef<HTMLDivElement>(null),dialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{dialog.current?.showModal();const el=viewport.current!;const resize=new ResizeObserver(()=>{if(el.clientWidth<40||el.clientHeight<40)return;setFit(Math.min((el.clientWidth-20)/SEAT_MAP_SIZE.width,(el.clientHeight-20)/SEAT_MAP_SIZE.height));setMeasured(true);});resize.observe(el);return()=>resize.disconnect();},[]);
- // Open at full width, scrolled to the first parterre rows, so seats can be picked straight away.
- const opened=useRef(false);
- useEffect(()=>{const el=viewport.current;if(opened.current||!el||!measured)return;opened.current=true;const widthFit=(el.clientWidth-20)/SEAT_MAP_SIZE.width,z=Math.min(4,Math.max(1,widthFit/fit));setZoom(z);
-  requestAnimationFrame(()=>requestAnimationFrame(()=>el.scrollTo({top:Math.max(0,(M.floorTop-30)*fit*z),left:0})));},[fit,measured]);
+ // Opens showing the whole hall (zoom 1 = the full map fits); zoom in from there.
  const scale=fit*zoom,available=selected&&(!claims[selected.id]||claims[selected.id].visitorId===selfId);
  return <dialog ref={dialog} className="ticket-dialog" onCancel={e=>{e.preventDefault();onClose();}} aria-label="전체 좌석 선택">
   <div className="ticket-heading"><div><h2>나의 자리</h2><p>전체 {SEATS.length}석 · 1층 {FLOOR_SEATS.length}석 / 2층 {BALCONY_SEATS.length}석</p></div><button autoFocus onClick={onClose} aria-label="좌석 선택 닫기">✕</button></div>

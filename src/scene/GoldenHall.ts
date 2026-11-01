@@ -13,7 +13,7 @@ const P={ivory:0xe8d6ac,gold:0xc69b49,light:0xe7c77a,deep:0x8e622a,wood:0x945d30
 const cylinderCache=new Map<string,T.BufferGeometry>();
 function profile(top:number,bottom:number,height:number){const key=`${top}/${bottom}/${height}`;let g=cylinderCache.get(key);if(!g){g=new T.CylinderGeometry(top,bottom,height,12);cylinderCache.set(key,g);}return g;}
 function frustum(parent:T.Object3D,top:number,bottom:number,h:number,pos:number[],color:number){const mesh=new T.Mesh(profile(top,bottom,h),material(color,.35));mesh.position.set(...pos as [number,number,number]);parent.add(mesh);return mesh;}
-function cornice(g:T.Object3D,width:number,y:number,z:number){for(const [dy,depth,h]of [[0,.38,.13],[.18,.54,.18],[.38,.72,.12]])box(g,[width,h,depth],[0,y+dy,z],P.light);for(let x=-width/2+.12;x<width/2;x+=.36)box(g,[.13,.18,.25],[x,y-.16,z+.16],P.gold);}
+function cornice(g:T.Object3D,width:number,y:number,z:number,color:number=P.light){for(const [dy,depth,h]of [[0,.38,.13],[.18,.54,.18],[.38,.72,.12]])box(g,[width,h,depth],[0,y+dy,z],color);for(let x=-width/2+.12;x<width/2;x+=.36)box(g,[.13,.18,.25],[x,y-.16,z+.16],P.gold);}
 function rosette(g:T.Object3D,x:number,y:number,z:number,size=.12){const center=sphere(g,size,[x,y,z],P.light);center.scale.z*=.45;for(let i=0;i<6;i++){const a=i/6*Math.PI*2;sphere(g,size*.62,[x+Math.cos(a)*size,y+Math.sin(a)*size,z],P.gold).scale.z*=.35;}}
 function gildedColumn(g:T.Object3D,x:number,y:number,h:number,r=.27){
  cylinder(g,r*1.7,.18,[x,y+.09,.1],P.deep);cylinder(g,r*1.45,.17,[x,y+.25,.1],P.light);cylinder(g,r,h-.9,[x,y+h/2,.1],P.gold);
@@ -45,9 +45,11 @@ function archedWindow(g:T.Object3D,y:number,blind=false){
  else{for(const x of [-1.38,1.38])box(g,[.09,4.6,.1],[x,y+2.225,.18],0x874537);const rim=new T.Mesh(archGeometry,material(0x874537));rim.position.set(0,y+4.45,.14);rim.scale.set(1.12,1.12,1);g.add(rim);}
  g.traverse(o=>{if(o instanceof T.Mesh)o.userData.fullDetail=true;});
 }
-export function balustrade(g:T.Object3D,width:number,ornament:T.Material|null=friezeMaterial(),posts=true){
+let gildedFrieze:T.Material|null=null;
+// Gallery fronts are gilded relief, as in the hall: the scroll frieze is tinted gold and framed in gold.
+export function balustrade(g:T.Object3D,width:number,ornament:T.Material|null=(gildedFrieze??=(()=>{const m=friezeMaterial().clone() as T.MeshLambertMaterial;m.color.set(0xe2b866);return m;})()),posts=true){
  g.scale.y=GALLERY_RAIL_HEIGHT/1.58;
- box(g,[width,1.4,.22],[0,.78,.4],P.deep);box(g,[width,.12,.5],[0,.08,.43],P.light);box(g,[width,.17,.42],[0,1.48,.45],P.light);
+ box(g,[width,1.4,.22],[0,.78,.4],P.gold);box(g,[width,.12,.5],[0,.08,.43],P.gold);box(g,[width,.17,.42],[0,1.48,.45],P.gold);
  if(ornament){const count=Math.max(1,Math.ceil(width/2.1));for(let i=0;i<count;i++){const face=new T.Mesh(friezePlane,ornament);face.scale.set(width/count,1.14,1);face.position.set(-width/2+(i+.5)*width/count,.79,.525);g.add(face);}}
  if(posts)for(let x=-width/2;x<=width/2+.01;x+=2.4)box(g,[.075,1.25,.1],[x,.78,.55],P.light);
 }
@@ -56,48 +58,64 @@ export function buildFrontWindows(scene:T.Scene){
  const row=new T.Group();row.position.z=WALL_DATUM.front;row.userData.landmark='front-window-row';scene.add(row);
  for(const x of FRONT_WINDOW_AXES){const bay=new T.Group();bay.position.x=x;bay.userData.landmark='front-window';row.add(bay);archedWindow(bay,WALL_LEVELS.window,true);}
 }
-export const ORGAN_CASE={width:23,back:ORGAN_LOFT_BACK,bankDepth:[1.3,1.85,1.3],frameDepth:3.3,loftHeight:H.balconyHeight} as const;
+export const ORGAN_CASE={width:23,back:ORGAN_LOFT_BACK,bankDepth:[.4,.44,.4],frameDepth:1.4,loftHeight:H.balconyHeight} as const;
 function loftSlab(g:T.Group,thickness:number,y:number,inset=0){
  const outline=new T.Shape();outline.moveTo(-15.35,.05);outline.lineTo(15.35,.05);
  for(const p of [...ORGAN_LOFT_CONTOUR].reverse())outline.lineTo(p.x,p.z-inset);outline.closePath();
  const mesh=new T.Mesh(new T.ExtrudeGeometry(outline,{depth:thickness,bevelEnabled:false,curveSegments:1}),material(P.light));mesh.rotation.x=Math.PI/2;mesh.position.y=y;mesh.userData.fullDetail=true;g.add(mesh);return mesh;
 }
-/** Deep, freestanding casework over a real projecting organ loft. */
+/** Shallow casework laid flat against the front wall, as in the hall; only the loft projects. */
 export function buildOrgan(scene:T.Scene,ornament:T.Material=friezeMaterial()){
  const g=new T.Group();g.position.z=ORGAN_CASE.back;g.userData.landmark='pipe-organ';scene.add(g);
- const back=box(g,[ORGAN_CASE.width,13.3,.42],[0,16.1,.28],0xb39b72);back.userData.landmark='organ-case-back';
- const banks=[{x:-8.05,w:4.55,count:19},{x:0,w:4.7,count:25},{x:8.05,w:4.55,count:19}];
+ const back=box(g,[ORGAN_CASE.width,13.3,.42],[0,16.1,-.05],P.gold);back.userData.landmark='organ-case-back';
+ // Thirteen broad pipes in each field, as in the hall.
+ const banks=[{x:-8.05,w:4.55,count:13},{x:0,w:4.7,count:13},{x:8.05,w:4.55,count:13}];
  banks.forEach(({x,w,count},bank)=>{
   const chamber=new T.Group();chamber.userData.landmark='organ-pipe-chamber';g.add(chamber);
-  box(chamber,[w,11.2,.16],[x,15.85,.58],0x222722);
+  box(chamber,[w,8.55,.06],[x,17.22,.22],0x222722);
   // Recess floors and side returns remain visible from oblique views.
-  box(chamber,[w,.22,2.25],[x,10.24,1.66],P.deep);box(chamber,[w,.25,2.4],[x,21.65,1.72],P.deep);
-  for(const side of [-1,1])box(chamber,[.18,11.6,2.25],[x+side*w/2,15.95,1.66],0x90703e);
+  box(chamber,[w,.22,.9],[x,12.95,.65],P.deep);box(chamber,[w,.25,.95],[x,21.65,.68],P.deep);
+  for(const side of [-1,1])box(chamber,[.18,8.7,.9],[x+side*w/2,17.25,.65],P.gold);
   for(let i=0;i<count;i++){
-   const u=i/(count-1)*2-1,xx=x+u*(w/2-.19),bottom=10.75+1.5*Math.abs(u)**1.8,top=21.5,r=Math.min(.12,w/count*.4),z=ORGAN_CASE.bankDepth[bank]+.3*(1-u*u);
-   const pipe=cylinder(chamber,r,top-bottom-.45,[xx,(top+bottom+.45)/2,z],0xbec6c5);pipe.material=material(0xbec8cb,.68,.34);pipe.userData.fullDetail=true;pipe.userData.organPipe=true;
-   frustum(chamber,r,r*.32,.45,[xx,bottom+.225,z],0xaeb8b7).userData.fullDetail=true;
-   cylinder(chamber,r*1.08,.065,[xx,top,z],0xe0e3d9).userData.fullDetail=true;
-   box(chamber,[r*1.6,.13,.045],[xx,bottom+.6,z+r],0x283131).userData.fullDetail=true;
-   box(chamber,[r*1.8,.045,.06],[xx,bottom+.5,z+r+.015],0xe3e5d9).userData.fullDetail=true;
+   // The mouths form a V across the field (low in the middle); below them every pipe narrows into a long
+   // conical foot that runs down to the common sill, so the feet gather in a fan, as in the hall.
+   const u=i/(count-1)*2-1,xx=x+u*(w/2-.19),sill=13.06,bottom=13.75+1.7*Math.abs(u),top=21.5,r=Math.min(.16,w/count*.46),z=ORGAN_CASE.bankDepth[bank]+.1*(1-u*u),foot=bottom-sill;
+   const pipe=cylinder(chamber,r,top-bottom,[xx,(top+bottom)/2,z],0xbec6c5);pipe.material=material(0x8f989c,.75,.38);pipe.userData.fullDetail=true;pipe.userData.organPipe=true;
+   frustum(chamber,r,r*.28,foot,[xx,sill+foot/2,z],0x7f878a).userData.fullDetail=true;
+   cylinder(chamber,r*1.08,.065,[xx,top,z],0xa9b0b2).userData.fullDetail=true;
+   box(chamber,[r*1.6,.13,.045],[xx,bottom+.15,z+r],0x283131).userData.fullDetail=true;
+   box(chamber,[r*1.8,.045,.06],[xx,bottom+.05,z+r+.015],0xe3e5d9).userData.fullDetail=true;
   }
  });
- for(const x of [-4.125,4.125]){box(g,[1.8,12.5,3.05],[x,16.1,1.72],P.ivory);const panel=new T.Group();panel.position.set(x,0,2.85);g.add(panel);wallPanel(panel,0,16.1,1.4,10.7);}
+ // Between each pair of herms: a narrow cream panel in a red-brown frame, set in gilded casework.
+ for(const x of [-4.125,4.125]){box(g,[1.8,12.5,1.2],[x,16.1,.7],P.gold);const panel=new T.Group();panel.position.set(x,0,1.32);g.add(panel);wallPanel(panel,0,16.5,1.15,9.6,false);}
  for(const x of [-10.85,-5.25,-3,3,5.25,10.85]){
-  const pier=box(g,[.72,12.5,3.05],[x,16.1,1.72],P.ivory);pier.userData.landmark='organ-case-pier';
-  for(const side of [-1,1])box(g,[.07,12.35,.15],[x+side*.34,16.1,3.29],0x874537);
-  const column=new T.Group();column.position.z=ORGAN_CASE.frameDepth;g.add(column);gildedColumn(column,x,9.8,12.7,.23);
-  const figure=new T.Group();figure.position.set(x,15.4,3.45);figure.scale.set(.50,.85,.5);g.add(figure);caryatid(figure);
+  // Gilded herm pilasters between the pipe fields, as in the hall.
+  const pier=box(g,[.72,12.5,1.2],[x,16.1,.7],P.gold);pier.userData.landmark='organ-case-pier';
+  // A full-height gilded herm figure stands on each pedestal and carries the entablature, as in the photos.
+  // Herm: a gilded half-figure on a shaft that tapers toward its carved pedestal.
+  frustum(g,.36,.2,3.3,[x,14.65,1.75],P.gold);box(g,[.9,.3,.5],[x,13.05,1.75],P.gold);
+  const figure=new T.Group();figure.position.set(x,16.3,1.45);figure.scale.set(.9,.93,.9);figure.userData.landmark='organ-herm';g.add(figure);caryatid(figure);
  }
  // The overhanging cornice and pediment have deep side faces, not a flat signboard.
- box(g,[23.8,.45,3.9],[0,22.05,1.95],P.gold);box(g,[23.3,.2,3.7],[0,21.72,1.9],P.light);cornice(g,24,22.2,3.92);
- box(g,[23.3,.44,3.7],[0,9.74,1.9],P.light);
+ box(g,[23.8,.45,1.7],[0,22.05,.85],P.gold);box(g,[23.3,.2,1.5],[0,21.72,.75],P.gold);cornice(g,24,22.2,1.7,P.gold);
+ // The frieze carries the society's name in gilt letters.
+ text(g,'GESELLSCHAFT DER MUSIKFREUNDE',7.6,[0,22.05,1.715],'#f3dc9c');
+ // Below the pipes, as in the hall: a row of framed cream panels behind the console, leaving room above it,
+ // then a projecting gilded ledge; the herm pedestals and the pipes stand on that ledge.
+ box(g,[23.3,3.3,1.2],[0,9.95,.6],P.gold);
+ {const herms=[-11.65,-10.85,-5.25,-3,3,5.25,10.85,11.65],low=new T.Group();low.position.set(0,0,1.04);g.add(low);
+  for(let i=1;i<herms.length-2;i++){const a=herms[i],b=herms[i+1];wallPanel(low,(a+b)/2,9.95,b-a-.95,2.6,false);}
+  // A gilded pilaster under every herm, so each upper column carries down to the loft floor.
+  for(const x of herms.slice(1,-1)){box(g,[.75,3.3,1.45],[x,9.95,.72],P.gold);box(g,[.5,2.7,.06],[x,9.95,1.47],0xb0863e);box(g,[.95,.22,1.55],[x,8.42,.78],P.gold);}}
+ box(g,[24,.32,2.3],[0,11.75,1.15],P.gold);box(g,[23.6,.16,2.1],[0,11.53,1.05],0xb0863e);box(g,[23.3,.5,1.5],[0,12.1,.75],P.gold);
+ for(const x of [-10.85,-5.25,-3,3,5.25,10.85]){box(g,[1.05,1.1,1.6],[x,12.4,.8],P.gold);box(g,[.8,.75,.06],[x,12.4,1.62],0xb0863e);}
  const triangle=new T.Shape();triangle.moveTo(-9.5,0);triangle.lineTo(0,2.25);triangle.lineTo(9.5,0);triangle.closePath();
- const pediment=new T.Mesh(new T.ExtrudeGeometry(triangle,{depth:3.35,bevelEnabled:false}),material(P.gold));pediment.position.set(0,22.85,.45);pediment.userData.landmark='organ-pediment';g.add(pediment);
- const tympanum=new T.Shape();tympanum.moveTo(-7.9,.25);tympanum.lineTo(0,1.88);tympanum.lineTo(7.9,.25);tympanum.closePath();const inset=new T.Mesh(new T.ExtrudeGeometry(tympanum,{depth:.08,bevelEnabled:false}),material(0xb79050));inset.position.set(0,22.85,3.84);g.add(inset);
- for(const side of [-1,1]){line(g,new T.Vector3(side*9.65,22.86,3.98),new T.Vector3(0,25.18,3.98),.095,P.light);line(g,new T.Vector3(side*8.0,23.1,4),new T.Vector3(0,24.78,4),.04,P.light);}
- rosette(g,0,23.72,4.04,.3);
- for(const x of [-8,-5,0,5,8]){const y=23.15+(x===0?2.15:.28),figure=new T.Group();figure.position.set(x,y,3.45);g.add(figure);sphere(figure,.2,[0,.45,0],P.ivory);frustum(figure,.16,.34,.65,[0,0,0],P.ivory);for(const side of [-1,1])line(figure,new T.Vector3(side*.15,.15,0),new T.Vector3(side*.48,-.05,.04),.065,P.ivory);}
+ const pediment=new T.Mesh(new T.ExtrudeGeometry(triangle,{depth:3.35,bevelEnabled:false}),material(P.gold));pediment.position.set(0,22.85,.45);pediment.scale.z=1.25/3.35;pediment.userData.landmark='organ-pediment';g.add(pediment);
+ const tympanum=new T.Shape();tympanum.moveTo(-7.9,.25);tympanum.lineTo(0,1.88);tympanum.lineTo(7.9,.25);tympanum.closePath();const inset=new T.Mesh(new T.ExtrudeGeometry(tympanum,{depth:.08,bevelEnabled:false}),material(0xb79050));inset.position.set(0,22.85,1.72);g.add(inset);
+ for(const side of [-1,1]){line(g,new T.Vector3(side*9.65,22.86,1.86),new T.Vector3(0,25.18,1.86),.12,P.gold);line(g,new T.Vector3(side*8.0,23.1,1.88),new T.Vector3(0,24.78,1.88),.05,0xb0863e);}
+ rosette(g,0,23.72,1.92,.3);
+ for(const x of [-8,-5,0,5,8]){const y=23.15+(x===0?2.15:.28),figure=new T.Group();figure.position.set(x,y,1.3);figure.scale.setScalar(1.7);g.add(figure);sphere(figure,.2,[0,.45,0],P.ivory);frustum(figure,.16,.34,.65,[0,0,0],P.ivory);for(const side of [-1,1])line(figure,new T.Vector3(side*.15,.15,0),new T.Vector3(side*.48,-.05,.04),.065,P.ivory);}
  // The loft has its own slab, rounded apron and supporting brackets. Its wings
  // meet the existing galleries at the same 8.3-unit floor elevation.
  const floor=loftSlab(g,.48,H.balconyHeight);floor.userData.landmark='organ-loft-floor';floor.material=material(0xc39a59);applyWoodSurface(floor,'oak',true);
@@ -124,7 +142,7 @@ export function buildOrgan(scene:T.Scene,ornament:T.Material=friezeMaterial()){
 }
 
 function buildOrganConsole(parent:T.Group){
- const g=new T.Group();g.position.set(0,H.balconyHeight,4.7);g.userData.landmark='organ-console';parent.add(g);
+ const g=new T.Group();g.position.set(0,H.balconyHeight,2.25);g.userData.landmark='organ-console';parent.add(g);
  const wood=0x583a24,trim=0x9d6c36;
  box(g,[3.6,.16,1.25],[0,.08,0],wood);box(g,[3.3,1.75,.15],[0,1.03,-.48],wood);
  for(const side of [-1,1]){box(g,[.22,1.85,1.18],[side*1.72,1,.05],wood);box(g,[.48,1.05,.14],[side*1.42,1.45,.42],trim);}
@@ -151,13 +169,13 @@ function wallPanel(g:T.Object3D,x:number,y:number,w:number,h:number,relief=true)
  frame.traverse(o=>{if(o instanceof T.Mesh)o.userData.fullDetail=true;});
 }
 function sideBayDetails(g:T.Object3D){
- // Narrow marble-red pilasters carry chased gold inlays, as in the 360 reference.
+ // Broad dark-red marble pilasters with chased gold inlays, as in the hall photos.
  for(const side of [-1,1]){
-  const x=side*2.74;box(g,[.30,8.7,.18],[x,13.65,.28],0x9d6450);
-  hallImage(g,'pilaster',.22,7.8,x,13.6,.405);
-  hallImage(g,'pilaster',.32,6.5,x,23.2,.405);
-  box(g,[.55,.23,.36],[x,18.05,.3],P.light);
-  box(g,[.58,.18,.32],[x,9.15,.3],P.light);
+  const x=side*2.74;box(g,[.8,8.7,.18],[x,13.65,.28],0x7a3a2c);box(g,[.8,6.9,.18],[x,23.2,.28],0x7a3a2c);
+  hallImage(g,'pilaster',.56,7.8,x,13.6,.405);
+  hallImage(g,'pilaster',.62,6.5,x,23.2,.405);
+  box(g,[1.0,.23,.36],[x,18.05,.3],P.gold);
+  box(g,[1.0,.18,.32],[x,9.15,.3],P.gold);
  }
  // Door-top sculpture and circular portrait medallions replace the empty upper panel.
  for(const side of [-1,1]){const x=side*2.65;const medallion=cylinder(g,.43,.1,[x,16.55,.42],0xb17843);medallion.rotation.x=Math.PI/2;whiteFigure(g,x,16.45);}

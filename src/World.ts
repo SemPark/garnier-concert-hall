@@ -134,7 +134,7 @@ export class World{
   const sitting=this.pose==='sit',baseY=(sitting?2.05:1.05)+this.position.y,look=new T.Vector3(this.position.x,baseY,this.position.z-1.5),d=this.cameraDistance;
   if(!this.entered){return {look:new T.Vector3(0,5,-8),position:new T.Vector3(3.7,4.2,13.5)};}
   // Inside the corridor stair: watch the climb from the passage side, kept within the stairwell walls.
-  if(this.climb||this.position.z>GOLDEN_HALL.rear){const c=STAIR_CORRIDOR,side=this.position.x<0?-1:1,ahead=this.climb?.up===false?1:-1;
+  if(this.position.z>GOLDEN_HALL.rear){const c=STAIR_CORRIDOR,side=this.position.x<0?-1:1,ahead=this.climb?.up===false?1:-1;
    const x=side*T.MathUtils.clamp(Math.abs(this.position.x)+ahead*2.2,c.innerX+.5,c.outerX-.5),y=T.MathUtils.clamp(this.position.y+2.1,1.6,12),z=this.position.z>GOLDEN_HALL.rear?c.front+.45:GOLDEN_HALL.rear-2.4;
    return {look:new T.Vector3(this.position.x,this.position.y+1,this.position.z),position:new T.Vector3(x,y,z)};}
   if(this.zone==='auditorium'&&this.concertView){
@@ -148,6 +148,8 @@ export class World{
    return {look:position.clone().add(view),position};
   }
   const local=localCameraFrame(this.position,sitting,this.cameraYaw,this.cameraPitch,d),target=local.position;look.copy(local.look);
+  // In the hall the camera never slips through a stair door into the corridor: it just comes closer along its orbit.
+  if(this.zone==='auditorium'&&target.z>GOLDEN_HALL.rear-.5&&target.z>local.origin.z){const t=Math.max(0,(GOLDEN_HALL.rear-.5-local.origin.z)/(target.z-local.origin.z));target.lerpVectors(local.origin,target,t);}
   // Stay under the ceiling, so zooming out never leaves the building.
   target.y=Math.min(target.y,this.zone==='lobby'?11.2:GOLDEN_HALL.height-1.5);
   return {look,position:constrainCamera(local.origin,target,this.venue.cameraWalls)};
@@ -184,7 +186,8 @@ export class World{
      if(!this.climb){this.sendPosition(now,true);const up=(p.y??0)>this.position.y;this.climb={points:corridorRoute(this.position.x<0?-1:1,up).slice(1),up};}
      const target=this.climb.points[0],left=distance(this.position,target),step=Math.min(left,(this.reduced?40:3.4)*dt);
      if(left<.001)this.climb.points.shift();else{this.position.x+=(target.x-this.position.x)/left*step;this.position.y+=((target.y??0)-this.position.y)/left*step;this.position.z+=(target.z-this.position.z)/left*step;}
-     if(!this.climb.points.length){const up=this.climb.up;this.climb=null;this.position.set(p.x,p.y??0,p.z);this.route.shift();this.sentAt=0;this.sendPosition(now,true);this.onToast(up?'계단을 올라 2층에 왔어요.':'계단을 내려 1층에 왔어요.');}
+     if(!this.climb.points.length){const up=this.climb.up;this.climb=null;this.cameraYaw=0;this.cameraPitch=.13;// Out of the door, look straight ahead into the hall.
+      this.position.set(p.x,p.y??0,p.z);this.route.shift();this.sentAt=0;this.sendPosition(now,true);this.onToast(up?'계단을 올라 2층에 왔어요.':'계단을 내려 1층에 왔어요.');}
     }
     else if(d<.035){this.position.set(p.x,p.y??0,p.z);this.route.shift();}else{const step=Math.min(d,3.4*dt);this.position.x+=(p.x-this.position.x)/d*step;this.position.z+=(p.z-this.position.z)/d*step;this.position.y+=((p.y??0)-this.position.y)/d*step;}
     if(!this.route.length){this.marker.visible=false;this.pose='idle';if(this.reservedSeat&&!this.seating){this.seating=true;this.sendPosition(now,true);this.net.send({type:'seated',seatId:this.reservedSeat});}}

@@ -123,3 +123,9 @@ button.brand .brand-sub{font-size:12px;letter-spacing:1px;color:#f3e7cc;margin-t
 @media(max-height:620px) and (max-width:540px){.icon-menu-item{width:32px;height:32px}}
 @media(pointer:coarse){.icon-menu{backdrop-filter:none;background:#29231def}}
 .look-picker{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:auto;text-align:center;padding:26px 34px 28px;background:var(--panel);border:1px solid #c7ad784d;border-radius:12px;box-shadow:0 8px 40px #0006}.look-picker>span{font-family:Georgia,serif;font-size:10px;letter-spacing:2px;color:var(--gold)}.look-picker h2{font:400 18px 'Noto Serif KR',Georgia,serif;margin:12px 0 20px;white-space:nowrap}.look-choice{display:flex;justify-content:center;gap:10px}.look-choice button{min-width:86px;padding:11px 20px;border-radius:999px;border:1px solid #d6bd8966;background:#1f1b17a6;color:#f1e8d5;font-size:13px}.look-choice button:hover,.look-choice button.active{background:#d6bd89;color:#29231b;border-color:#d6bd89}
+
+/* Music card sits right under the logo; action messages sit just above the bottom bar. */
+.now-playing,.compact-music{top:88px!important;bottom:auto!important;left:32px!important}
+.toast{top:auto!important;bottom:128px!important}
+@media(max-width:900px){.now-playing,.compact-music{top:72px!important;left:20px!important}}
+@media(max-width:540px){.now-playing,.compact-music{top:62px!important;left:17px!important}.toast{bottom:112px!important}}
