@@ -110,8 +110,8 @@ export class World{
   // The hall and stage views turn the head in place, so the whole
   // view follows the finger evenly, at the walking view's pace, instead of sliding the camera along the walls.
   const overview=this.zone==='auditorium'&&this.concertView;
-  // One pace for every view; only the reach differs (the walking camera circles the visitor).
-  const yaw=this.cameraYaw-dx*.0068,pitch=this.cameraPitch+dy*.0044;
+  // One pace for every view and every screen: a drag across the whole screen width turns about 230°, as on a phone.
+  const k=4/Math.max(320,this.renderer.domElement.clientWidth),yaw=this.cameraYaw-dx*k,pitch=this.cameraPitch+dy*k*.65;
   if(overview){this.cameraYaw=T.MathUtils.clamp(yaw,-.9,.9);this.cameraPitch=T.MathUtils.clamp(pitch,.13-1.3,.13+1.4);}
   else{this.cameraYaw=yaw;this.cameraPitch=T.MathUtils.clamp(pitch,-.25,1.45);}
  }
