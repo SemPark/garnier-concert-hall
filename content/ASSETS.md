@@ -6,16 +6,30 @@
 - 글꼴: Google Fonts의 Noto Serif KR를 CSS로 요청하며 시스템 글꼴 대체를 지정. 운영 배포에서는 사용 조건 확인 후 자체 호스팅하거나 시스템 글꼴로 대체 가능.
 - 산사의 코드·모델·음원 파일은 앱 자산으로 포함하지 않았다. 공개 클라이언트에서 확인한 조작·접속 설계를 참고했다.
 
-## 현재 공연 음원 — 2026-10-30
+## 현재 공연 프로그램 — 2026-11-01
 
-- 곡: Wolfgang Amadeus Mozart, The Marriage of Figaro, K. 492 — Overture.
-- 출처: [Wikimedia Commons / Musopen](https://commons.wikimedia.org/wiki/File:Mozart,_The_Marriage_of_Figaro_(overture).ogg).
-- 원본 파일: https://upload.wikimedia.org/wikipedia/commons/e/e2/Mozart%2C_The_Marriage_of_Figaro_%28overture%29.ogg
-- 파일 페이지에 표시된 사용 조건: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/). 설정 화면에도 출처·라이선스 링크를 표시한다.
-- 브라우저 호환성을 위해 원본 Ogg Vorbis를 FFmpeg/libmp3lame VBR 품질 2로 MP3 변환했다. 자르기·음량 조정은 하지 않았다.
-- 재생 파일: `public/audio/mozart-figaro-overture.mp3`, 5,647,004바이트, 239.938292초.
-- SHA-256: `b00101426081432d9608f5135fd9d689497f89be9d6963c4d04188d08801d3f5`.
-- 이전 자체 합성 테스트 음원은 현재 재생 목록에서 제외했다.
+약 1시간(59.6분) 모차르트 프로그램과 공연장 현장음. 모두 Wikimedia Commons에서 받았고, 파일 페이지에 표시된 사용 조건을 따른다. 설정 화면의 곡 정보에도 출처·라이선스 링크가 나온다.
+
+- 순서: 객석 웅성거림 → 조율(악장 기립) → 지휘자 입장·인사 → 피가로의 결혼 서곡 → 마술피리 서곡 → 교향곡 35번 ‘하프너’ 전 악장 → 교향곡 40번 전 악장 → 앙코르: 교향곡 34번 피날레 → 인사·퇴장. 곡 사이에는 박수, 악장 사이에는 7초 정적.
+- 변환: `scripts/build-program.py`로 FFmpeg/libmp3lame 320kbps CBR MP3. Musopen 녹음(피가로·마술피리·40번)은 무손실 FLAC 원본에서, 하프너·34번은 Ogg 원본(약 200–245kbps)에서 변환했다. 박수 구간은 하나의 박수 녹음에서 잘라 짧게 페이드했다.
+- 저작자 표시가 필요한 현장음: 조율 녹음(CC BY 3.0), 객석 웅성거림(CC BY-SA 3.0, Beeld en Geluid).
+
+원본 목록:
+- Mozart - Le nozze di Figaro, K492 - Overture (Musopen Symphony).flac — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_-_Le_nozze_di_Figaro,_K492_-_Overture_(Musopen_Symphony).flac) · Wolfgang Amadeus Mozart
+- Mozart - Die Zauberflöte, K620 - Overture (Musopen Symphony).flac — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_-_Die_Zauberfl%C3%B6te,_K620_-_Overture_(Musopen_Symphony).flac) · Wolfgang Amadeus Mozart
+- Mozart - Symphony No. 40 in G minor, K550 - I. Molto allegro (Musopen Symphony).flac — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_I._Molto_allegro_(Musopen_Symphony).flac) · Wolfgang Amadeus Mozart
+- Mozart - Symphony No. 40 in G minor, K550 - II. Andante (Musopen Symphony).flac — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_II._Andante_(Musopen_Symphony).flac) · Wolfgang Amadeus Mozart
+- Mozart - Symphony No. 40 in G minor, K550 - III. Menuetto. Allegretto (Musopen Symphony).flac — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_III._Menuetto._Allegretto_(Musopen_Symphony).flac) · Wolfgang Amadeus Mozart
+- Mozart - Symphony No. 40 in G minor, K550 - IV. Finale. Allegro assai (Musopen Symphony).flac — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_IV._Finale._Allegro_assai_(Musopen_Symphony).flac) · Wolfgang Amadeus Mozart
+- Symphony no. 35 in D 'Haffner' K. 385 I. Allegro con spirito (Mozart) European Archive.ogg — [Public domain](https://commons.wikimedia.org/wiki/File:Symphony_no._35_in_D_%27Haffner%27_K._385_I._Allegro_con_spirito_(Mozart)_European_Archive.ogg) · European Archives
+- Symphony no. 35 in D 'Haffner' K. 385 II. Andante (Mozart) European Archive.ogg — [Public domain](https://commons.wikimedia.org/wiki/File:Symphony_no._35_in_D_%27Haffner%27_K._385_II._Andante_(Mozart)_European_Archive.ogg) · European Archives
+- Symphony no. 35 in D 'Haffner' K. 385 III. Minuetto (Mozart) European Archive.ogg — [Public domain](https://commons.wikimedia.org/wiki/File:Symphony_no._35_in_D_%27Haffner%27_K._385_III._Minuetto_(Mozart)_European_Archive.ogg) · European Archives
+- Symphony no. 35 in D 'Haffner' K. 385 IV. Finale Presto (Mozart) European Archive.ogg — [Public domain](https://commons.wikimedia.org/wiki/File:Symphony_no._35_in_D_%27Haffner%27_K._385_IV._Finale_Presto_(Mozart)_European_Archive.ogg) · European Archives
+- Mozart Symphony No.34 C major III. Finale (Allegro vivace) (Mozart) European Archive.ogg — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_Symphony_No.34_C_major_III._Finale_(Allegro_vivace)_(Mozart)_European_Archive.ogg) · European Archives
+- 47383 gelo-papas orchestra-tuning3.wav — [CC BY 3.0](https://commons.wikimedia.org/wiki/File:47383_gelo-papas_orchestra-tuning3.wav) · gelo_papas
+- Sound Effects - Applause after a concert.ogg — [CC0](https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg) · Amada44
+- Slow starting applause.ogg — [Public domain](https://commons.wikimedia.org/wiki/File:Slow_starting_applause.ogg) · stephan
+- Algemene sfeer van de Kleine Doelenzaal bij aanvang concert - SoundCloud - Beeld en Geluid.ogg — [CC BY-SA 3.0](https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg) · Beeld en Geluid
 
 ## 황금홀 건축 참고 — 2026-10-30
 

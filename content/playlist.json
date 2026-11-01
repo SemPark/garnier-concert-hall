@@ -1,20 +1,291 @@
 {
-  "version": "figaro-1",
+  "version": "mozart-hour-1",
   "epochMs": 1793327798000,
   "tracks": [
     {
+      "id": "hall-murmur",
+      "title": "공연 준비 — 객석이 자리를 잡습니다",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-murmur.mp3",
+      "durationSeconds": 14.045351,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+      },
+      "stage": "murmur"
+    },
+    {
+      "id": "hall-tuning",
+      "title": "조율 — 악장이 일어나 음을 맞춥니다",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-tuning.mp3",
+      "durationSeconds": 23.620499,
+      "gapAfterSeconds": 1,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:47383_gelo-papas_orchestra-tuning3.wav",
+        "licenseName": "CC BY 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+      },
+      "stage": "tuning"
+    },
+    {
+      "id": "hall-entrance",
+      "title": "지휘자 입장",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-entrance.mp3",
+      "durationSeconds": 18.0,
+      "gapAfterSeconds": 1,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Slow_starting_applause.ogg",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "stage": "entrance"
+    },
+    {
       "id": "mozart-figaro-overture",
-      "title": "피가로의 결혼 — 서곡",
+      "title": "피가로의 결혼 K.492 — 서곡",
       "composer": "볼프강 아마데우스 모차르트",
       "url": "/api/audio/mozart-figaro-overture.mp3",
-      "durationSeconds": 239.938292,
-      "gapAfterSeconds": 8,
+      "durationSeconds": 241.0,
+      "gapAfterSeconds": 0,
       "credit": {
-        "sourceName": "Wikimedia Commons / Musopen",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart,_The_Marriage_of_Figaro_(overture).ogg",
-        "licenseName": "CC0 1.0",
-        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/"
-      }
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Le_nozze_di_Figaro,_K492_-_Overture_(Musopen_Symphony).flac",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "work": "피가로의 결혼 서곡"
+    },
+    {
+      "id": "hall-applause-1",
+      "title": "박수",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-applause-1.mp3",
+      "durationSeconds": 16.0,
+      "gapAfterSeconds": 2,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg",
+        "licenseName": "CC0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+      },
+      "stage": "applause"
+    },
+    {
+      "id": "mozart-magic-flute-overture",
+      "title": "마술피리 K.620 — 서곡",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-magic-flute-overture.mp3",
+      "durationSeconds": 400.772653,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Die_Zauberfl%C3%B6te,_K620_-_Overture_(Musopen_Symphony).flac",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "work": "마술피리 서곡"
+    },
+    {
+      "id": "hall-applause-2",
+      "title": "박수",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-applause-2.mp3",
+      "durationSeconds": 18.0,
+      "gapAfterSeconds": 2,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg",
+        "licenseName": "CC0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+      },
+      "stage": "applause"
+    },
+    {
+      "id": "mozart-symphony-35-1",
+      "title": "교향곡 35번 D장조 K.385 ‘하프너’ — 1악장 Allegro con spirito",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-symphony-35-1.mp3",
+      "durationSeconds": 304.274286,
+      "gapAfterSeconds": 7,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Symphony_no._35_in_D_%27Haffner%27_K._385_I._Allegro_con_spirito_(Mozart)_European_Archive.ogg",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "work": "교향곡 35번 ‘하프너’"
+    },
+    {
+      "id": "mozart-symphony-35-2",
+      "title": "교향곡 35번 ‘하프너’ — 2악장 Andante",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-symphony-35-2.mp3",
+      "durationSeconds": 356.472744,
+      "gapAfterSeconds": 7,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Symphony_no._35_in_D_%27Haffner%27_K._385_II._Andante_(Mozart)_European_Archive.ogg",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "work": "교향곡 35번 ‘하프너’"
+    },
+    {
+      "id": "mozart-symphony-35-3",
+      "title": "교향곡 35번 ‘하프너’ — 3악장 Menuetto",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-symphony-35-3.mp3",
+      "durationSeconds": 200.035556,
+      "gapAfterSeconds": 7,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Symphony_no._35_in_D_%27Haffner%27_K._385_III._Minuetto_(Mozart)_European_Archive.ogg",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "work": "교향곡 35번 ‘하프너’"
+    },
+    {
+      "id": "mozart-symphony-35-4",
+      "title": "교향곡 35번 ‘하프너’ — 4악장 Finale. Presto",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-symphony-35-4.mp3",
+      "durationSeconds": 210.993243,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Symphony_no._35_in_D_%27Haffner%27_K._385_IV._Finale_Presto_(Mozart)_European_Archive.ogg",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "work": "교향곡 35번 ‘하프너’"
+    },
+    {
+      "id": "hall-applause-3",
+      "title": "박수",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-applause-3.mp3",
+      "durationSeconds": 23.996735,
+      "gapAfterSeconds": 2,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg",
+        "licenseName": "CC0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+      },
+      "stage": "applause"
+    },
+    {
+      "id": "mozart-symphony-40-1",
+      "title": "교향곡 40번 G단조 K.550 — 1악장 Molto allegro",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-symphony-40-1.mp3",
+      "durationSeconds": 358.815488,
+      "gapAfterSeconds": 7,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_I._Molto_allegro_(Musopen_Symphony).flac",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "work": "교향곡 40번"
+    },
+    {
+      "id": "mozart-symphony-40-2",
+      "title": "교향곡 40번 — 2악장 Andante",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-symphony-40-2.mp3",
+      "durationSeconds": 456.160204,
+      "gapAfterSeconds": 7,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_II._Andante_(Musopen_Symphony).flac",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "work": "교향곡 40번"
+    },
+    {
+      "id": "mozart-symphony-40-3",
+      "title": "교향곡 40번 — 3악장 Menuetto. Allegretto",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-symphony-40-3.mp3",
+      "durationSeconds": 272.780544,
+      "gapAfterSeconds": 7,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_III._Menuetto._Allegretto_(Musopen_Symphony).flac",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "work": "교향곡 40번"
+    },
+    {
+      "id": "mozart-symphony-40-4",
+      "title": "교향곡 40번 — 4악장 Finale. Allegro assai",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-symphony-40-4.mp3",
+      "durationSeconds": 284.738277,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_IV._Finale._Allegro_assai_(Musopen_Symphony).flac",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "work": "교향곡 40번"
+    },
+    {
+      "id": "hall-applause-4",
+      "title": "박수 — 앙코르를 청합니다",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-applause-4.mp3",
+      "durationSeconds": 34.0,
+      "gapAfterSeconds": 2,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg",
+        "licenseName": "CC0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+      },
+      "stage": "applause"
+    },
+    {
+      "id": "mozart-symphony-34-3",
+      "title": "앙코르 — 교향곡 34번 C장조 K.338 — 3악장 Finale",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-symphony-34-3.mp3",
+      "durationSeconds": 247.385397,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_Symphony_No.34_C_major_III._Finale_(Allegro_vivace)_(Mozart)_European_Archive.ogg",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "work": "앙코르: 교향곡 34번 피날레"
+    },
+    {
+      "id": "hall-farewell",
+      "title": "박수 — 지휘자가 인사하고 퇴장합니다",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-farewell.mp3",
+      "durationSeconds": 32.0,
+      "gapAfterSeconds": 12,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg",
+        "licenseName": "CC0",
+        "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+      },
+      "stage": "farewell"
     }
   ]
 }

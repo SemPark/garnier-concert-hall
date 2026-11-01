@@ -1,5 +1,5 @@
 import list from '../../content/playlist.json';
-import {playbackAt,type Playback} from '../../shared/timeline';
+import {playbackAt,type Playback,type Playlist} from '../../shared/timeline';
 import type {Zone} from '../../shared/venue';
 import {MediaSync} from './MediaSync';
 export class ConcertAudio{
@@ -16,7 +16,7 @@ export class ConcertAudio{
   this.timer=setInterval(()=>this.tick(.1),100);
  }
  private mediaUrl(url:string){return import.meta.env.VITE_STATIC_PREVIEW==='true'?import.meta.env.BASE_URL+url.replace(/^\/api\//,''):url;}
- get playback():Playback{return playbackAt(list,this.now());}
+ get playback():Playback{return playbackAt(list as Playlist,this.now());}
  async unlock(){this.enabled=true;this.unlocking=true;this.media.src=this.mediaUrl(this.playback.track.url);this.lastId=this.playback.track.id;this.cycle=this.playback.cycle;this.media.volume=0;this.sync.request();
   try{await this.media.play();if(this.zone==='lobby')this.media.pause();this.sync.request();this.state=this.zone==='lobby'?'공연장에서 음악이 시작돼요':'함께 감상 중';return true;}
   catch{this.enabled=false;this.state='소리를 켜주세요';return false;}finally{this.unlocking=false;}

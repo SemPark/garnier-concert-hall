@@ -38,5 +38,9 @@ export function buildOrchestra(scene:T.Scene){
   const g=new T.Group();g.position.set(sx,STAGE_FLOOR+stageRiseAt(sx,sz),sz);g.rotation.y=yaw;g.scale.setScalar(MUSICIAN_SCALE);g.userData.musicDesk=true;scene.add(g);stand(g);
  }
  const podium=.24;box(scene,[1.7,podium,1.25],[0,STAGE_FLOOR+podium/2,CONDUCTOR.z],0x67452f);box(scene,[1.5,.025,1.05],[0,STAGE_FLOOR+podium+.01,CONDUCTOR.z],C.red);
- const conductor=new Avatar(0x272b2b,'conductor');conductor.root.position.set(0,STAGE_FLOOR+podium,CONDUCTOR.z);conductor.root.scale.setScalar(MUSICIAN_SCALE);conductor.settlePose(false);scene.add(conductor.root);musicians.push(conductor);return musicians;
+ // The concertmaster leads the first violins from the chair nearest the conductor; they stand to tune the orchestra.
+ const firsts=musicians.filter(a=>a.root.userData.section==='first-violins'&&a.root.userData.row===0&&a.root.position.x<0);
+ const concertmaster=firsts.sort((a,b)=>a.root.position.distanceTo(new T.Vector3(CONDUCTOR.x,a.root.position.y,CONDUCTOR.z))-b.root.position.distanceTo(new T.Vector3(CONDUCTOR.x,b.root.position.y,CONDUCTOR.z)))[0];
+ if(concertmaster){concertmaster.root.userData.concertmaster=true;concertmaster.root.userData.animated=true;}
+ const conductor=new Avatar(0x272b2b,'conductor');conductor.root.userData.animated=true;conductor.root.position.set(0,STAGE_FLOOR+podium,CONDUCTOR.z);conductor.root.scale.setScalar(MUSICIAN_SCALE);conductor.settlePose(false);scene.add(conductor.root);musicians.push(conductor);return musicians;
 }

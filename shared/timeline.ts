@@ -1,4 +1,6 @@
-export type Track={id:string;title:string;composer:string;url:string;durationSeconds:number;gapAfterSeconds:number;credit?:{sourceName:string;sourceUrl:string;licenseName:string;licenseUrl:string}};
+/** Hall sounds that frame the music: murmur before, tuning, the conductor's entrance, applause, and the final bow. */
+export type Stage='murmur'|'tuning'|'entrance'|'applause'|'farewell';
+export type Track={id:string;title:string;composer:string;url:string;durationSeconds:number;gapAfterSeconds:number;stage?:Stage;work?:string;credit?:{sourceName:string;sourceUrl:string;licenseName:string;licenseUrl:string}};
 export type Playlist={version:string;epochMs:number;tracks:Track[]};
 export type Playback={track:Track;index:number;offset:number;playing:boolean;remaining:number;cycle:number};
 export function playbackAt(list:Playlist,now:number):Playback{
@@ -9,4 +11,10 @@ export function playbackAt(list:Playlist,now:number):Playback{
  let pos=elapsed%total;
  for(let i=0;i<lengths.length;i++){if(pos<lengths[i]){const track=list.tracks[i];const playing=pos<track.durationSeconds;return {track,index:i,offset:Math.min(pos,track.durationSeconds),playing,remaining:playing?track.durationSeconds-pos:lengths[i]-pos,cycle:Math.floor(elapsed/total)}}pos-=lengths[i];}
  throw new Error('Unreachable timeline');
+}
+
+/** The next piece of music after this point in the program, for "다음 곡" hints. */
+export function nextPiece(list:Playlist,index:number):Track|null{
+ for(let i=1;i<=list.tracks.length;i++){const t=list.tracks[(index+i)%list.tracks.length];if(!t.stage)return t;}
+ return null;
 }
