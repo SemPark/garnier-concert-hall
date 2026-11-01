@@ -115,7 +115,7 @@ export class World{
   if(overview){this.cameraYaw=T.MathUtils.clamp(yaw,-.9,.9);this.cameraPitch=T.MathUtils.clamp(pitch,.13-1.3,.13+1.4);}
   else{this.cameraYaw=yaw;this.cameraPitch=T.MathUtils.clamp(pitch,-.25,1.45);}
  }
- zoomView(f:number){this.cameraDistance=Math.max(.3,this.cameraDistance*f);}
+ zoomView(f:number){this.cameraDistance=T.MathUtils.clamp(this.cameraDistance*f,1.2,13);}
  gestureAction(gesture:Gesture){this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});if(CLAPS.includes(gesture))this.audio.clap();}
  private click(x:number,y:number){if(!this.entered||this.climb)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
   const hits=this.ray.intersectObjects([...(this.venue.stairArrows?.targets??[]),...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);if(!hits.length)return;const hit=hits[0];
@@ -147,6 +147,8 @@ export class World{
    return {look:position.clone().add(view),position};
   }
   const local=localCameraFrame(this.position,sitting,this.cameraYaw,this.cameraPitch,d),target=local.position;look.copy(local.look);
+  // Stay under the ceiling, so zooming out never leaves the building.
+  target.y=Math.min(target.y,this.zone==='lobby'?11.2:GOLDEN_HALL.height-1.5);
   return {look,position:constrainCamera(local.origin,target,this.venue.cameraWalls)};
  }
  /** Reaction icons float above every visible visitor's head, with a short pop when they appear. */
