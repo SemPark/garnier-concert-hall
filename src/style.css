@@ -122,3 +122,4 @@ button.brand .brand-sub{font-size:12px;letter-spacing:1px;color:#f3e7cc;margin-t
 @media(max-height:620px){.icon-menu{gap:2px}.icon-menu-item{width:35px;height:35px}}
 @media(max-height:620px) and (max-width:540px){.icon-menu-item{width:32px;height:32px}}
 @media(pointer:coarse){.icon-menu{backdrop-filter:none;background:#29231def}}
+.look-choice{display:flex;gap:6px;margin-top:28px}.look-choice button{min-width:64px;padding:9px 16px;border-radius:999px;border:1px solid #d6bd8966;background:#1f1b17a6;color:#f1e8d5;font-size:12px}.look-choice button.active{background:#d6bd89;color:#29231b;border-color:#d6bd89}.look-choice+.enter-button{margin-top:14px}
