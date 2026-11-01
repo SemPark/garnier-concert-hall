@@ -84,9 +84,9 @@ test('short rear walls hide the stair doors from the front of the hall, as in th
  const screens=scene.children.filter(o=>o.userData.landmark==='rear-screen');assert.equal(screens.length,2);
  const blockers:T.Object3D[]=[];for(const s of screens)s.traverse(o=>{if(o instanceof T.Mesh)blockers.push(o);});
  const ray=new T.Raycaster();
- // From seats across the hall, the line of sight to each stair doorway runs into a screen.
- for(const side of [-1,1])for(const eye of [[0,1.6,0],[-side*12,1.6,20],[0,1.6,40],[side*5,1.6,42]]){
+ // From the front and middle of the hall, the line of sight to each stair doorway runs into a screen.
+ for(const side of [-1,1])for(const eye of [[0,1.6,0],[-side*6,1.6,0],[side*8,1.6,10],[0,1.6,20]]){
   const from=new T.Vector3(...eye),to=new T.Vector3(side*STAIR_DOORS.lower.x,2,H.rear),dir=to.clone().sub(from);const length=dir.length();ray.set(from,dir.normalize());ray.far=length;
   assert.ok(ray.intersectObjects(blockers,false).length>0,`stair door ${side} hidden from ${eye}`);}
- for(const side of [-1,1]){assert.equal(walkable('auditorium',{x:side*12.6,y:0,z:REAR_SCREENS.z}),false);assert.ok(walkable('auditorium',{x:side*12.6,y:0,z:48.6}),'the corner is reachable behind the return wall');}
+ for(const side of [-1,1]){assert.equal(walkable('auditorium',{x:side*12.6,y:0,z:REAR_SCREENS.z}),false);assert.ok(walkable('auditorium',{x:side*12.6,y:0,z:48.6}),'the corner is open behind the colonnade');}
 });

@@ -36,10 +36,9 @@ export const GALLERY_BRIDGE={minX:-12.5,maxX:12.5,minZ:43.2,maxZ:51.8};
 export const REAR_COLUMNS={z:43.75,radius:.36,xs:[-8.6,-2.9,2.9,8.6]} as const;
 /**
  * As in the original, the bays beyond the outer columns are closed by a short wall reaching the side wall,
- * with a return wall behind it: the stair doors sit in these corners, out of sight from the front of the hall.
- * The corner opens only towards the centre, behind the return wall.
+ * so the stair doors in these corners are out of sight from the front of the hall; behind the colonnade they stay open.
  */
-export const REAR_SCREENS={innerX:9.6,outerX:15.72,z:REAR_COLUMNS.z,thickness:.5,returnEnd:49,height:8} as const;
+export const REAR_SCREENS={innerX:9.1,outerX:15.72,z:REAR_COLUMNS.z,thickness:.5,height:8} as const;
 /** Disjoint slabs: the two side galleries and the deep rear gallery between them. */
 export const GALLERY_FLOORS:FloorRect[]=[...[-1,1].flatMap(side=>{
  const rect=(inner:number,outer:number,minZ:number,maxZ:number)=>({minX:side<0?-outer:inner,maxX:side<0?-inner:outer,minZ,maxZ});

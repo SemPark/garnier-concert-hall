@@ -244,7 +244,9 @@ const soffitLamp=new T.MeshLambertMaterial({color:0xffe7bd,emissive:0xffd9a0,emi
 export function rearFacade(scene:T.Scene){
  const g=new T.Group();g.position.z=WALL_DATUM.rear;g.rotation.y=Math.PI;scene.add(g);g.userData.landmark='rear-facade';
  // Six glazed arches and plain framed fields; the original rear has no row of pedimented doors.
- for(const x of [-10,-6,-2,2,6,10]){const bay=new T.Group();bay.position.x=x;g.add(bay);archedWindow(bay,WALL_LEVELS.window);wallPanel(bay,0,14.1,3.75,8.1,false);}
+ for(const x of [-10,-6,-2,2,6,10]){const bay=new T.Group();bay.position.x=x;g.add(bay);archedWindow(bay,WALL_LEVELS.window);wallPanel(bay,0,WALL_LEVELS.panelY,3.75,WALL_LEVELS.panelHeight,false);}
+ // The same red-brown pilaster strips as the side bays, at the same heights, so both walls share one rhythm.
+ for(const x of [-12,-8,-4,0,4,8,12]){box(g,[.2,17,.2],[x,18.1,.2],0x9a5646);box(g,[.065,17,.1],[x,18.1,.34],P.light);}
  for(const x of [-14,14]){
   const wing=new T.Group();wing.position.x=x;g.add(wing);archedWindow(wing,WALL_LEVELS.window,true);
   {const surround=new T.Group();surround.position.set(0,H.balconyHeight,.28);wing.add(surround);doorFrame(surround,2.15,5.25,0,.2);}{const upper=new T.Group();upper.position.set(0,H.balconyHeight,.5);wing.add(upper);openLeaves(upper,2.15,5.25,0);}
@@ -266,8 +268,6 @@ export function rearFacade(scene:T.Scene){
   for(const side of [-1,1]){const volute=cylinder(column,.16,.2,[side*.38,7.04,.28],P.gold);volute.rotation.x=Math.PI/2;}
  }
  // Gilded beam under the gallery front, and warm lamps in the shadowed standing area beneath.
- box(g,[25.4,.36,.9],[0,7.68,front],P.deep);box(g,[25.8,.14,1.05],[0,7.93,front+.05],P.light);
- hallImage(g,'scroll',24.5,.27,0,7.66,front+.47);
  for(const [z,xs]of [[2.2,[-10.5,-5.25,0,5.25,10.5]],[WALL_DATUM.rear-46,[-5.25,0,5.25]]] as const)for(const x of xs){const lamp=sphere(g,.17,[x,7.82,z],0xffefd4);lamp.scale.y=.45;lamp.material=soffitLamp;}
  // The two side doors lead to the corridor stairs and stand open; the centre door is the foyer entrance.
  for(const x of [-doorX,doorX]){openDoor(g,x,.15,3.8,6.4,.35);hallImage(g,'relief',3.8,.7,x,7.1,.65);}
@@ -281,26 +281,54 @@ export function rearFacade(scene:T.Scene){
  // Only near-camera decoration cuts away; the structural hall shell remains solid.
  g.traverse(o=>{if(o instanceof T.Mesh){o.userData.cameraOccluder=true;o.userData.fullDetail=true;}});return g;
 }
+/** The parterre-level bay of the side walls: panelled field between two caryatids, with a door or a low box front. */
+function lowerBay(g:T.Object3D,door:boolean){
+ box(g,[5.9,6.9,.16],[0,3.5,.08],P.ivory);box(g,[4.1,4.8,.12],[0,3.1,.2],0xc5a875);box(g,[3.7,4.4,.14],[0,3.1,.3],0xf0dfbb);
+ for(const x of [-2.55,2.55]){const figure=new T.Group();figure.position.set(x,.45,.3);figure.scale.set(1,1.21,1);g.add(figure);caryatid(figure);}
+ wallPanel(g,0,WALL_LEVELS.lowerPanelY,4.2,WALL_LEVELS.lowerPanelHeight,false);if(door)timberDoor(g,0,.12,3.35,5.85,.56);
+ else {
+  // Low timber box fronts and red woven hangings are visible in the original side-wall photograph.
+  const front=box(g,[4.45,1.02,.15],[0,.95,.74],P.wood);front.material=woodMaterial('walnut');
+  hallImage(g,'damask',4.22,.84,0,.95,.83);
+  for(const yy of [.40,1.50])box(g,[4.65,.10,.25],[0,yy,.77],P.deep).material=woodMaterial('frame');
+  for(const xx of [-2.3,2.3])box(g,[.10,1.1,.25],[xx,.95,.77],P.deep).material=woodMaterial('frame');
+ }
+}
 /** Short walls closing the outer rear bays, as in the original: pale panelled faces with a marble pilaster at the inner end. */
 function rearScreens(scene:T.Scene){
- const r=REAR_SCREENS,walls:T.Mesh[]=[],pale=0xe9dcc0,width=r.outerX-r.innerX,depth=r.returnEnd-r.z;
+ const r=REAR_SCREENS,walls:T.Mesh[]=[],width=r.outerX-r.innerX,top=r.height-.5;
  for(const side of [-1,1]){
-  const g=new T.Group();g.userData.landmark='rear-screen';scene.add(g);const X=(x:number)=>side*x,front=r.z-r.thickness/2;
-  walls.push(box(g,[width,r.height,r.thickness],[X((r.innerX+r.outerX)/2),r.height/2,r.z],pale));
-  walls.push(box(g,[r.thickness,r.height,depth],[X(r.innerX),r.height/2,r.z+depth/2],pale));
-  // Walnut dado and a gilded frame on the face seen from the hall.
-  box(g,[width-.7,1.1,.06],[X((r.innerX+r.outerX)/2+.35),.55,front-.03],0x4a3324).material=woodMaterial('walnut');
-  const cx=X((r.innerX+r.outerX)/2+.35),pw=width-1.9,ph=4.4,py=4.25;
-  box(g,[pw,ph,.04],[cx,py,front-.02],0xf2e7cf);
-  for(const y of [py-ph/2,py+ph/2])box(g,[pw+.12,.08,.06],[cx,y,front-.04],P.gold);
-  for(const dx of [-pw/2,pw/2])box(g,[.08,ph+.12,.06],[cx+dx,py,front-.04],P.gold);
-  box(g,[width,.14,.08],[X((r.innerX+r.outerX)/2),r.height-.35,front-.04],P.gold);
-  // Red-brown marble pilaster with a gilded capital where the screen meets the colonnade.
-  box(g,[.8,r.height,.7],[X(r.innerX),r.height/2,r.z],0x7a3b2a);box(g,[1,.3,.82],[X(r.innerX),r.height-.55,r.z],P.gold);box(g,[.95,.2,.8],[X(r.innerX),.1,r.z],0x3e3025);
-  // The return wall faces the standing area with the same dado.
-  box(g,[.06,1.1,depth-.5],[X(r.innerX-r.thickness/2-.03),.55,r.z+depth/2+.25],0x4a3324).material=woodMaterial('walnut');
+  const g=new T.Group();g.userData.landmark='rear-screen';scene.add(g);const X=(x:number)=>side*x,mid=X((r.innerX+r.outerX)/2),face=r.z-r.thickness/2;
+  // As in the original: a plain cream field framed by red-brown marble pilasters, under a dark entablature.
+  walls.push(box(g,[width,r.height,r.thickness],[mid,r.height/2,r.z],0xeadfc4));
+  const pilaster=(x:number,w:number)=>{
+   box(g,[w,top-.35,.12],[X(x),.35+(top-.35)/2,face-.06],0x6e3326);
+   box(g,[w-.28,top-.75,.05],[X(x),.35+(top-.35)/2,face-.14],0xb3705d).userData.landmark='rear-screen-marble';
+   box(g,[w+.12,.35,.2],[X(x),.175,face-.1],0x3e3025);box(g,[w+.14,.16,.18],[X(x),top-.08,face-.09],P.gold);
+  };
+  pilaster(r.innerX+.45,.9);pilaster(r.outerX-.45,.9);
+  // The low walnut box front with its red woven band, as along the side walls.
+  box(g,[width-1.8,1.02,.15],[mid,.95,face-.25],P.wood).material=woodMaterial('walnut');
+  const damask=new T.Group();damask.position.set(mid,0,face);damask.rotation.y=Math.PI;g.add(damask);hallImage(damask,'damask',width-2,.84,0,.95,.34);
+  for(const y of [.40,1.50])box(g,[width-1.6,.10,.25],[mid,y,face-.28],P.deep).material=woodMaterial('frame');
  }
  return walls;
+}
+/**
+ * The side walls' gilded cornice (same three profiles and dentils, at the same height) continues across the rear,
+ * along the face of the corner screens and the beam over the colonnade, so it meets the side cornice in each corner.
+ */
+function rearCornice(scene:T.Scene){
+ const g=new T.Group();g.userData.landmark='rear-cornice';scene.add(g);
+ const y=WALL_LEVELS.cornices[0],face=REAR_SCREENS.z-REAR_SCREENS.thickness/2,width=2*WALL_DATUM.halfWidth;
+ // A plain beam carries the cornice over the open colonnade, flush with the screens' face.
+ box(g,[2*REAR_SCREENS.innerX,.75,REAR_SCREENS.thickness],[0,y+.25,REAR_SCREENS.z],0xeadfc4);
+ for(const [dy,h,d]of [[0,.13,.44],[.18,.18,.52],[.38,.12,.61]])box(g,[width,h,d],[0,y+dy+h/2,face-d/2],0xe7c77a).userData.fullDetail=true;
+ for(let x=-width/2+.41+.18;x<width/2-.41;x+=.36)box(g,[.13,.18,.25],[x,y-.16,face-.41+.125],0xc69b49);
+ // The side galleries' stepped white edge continues across the rear: the railing's light base line stays visible,
+ // then the white slab band, then a thin light lip, with the gold cornice below.
+ const edge=box(g,[width,.33,.57],[0,8.135,43.235],0xe8d6ac);edge.userData.landmark='rear-gallery-edge';
+ box(g,[width,.09,.64],[0,7.925,43.2],P.light);
 }
 export function buildGoldenHall(scene:T.Scene){
  scene.userData.venue='musikverein-golden-hall';
@@ -310,16 +338,7 @@ export function buildGoldenHall(scene:T.Scene){
  for(let x=-15.5;x<16;x+=.5)box(scene,[.013,.008,H.rear-H.front],[x,.005,(H.rear+H.front)/2],0x8e683e);
  for(const side of [-1,1]){
   for(const z of H.bayCenters){const g=new T.Group();g.position.set(side*WALL_DATUM.halfWidth,0,z);g.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(g);
-   box(g,[5.9,6.9,.16],[0,3.5,.08],P.ivory);box(g,[4.1,4.8,.12],[0,3.1,.2],0xc5a875);box(g,[3.7,4.4,.14],[0,3.1,.3],0xf0dfbb);
-   for(const x of [-2.55,2.55]){const figure=new T.Group();figure.position.set(x,.45,.3);figure.scale.set(1,1.21,1);g.add(figure);caryatid(figure);}
-   wallPanel(g,0,WALL_LEVELS.lowerPanelY,4.2,WALL_LEVELS.lowerPanelHeight,false);if([-18,6,30].includes(z))timberDoor(g,0,.12,3.35,5.85,.56);
-   else {
-    // Low timber box fronts and red woven hangings are visible in the original side-wall photograph.
-    const front=box(g,[4.45,1.02,.15],[0,.95,.74],P.wood);front.material=woodMaterial('walnut');
-    hallImage(g,'damask',4.22,.84,0,.95,.83);
-    for(const yy of [.40,1.50])box(g,[4.65,.10,.25],[0,yy,.77],P.deep).material=woodMaterial('frame');
-    for(const xx of [-2.3,2.3])box(g,[.10,1.1,.25],[xx,.95,.77],P.deep).material=woodMaterial('frame');
-   }
+   lowerBay(g,[-18,6,30].includes(z));
    for(const span of galleryRailSpans(z)){const rail=new T.Group();rail.position.set(side*((span.start+span.end)/2-z),H.balconyHeight,WALL_DATUM.halfWidth-12.5-.4);rail.userData.landmark='gallery-rail';g.add(rail);balustrade(rail,span.end-span.start);}
    for(const x of [-2.85,2.85]){box(g,[.2,17,.2],[x,18.1,.2],0x9a5646);box(g,[.065,17,.1],[x,18.1,.34],P.light);}
    wallPanel(g,0,WALL_LEVELS.panelY,5.4,WALL_LEVELS.panelHeight,false);archedWindow(g,WALL_LEVELS.window);upperDoor(g,WALL_LEVELS.vent);sideBayDetails(g);
@@ -329,7 +348,7 @@ export function buildGoldenHall(scene:T.Scene){
   for(const [a,b]of [[WALL_DATUM.front,-27],[51,WALL_DATUM.rear]]){const end=new T.Group();end.position.set(side*WALL_DATUM.halfWidth,0,(a+b)/2);end.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(end);wallPanel(end,0,WALL_LEVELS.lowerPanelY,b-a,WALL_LEVELS.lowerPanelHeight);wallPanel(end,0,WALL_LEVELS.panelY,b-a,WALL_LEVELS.panelHeight);}
  }
  cameraWalls.push(...buildGalleryFloors(scene).filter(slab=>slab.userData.rearGallery));
- cameraWalls.push(...rearScreens(scene));
+ cameraWalls.push(...rearScreens(scene));rearCornice(scene);
  buildPerimeterCornices(scene);buildPerimeterFriezes(scene,friezeMaterial());
  buildFrontWindows(scene);buildOrgan(scene);paintedCeiling(scene);
  for(const x of [-7.4,7.4])for(const z of [-20,-7,6,19,32,45])crystalChandelier(scene,x,z);

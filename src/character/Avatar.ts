@@ -4,7 +4,7 @@ import {buildInstrument} from '../orchestra/instruments';
 import {poseVillager,type Icon} from './villager';
 import type {Gesture} from '../../shared/gestures';
 export type Instrument='violin'|'viola'|'cello'|'bass'|'harp'|'piano'|'celesta'|'flute'|'piccolo'|'oboe'|'english-horn'|'clarinet'|'bass-clarinet'|'bassoon'|'contrabassoon'|'horn'|'trumpet'|'trombone'|'tuba'|'bass-drum'|'snare'|'cymbals'|'sleigh-bells'|'triangle'|'chimes'|'gong'|'timpani'|'xylophone'|'marimba'|'vibraphone'|'conductor';
-export type HairStyle='man'|'bun'|'bob';
+export type HairStyle='short'|'long';
 type Arm={shoulder:T.Group;hand:T.Group};
 export const PERCUSSION:readonly Instrument[]=['bass-drum','snare','cymbals','sleigh-bells','triangle','chimes','gong','timpani','xylophone','marimba','vibraphone'];
 const ARM_LENGTH=.4,HIP=new T.Vector3(0,.55,0),DOWN=new T.Vector3(0,-1,0);
@@ -29,7 +29,7 @@ export class Avatar{
  private sitAmount=0;private left:Arm;private right:Arm;
  private direction=new T.Vector3();private armRotation=new T.Quaternion();private hipOffset=new T.Vector3();private tilt=new T.Euler();
  constructor(color=0x252733,instrument?:Instrument,variant=0){
-  this.appearance=variant%8>=4?'woman':'man';this.hair=this.appearance==='man'?'man':variant%2?'bun':'bob';
+  this.appearance=variant%8>=4?'woman':'man';this.hair=this.appearance==='man'?'short':'long';
   this.instrumentType=instrument;this.root.add(this.body);this.body.add(this.head,this.leftArm,this.rightArm,this.leftLeg,this.rightLeg,this.instrument);
   const skin=[0xf2c8a2,0xe5b48d,0xf7d5b4,0xd49e78][variant%4],hair=[0x3b2c27,0x5a3423,0x232022,0xb4552a][Math.floor(variant/2)%4],cheek=0xf0938a;
   // Bell body with a small white collar, like a village resident.
@@ -43,13 +43,16 @@ export class Avatar{
   this.head.add(this.eyes);
   for(const side of [-1,1]){const eye=sphere(this.eyes,.05,[side*.115,-.025,-.315],0x231c1a);eye.scale.set(.045,.058,.03);sphere(this.eyes,.016,[side*.1,0,-.336],0xffffff);}
   sphere(this.head,.04,[0,-.085,-.345],0xe8a77f).scale.set(.042,.03,.03);sphere(this.head,.03,[0,-.165,-.322],0x7a3b33).scale.set(.045,.014,.02);
-  // The hair cap fully covers the crown, back and sides of the raised skull; the face stays clear.
-  const cap=sphere(this.head,.365,[0,.08,.05],hair);cap.scale.set(.39,.33,.38);
-  if(this.hair==='man')sphere(this.head,.15,[.13,.2,-.21],hair).scale.set(.2,.09,.13);
-  else{
-   sphere(this.head,.15,[-.12,.19,-.22],hair).scale.set(.2,.09,.13);
-   if(this.hair==='bob'){for(const side of [-1,1])sphere(this.head,.15,[side*.31,.06,-.01],hair).scale.set(.08,.16,.19);sphere(this.head,.23,[0,-.04,.22],hair).scale.set(.31,.29,.18);}
-   else sphere(this.head,.15,[0,.24,.29],hair);
+  // One simple style each. The cap is clearly larger than the skull on the crown, back and upper sides,
+  // so no skin shows through it from any angle; only the face and the lower cheeks stay clear.
+  const cap=sphere(this.head,.4,[0,.075,.045],hair);cap.scale.set(.405,.355,.39);cap.userData.hairPart='cap';
+  if(this.hair==='short'){
+   // Short cut: a soft side-swept fringe over the forehead.
+   sphere(this.head,.2,[.06,.215,-.235],hair).scale.set(.27,.1,.13);
+  }else{
+   // Long hair: a straight fringe and one smooth fall down the back to the shoulders.
+   sphere(this.head,.2,[0,.2,-.245],hair).scale.set(.32,.1,.12);
+   const back=sphere(this.head,.4,[0,-.09,.23],hair);back.scale.set(.31,.34,.19);back.userData.hairPart='long-back';
   }
   this.left={shoulder:this.leftArm,hand:this.leftHand};this.right={shoulder:this.rightArm,hand:this.rightHand};
   for(const [side,arm]of [[-1,this.left],[1,this.right]] as const){
