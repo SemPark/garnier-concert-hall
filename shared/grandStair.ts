@@ -4,8 +4,6 @@
  */
 export const ATRIUM={halfWidth:15,front:18,back:44,height:20,balconyY:7.2,balconyDepth:2.4,opening:6.9,openingHeight:12} as const;
 export const GRAND_STAIR={flightHalf:4,flightStart:31,flightEnd:37,landingEnd:41.6,branchInner:5.4,branchOuter:8.4,branchEnd:30.4,rise:3.6,steps:18} as const;
-/** Ground columns under the balcony edge. */
-export const ATRIUM_COLUMNS=[21,26,31,36,41].flatMap(z=>[-1,1].map(side=>({x:side*(15-2.55),z})));
 /** Lobby furniture footprints (centre and half sizes), shared by the scene and the walking rules. */
 export const LOBBY_FURNITURE={
  // Box office and cloakroom sit inside the first ground-tier arcade bay on each side, behind the arch.

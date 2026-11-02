@@ -27,11 +27,6 @@ function chandelier(parent:T.Object3D,x:number,y:number,z:number,r=1){
  }
  const light=new T.PointLight(0xffdca6,22,16,2);light.position.set(0,.4,0);g.add(light);
 }
-function column(parent:T.Object3D,x:number,z:number,height=10){
- cylinder(parent,.52,.28,[x,.14,z],C.gold);cylinder(parent,.4,.2,[x,.38,z],C.cream);cylinder(parent,.28,height-.9,[x,height/2,z],C.marble);
- cylinder(parent,.43,.22,[x,height-.48,z],C.gold);box(parent,[.95,.25,.95],[x,height-.22,z],C.goldLight);
- for(let i=0;i<10;i++){const a=i/10*Math.PI*2;cylinder(parent,.012,height-1.2,[x+Math.cos(a)*.285,height/2,z+Math.sin(a)*.285],0xb9aa89);}
-}
 function tileFloor(scene:T.Scene,width:number,length:number,centerZ=0){
  const nX=Math.round(width),nZ=Math.round(length),geo=new T.PlaneGeometry(1,1),inst=new T.InstancedMesh(geo,material(C.marble),nX*nZ),dummy=new T.Object3D();let n=0;
  for(let x=0;x<nX;x++)for(let z=0;z<nZ;z++){dummy.position.set(x-width/2+.5,.003,centerZ+z-length/2+.5);dummy.rotation.x=-Math.PI/2;dummy.updateMatrix();inst.setMatrixAt(n,dummy.matrix);inst.setColorAt(n,new T.Color((x+z)%2?0xbfb49e:0xe0d4ba));n++;}
@@ -91,15 +86,13 @@ function marble(color:number){
  m=new T.MeshLambertMaterial({map:marbleMap??undefined,color});veined.set(color,m);return m;
 }
 /** A stone wall pierced by one round-headed opening: two piers and a spandrel, extruded to a real depth. */
-function stoneArch(parent:T.Object3D,width:number,height:number,depth:number,color:number,position:number[],rotation=0){
- const pier=.45,r=width/2-pier,spring=height-1.1-r,shape=new T.Shape();
+function stoneArch(parent:T.Object3D,width:number,height:number,depth:number,color:number,position:number[],rotation=0,pier=.45){
+ const r=width/2-pier,spring=Math.max(0,height-1.1-r),shape=new T.Shape();
  shape.moveTo(-width/2,0);shape.lineTo(-width/2,height);shape.lineTo(width/2,height);shape.lineTo(width/2,0);shape.lineTo(r,0);shape.lineTo(r,spring);shape.absarc(0,spring,r,0,Math.PI,false);shape.lineTo(-r,0);shape.closePath();
  const mesh=new T.Mesh(new T.ExtrudeGeometry(shape,{depth,bevelEnabled:false,curveSegments:10}),material(color));mesh.position.set(position[0],position[1],position[2]);mesh.rotation.y=rotation;mesh.userData.fullDetail=true;parent.add(mesh);return mesh;
 }
-/** The Grand Escalier hall the foyer opens into, after the Palais Garnier: warm stone, arcades of paired
- * polychrome marble columns on two tiers, a central flight that flares at its foot and rises to a landing with a
- * statue-guarded doorway, two branches carried on open arches up to the first tier, bronze torch-bearers and
- * candelabra along the balustrades. */
+/** A simplified Garnier-inspired lobby with an open floor, a central stair, two balcony tiers,
+ * marble wall panels and bronze lighting. Freestanding columns and their arcades are omitted. */
 function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Object3D[]){
  const A=ATRIUM,S=GRAND_STAIR,W=A.halfWidth,D=A.balconyDepth,len=A.back-A.front,midZ=(A.front+A.back)/2,inner=W-D,tier2=13.4;
  // Warm grey-ochre stone and sand-coloured veined marble, as in the photos.
@@ -124,44 +117,9 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
   // Gilded scroll frieze in short repeats, sharing the hall's frieze image.
   for(const side of [-1,1])for(let z=A.front+1.3;z<A.back-.5;z+=2.6){const f=hallImage(scene,'scroll',2.6,.62,side*(W-.91),y+.05,z);f.rotation.y=-side*Math.PI/2;}
   for(let x=-W+1.3;x<W-.5;x+=2.6){hallImage(scene,'scroll',2.6,.62,x,y+.05,A.back-.91).rotation.y=Math.PI;hallImage(scene,'scroll',2.6,.62,x,y+.05,A.front+.91);}}
- // Paired polychrome marble columns and round arches on both tiers, all round the hall.
- // Ground tier: square stone piers with a carved panel, as in the photos; marble columns only start above.
- const pier=(parent:T.Object3D,x:number,z:number,h:number,alongX:boolean)=>{const w=1.5,dz=1.1;box(parent,[alongX?w:dz,h,alongX?dz:w],[x,h/2,z],stone);box(parent,[alongX?w+.2:dz+.2,.35,alongX?dz+.2:w+.2],[x,.18,z],stoneDark);box(parent,[alongX?w+.25:dz+.25,.4,alongX?dz+.25:w+.25],[x,h-.2,z],C.gold);
-  for(const o of [-1,1]){const f=box(parent,[alongX?.9:.06,2.2,alongX?.06:.9],[x+(alongX?0:o*(dz/2+.02)),h*.5,z+(alongX?o*(dz/2+.02):0)],0xb08a55);f.userData.fullDetail=true;}};
- const pair=(parent:T.Object3D,x:number,z:number,h:number,alongX:boolean)=>{if(parent.position.y===0){pier(parent,x,z,h,alongX);return;}const k=h>8?1.7:1;if(k>1)box(parent,[alongX?2.5:1.3,.6,alongX?1.3:2.5],[x,.3,z],stoneDark);for(const o of [-.42*k,.42*k]){const px=alongX?x+o:x,pz=alongX?z:z+o;
-  cylinder(parent,.34*k,.3*k,[px,.15*k,pz],stoneDark);cylinder(parent,.27*k,h-.75*k,[px,(h-.75*k)/2+.3*k,pz],marbleShaft).material=marble(0xc7ab82);cylinder(parent,.36*k,.45*k,[px,h-.22*k,pz],C.gold);}};
- const arcade=(y:number,h:number,back:number[],front=back)=>{const tier=new T.Group();tier.position.y=y;scene.add(tier);
-  // Upper giant columns stand in front of the balustrade, over the ground piers.
-  const sx=y>0?inner-.4:inner+.2,bz=y>0?A.back-D-.6:A.back-D-.2,fz=y>0?A.front+D+.6:A.front+D+.2;
-  const zs=[20.6,25.6,30.6,35.6,40.6];for(const side of [-1,1]){for(const z of zs)pair(tier,side*sx,z,h,false);
-   if(y===0)for(let i=0;i<zs.length-1;i++)stoneArch(tier,zs[i+1]-zs[i],h,.6,stone,[side*(inner+.55),0,(zs[i]+zs[i+1])/2],side*Math.PI/2);}
-  for(const x of back)pair(tier,x,bz,h,true);
-  if(y===0)for(let i=0;i<back.length-1;i++)if(back[i]<0===back[i+1]<0)stoneArch(tier,back[i+1]-back[i],h,.6,stone,[(back[i]+back[i+1])/2,0,A.back-D+.15],0);
-  // The same arcade across the entrance side.
-  for(const x of front)pair(tier,x,fz,h,true);
-  if(y===0)for(let i=0;i<front.length-1;i++)if(front[i]<0===front[i+1]<0)stoneArch(tier,front[i+1]-front[i],h,.6,stone,[(front[i]+front[i+1])/2,0,A.front+D-.75],0);
- };
- // On the ground tier the centre of the back is not an arch but the wall the landing runs into: it carries the first
- // tier, holds the amphitheatre door, and is flanked by paired columns that stand beside the landing.
+ // Open lobby: omit the freestanding ground piers, upper paired columns and their arcade crowns.
+ // Wall panels, balcony floors, guardrails and the grand stair keep their existing layout.
  const portal=GRAND_STAIR.branchInner+.45;
- // On the entrance side the ground columns stand clear of the entrance arch and its statues.
- arcade(0,A.balconyY-.95,[-(inner-.6),-portal,portal,inner-.6],[-(inner-.6),-8.6,8.6,inner-.6]);// Above the first balcony a giant order rises to the top, with a great arch over every bay; the upper balcony
- // is slung between the columns.
- const crown=A.height-4.6;arcade(A.balconyY,crown-A.balconyY,[-8.4,-4.2,0,4.2,8.4]);
- // Round arches spring straight from the capitals of the giant columns and run round all four sides, with a gilt
- // medallion in every spandrel, as in the photos. Behind each arch, a shaded gallery.
- {const zs=[20.6,25.6,30.6,35.6,40.6],xs=[-8.4,-4.2,0,4.2,8.4],gold=0xc9a25a;
-  const bay=(w:number,pos:number[],ry:number,wallPos:number[])=>{const r=w/2-.45,h=r+1.1;stoneArch(scene,w,h,.6,stone,pos,ry);
-   const back=box(scene,[w-.9,h-.4,.06],[wallPos[0],crown+(h-.4)/2,wallPos[2]],0x4a3524);back.rotation.y=ry;};
-  // A gilt disc set into the arch face in each spandrel, over the column pair.
-  const medallion=(x:number,y:number,z:number,alongX:boolean)=>{const m=cylinder(scene,.6,.12,[x,y,z],gold);if(alongX)m.rotation.x=Math.PI/2;else m.rotation.z=Math.PI/2;};
-  for(const side of [-1,1]){for(let i=0;i<zs.length-1;i++){const w=zs[i+1]-zs[i],zc=(zs[i]+zs[i+1])/2;bay(w,[side*(inner-.15),crown,zc],side*Math.PI/2,[side*(W-.05),0,zc]);}
-   for(const z of zs.slice(1,-1))medallion(side*(inner-.2),crown+2.25,z,false);}
-  for(const [z,ry,wz,face] of [[A.back-D-.9,0,A.back-.05,A.back-D-.96],[A.front+D+.3,0,A.front+.05,A.front+D+.96]] as const){for(let i=0;i<xs.length-1;i++){const w=xs[i+1]-xs[i],xc=(xs[i]+xs[i+1])/2;bay(w,[xc,crown,z],ry,[xc,0,wz]);}
-   for(const x of xs.slice(1,-1))medallion(x,crown+1.85,face,true);}
-  // Carved band and cornice over the arches.
-  for(const side of [-1,1]){box(scene,[1.2,.5,len],[side*(inner-.15+.6),A.height-1.35,midZ],stoneDark);box(scene,[1.3,.1,len],[side*(inner-.15+.6),A.height-1.08,midZ],gold);}
-  for(const z of [A.back-D-.6,A.front+D+.6]){box(scene,[inner*2+1.2,.5,1.2],[0,A.height-1.35,z],stoneDark);box(scene,[inner*2+1.3,.1,1.3],[0,A.height-1.08,z],gold);}}
  box(scene,[portal*2-.5,A.balconyY-.45,.8],[0,(A.balconyY-.45)/2,A.back-D+.2],stone).material=marble(0xc9a875);
  for(const y of [GRAND_STAIR.rise+.1,A.balconyY-1.2])box(scene,[portal*2-.5,.25,.3],[0,y,A.back-D-.25],C.gold);
  // Balcony floors for both tiers.
@@ -214,9 +172,7 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
    for(const o of [-1,1]){const f=hallImage(scene,'scroll',seg,.7,mx+Math.cos(a)*o*(bw/2+.16),q.y-1.05,mz-Math.sin(a)*o*(bw/2+.16));f.rotation.y=a+o*Math.PI/2;}
    const ox=Math.cos(a)*(bw/2+.08),oz=-Math.sin(a)*(bw/2+.08);rail(mx-ox-(q.x-p.x)/2,mz-oz-(q.z-p.z)/2,p.y,mx-ox+(q.x-p.x)/2,mz-oz+(q.z-p.z)/2,q.y);rail(mx+ox-(q.x-p.x)/2,mz+oz-(q.z-p.z)/2,p.y,mx+ox+(q.x-p.x)/2,mz+oz+(q.z-p.z)/2,q.y);
   }
-  // The arch springs from a pier at the landing and lands on the first-tier columns.
-  box(scene,[1.2,S.rise,1.4],[side*(lh+.4),S.rise/2,start.z],stone).material=marble(0xc4a070);
-  cylinder(scene,.3,A.balconyY-1.2,[side*(inner-.6),(A.balconyY-1.2)/2,bridgeEndZ+.6],marbleShaft).material=marble(0xc08a52);
+  // Keep the bridge underside open without freestanding support piers or columns.
   rail(side*(S.flightHalf+3.2),S.flightStart-.3,0,side*(S.flightHalf+.06),S.flightStart+6*d,6*step,true);rail(side*(S.flightHalf+.06),S.flightStart+6*d,6*step,side*(S.flightHalf+.06),S.flightEnd,S.rise,true);
   // Bronze torch-bearers at the foot of the flight.
   const x=side*(S.flightHalf+3.6),z=S.flightStart-.9;box(scene,[1.1,1.2,1.1],[x,.6,z],marbleShaft).material=marble(0x8f4a35);const t=new T.Group();t.position.set(x,1.2,z);scene.add(t);
