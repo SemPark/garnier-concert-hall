@@ -52,7 +52,8 @@ export class LobbyCat{
   this.tail.add(new T.Mesh(new T.TubeGeometry(curve,14,.07,8,false),material(ginger)));sphere(this.tail,.075,[.33,.56,.12],cream);
   const shadow=new T.Mesh(new T.CircleGeometry(.46,20),new T.MeshBasicMaterial({color:0x3c2c20,transparent:true,opacity:.15,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.scale.set(.85,1.55,1);shadow.position.y=.012;this.root.add(shadow);
   const hit=new T.Mesh(new T.BoxGeometry(.7,.85,1.1),new T.MeshBasicMaterial({visible:false}));hit.position.set(HOME.x,.42,HOME.z);hit.userData.lobbyCat=true;scene.add(hit);this.targets.push(hit);
-  this.heart=this.sprite('♥','#d16f78',1.25);this.heart.position.y=1.4;this.heart.visible=false;
+  this.heart=this.sprite('♥','#ed7189',1.8);this.heart.position.y=1.4;this.heart.visible=false;
+  this.heart.material.depthTest=false;this.heart.renderOrder=30;
   this.hint=this.sprite('쓰다듬기','#fff4da',1.05);this.hint.position.set(0,1.48,0);
   // Sprites stay in the scene while character geometry is rendered in shared instance batches.
   scene.add(this.heart,this.hint);
@@ -111,8 +112,12 @@ export class LobbyCat{
   this.head.position.y=.72+(reduced?0:walking?Math.cos(this.gait*Math.PI*4)*.009:Math.sin(t*1.8)*.008);
   this.tail.rotation.y=Math.sin(t*(happy?5:1.4))*(happy?.28:.12);
   this.eyes.scale.y=happy?.18:now%5>4.85?.12:1;
-  this.heart.visible=happy;this.heart.position.set(p.x,1.05+(reduced?0:Math.sin((3-this.happyUntil+now)*Math.PI/3)*.12),p.z);
+  const affectionAge=3-this.happyUntil+now;
+  this.heart.visible=happy;this.heart.position.set(p.x,1.05+(reduced?0:Math.max(0,affectionAge)*.12),p.z);
+  this.heart.material.opacity=happy?Math.min(1,affectionAge/.15,(this.happyUntil-now)/.5):0;
   this.hint.position.set(p.x,1.03,p.z);
   this.hint.visible=!happy&&visitor.distanceTo(this.root.position)<4;
+  // Architecture batching freezes standalone sprite matrices; refresh their moving positions explicitly.
+  for(const sprite of [this.heart,this.hint]){sprite.updateMatrix();sprite.updateMatrixWorld(true);}
  }
 }
