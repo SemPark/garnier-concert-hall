@@ -12,6 +12,8 @@ export function lobbyRouteNodes(){const S=GRAND_STAIR,B=LOBBY_BRANCH,A=ATRIUM;re
  {x:0,y:0,z:S.flightStart-.1},{x:0,y:S.rise,z:S.flightEnd+.1},{x:0,y:S.rise,z:B.z},
  ...[-1,1].flatMap(side=>[{x:side*B.startX,y:S.rise,z:B.z},{x:side*B.endX,y:A.balconyY,z:B.z},{x:side*(B.endX+.6),y:A.balconyY,z:B.z},... [A.front+1.3,A.back-1.3].map(z=>({x:side*(A.halfWidth-1.3),y:A.balconyY,z}))]),
  ];}
+export const LOBBY_ARCADE={x:12.7,bays:[23.1,28.1,33.1,38.1],columns:[20.6,25.6,30.6,35.6,40.6]} as const;
+export const BOX_OFFICE_APPROACH={x:-12.5,y:0,z:23.1} as const;
 /** Lobby furniture footprints (centre and half sizes), shared by the scene and the walking rules. */
 export const LOBBY_FURNITURE={
  // Box office and cloakroom sit inside the first ground-tier arcade bay on each side, behind the arch.

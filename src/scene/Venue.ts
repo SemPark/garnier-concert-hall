@@ -1,6 +1,7 @@
 import * as T from 'three';
 import {box,cylinder,sphere,line,text,material,detailedMaterial,wallWithOpenings,C} from './primitives';
-import {ATRIUM,GRAND_STAIR,LOBBY_BRANCH,AMPHITHEATRE_DOOR} from '../../shared/grandStair';
+import {ATRIUM,GRAND_STAIR,LOBBY_BRANCH,LOBBY_ARCADE,AMPHITHEATRE_DOOR} from '../../shared/grandStair';
+import {buildLobbyDetails,lobbyStatue,LOBBY_PALETTE} from './LobbyDetails';
 import {buildLobbyAmenities,type ProgramBoard} from './LobbyAmenities';
 import {SEATS,BOUNDS,type Zone} from '../../shared/venue';
 import type {Avatar} from '../character/Avatar';
@@ -96,47 +97,43 @@ function stoneArch(parent:T.Object3D,width:number,height:number,depth:number,col
  * marble wall panels and bronze lighting. Freestanding columns are omitted; the ground-floor arch crowns remain. */
 function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Object3D[]){
  const A=ATRIUM,S=GRAND_STAIR,W=A.halfWidth,D=A.balconyDepth,len=A.back-A.front,midZ=(A.front+A.back)/2,inner=W-D,tier2=13.4;
- // Warm grey-ochre stone and sand-coloured veined marble, as in the photos.
- const stone=0xbca98a,stoneDark=0x8f7c5e,marbleShaft=0xb59a74,stepStone=0xe6d6b4,redMarble=0x8f3f33,onyx=0xe2d3a6,bronze=0x4f3b27,flame=0xfff0c6;
+ // Match the auditorium ivory palette and keep the stair stone slightly lighter.
+ const stone=LOBBY_PALETTE.ivory,stoneDark=LOBBY_PALETTE.deep,marbleShaft=0xe8d6ac,stepStone=0xe6d6b4,redMarble=LOBBY_PALETTE.red,onyx=0xe2d3a6;
  patternedFloor(scene,W*2,len,midZ);
  cameraWalls.push(box(scene,[.4,A.height,len+.4],[-W-.2,A.height/2,midZ],stone),box(scene,[.4,A.height,len+.4],[W+.2,A.height/2,midZ],stone),box(scene,[W*2+.8,A.height,.4],[0,A.height/2,A.back+.2],stone));
  cameraWalls.push(...wallWithOpenings(scene,-W-.4,W+.4,0,A.height,A.front-.2,.4,stone,[-6.8,0,6.8].map(x=>({minX:x-1.95,maxX:x+1.95,minY:0,maxY:5.2}))));
  // The entrance wall as seen from the head of the stair: three ground arches (the centre one the street door with
- // a blue fanlight and a mosaic vestibule beyond, the side ones grilled), carved panels on the piers between them;
+ // blue fanlights and mosaic vestibules beyond), carved panels on the piers between them;
  // on the top tier three great arches with painted vaults.
  {const h=A.balconyY-.95;for(const x of [-6.8,0,6.8]){stoneArch(scene,4.8,h,.6,stone,[x,0,A.front-.1],0);const spring=h-1.1-1.95,vz=A.front-3;
    box(scene,[4,.12,3],[x,.01,vz+1.5],0xb9a27c);for(let k=0;k<6;k++)box(scene,[.5,.02,.5],[x-1.25+k*.5,.08,vz+1.5],k%2?0x6b3a2a:0xd8c7a3);
    box(scene,[4.4,5.6,.2],[x,2.8,vz],stoneDark);for(const side of [-1,1])box(scene,[.2,5.6,3],[x+side*2.1,2.8,vz+1.5],stoneDark);
-   if(x===0){box(scene,[2.4,3.2,.1],[0,1.6,vz+.12],0x3a2618);box(scene,[2.0,2.8,.06],[0,1.5,vz+.18],0x4d3220);const fan=new T.Mesh(new T.CircleGeometry(1.3,18,0,Math.PI),new T.MeshBasicMaterial({color:0x6f8fc8}));fan.position.set(0,3.25,vz+.12);scene.add(fan);for(let k=1;k<5;k++){const a=k/5*Math.PI;line(scene,new T.Vector3(0,3.25,vz+.15),new T.Vector3(Math.cos(a)*1.3,3.25+Math.sin(a)*1.3,vz+.15),.025,C.gold);}}
-   else{for(let k=-6;k<=6;k++)line(scene,new T.Vector3(x+k*.3,0,A.front+.05),new T.Vector3(x+k*.3,spring,A.front+.05),.02,0x2c2620);line(scene,new T.Vector3(x-1.9,1.05,A.front+.06),new T.Vector3(x+1.9,1.05,A.front+.06),.04,C.gold);sphere(scene,.22,[x,3.4,vz+.4],0xfff0c6);}}
+   {box(scene,[2.4,3.2,.1],[x,1.6,vz+.12],0x3a2618);box(scene,[2.0,2.8,.06],[x,1.5,vz+.18],0x4d3220);const fan=new T.Mesh(new T.CircleGeometry(1.3,18,0,Math.PI),new T.MeshBasicMaterial({color:0x6f8fc8}));fan.position.set(x,3.25,vz+.12);scene.add(fan);for(let k=1;k<5;k++){const a=k/5*Math.PI;line(scene,new T.Vector3(x,3.25,vz+.15),new T.Vector3(x+Math.cos(a)*1.3,3.25+Math.sin(a)*1.3,vz+.15),.025,C.gold);}}
+  }
   for(const x of [-10.2,-3.4,3.4,10.2]){box(scene,[1.7,h,.5],[x,h/2,A.front+.25],stone);box(scene,[1.1,2.4,.08],[x,2.6,A.front+.53],0xb08a55);hallImage(scene,'relief',1,1.8,x,2.6,A.front+.58).rotation.z=Math.PI/2;box(scene,[1.9,.3,.6],[x,h-.15,A.front+.3],C.gold);}
   }
  cameraWalls.push(box(scene,[W*2+.4,.4,len+.4],[0,A.height+.2,midZ],stoneDark));
  for(const z of [24,31,38]){const fresco=new T.Mesh(new T.PlaneGeometry(15,5.4),hallImageMaterial('fresco'));fresco.rotation.x=Math.PI/2;fresco.position.set(0,A.height-.02,z);fresco.userData.fullDetail=true;scene.add(fresco);for(const x of [-7.6,7.6])box(scene,[.3,.35,5.8],[x,A.height-.18,z],C.gold);for(const dz of [-2.8,2.8])box(scene,[15.4,.35,.3],[0,A.height-.18,z+dz],C.gold);}
  // Heavy carved entablatures under each tier and the ceiling.
  for(const y of [A.balconyY-.55,A.height-.7]){for(const side of [-1,1])box(scene,[.9,.9,len],[side*(W-.45),y,midZ],stoneDark);box(scene,[W*2,.9,.9],[0,y,A.back-.45],stoneDark);box(scene,[W*2,.9,.9],[0,y,A.front+.45],stoneDark);for(const side of [-1,1])box(scene,[.2,.25,len],[side*(inner+.05),y-.35,midZ],C.gold);
-  // Gilded scroll frieze in short repeats, sharing the hall's frieze image.
-  for(const side of [-1,1])for(let z=A.front+1.3;z<A.back-.5;z+=2.6){const f=hallImage(scene,'scroll',2.6,.62,side*(W-.91),y+.05,z);f.rotation.y=-side*Math.PI/2;}
-  for(let x=-W+1.3;x<W-.5;x+=2.6){hallImage(scene,'scroll',2.6,.62,x,y+.05,A.back-.91).rotation.y=Math.PI;hallImage(scene,'scroll',2.6,.62,x,y+.05,A.front+.91);}}
- // Keep the ground-floor arch crowns above the open floor without bringing back columns.
- for(const side of [-1,1])for(const z of [23.1,28.1,33.1,38.1])
-  stoneArch(scene,5,A.balconyY-.45,.4,stone,[side*(inner+.1),0,z],Math.PI/2,.45,true);
+ }
+ // Both arcade levels share one shaft at each joint between adjacent arch crowns.
+ for(const side of [-1,1])for(const z of LOBBY_ARCADE.bays){
+  stoneArch(scene,5,A.balconyY-.45,.4,stone,[side*LOBBY_ARCADE.x,0,z],Math.PI/2,.45,true);
+  stoneArch(scene,5,5.75,.4,stone,[side*LOBBY_ARCADE.x,A.balconyY,z],Math.PI/2,.45,true);
+ }
+ buildLobbyDetails(scene);
  const portal=GRAND_STAIR.branchInner+.45;
  box(scene,[portal*2-.5,A.balconyY-.45,.8],[0,(A.balconyY-.45)/2,A.back-D+.2],stone).material=marble(0xc9a875);
 
  // Balcony floors for both tiers.
  for(const y of [A.balconyY,tier2]){for(const side of [-1,1])box(scene,[D,.45,len],[side*(W-D/2),y-.22,midZ],stone);box(scene,[inner*2,.45,D],[0,y-.22,A.back-D/2],stone);box(scene,[inner*2,.45,D],[0,y-.22,A.front+D/2],stone);}
- // Polychrome panels on the walls behind the arcades.
- for(const x of [-10.2,-6.3,-2.1,2.1,6.3,10.2]){box(scene,[3,3.8,.08],[x,10.2,A.front+.06],redMarble).material=marble(0xa4503e);hallImage(scene,'relief',2,1,x,11.1,A.front+.12);for(const dx of [-1.55,1.55])box(scene,[.14,4.1,.1],[x+dx,10.2,A.front+.08],C.gold);}
- for(const side of [-1,1])for(const z of [23.1,28.1,33.1,38.1])for(const y of [3.2,10.2]){box(scene,[.08,3.8,3],[side*(W-.06),y,z],redMarble).material=marble(0xa4503e);hallImage(scene,'relief',2,1,side*(W-.12),y+.9,z).rotation.y=-side*Math.PI/2;box(scene,[.1,4.1,.14],[side*(W-.08),y,z-1.55],C.gold);box(scene,[.1,4.1,.14],[side*(W-.08),y,z+1.55],C.gold);}
- const candelabrum=(x:number,y:number,z:number,size=1)=>{cylinder(scene,.06*size,1.1*size,[x,y+.55*size,z],bronze);
-  for(const [r,h,n]of [[.42,1.05,8],[.24,1.35,5]] as const)for(let k=0;k<n;k++){const a=k/n*Math.PI*2;cylinder(scene,.025*size,.18*size,[x+Math.cos(a)*r*size,y+h*size,z+Math.sin(a)*r*size],0xf3ead2);sphere(scene,.07*size,[x+Math.cos(a)*r*size,y+(h+.13)*size,z+Math.sin(a)*r*size],flame);}
-  sphere(scene,.09*size,[x,y+1.6*size,z],flame);};
+ const statueAt=(x:number,y:number,z:number,size=1)=>lobbyStatue(scene,x,y,z,size*.65,x>0?-Math.PI/2:Math.PI/2);
  const rail=(x1:number,z1:number,y1:number,x2:number,z2:number,y2:number,lamps=false,bal=redMarble)=>{
   const n=Math.max(1,Math.round(Math.hypot(x2-x1,z2-z1)/.36));
   for(let i=0;i<=n;i++){const t=i/n;cylinder(scene,bal===redMarble?.06:.09,.78,[x1+(x2-x1)*t,y1+(y2-y1)*t+.47,z1+(z2-z1)*t],bal);}
   line(scene,new T.Vector3(x1,y1+.93,z1),new T.Vector3(x2,y2+.93,z2),.11,onyx);line(scene,new T.Vector3(x1,y1+.06,z1),new T.Vector3(x2,y2+.06,z2),.12,stone);
-  if(lamps)for(const [x,y,z]of [[x1,y1,z1],[x2,y2,z2]]){box(scene,[.36,1.05,.36],[x,y+.52,z],stone);candelabrum(x,y+1.05,z,.8);}
+  if(lamps)for(const [x,y,z]of [[x1,y1,z1],[x2,y2,z2]]){box(scene,[.36,1.05,.36],[x,y+.52,z],stone);statueAt(x,y+1.05,z,.8);}
  };
  const B=LOBBY_BRANCH;
  for(const y of [A.balconyY,tier2])for(const side of [-1,1]){
@@ -171,10 +168,7 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
   }
   for(const edge of [-1,1])rail(side*B.startX,B.z+edge*B.width/2,S.rise,side*B.endX,B.z+edge*B.width/2,A.balconyY);
   rail(side*(S.flightHalf+.06),S.flightStart,0,side*(S.flightHalf+.06),S.flightEnd,S.rise,true);
-  // Bronze torch-bearers at the foot of the flight.
-  const x=side*(S.flightHalf+3.6),z=S.flightStart-.9;box(scene,[1.1,1.2,1.1],[x,.6,z],marbleShaft).material=marble(0x8f4a35);const t=new T.Group();t.position.set(x,1.2,z);scene.add(t);
-  cylinder(t,.36,1.5,[0,.75,0],0x6d5034);cylinder(t,.2,.85,[0,1.9,0],0x6d5034);sphere(t,.21,[0,2.5,0],0x6d5034);line(t,new T.Vector3(.2,2.3,0),new T.Vector3(.45,3.3,0),.08,bronze);
-  candelabrum(x+.45,4.4,z,1.25);
+  const x=side*(S.flightHalf+3.6),z=S.flightStart-.9;box(scene,[1.1,.8,1.1],[x,.4,z],marbleShaft);lobbyStatue(scene,x,.8,z,1.1,Math.PI);
  }
 
  // Smooth click surfaces cover each flight and the complete first gallery ring.
@@ -192,9 +186,9 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
  for(const z of [A.front,A.back-D])surface([[-inner,A.balconyY,z],[inner,A.balconyY,z],[inner,A.balconyY,z+D],[-inner,A.balconyY,z+D]]);
  // Street doors under the far arcade, and the foyer named over its opening.
  for(const x of [-8.4,8.4]){box(scene,[2.6,4.4,.2],[x,2.2,A.back-.06],C.wood);arch(scene,2.9,4.5,[x,0,A.back-.2],Math.PI);}
- for(const x of [-10.2,-3.4,3.4,10.2]){box(scene,[.8,1,.8],[x,.5,A.front+1.2],0x8f4a35).material=marble(0x8f4a35);cylinder(scene,.09,2.6,[x,2.3,A.front+1.2],bronze);candelabrum(x,3.5,A.front+1.2,1.05);}
+ for(const x of [-10.2,-3.4,3.4,10.2]){box(scene,[.8,.8,.8],[x,.4,A.front+1.2],stoneDark);lobbyStatue(scene,x,.8,A.front+1.2,.95);}
  text(scene,'PALAIS GARNIER',5,[0,A.height-1.5,A.front+.95],'#f0d9a0');
- chandelier(scene,0,15.5,24,2.2);for(const z of [23.1,38.1])for(const x of [-inner+1,inner-1])candelabrum(x,A.balconyY+.9,z,.9);
+ chandelier(scene,0,15.5,24,2.2);for(const z of [23.1,38.1])for(const x of [-inner+1,inner-1])statueAt(x,A.balconyY+.9,z,.9);
 }
 export function createVenue(zone:Zone):Venue{
  const scene=new T.Scene();scene.background=new T.Color(0x24201b);scene.fog=new T.FogExp2(zone==='lobby'?0x292119:0xc2a372,zone==='lobby'?.009:.002);

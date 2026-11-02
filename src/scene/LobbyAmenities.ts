@@ -42,10 +42,10 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
  // Café: a marble-topped walnut bar along the wall, a mirrored back shelf with bottles, and standing tables.
  {const f=F.cafeCounter,g=new T.Group();g.position.set(f.x,0,f.z);scene.add(g);
   box(g,[f.hx*2,1.1,f.hz*2],[0,.55,0],walnut);box(g,[f.hx*2+.2,.08,f.hz*2+.1],[.05,1.14,0],marbleWhite);
-  const backsplash=box(g,[.06,2.2,f.hz*2],[-.57,2.1,0],0x9fb3b8);backsplash.userData.fullDetail=true;backsplash.userData.cameraWall=true;for(const y of [1.6,2.2,2.8])box(g,[.35,.05,f.hz*2-.2],[-.50,y,0],brass);
-  for(let i=0;i<24;i++){const z=-f.hz+.3+(i%12)*(f.hz*2-.6)/11,y=i<12?1.78:2.38;cylinder(g,.06,.3,[-.42,y,z],[0x3c5c3a,0x7a2c22,0xd9c27a,0x2f3f5a][i%4]);}
+  const backsplash=box(g,[.06,2.2,f.hz*2],[-.25,2.1,0],0x9fb3b8);backsplash.userData.fullDetail=true;backsplash.userData.cameraWall=true;for(const y of [1.6,2.2,2.8])box(g,[.35,.05,f.hz*2-.2],[-.18,y,0],brass);
+  for(let i=0;i<24;i++){const z=-f.hz+.3+(i%12)*(f.hz*2-.6)/11,y=i<12?1.78:2.38;cylinder(g,.06,.3,[-.12,y,z],[0x3c5c3a,0x7a2c22,0xd9c27a,0x2f3f5a][i%4]);}
   cylinder(g,.25,.45,[.1,1.4,-2],0x8d8d8d);box(g,[.5,.45,.4],[.1,1.4,2],0xa8a8a8);
-  box(g,[.04,.5,1.6],[-.55,3.2,0],0x2c211a);text(g,'CAFÉ',1.6,[-.515,3.2,0],'#f0d9a0').rotation.y=Math.PI/2;
+  box(g,[.04,.5,1.6],[-.25,3.2,0],0x2c211a);text(g,'CAFÉ',1.6,[-.215,3.2,0],'#f0d9a0').rotation.y=Math.PI/2;
   for(const t of F.cafeTables){cylinder(scene,.32,.05,[t.x,.03,t.z],brass);cylinder(scene,.05,1.05,[t.x,.55,t.z],brass);cylinder(scene,.42,.05,[t.x,1.08,t.z],marbleWhite);}}
  // Lounge: red velvet sofas against the wall and a round button ottoman, the Garnier "borne".
  for(const f of F.sofas){const g=new T.Group();g.position.set(f.x,0,f.z);scene.add(g);
