@@ -212,7 +212,7 @@ function doorFrame(frame:T.Object3D,width:number,height:number,z:number,depth:nu
  box(frame,[width+.36,.35,depth],[0,height+.175,z],P.ivory);box(frame,[width,.06,.7],[0,height-.03,z-.3],P.ivory);
  box(frame,[width,.04,.8],[0,-.13,z-.3],0x5a3d28);
 }
-function openDoor(g:T.Object3D,x:number,bottom:number,width:number,height:number,z=.57){
+export function openDoor(g:T.Object3D,x:number,bottom:number,width:number,height:number,z=.57){
  const frame=new T.Group();frame.position.set(x,bottom,z);frame.userData.landmark='timber-door';frame.userData.doorBottom=bottom;frame.userData.open=true;g.add(frame);
  doorFrame(frame,width,height,.02,.18);
  openLeaves(frame,width,height,.16);return frame;

@@ -37,3 +37,12 @@
 - 공식 길이 48.9m, 폭 19.1m, 높이 17.75m의 비율을 참고해 앱 공간은 길이 82 × 폭 32 × 높이 29.7 단위로 구성했다. 앱 좌표를 실제 미터로 표시하지 않는다.
 - 파이프오르간, 직선 발코니, 아치형 창, 조각상 기둥, 천장 패널과 샹들리에는 직접 작성한 3D 기하로 구성했다. 공식 사진은 검토용이며 앱에 복사하지 않았다.
 - 객석은 장식 좌석과 기존 선택 좌석 8개로 구성한 프로토타입이다. 공식 정원 전체를 구현한 좌석 예약 시스템은 아니다.
+
+## Palais Garnier — Grand Escalier ceiling photograph
+
+- Photo: **Diego Delso**, “Ópera, París, Francia, 2022-10-31, DD 54-56 HDR”.
+- Source: https://commons.wikimedia.org/wiki/File:Ópera,_París,_Francia,_2022-10-31,_DD_54-56_HDR.jpg
+- Photographer: https://delso.photo/
+- License: **CC BY-SA 4.0**, https://creativecommons.org/licenses/by-sa/4.0/
+- Local file: `src/assets/hall/garnier-stair-ceiling.webp` (4596px JPEG resized to 2048px and converted to WebP).
+- Mapped onto the lobby ceiling as a photographic surface; this texture adaptation remains CC BY-SA 4.0. The auditorium fresco is unchanged.

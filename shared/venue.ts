@@ -66,7 +66,7 @@ export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  return null;
 }
 const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.57,hz:.48,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [{x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y:0}];})],lobby:[
- ...[-12.6,-6.3,0,6.3,12.6].flatMap(x=>[ATRIUM.front+ATRIUM.balconyDepth,ATRIUM.back-ATRIUM.balconyDepth].map(z=>({x,z,hx:.33,hz:.33,y:ATRIUM.balconyY}))),
+ ...LOBBY_ARCADE.endColumns.flatMap(x=>[ATRIUM.front+ATRIUM.balconyDepth,ATRIUM.back-ATRIUM.balconyDepth].map(z=>({x,z,hx:.33,hz:.33,y:ATRIUM.balconyY}))),
  ...[-1,1].flatMap(side=>[0,ATRIUM.balconyY].flatMap(y=>LOBBY_ARCADE.columns.map(z=>({x:side*LOBBY_ARCADE.x,z,hx:.33,hz:.33,y})))),
 ...[-1,1].map(side=>({x:side*(GRAND_STAIR.flightHalf+3.6),z:GRAND_STAIR.flightStart-.9,hx:.65,hz:.65,y:0})),
  ...[F.boxOffice,F.cloakroom,F.cafeCounter,...F.cafeTables,...F.sofas,F.ottoman,...F.busts,...F.torchieres,F.programBoard].map(f=>({...f,y:0}))]};

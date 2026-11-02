@@ -48,7 +48,7 @@ export function buildLobbyDetails(scene:T.Scene){
  for(const side of [-1,1])lobbyWoodWall(wallFrame(scene,side*(A.halfWidth-.14),(A.front+A.back)/2,-side*Math.PI/2),A.back-A.front,19.1);
  for(const z of [A.front+.14,A.back-.14])lobbyWoodWall(wallFrame(scene,0,z,z>A.front+1?Math.PI:0),A.halfWidth*2,12,7.3);
  // End arcades continue the same spring heights and share the side cornice datum.
- for(const z of [A.front+A.balconyDepth,A.back-A.balconyDepth])for(const x of [-12.6,-6.3,0,6.3,12.6])for(const base of [A.balconyY,13.4]){
+ for(const z of [A.front+A.balconyDepth,A.back-A.balconyDepth])for(const x of LOBBY_ARCADE.endColumns.slice(1,-1))for(const base of [A.balconyY,13.4]){
   cylinder(scene,.29,.16,[x,base+.08,z],P.deep);cylinder(scene,.235,1.95,[x,base+1.22,z],P.ivory);cylinder(scene,.31,.15,[x,base+2.35,z],P.gold);box(scene,[.72,.16,.72],[x,base+2.48,z],P.light);
  }
  // Single round shafts at the joints shared by adjacent arches; no doubled piers.
@@ -58,13 +58,13 @@ export function buildLobbyDetails(scene:T.Scene){
   cylinder(scene,.235,h-.55,[x,base+h/2,z],P.ivory);cylinder(scene,.3,.14,[x,base+h-.22,z],P.gold);box(scene,[.72,.16,.72],[x,base+h-.07,z],P.light);
  }
  for(const side of [-1,1]){
-  for(const z of LOBBY_ARCADE.bays){const frame=wallFrame(scene,side*(A.halfWidth-.2),z,-side*Math.PI/2);if(!(side===-1&&z<36)&&!(side===1&&z===23.1))panel(frame,3.7,4.3,3.05);panel(frame,3.7,4.5,10.25);windowBay(frame,3.3);}
+  for(const z of LOBBY_ARCADE.bays){const frame=wallFrame(scene,side*(A.halfWidth-.2),z,-side*Math.PI/2);if(!(side===-1&&z<36)&&!(side===1&&z===LOBBY_ARCADE.bays[0]))panel(frame,3.7,4.3,3.05);panel(frame,3.7,4.5,10.25);windowBay(frame,3.3);}
   // Narrow inlays and sconces fill the gaps on the outer wall rather than cluttering the aisles.
   for(const z of LOBBY_ARCADE.columns){const frame=wallFrame(scene,side*(A.halfWidth-.22),z,-side*Math.PI/2);for(const y of [3.1,10.2]){
    box(frame,[.5,4.6,.12],[0,y,0],P.gold);hallImage(frame,'pilaster',.38,4.3,0,y,.08);
   }}
  }
- for(const z of [A.front+.22,A.back-.22])for(const x of [-10.2,-3.4,3.4,10.2]){
+ for(const z of [A.front+.22,A.back-.22])for(const x of LOBBY_ARCADE.endBays){
   const frame=wallFrame(scene,x,z,z>A.front+1?Math.PI:0);panel(frame,2.25,4.3,10.25);windowBay(frame,2.5);
  }
  // Rear ground wall bays, beside the stair, receive the same framed ivory panels.

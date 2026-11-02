@@ -1,6 +1,8 @@
 import * as T from 'three';
 import {box,cylinder,sphere,line,text,material,detailedMaterial,wallWithOpenings,C} from './primitives';
 import {ATRIUM,GRAND_STAIR,LOBBY_BRANCH,LOBBY_ARCADE,AMPHITHEATRE_DOOR} from '../../shared/grandStair';
+import {buildGarnierCeiling} from './GarnierCeiling';
+import {buildLobbyEntrance} from './LobbyEntrance';
 import {buildLobbyDetails,lobbyStatue,lobbyWoodWall,LOBBY_PALETTE} from './LobbyDetails';
 import {buildLobbyAmenities,type ProgramBoard} from './LobbyAmenities';
 import {SEATS,BOUNDS,type Zone} from '../../shared/venue';
@@ -119,21 +121,23 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
   for(const x of [-10.2,-3.4,3.4,10.2]){const g=new T.Group();g.position.set(x,0,A.front+.5);scene.add(g);lobbyWoodWall(g,1.7,h);hallImage(g,'relief',1.1,2.1,0,2.8,.2);}
  }
  cameraWalls.push(box(scene,[W*2+.4,.4,len+.4],[0,A.height+.2,midZ],stoneDark));
- for(const z of [24,31,38]){const fresco=new T.Mesh(new T.PlaneGeometry(15,5.4),hallImageMaterial('fresco'));fresco.rotation.x=Math.PI/2;fresco.position.set(0,A.height-.02,z);fresco.userData.fullDetail=true;scene.add(fresco);for(const x of [-7.6,7.6])box(scene,[.3,.35,5.8],[x,A.height-.18,z],C.gold);for(const dz of [-2.8,2.8])box(scene,[15.4,.35,.3],[0,A.height-.18,z+dz],C.gold);}
+ buildGarnierCeiling(scene);
  // Heavy carved entablatures under each tier and the ceiling.
  for(const y of [A.balconyY-.55,A.height-.7]){for(const side of [-1,1])box(scene,[.9,.9,len],[side*(W-.45),y,midZ],stoneDark);box(scene,[W*2,.9,.9],[0,y,A.back-.45],stoneDark);box(scene,[W*2,.9,.9],[0,y,A.front+.45],stoneDark);for(const side of [-1,1])box(scene,[.2,.25,len],[side*(inner+.05),y-.35,midZ],C.gold);
  }
  // Both arcade levels share one shaft at each joint between adjacent arch crowns.
  for(const side of [-1,1])for(const z of LOBBY_ARCADE.bays){
-  stoneArch(scene,5,A.balconyY-.45,.4,stone,[side*LOBBY_ARCADE.x,0,z],Math.PI/2,.45,true);
-  for(const base of [A.balconyY,tier2])stoneArch(scene,5,5.75,.4,stone,[side*LOBBY_ARCADE.x,base,z],Math.PI/2,.45,true);
+  stoneArch(scene,LOBBY_ARCADE.width,A.balconyY-.45,.4,stone,[side*LOBBY_ARCADE.x,0,z],Math.PI/2,.45,true);
+  for(const base of [A.balconyY,tier2])stoneArch(scene,LOBBY_ARCADE.width,5.75,.4,stone,[side*LOBBY_ARCADE.x,base,z],Math.PI/2,.45,true);
  }
- for(const z of [A.front+D,A.back-D])for(const x of [-9.45,-3.15,3.15,9.45])for(const base of [A.balconyY,tier2])
-  stoneArch(scene,6.3,6.2,.35,stone,[x,base,z],0,.45,true);
+ for(const z of [A.front+D,A.back-D])for(const x of LOBBY_ARCADE.endBays)for(const base of [A.balconyY,tier2])
+  stoneArch(scene,LOBBY_ARCADE.width,5.75,.35,stone,[x,base,z],0,.45,true);
+ // Ground-floor returns close the short end bays instead of exposing a dark slit beside an arch.
+ for(const side of [-1,1])for(const z of [A.front+D/2,A.back-D/2]){
+  box(scene,[.4,A.balconyY-.45,D],[side*LOBBY_ARCADE.x,(A.balconyY-.45)/2,z],stone);
+  for(const dz of [-D/2+.12,D/2-.12])box(scene,[.46,A.balconyY-.45,.12],[side*LOBBY_ARCADE.x,(A.balconyY-.45)/2,z+dz],LOBBY_PALETTE.light);
+ }
  buildLobbyDetails(scene);
- const portal=GRAND_STAIR.branchInner+.45;
- box(scene,[portal*2-.5,A.balconyY-.45,.8],[0,(A.balconyY-.45)/2,A.back-D+.2],stone).material=woodMaterial('walnut');
-
  // Balcony floors for both tiers.
  for(const y of [A.balconyY,tier2]){for(const side of [-1,1])box(scene,[D,.45,len],[side*(W-D/2),y-.22,midZ],stone);box(scene,[inner*2,.45,D],[0,y-.22,A.back-D/2],stone);box(scene,[inner*2,.45,D],[0,y-.22,A.front+D/2],stone);}
  const statueAt=(x:number,y:number,z:number,size=1)=>lobbyStatue(scene,x,y,z,size*.65,x>0?-Math.PI/2:Math.PI/2);
@@ -147,26 +151,14 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
  for(const y of [A.balconyY,tier2])for(const side of [-1,1]){
   if(y===A.balconyY){rail(side*inner,A.front+.2,y,side*inner,B.z-B.width/2,y,true);rail(side*inner,B.z+B.width/2,y,side*inner,A.back-D,y,true);}else rail(side*inner,A.front+.2,y,side*inner,A.back-D,y,false,0xe3d2ac);
  }
- for(const y of [A.balconyY,tier2]){const bal=y===tier2?0xe3d2ac:redMarble;rail(-inner,A.back-D,y,inner,A.back-D,y,false,bal);rail(-inner,A.front+D,y,inner,A.front+D,y,y===A.balconyY,bal);}
+ for(const y of [A.balconyY,tier2]){const bal=y===tier2?0xe3d2ac:redMarble;if(y===A.balconyY){rail(-inner,A.back-D,y,-S.branchInner,A.back-D,y,false,bal);rail(S.branchInner,A.back-D,y,inner,A.back-D,y,false,bal);}else rail(-inner,A.back-D,y,inner,A.back-D,y,false,bal);rail(-inner,A.front+D,y,inner,A.front+D,y,y===A.balconyY,bal);}
  // Central flight: broad and solid; its lowest steps flare out with rounded ends, as in the hall.
  const step=S.rise/S.steps,d=(S.flightEnd-S.flightStart)/S.steps,lh=S.branchInner;
  for(let i=0;i<S.steps;i++){const top=(i+1)*step,flare=Math.max(0,6-i)**1.5*.17,w=S.flightHalf*2+flare*2,z=S.flightStart+(i+.5)*d;
   box(scene,[w,top,d],[0,top/2,z],stepStone).userData.landmark='grand-stair-step';if(flare>0)for(const side of [-1,1])cylinder(scene,d/2,top,[side*w/2,top/2,z],stepStone);}
  box(scene,[lh*2,S.rise,S.landingEnd-S.flightEnd],[0,S.rise/2,(S.flightEnd+S.landingEnd)/2],stepStone).userData.landmark='grand-stair-landing';
  for(const side of [-1,1])box(scene,[lh-S.flightHalf,S.rise,.3],[side*(lh+S.flightHalf)/2,S.rise/2,S.flightEnd-.05],stone);
- // At the head of the flight, on the landing: the amphitheatre doorway, a marble aedicule with its name plaque,
- // guarded by two statues, as in the hall.
- {const z0=A.back-D-.45,y0=S.rise,door=new T.Group();door.position.set(0,y0,z0);door.userData.landmark='amphitheatre-door';scene.add(door);
-  const leaves=new T.Group();leaves.rotation.y=Math.PI;leaves.position.z=-.3;door.add(leaves);timberDoor(leaves,0,0,2.5,3.5,0);
-  for(const side of [-1,1]){box(door,[.55,4.3,.7],[side*1.55,2.15,0],marbleShaft).material=woodMaterial('walnut');box(door,[.75,.35,.8],[side*1.55,.18,0],stoneDark);}
-  box(door,[3.9,.7,.75],[0,4.55,0],marbleShaft).material=woodMaterial('walnut');box(door,[2.7,.62,.1],[0,3.9,-.33],0x7a3428);
-  text(door,'AMPHITHÉÂTRE',2.5,[0,3.9,-.39],'#f0d9a0').rotation.y=Math.PI;
-  box(door,[4.5,.35,.95],[0,5.05,0],C.gold);const top=new T.Shape();top.moveTo(-2.3,0);top.lineTo(0,1.2);top.lineTo(2.3,0);top.closePath();
-  const pediment=new T.Mesh(new T.ExtrudeGeometry(top,{depth:.8,bevelEnabled:false}),material(stepStone));pediment.userData.fullDetail=true;pediment.position.set(0,5.22,-.4);door.add(pediment);
-  line(door,new T.Vector3(-2.3,5.22,-.43),new T.Vector3(0,6.42,-.43),.055,C.gold);line(door,new T.Vector3(0,6.42,-.43),new T.Vector3(2.3,5.22,-.43),.055,C.gold);
-  sphere(door,.18,[0,5.75,-.43],C.gold);
-  for(const side of [-1,1]){const x=side*2.55;box(door,[.9,1,.9],[x,.5,-.2],marbleShaft).material=marble(0x9c5a3a);const f=new T.Group();f.position.set(x,1,-.2);door.add(f);
-   cylinder(f,.34,1.6,[0,.8,0],0xd9c9a8);cylinder(f,.23,.85,[0,1.95,0],0xd9c9a8);sphere(f,.21,[0,2.58,0],0xd9c9a8);line(f,new T.Vector3(side*-.15,2.2,0),new T.Vector3(side*-.5,2.9,-.1),.08,0xd9c9a8);}}
+ buildLobbyEntrance(scene,cameraWalls);
  // Straight outward flights meet the first gallery flush, with one uninterrupted rail per edge.
  for(const side of [-1,1]){
   const tread=(B.endX-B.startX)/B.steps,rise=(A.balconyY-S.rise)/B.steps;
@@ -192,6 +184,7 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
   surface([[side*inner,A.balconyY,A.front],[side*W,A.balconyY,A.front],[side*W,A.balconyY,A.back],[side*inner,A.balconyY,A.back]]);
  }
  for(const z of [A.front,A.back-D])surface([[-inner,A.balconyY,z],[inner,A.balconyY,z],[inner,A.balconyY,z+D],[-inner,A.balconyY,z+D]]);
+ surface([[-lh,A.balconyY,S.landingEnd+.5],[lh,A.balconyY,S.landingEnd+.5],[lh,A.balconyY,A.back],[-lh,A.balconyY,A.back]]);
  // Street doors under the far arcade, and the foyer named over its opening.
  for(const x of [-8.4,8.4]){box(scene,[2.6,4.4,.2],[x,2.2,A.back-.06],C.wood);arch(scene,2.9,4.5,[x,0,A.back-.2],Math.PI);}
  for(const x of [-10.2,-3.4,3.4,10.2]){box(scene,[.8,.8,.8],[x,.4,A.front+1.2],stoneDark);lobbyStatue(scene,x,.8,A.front+1.2,.95);}
@@ -211,7 +204,7 @@ export function createVenue(zone:Zone):Venue{
   grandEscalier(scene,cameraWalls,walkTargets);
   programBoard=buildLobbyAmenities(scene,walkTargets).programBoard;
   // The amphitheatre door at the head of the flight is the way into the hall.
-  portal=new T.Mesh(new T.BoxGeometry(2.5,3.4,.5),new T.MeshBasicMaterial({visible:false}));portal.position.set(AMPHITHEATRE_DOOR.x,GRAND_STAIR.rise+1.7,ATRIUM.back-ATRIUM.balconyDepth-.55);portal.userData.portal=true;scene.add(portal);
+  portal=new T.Mesh(new T.BoxGeometry(2.5,3.4,.5),new T.MeshBasicMaterial({visible:false}));portal.position.set(AMPHITHEATRE_DOOR.x,GRAND_STAIR.rise+1.7,AMPHITHEATRE_DOOR.z);portal.userData.portal=true;scene.add(portal);
   sun.position.set(-7,30,26);sun.target.position.set(0,0,31);scene.add(sun.target);
  }else{
   cameraWalls.push(...buildGoldenHall(scene).cameraWalls);

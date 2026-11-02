@@ -29,7 +29,7 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
   const lunette=new T.Mesh(new T.CircleGeometry(2.05,24,0,Math.PI),glass);lunette.position.set(0,3.6,.3);lunette.userData.fullDetail=true;g.add(lunette);
   for(let k=1;k<6;k++){const a=k/6*Math.PI;line(g,new T.Vector3(0,3.6,.35),new T.Vector3(Math.cos(a)*2.05,3.6+Math.sin(a)*2.05,.35),.025,goldTrim);}
   box(g,[w,2.2,.06],[0,2.2,-1.65],0x4a3020);for(let r=0;r<4;r++)for(let c=0;c<9;c++)box(g,[.32,.24,.14],[-1.6+c*.4,1.6+r*.34,-1.58],0x3a2618);
-  plaque(g,'BILLETTERIE');
+  plaque(g,'BILLETTERIE');g.traverse(o=>{o.userData.preserveSilhouette=true;});
   const target=new T.Mesh(new T.BoxGeometry(w,3,1),hit);target.position.set(0,1.6,0);target.userData.boxOffice=true;g.add(target);clickTargets.push(target);}
  // Cloakroom: a marble-topped counter across the arch with a bell and brass tokens; behind it, in the bay, two rows
  // of coats on rails with numbered tags, hats on the shelf above, against a red wall.

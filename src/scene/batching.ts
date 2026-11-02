@@ -9,7 +9,7 @@ function isLit(mat:T.Material):mat is Lit{return mat instanceof T.MeshStandardMa
 function collect(groups:Map<string,BatchGroup>,mesh:T.Mesh){
  if(Array.isArray(mesh.material))return;
  const mat=mesh.material,lit=isLit(mat)&&!mat.map;
- const key=mesh.geometry.uuid+'/'+(mesh.userData.fullDetail?'full/':'adaptive/')+(lit?JSON.stringify([mat.type,mat instanceof T.MeshStandardMaterial?mat.roughness:0,mat instanceof T.MeshStandardMaterial?mat.metalness:0,mat.emissive.getHex(),mat.emissiveIntensity,mat.transparent,mat.opacity,mat.depthWrite,mat.side]):mat.uuid);
+ const key=mesh.geometry.uuid+'/'+(mesh.userData.fullDetail?'full/':'adaptive/')+(mesh.userData.preserveSilhouette?'persistent/':'')+(lit?JSON.stringify([mat.type,mat instanceof T.MeshStandardMaterial?mat.roughness:0,mat instanceof T.MeshStandardMaterial?mat.metalness:0,mat.emissive.getHex(),mat.emissiveIntensity,mat.transparent,mat.opacity,mat.depthWrite,mat.side]):mat.uuid);
  let group=groups.get(key);if(!group){const material=lit?mat.clone():mat;if(lit)(material as Lit).color.setHex(0xffffff);group={material,objects:[],colors:lit};groups.set(key,group);}group.objects.push(mesh);
 }
 /** Small decoration this close to the camera turns invisible instead of filling the view; walls, floors and big panels stay. */
@@ -20,7 +20,7 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,hideNear=false
  const make=(g:T.BufferGeometry)=>{const batch=new T.InstancedMesh(g,group.material,group.objects.length);batch.instanceMatrix.setUsage(dynamic?T.DynamicDrawUsage:T.StaticDrawUsage);batch.matrixAutoUpdate=false;batch.frustumCulled=false;scene.add(batch);return batch;};
  const high=make(geometry),low=lowGeometry===geometry?high:make(lowGeometry);
  geometry.computeBoundingSphere();
- const items:Item[]=group.objects.map(mesh=>({mesh,matrix:mesh.matrixWorld.clone(),center:geometry.boundingSphere!.center.clone().applyMatrix4(mesh.matrixWorld),radius:geometry.boundingSphere!.radius*mesh.matrixWorld.getMaxScaleOnAxis(),limit:fullDetail?Infinity:detailDistance(mesh),min:mesh.userData.lodMin??0,color:group.colors?(mesh.material as Lit).color.clone():null,level:0,shown:false,near:hideNear?nearBox(mesh):undefined,occluder:mesh.userData.occluderBox??(mesh.userData.cameraOccluder?new T.Box3().setFromObject(mesh).expandByScalar(.12):undefined)}));
+ const items:Item[]=group.objects.map(mesh=>({mesh,matrix:mesh.matrixWorld.clone(),center:geometry.boundingSphere!.center.clone().applyMatrix4(mesh.matrixWorld),radius:geometry.boundingSphere!.radius*mesh.matrixWorld.getMaxScaleOnAxis(),limit:fullDetail||mesh.userData.preserveSilhouette?Infinity:detailDistance(mesh),min:mesh.userData.lodMin??0,color:group.colors?(mesh.material as Lit).color.clone():null,level:0,shown:false,near:hideNear&&!mesh.userData.preserveSilhouette?nearBox(mesh):undefined,occluder:mesh.userData.occluderBox??(mesh.userData.cameraOccluder?new T.Box3().setFromObject(mesh).expandByScalar(.12):undefined)}));
  const frustum=new T.Frustum(),projection=new T.Matrix4(),sphere=new T.Sphere(),occlusionRay=new T.Ray(),intersection=new T.Vector3();
  let initialized=false;
  const write=(camera?:T.Camera)=>{
