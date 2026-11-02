@@ -8,14 +8,28 @@ export const GRAND_STAIR={flightHalf:4,flightStart:31,flightEnd:37,landingEnd:41
 export const ATRIUM_COLUMNS=[21,26,31,36,41].flatMap(z=>[-1,1].map(side=>({x:side*(15-2.55),z})));
 /** Lobby furniture footprints (centre and half sizes), shared by the scene and the walking rules. */
 export const LOBBY_FURNITURE={
- boxOffice:{x:-10.8,z:19.1,hx:2.6,hz:.85},cloakroom:{x:10.8,z:19.1,hx:2.6,hz:.85},
- cafeCounter:{x:-14.1,z:31,hx:.55,hz:4.2},
+ // Box office and cloakroom sit inside the first ground-tier arcade bay on each side, behind the arch.
+ boxOffice:{x:-14.1,z:23.1,hx:.95,hz:2.1},cloakroom:{x:14.1,z:23.1,hx:.95,hz:2.1},
+ cafeCounter:{x:-14.2,z:30.85,hx:.5,hz:4.45},
  cafeTables:[24,28,32,36].map(z=>({x:-9.8,z,hx:.45,hz:.45})),
- sofas:[23.5,28.5,33.5,38.5].map(z=>({x:14.15,z,hx:.55,hz:1.3})),
+ sofas:[28.1,33.1,38.1].map(z=>({x:14.15,z,hx:.55,hz:1.3})),
  ottoman:{x:9.6,z:24,hx:1.3,hz:1.3},
- busts:[-6.5,.5,7.5].flatMap(z=>[-1,1].map(side=>({x:side*6.35,z,hx:.35,hz:.35}))),
- programBoard:{x:4.3,z:-16.4,hx:.75,hz:.3},
+ // The composer statues stand in the street vestibule beyond the entrance, not in this hall.
+ busts:[] as {x:number;z:number;hx:number;hz:number}[],
+ torchieres:[-10.2,-3.4,3.4,10.2].map(x=>({x,z:19.2,hx:.45,hz:.45})),
+ programBoard:{x:-6.4,z:28.4,hx:.75,hz:.4},
 } as const;
-export const COMPOSERS=['MOZART','HAYDN','BEETHOVEN','SCHUBERT','BRAHMS','STRAUSS'] as const;
-/** Lobby floor: the foyer, then the wider hall it opens into. */
-export function onLobbyFloor(x:number,z:number){return (Math.abs(x)<=6.6&&z<=ATRIUM.front+.6)||(Math.abs(x)<=ATRIUM.halfWidth-.5&&z>=ATRIUM.front&&z<=ATRIUM.back-.5);}
+export const COMPOSERS=['LULLI','GLUCK'] as const;
+/** Lobby floor: the Grand Escalier hall itself. */
+export function onLobbyFloor(x:number,z:number){return Math.abs(x)<=ATRIUM.halfWidth-.5&&z>=ATRIUM.front+.5&&z<=ATRIUM.back-.5;}
+/** The amphitheatre door at the head of the flight is the way into the hall. */
+export const AMPHITHEATRE_DOOR={x:0,z:41.6-.7,halfWidth:1.3} as const;
+/** Walking height in the lobby: the floor, the central flight (one even ramp of steps) and its landing.
+ *  The flight's sides, the landing's flanks and the flare are not walkable; the curved branches are overhead only. */
+export function lobbyHeight(x:number,z:number):number|null{
+ const S=GRAND_STAIR,a=Math.abs(x);if(!onLobbyFloor(x,z))return null;
+ if(z>=S.flightStart&&z<=S.flightEnd){if(a<=S.flightHalf-.3)return (z-S.flightStart)/(S.flightEnd-S.flightStart)*S.rise;if(a<=S.branchInner+1.5)return null;return 0;}
+ if(z>S.flightEnd&&z<=S.landingEnd){if(a<=S.branchInner-.3)return z<=S.landingEnd-.35?S.rise:null;if(a<=S.branchInner+1.5)return null;return 0;}
+ if(z>=S.flightStart-1.6&&z<S.flightStart&&a>S.flightHalf-.3&&a<=S.flightHalf+2.6)return null;// the flared lowest steps
+ return 0;
+}

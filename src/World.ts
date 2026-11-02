@@ -8,7 +8,7 @@ import {stageShow} from './orchestra/stageShow';
 /** Gestures that make applause heard in the quiet time between pieces. */
 const CLAPS:Gesture[]=['clap','bravo','ovation'];
 import {corridorRoute,STAIR_CORRIDOR} from '../shared/gallery';
-import {ATRIUM} from '../shared/grandStair';
+import {ATRIUM,AMPHITHEATRE_DOOR,GRAND_STAIR} from '../shared/grandStair';
 import program from '../content/playlist.json';
 import {nextPiece,type Playlist} from '../shared/timeline';
 import {localCameraFrame} from './controls/localCamera';
@@ -135,7 +135,7 @@ export class World{
   if(hit.object.userData.lobbyExit){this.changeZone();return;}let obj:T.Object3D|null=hit.object,seatId:string|undefined;while(obj){seatId=seatId??obj.userData.seatId;if(obj.userData.portal){this.changeZone();return;}obj=obj.parent;}
   if(seatId){void this.chooseSeat(seatId);return;}
   if(this.pose==='sit'){this.stand();return;}
-  const point={x:hit.point.x,y:surfaceHeight(this.zone,hit.point,hit.point.y)??hit.point.y,z:hit.point.z};if(this.zone==='lobby'&&point.z<-15&&Math.abs(point.x)<2){this.changeZone();return;}
+  const point={x:hit.point.x,y:surfaceHeight(this.zone,hit.point,hit.point.y)??hit.point.y,z:hit.point.z};
   // A tap on the stage lip, whose ray reaches the floor under the stage, walks to the front of the stage instead.
   if(this.zone==='auditorium'&&Math.abs(point.y??0)<.4&&point.z<STAGE_APRON_Z&&point.z>STAGE_APRON_Z-3)point.z=STAGE_APRON_Z+.3;
   const path=findPath(this.zone,{x:this.position.x,y:this.position.y,z:this.position.z},point);if(!path){this.onToast('통로나 빈 바닥을 선택해 주세요.');return;}this.cancelSeat();this.route=path;this.marker.position.set(point.x,(point.y??0)+.035,point.z);this.marker.visible=true;
@@ -163,7 +163,7 @@ export class World{
   // In the hall the camera never slips through a stair door into the corridor: it just comes closer along its orbit.
   if(this.zone==='auditorium'&&target.z>GOLDEN_HALL.rear-.5&&target.z>local.origin.z){const t=Math.max(0,(GOLDEN_HALL.rear-.5-local.origin.z)/(target.z-local.origin.z));target.lerpVectors(local.origin,target,t);}
   // Stay under the ceiling, so zooming out never leaves the building.
-  target.y=Math.min(target.y,this.zone==='lobby'?(this.position.z>ATRIUM.front?ATRIUM.height-1:11.2):GOLDEN_HALL.height-1.5);
+  target.y=Math.min(target.y,this.zone==='lobby'?ATRIUM.height-1:GOLDEN_HALL.height-1.5);
   return {look,position:constrainCamera(local.origin,target,this.venue.cameraWalls)};
  }
  /** Reaction icons float above every visible visitor's head, with a short pop when they appear. */
@@ -201,13 +201,16 @@ export class World{
      if(!this.climb.points.length){const up=this.climb.up;this.climb=null;this.cameraYaw=0;this.cameraPitch=.13;// Out of the door, look straight ahead into the hall.
       this.position.set(p.x,p.y??0,p.z);this.route.shift();this.sentAt=0;this.sendPosition(now,true);this.onToast(up?'계단을 올라 2층에 왔어요.':'계단을 내려 1층에 왔어요.');}
     }
-    else if(d<.035){this.position.set(p.x,p.y??0,p.z);this.route.shift();}else{const step=Math.min(d,3.4*dt);this.position.x+=(p.x-this.position.x)/d*step;this.position.z+=(p.z-this.position.z)/d*step;this.position.y+=((p.y??0)-this.position.y)/d*step;}
+    else if(d<.035){this.position.set(p.x,p.y??0,p.z);this.route.shift();}else{const step=Math.min(d,3.4*dt);this.position.x+=(p.x-this.position.x)/d*step;this.position.z+=(p.z-this.position.z)/d*step;this.position.y+=((p.y??0)-this.position.y)/d*step;
+     // The lobby is one height field: keep feet on the floor, the flight or the landing.
+     if(this.zone==='lobby'){const h=surfaceHeight('lobby',this.position);if(h!==null)this.position.y=h;}}
     if(!this.route.length){this.marker.visible=false;this.pose='idle';if(this.reservedSeat&&!this.seating){this.seating=true;this.sendPosition(now,true);this.net.send({type:'seated',seatId:this.reservedSeat});}}
    }
    speed=previous.distanceTo(this.position)/Math.max(dt,.001);if(this.pose!=='sit'){this.pose=speed>.015?'walk':'idle';if(speed>.015)this.yaw=Math.atan2(-(this.position.x-previous.x),-(this.position.z-previous.z));}
    if(this.reservedSeat&&this.pose!=='sit'&&now-this.renewAt>5000){this.net.send({type:'renew',seatId:this.reservedSeat});this.renewAt=now;}
    this.sendPosition(now);
-   if(this.zone==='lobby'&&this.position.z<-15.6&&Math.abs(this.position.x)<2)this.changeZone();
+   // Walking through the amphitheatre door at the head of the flight enters the hall.
+   if(this.zone==='lobby'&&this.position.y>GRAND_STAIR.rise-.3&&this.position.z>AMPHITHEATRE_DOOR.z-.4&&Math.abs(this.position.x)<AMPHITHEATRE_DOOR.halfWidth)this.changeZone();
   }
   if(this.pose==='sit'&&this.seatedTarget)this.position.lerp(this.seatedTarget,1-Math.exp(-dt*12));
   const music=this.audio.playback.playing&&!this.reduced;

@@ -64,7 +64,7 @@ function App(){
   <div className="vignette"/>
   <header className="topbar">
    <div className="brand"><span className="brand-mark"><Icon name="hall" size={25}/></span><div><span className="brand-name">GARNIER</span><span className="brand-sub">함께 듣는 음악당</span></div></div>
-   {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LE GRAND FOYER':'GOLDENER SAAL'}</span><span>{zone==='lobby'?'그랑 푸아예':'황금홀'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ')??'입장 중'}</span></div>}
+   {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LE GRAND ESCALIER':'GOLDENER SAAL'}</span><span>{zone==='lobby'?'대계단':'황금홀'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ')??'입장 중'}</span></div>}
    <nav className="tools" aria-label="음악당 설정">
     {entered&&<span className="visitor-count" title={connected?'함께 있는 관객':'연결을 기다리고 있어요'}><span className={`connection ${connected?'online':''}`}/><Icon name="people" size={18}/>{net?.local?'혼자 감상':net?.state?.visitors.length??'—'}</span>}
     <button className="icon-button" aria-label={audio?.enabled?'소리 끄기':'소리 켜기'} onClick={()=>{audio?.toggle();redraw(n=>n+1);}}><Icon name={audio?.enabled?'sound':'mute'}/></button>
@@ -78,11 +78,11 @@ function App(){
    <button className="enter-button" onClick={enter} disabled={!app}>음악당 들어가기 <Icon name="arrow" size={19}/></button>
    <div className="welcome-note">가입 없이, 편안하게. <span>소리와 함께 입장합니다.</span></div>
   </section>}
-  {!entered&&<div className="intro-caption"><span>01 / LE GRAND FOYER</span><span>팔레 가르니에에서 영감을 받은 작은 공간</span></div>}
+  {!entered&&<div className="intro-caption"><span>01 / LE GRAND ESCALIER</span><span>팔레 가르니에에서 영감을 받은 작은 공간</span></div>}
   {entered&&<>
    {!connected&&<div className="connection-banner" role="status">{net?.status==='connecting'?'음악당의 문을 여는 중이에요…':'연결이 잠시 끊겼어요. 다시 연결하고 있습니다.'}</div>}
    {connected&&zone==='lobby'&&lookPicker&&<div className="look-picker" role="dialog" aria-label="내 캐릭터 고르기"><span>YOUR CHARACTER</span><h2>내 캐릭터를 골라주세요</h2><div className="look-choice">{(["man","woman"] as const).map(v=><button key={v} className={world?.visitorLook===v?"active":""} onClick={()=>{try{localStorage.setItem('garnier-look',v);}catch{}if(world?.visitorLook!==v)world?.setLook(v);setLookPicker(false);}}>{v==="man"?"남자":"여자"}</button>)}</div></div>}
-   {connected&&zone==='lobby'&&!lookPicker&&<aside className="room-note"><span>LE GRAND FOYER</span><h2>오늘의 자리는 <br/>비워두었어요.</h2><p>앞쪽 문이나 아래 ‘공연장 입장’을 눌러 들어가세요.</p></aside>}
+   {connected&&zone==='lobby'&&!lookPicker&&<aside className="room-note"><span>LE GRAND ESCALIER</span><h2>오늘의 자리는 <br/>비워두었어요.</h2><p>계단 위 문이나 아래 ‘공연장 입장’을 눌러 들어가세요. 매표소에서 좌석을 고를 수 있어요.</p></aside>}
    {menu&&<><nav className="icon-menu" role="menu" aria-label="음악당 메뉴" title="음악당 메뉴" onKeyDown={e=>{if(e.key==='Escape')setMenu(false);}}>
     {zone==='auditorium'?<>
      <button role="menuitem" className="icon-menu-item" aria-label="좌석 고르기" title="좌석 고르기" onClick={()=>{world?.input.keys.clear();setSeats(true);}}><Icon name="ticket" size={20}/></button>
