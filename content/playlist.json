@@ -1,5 +1,5 @@
 {
-  "version": "mozart-hour-1",
+  "version": "mozart-evening-2",
   "epochMs": 1793327798000,
   "tracks": [
     {
@@ -22,116 +22,71 @@
       "title": "곡 사이 — 조용한 공연장",
       "composer": "공연장 현장음",
       "url": "/api/audio/hall-quiet-1.mp3",
-      "durationSeconds": 15.998662,
+      "durationSeconds": 15.0,
       "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Geroezemoes_in_een_zaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
         "licenseName": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
       "stage": "quiet"
     },
     {
-      "id": "mozart-magic-flute-overture",
-      "title": "마술피리 K.620 — 서곡",
+      "id": "mozart-clarinet-concerto-1",
+      "title": "클라리넷 협주곡 A장조 K.622 — 1악장 Allegro",
       "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-magic-flute-overture.mp3",
-      "durationSeconds": 400.772653,
+      "url": "/api/audio/mozart-clarinet-concerto-1.mp3",
+      "durationSeconds": 746.069342,
+      "gapAfterSeconds": 7,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Wolfgang_Amadeus_Mozart_-_Clarinet_Concerto_-_1._Allegro.ogg",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+      },
+      "work": "클라리넷 협주곡"
+    },
+    {
+      "id": "mozart-clarinet-concerto-2",
+      "title": "클라리넷 협주곡 — 2악장 Adagio",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-clarinet-concerto-2.mp3",
+      "durationSeconds": 452.78873,
+      "gapAfterSeconds": 7,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Wolfgang_Amadeus_Mozart_-_Clarinet_Concerto_-_2._Adagio.ogg",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+      },
+      "work": "클라리넷 협주곡"
+    },
+    {
+      "id": "mozart-clarinet-concerto-3",
+      "title": "클라리넷 협주곡 — 3악장 Rondo. Allegro",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/mozart-clarinet-concerto-3.mp3",
+      "durationSeconds": 531.378957,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Die_Zauberfl%C3%B6te,_K620_-_Overture_(Musopen_Symphony).flac",
-        "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Wolfgang_Amadeus_Mozart_-_Clarinet_Concerto_-_3._Allegro.ogg",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
       },
-      "work": "마술피리 서곡"
+      "work": "클라리넷 협주곡"
     },
     {
       "id": "hall-quiet-2",
       "title": "곡 사이 — 조용한 공연장",
       "composer": "공연장 현장음",
       "url": "/api/audio/hall-quiet-2.mp3",
-      "durationSeconds": 17.999433,
+      "durationSeconds": 15.0,
       "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg",
-        "licenseName": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
-      },
-      "stage": "quiet"
-    },
-    {
-      "id": "mozart-symphony-35-1",
-      "title": "교향곡 35번 D장조 K.385 ‘하프너’ — 1악장 Allegro con spirito",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-symphony-35-1.mp3",
-      "durationSeconds": 304.274286,
-      "gapAfterSeconds": 7,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Symphony_no._35_in_D_%27Haffner%27_K._385_I._Allegro_con_spirito_(Mozart)_European_Archive.ogg",
-        "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
-      },
-      "work": "교향곡 35번 ‘하프너’"
-    },
-    {
-      "id": "mozart-symphony-35-2",
-      "title": "교향곡 35번 ‘하프너’ — 2악장 Andante",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-symphony-35-2.mp3",
-      "durationSeconds": 356.472744,
-      "gapAfterSeconds": 7,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Symphony_no._35_in_D_%27Haffner%27_K._385_II._Andante_(Mozart)_European_Archive.ogg",
-        "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
-      },
-      "work": "교향곡 35번 ‘하프너’"
-    },
-    {
-      "id": "mozart-symphony-35-3",
-      "title": "교향곡 35번 ‘하프너’ — 3악장 Menuetto",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-symphony-35-3.mp3",
-      "durationSeconds": 200.035556,
-      "gapAfterSeconds": 7,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Symphony_no._35_in_D_%27Haffner%27_K._385_III._Minuetto_(Mozart)_European_Archive.ogg",
-        "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
-      },
-      "work": "교향곡 35번 ‘하프너’"
-    },
-    {
-      "id": "mozart-symphony-35-4",
-      "title": "교향곡 35번 ‘하프너’ — 4악장 Finale. Presto",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-symphony-35-4.mp3",
-      "durationSeconds": 210.993243,
-      "gapAfterSeconds": 0,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Symphony_no._35_in_D_%27Haffner%27_K._385_IV._Finale_Presto_(Mozart)_European_Archive.ogg",
-        "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
-      },
-      "work": "교향곡 35번 ‘하프너’"
-    },
-    {
-      "id": "hall-quiet-3",
-      "title": "곡 사이 — 조용한 공연장",
-      "composer": "공연장 현장음",
-      "url": "/api/audio/hall-quiet-3.mp3",
-      "durationSeconds": 23.998662,
-      "gapAfterSeconds": 2,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Geroezemoes_in_een_zaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
         "licenseName": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
@@ -198,45 +153,45 @@
       "work": "교향곡 40번"
     },
     {
-      "id": "hall-quiet-4",
+      "id": "hall-quiet-3",
       "title": "곡 사이 — 조용한 공연장",
       "composer": "공연장 현장음",
-      "url": "/api/audio/hall-quiet-4.mp3",
-      "durationSeconds": 29.997324,
+      "url": "/api/audio/hall-quiet-3.mp3",
+      "durationSeconds": 15.0,
       "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Geroezemoes_in_een_zaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
         "licenseName": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
       "stage": "quiet"
     },
     {
-      "id": "mozart-symphony-34-3",
-      "title": "앙코르 — 교향곡 34번 C장조 K.338 — 3악장 Finale",
+      "id": "mozart-eine-kleine-nachtmusik-1",
+      "title": "앙코르 — 아이네 클라이네 나흐트무지크 K.525 — 1악장 Allegro",
       "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-symphony-34-3.mp3",
-      "durationSeconds": 247.385397,
+      "url": "/api/audio/mozart-eine-kleine-nachtmusik-1.mp3",
+      "durationSeconds": 355.413333,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_Symphony_No.34_C_major_III._Finale_(Allegro_vivace)_(Mozart)_European_Archive.ogg",
-        "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Eine_kleine_Nachtmusik_-_1._Allegro.ogg",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
       },
-      "work": "앙코르: 교향곡 34번 피날레"
+      "work": "앙코르: 아이네 클라이네 나흐트무지크"
     },
     {
-      "id": "hall-quiet-5",
+      "id": "hall-quiet-4",
       "title": "곡 사이 — 조용한 공연장",
       "composer": "공연장 현장음",
-      "url": "/api/audio/hall-quiet-5.mp3",
-      "durationSeconds": 23.998662,
+      "url": "/api/audio/hall-quiet-4.mp3",
+      "durationSeconds": 15.0,
       "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_de_Kleine_Doelenzaal_bij_aanvang_concert_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Geroezemoes_in_een_zaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
         "licenseName": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },

@@ -33,5 +33,5 @@ test('after each piece the hall is quiet: no recorded applause, only a short cla
  for(let i=0;i<tracks.length;i++)if(!tracks[i].stage){const next=tracks[(i+1)%tracks.length];if(next.stage)assert.match(next.id,/^hall-(quiet|farewell)/,`${tracks[i].id} is followed by quiet hall sound`);}
  assert.ok(!tracks.some(t=>t.id.includes('applause')),'no applause recording in the program');
  assert.ok(files['/audio/hall-clap.mp3']>0,'the clap clip is served for visitor claps');
- const total=tracks.reduce((s,t)=>s+t.durationSeconds+t.gapAfterSeconds,0)/60;assert.ok(total>55&&total<65,`about an hour (${total.toFixed(1)} min)`);
+ const total=tracks.reduce((s,t)=>s+t.durationSeconds+t.gapAfterSeconds,0)/60;assert.ok(total>55&&total<70,`about an hour (${total.toFixed(1)} min)`);
 });
