@@ -31,6 +31,8 @@ export class ConcertAudio{
   for(const event of ['waiting','stalled'])this.media.addEventListener(event,()=>{this.state='음악을 불러오는 중';this.sync.buffering();},opts);
   this.media.addEventListener('error',()=>{this.state='음원을 불러오지 못했어요';},opts);
   document.addEventListener('visibilitychange',()=>{this.sync.request();if(document.hidden)this.media.pause();},opts);
+  // If the browser left the audio graph suspended, the next tap or key wakes it (music, door spill and lobby room tone all pass through it).
+  for(const type of ['pointerdown','keydown','touchend'])document.addEventListener(type,()=>{if(this.enabled&&this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});},{...opts,capture:true});
   // Media playback does not depend on rendering frames arriving on time.
   this.timer=setInterval(()=>this.tick(.1),100);
  }
@@ -50,7 +52,8 @@ export class ConcertAudio{
  /** Return to the concert everyone else is hearing. */
  rejoin(){this.shift=0;this.lastId='';this.sync.request();}
  async unlock(){this.enabled=true;this.unlocking=true;this.media.src=this.mediaUrl(this.playback.track.url);this.lastId=this.playback.track.id;this.cycle=this.playback.cycle;this.media.volume=0;this.sync.request();
-  try{await this.prepareFilter();await this.media.play();if(this.zone==='lobby'&&!this.doorLeak)this.media.pause();this.sync.request();this.state=this.zone==='lobby'?'공연장에서 음악이 시작돼요':'함께 감상 중';return true;}
+  // Start the audio graph and the media in the same tap: browsers only allow sound that begins inside the gesture.
+  try{const graph=this.prepareFilter(),playing=this.media.play();await graph;await playing;if(this.zone==='lobby'&&!this.doorLeak)this.media.pause();this.sync.request();this.state=this.zone==='lobby'?'공연장에서 음악이 시작돼요':'함께 감상 중';return true;}
   catch{this.enabled=false;this.state='소리를 켜주세요';return false;}finally{this.unlocking=false;}
  }
  toggle(){if(this.enabled){this.enabled=false;this.media.pause();this.state='소리 꺼짐';}else void this.unlock();}
