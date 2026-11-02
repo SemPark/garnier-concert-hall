@@ -102,6 +102,16 @@ export class Avatar{
  settlePose(sitting:boolean){this.sitAmount=sitting?1:0;this.update(0,0,sitting,false,null,10,0);for(const group of [this.head,this.leftArm,this.rightArm])group.userData.animated=true;}
  /** Each arm is one rigid piece: rotate only at the shoulder, never stretch or bend. */
  private aimAt(arm:Arm,x:number,y:number,z:number,weight=1){this.direction.set(x,y,z).sub(arm.shoulder.position).normalize();this.armRotation.setFromUnitVectors(DOWN,this.direction);arm.shoulder.quaternion.slerp(this.armRotation,weight);}
+ /** Reach for the cat's actual head in world space, regardless of the approach direction. */
+ pet(point:T.Vector3,time:number,reduced:boolean){
+  const lean=.65;this.tilt.set(-lean,0,0);this.hipOffset.copy(HIP).applyEuler(this.tilt);
+  this.body.rotation.copy(this.tilt);this.body.position.set(-this.hipOffset.x,HIP.y-this.hipOffset.y,-this.hipOffset.z);
+  for(const leg of [this.leftLeg,this.rightLeg])leg.rotation.set(lean,0,0);
+  this.head.rotation.set(-.2,0,0);
+  this.direction.copy(point);this.body.worldToLocal(this.direction);const {x,y,z}=this.direction;
+  this.aimAt(this.right,x,y+(reduced?0:Math.sin(time*9)*.025),z);
+  this.rightHand.quaternion.copy(this.rightArm.quaternion).invert();
+ }
  update(time:number,speed:number,sitting:boolean,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60){
   const t=time+this.phase,play=performing?1:0,type=this.instrumentType;this.sitAmount=T.MathUtils.damp(this.sitAmount,sitting?1:0,12,dt);
   const pose=poseVillager({time,speed,sit:this.sitAmount,music:performing,musician:!!type,gesture,age:gestureAge},this.phase),sit=pose.sit;

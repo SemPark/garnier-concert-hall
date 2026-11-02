@@ -65,11 +65,15 @@ export class LobbyCat{
   c.textAlign='center';c.textBaseline='middle';c.font='700 65px sans-serif';c.lineJoin='round';c.lineWidth=8;c.strokeStyle='#594737';c.strokeText(value,192,64);c.fillStyle=color;c.fillText(value,192,64);
   const map=new T.CanvasTexture(canvas);map.colorSpace=T.SRGBColorSpace;const sprite=new T.Sprite(new T.SpriteMaterial({map,transparent:true,depthWrite:false,toneMapped:false}));sprite.scale.set(width,width/3,1);this.root.add(sprite);return sprite;
  }
- /** Pause for the visitor and offer a side clear of the camera, rather than standing in front of the cat. */
- invite(camera:T.Vector3,now:number){
-  this.destination=null;this.heldUntil=Infinity;const p=this.root.position,side=camera.x>p.x?-1:1;
-  for(const [dx,dz] of [[side*.75,.18],[-side*.75,.18],[side*.65,-.35],[-side*.65,-.35]]){
-   const point={x:p.x+dx,y:0,z:p.z+dz};if(walkable('lobby',point)){Object.assign(this.approach,point);return true;}
+ petPoint(out:T.Vector3){return this.root.localToWorld(out.set(0,.99,-.37));}
+ /** Accept a nearby visitor in place, or approach the head from whichever side they are on. */
+ invite(visitor:T.Vector3){
+  this.destination=null;this.heldUntil=Infinity;const p=this.petPoint(new T.Vector3());p.y=0;
+  const distance=Math.hypot(visitor.x-p.x,visitor.z-p.z);
+  if(Math.abs(visitor.y)<.2&&distance>=.45&&distance<=.6&&walkable('lobby',visitor)){Object.assign(this.approach,{x:visitor.x,y:0,z:visitor.z});return true;}
+  const angle=Math.atan2(visitor.x-p.x,visitor.z-p.z);
+  for(const offset of [0,.4,-.4,.8,-.8,1.6,-1.6,2.4,-2.4,Math.PI]){
+   const a=angle+offset,point={x:p.x+Math.sin(a)*.53,y:0,z:p.z+Math.cos(a)*.53};if(walkable('lobby',point)){Object.assign(this.approach,point);return true;}
   }
   this.heldUntil=0;return false;
  }
