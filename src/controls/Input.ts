@@ -1,6 +1,6 @@
 type Touch={x:number;y:number};
 export class Input{
- readonly touchKeys=new Set<string>();
+ readonly touchMove={x:0,z:0};
  readonly keys=new Set<string>();private pointers=new Map<number,Touch>();private start:Touch&{id:number;time:number;dragged:boolean}|null=null;private span=0;private abort=new AbortController();
  constructor(canvas:HTMLCanvasElement,actions:{click:(x:number,y:number)=>void;rotate:(dx:number,dy:number)=>void;zoom:(factor:number)=>void;escape:()=>void}){
   const opts={signal:this.abort.signal};
@@ -16,5 +16,5 @@ export class Input{
   window.addEventListener('keyup',e=>this.keys.delete(e.code),opts);window.addEventListener('blur',()=>this.keys.clear(),opts);
  }
  private getSpan(){const [a,b]=[...this.pointers.values()];return a&&b?Math.hypot(a.x-b.x,a.y-b.y):0;}
- destroy(){this.keys.clear();this.touchKeys.clear();this.abort.abort();}
+ destroy(){this.keys.clear();this.touchMove.x=0;this.touchMove.z=0;this.abort.abort();}
 }

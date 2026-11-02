@@ -1,28 +1,26 @@
 import {useEffect,useRef,useState} from 'react';
 import type {Input} from './controls/Input';
 
-const DIRECTIONS=[{code:'ArrowUp',label:'앞으로 이동',name:'up',angle:0},{code:'ArrowLeft',label:'왼쪽으로 이동',name:'left',angle:-90},{code:'ArrowRight',label:'오른쪽으로 이동',name:'right',angle:90},{code:'ArrowDown',label:'뒤로 이동',name:'down',angle:180}];
-
-/** Hold to walk; independent touch keys also allow diagonal movement with two fingers. */
+/** A circular analogue stick: continuous direction and speed, independent of camera touches. */
 export function MobileDPad({input,disabled}:{input:Input;disabled:boolean}){
- const held=useRef(new Map<number,string>()),[pressed,setPressed]=useState<string[]>([]);
+ const pointer=useRef<number|null>(null),control=useRef<HTMLButtonElement>(null),[active,setActive]=useState(false);
+ const reset=()=>{pointer.current=null;input.touchMove.x=0;input.touchMove.z=0;control.current?.style.setProperty('--stick-x','0px');control.current?.style.setProperty('--stick-y','0px');setActive(false);};
  useEffect(()=>{
-  const clear=()=>{held.current.clear();input.touchKeys.clear();setPressed([]);};
-  const visibility=()=>{if(document.hidden)clear();};
-  window.addEventListener('blur',clear);document.addEventListener('visibilitychange',visibility);
-  if(disabled)clear();
-  return ()=>{window.removeEventListener('blur',clear);document.removeEventListener('visibilitychange',visibility);held.current.clear();input.touchKeys.clear();};
+  const visibility=()=>{if(document.hidden)reset();};
+  window.addEventListener('blur',reset);document.addEventListener('visibilitychange',visibility);if(disabled)reset();
+  return ()=>{window.removeEventListener('blur',reset);document.removeEventListener('visibilitychange',visibility);input.touchMove.x=0;input.touchMove.z=0;pointer.current=null;};
  },[input,disabled]);
- const release=(id:number)=>{const code=held.current.get(id);held.current.delete(id);if(code&&![...held.current.values()].includes(code))input.touchKeys.delete(code);setPressed([...input.touchKeys]);};
- return <div className="mobile-dpad" role="group" aria-label="이동 컨트롤러" onContextMenu={e=>e.preventDefault()}>
-  <span className="dpad-center" aria-hidden="true"/>
-  {DIRECTIONS.map(direction=><button key={direction.code} className={`dpad-${direction.name}${pressed.includes(direction.code)?' pressed':''}`} aria-label={direction.label} disabled={disabled}
-   onPointerDown={e=>{e.preventDefault();e.stopPropagation();e.currentTarget.setPointerCapture(e.pointerId);held.current.set(e.pointerId,direction.code);input.touchKeys.add(direction.code);setPressed([...input.touchKeys]);}}
-   onPointerUp={e=>release(e.pointerId)} onPointerCancel={e=>release(e.pointerId)} onLostPointerCapture={e=>release(e.pointerId)}
-   onKeyDown={e=>{if(e.code==='Space'||e.code==='Enter'){e.preventDefault();input.touchKeys.add(direction.code);setPressed([...input.touchKeys]);}}}
-   onKeyUp={e=>{if(e.code==='Space'||e.code==='Enter'){input.touchKeys.delete(direction.code);setPressed([...input.touchKeys]);}}}
-   onBlur={()=>{if(![...held.current.values()].includes(direction.code)){input.touchKeys.delete(direction.code);setPressed([...input.touchKeys]);}}}>
-   <svg viewBox="0 0 24 24" aria-hidden="true" style={{transform:`rotate(${direction.angle}deg)`}}><path d="m6 15 6-6 6 6"/></svg>
-  </button>)}
- </div>;
+ const move=(x:number,y:number)=>{
+  const el=control.current;if(!el)return;const r=el.getBoundingClientRect(),radius=r.width*.3,dx=x-r.left-r.width/2,dy=y-r.top-r.height/2,length=Math.hypot(dx,dy),clamp=length>radius?radius/length:1;
+  const amount=Math.min(1,length/radius),speed=amount<.12?0:(amount-.12)/.88;
+  input.touchMove.x=length?dx/length*speed:0;input.touchMove.z=length?dy/length*speed:0;
+  el.style.setProperty('--stick-x',`${dx*clamp}px`);el.style.setProperty('--stick-y',`${dy*clamp}px`);
+ };
+ return <button ref={control} type="button" className={`mobile-joystick${active?' active':''}`} aria-label="이동 조이스틱" disabled={disabled}
+  onContextMenu={e=>e.preventDefault()}
+  onPointerDown={e=>{if(pointer.current!==null)return;e.preventDefault();e.stopPropagation();pointer.current=e.pointerId;e.currentTarget.setPointerCapture(e.pointerId);setActive(true);move(e.clientX,e.clientY);}}
+  onPointerMove={e=>{if(pointer.current===e.pointerId){e.preventDefault();move(e.clientX,e.clientY);}}}
+  onPointerUp={e=>{if(pointer.current===e.pointerId)reset();}} onPointerCancel={e=>{if(pointer.current===e.pointerId)reset();}} onLostPointerCapture={e=>{if(pointer.current===e.pointerId)reset();}}>
+  <span className="joystick-ring" aria-hidden="true"/><span className="joystick-knob" aria-hidden="true"/>
+ </button>;
 }
