@@ -7,14 +7,15 @@ import {buildLobbyDetails,lobbyStatue,lobbyWoodWall,LOBBY_PALETTE} from './Lobby
 import {buildLobbyAmenities,type ProgramBoard} from './LobbyAmenities';
 import {SEATS,BOUNDS,type Zone} from '../../shared/venue';
 import type {Avatar} from '../character/Avatar';
-import {buildOrchestra} from '../orchestra/buildOrchestra';
+import {buildOrchestraSteps} from '../orchestra/buildOrchestra';
+import {finishBuild,buildOverFrames} from './buildBudget';
 import {GOLDEN_HALL} from '../../shared/goldenHall';
 import {buildStairs} from './Stairs';
 import {buildStairArrows,type StairArrows} from './StairArrows';
 import {buildSunlight,type Sunlight} from './Sunlight';
-import {buildGoldenHall,timberDoor} from './GoldenHall';
+import {buildGoldenHallSteps,timberDoor} from './GoldenHall';
 import {woodMaterial,applyWoodSurface,hallImage,hallImageMaterial} from './HallTextures';
-import {batchArchitecture,batchCharacters} from './batching';
+import {batchArchitectureSteps,batchCharactersSteps} from './batching';
 import {EmoteLayer} from '../character/EmoteLayer';
 export type Venue={programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
 
@@ -185,12 +186,14 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
  for(const z of [A.front,A.back-D])surface([[-inner,A.balconyY,z],[inner,A.balconyY,z],[inner,A.balconyY,z+D],[-inner,A.balconyY,z+D]]);
  surface([[-lh,A.balconyY,S.landingEnd+.5],[lh,A.balconyY,S.landingEnd+.5],[lh,A.balconyY,A.back],[-lh,A.balconyY,A.back]]);
  // Street doors under the far arcade, and the foyer named over its opening.
- for(const x of [-8.4,8.4]){box(scene,[2.6,4.4,.2],[x,2.2,A.back-.06],C.wood);arch(scene,2.9,4.5,[x,0,A.back-.2],Math.PI);}
+ for(const x of [-8.4,8.4]){const doorway=new T.Group();doorway.position.set(x,0,A.back-.2);doorway.rotation.y=Math.PI;doorway.userData.landmark='lobby-rear-door';scene.add(doorway);timberDoor(doorway,0,0,2.6,4.4,0);arch(scene,2.9,4.5,[x,0,A.back-.2],Math.PI);}
  for(const x of [-10.2,-3.4,3.4,10.2]){box(scene,[.8,.8,.8],[x,.4,A.front+1.2],stoneDark);lobbyStatue(scene,x,.8,A.front+1.2,.95);}
  text(scene,'AUREA CONCERT HALL',5,[0,A.height-1.5,A.front+.95],'#f0d9a0');
  chandelier(scene,0,15.5,24,2.2);
 }
-export function createVenue(zone:Zone):Venue{
+export function createVenue(zone:Zone):Venue{return finishBuild(createVenueSteps(zone));}
+export function createVenueAsync(zone:Zone,cancelled:()=>boolean){return buildOverFrames(createVenueSteps(zone),cancelled);}
+function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  const scene=new T.Scene();scene.background=new T.Color(0x24201b);scene.fog=new T.FogExp2(zone==='lobby'?0x292119:0xc2a372,zone==='lobby'?.009:.002);
  scene.add(new T.HemisphereLight(0xffe6bf,0x7c6c5b,1.7));const ambient=new T.AmbientLight(0xffe5c4,.45);scene.add(ambient);
  const sun=new T.DirectionalLight(0xffe4b8,2.2);sun.position.set(-7,13,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-17,right:17,top:20,bottom:-20,near:1,far:55});sun.shadow.normalBias=.04;scene.add(sun);
@@ -206,19 +209,19 @@ export function createVenue(zone:Zone):Venue{
   portal=new T.Mesh(new T.BoxGeometry(2.5,3.4,.5),new T.MeshBasicMaterial({visible:false}));portal.position.set(AMPHITHEATRE_DOOR.x,GRAND_STAIR.rise+1.7,AMPHITHEATRE_DOOR.z);portal.userData.portal=true;scene.add(portal);
   sun.position.set(-7,30,26);sun.target.position.set(0,0,31);scene.add(sun.target);
  }else{
-  cameraWalls.push(...buildGoldenHall(scene).cameraWalls);
+  cameraWalls.push(...(yield* buildGoldenHallSteps(scene)).cameraWalls);
   walkTargets.push(...buildStairs(scene).surfaces);
   const hitGeometry=new T.BoxGeometry(1.2,1.5,1.15),hitMaterial=new T.MeshBasicMaterial({visible:false});
-  for(const s of SEATS){const g=seat(scene,s.x,s.z);g.position.y=s.y;g.rotation.y=s.yaw;
-   const target=new T.Mesh(hitGeometry,hitMaterial);target.position.set(s.x,s.y+.7,s.z);target.rotation.y=s.yaw;target.userData.seatId=s.id;scene.add(target);seatTargets.push(target);
+  for(const [i,s] of SEATS.entries()){const g=seat(scene,s.x,s.z);g.position.y=s.y;g.rotation.y=s.yaw;
+   const target=new T.Mesh(hitGeometry,hitMaterial);target.position.set(s.x,s.y+.7,s.z);target.rotation.y=s.yaw;target.userData.seatId=s.id;scene.add(target);seatTargets.push(target);if(i%12===11)yield;
   }
   portal=box(scene,[6.75,6.4,.3],[0,3.2,GOLDEN_HALL.rear-.18],C.wood);portal.userData.portal=true;text(scene,'AUREA FOYER',4,[0,7.2,GOLDEN_HALL.rear-1]).rotation.y=Math.PI;
-  musicians.push(...buildOrchestra(scene));
+  musicians.push(...(yield* buildOrchestraSteps(scene)));
  }
  cameraWalls.push(portal);
  for(const wall of cameraWalls)wall.traverse(o=>{o.userData.cameraWall=true;});
- const updateLOD=batchArchitecture(scene,[floor,portal,...walkTargets.filter(o=>o instanceof T.Mesh&&!Array.isArray(o.material)&&!o.material.visible),...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
- const updateMusicians=batchCharacters(scene,musicians.map(a=>a.root));updateMusicians();
+ const updateLOD=yield* batchArchitectureSteps(scene,[floor,portal,...walkTargets.filter(o=>o instanceof T.Mesh&&!Array.isArray(o.material)&&!o.material.visible),...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
+ const updateMusicians=yield* batchCharactersSteps(scene,musicians.map(a=>a.root));updateMusicians();
  // Visitor reaction icons share one draw call per hall.
  const emotes=new EmoteLayer(64);scene.add(emotes.points);
  // Sun shafts use their own shaders, so they join after batching.

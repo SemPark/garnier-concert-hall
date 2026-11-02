@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {finishBuild} from './buildBudget';
 import {wallWithOpenings,box,cylinder,sphere,line,text,material} from './primitives';
 import {GOLDEN_HALL as H} from '../../shared/goldenHall';
 import {STAGE,STAGE_FLOOR} from '../orchestra/layout';
@@ -351,7 +352,8 @@ function rearCornice(scene:T.Scene){
  const edge=box(g,[width,.32,.57],[0,8.125,43.235],0xe8d6ac);edge.userData.landmark='rear-gallery-edge';
  box(g,[width,.09,.64],[0,7.925,43.2],P.light);
 }
-export function buildGoldenHall(scene:T.Scene){
+export function buildGoldenHall(scene:T.Scene){return finishBuild(buildGoldenHallSteps(scene));}
+export function* buildGoldenHallSteps(scene:T.Scene){
  scene.userData.venue='musikverein-golden-hall';
  const cameraWalls:T.Object3D[]=buildHallShell(scene);
  const stage=box(scene,[STAGE.width,STAGE_FLOOR+.075,STAGE.front-STAGE.back],[0,(STAGE_FLOOR-.075)/2,(STAGE.front+STAGE.back)/2],0xa77343);applyWoodSurface(stage);stage.receiveShadow=true;
@@ -363,7 +365,7 @@ export function buildGoldenHall(scene:T.Scene){
    for(const span of galleryRailSpans(z)){const rail=new T.Group();rail.position.set(side*((span.start+span.end)/2-z),H.balconyHeight,WALL_DATUM.halfWidth-12.5-.4);rail.userData.landmark='gallery-rail';g.add(rail);balustrade(rail,span.end-span.start);}
    for(const x of [-2.85,2.85]){box(g,[.2,17,.2],[x,18.1,.2],0x9a5646);box(g,[.065,17,.1],[x,18.1,.34],P.light);}
    wallPanel(g,0,WALL_LEVELS.panelY,5.4,WALL_LEVELS.panelHeight,false);archedWindow(g,WALL_LEVELS.window);upperDoor(g,WALL_LEVELS.vent);sideBayDetails(g);
-   g.traverse(o=>{if(o instanceof T.Mesh)o.userData.cameraOccluder=true;});
+   g.traverse(o=>{if(o instanceof T.Mesh)o.userData.cameraOccluder=true;});yield;
   }
   // The repeated bays stop short of both corners; finish those returns too.
   for(const [a,b]of [[WALL_DATUM.front,-27],[51,WALL_DATUM.rear]]){const end=new T.Group();end.position.set(side*WALL_DATUM.halfWidth,0,(a+b)/2);end.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(end);wallPanel(end,0,WALL_LEVELS.lowerPanelY,b-a,WALL_LEVELS.lowerPanelHeight);wallPanel(end,0,WALL_LEVELS.panelY,b-a,WALL_LEVELS.panelHeight);}
@@ -371,8 +373,8 @@ export function buildGoldenHall(scene:T.Scene){
  cameraWalls.push(...buildGalleryFloors(scene).filter(slab=>slab.userData.rearGallery));
  cameraWalls.push(...rearScreens(scene));rearCornice(scene);
  buildPerimeterCornices(scene);buildPerimeterFriezes(scene,friezeMaterial());
- buildFrontWindows(scene);buildOrgan(scene);paintedCeiling(scene);
- for(const x of [-7.4,7.4])for(const z of [-20,-7,6,19,32,45])crystalChandelier(scene,x,z);
+ buildFrontWindows(scene);yield;buildOrgan(scene);yield;paintedCeiling(scene);yield;
+ for(const x of [-7.4,7.4])for(const z of [-20,-7,6,19,32,45]){crystalChandelier(scene,x,z);yield;}
  for(const z of [-22,4,30]){const light=new T.PointLight(0xffe3af,95,42,2);light.position.set(0,16,z);scene.add(light);}
  const stageLight=new T.SpotLight(0xffe4bd,300,42,1.05,.8,1.5);stageLight.position.set(0,18,-8);stageLight.target.position.set(0,1,-20);scene.add(stageLight,stageLight.target);
  rearFacade(scene);

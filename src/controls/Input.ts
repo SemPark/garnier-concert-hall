@@ -11,7 +11,7 @@ export class Input{
   for(const type of ['pointercancel','lostpointercapture'])canvas.addEventListener(type,()=>{this.pointers.clear();this.start=null;},opts);
   canvas.addEventListener('wheel',e=>{e.preventDefault();actions.zoom(Math.exp(e.deltaY*.0012));},{...opts,passive:false});
   canvas.addEventListener('contextmenu',e=>e.preventDefault(),opts);
-  window.addEventListener('keydown',e=>{if((e.target as HTMLElement)?.closest('input,textarea,select,[role="dialog"]'))return;if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){e.preventDefault();this.keys.add(e.code);}if(e.code==='Escape')actions.escape();},opts);
+  window.addEventListener('keydown',e=>{if((e.target as HTMLElement)?.closest('input,textarea,select,dialog,[role="dialog"]'))return;if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){e.preventDefault();this.keys.add(e.code);}if(e.code==='Escape')actions.escape();},opts);
   window.addEventListener('keyup',e=>this.keys.delete(e.code),opts);window.addEventListener('blur',()=>this.keys.clear(),opts);
  }
  private getSpan(){const [a,b]=[...this.pointers.values()];return a&&b?Math.hypot(a.x-b.x,a.y-b.y):0;}

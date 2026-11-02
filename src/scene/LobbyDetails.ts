@@ -19,13 +19,17 @@ export function lobbyStatue(parent:T.Object3D,x:number,y:number,z:number,scale=1
  box(g,[.36,.44,.09],[.18,1.72,.31],P.gold);
  g.traverse(o=>{o.userData.fullDetail=true;});
 }
-export function lobbyWoodWall(parent:T.Object3D,width:number,height:number,bottom=0){
- const body=box(parent,[width,height,.09],[0,bottom+height/2,0],0x4a3324);body.material=woodMaterial('walnut');
+export function lobbyWoodWall(parent:T.Object3D,width:number,height:number,bottom=0,backingOnly=false){
+ const body=box(parent,[width,height,.09],[0,bottom+height/2,0],0x4a3324);body.material=woodMaterial('walnut');body.userData.cameraOccluder=true;
+ // The continuous backing is recessed behind the separately framed bays. Do not put another
+ // grid of inset faces at the same depth as their timber fronts.
+ if(backingOnly)return;
  const count=Math.max(1,Math.round(width/2.4)),step=width/count;
  for(let i=0;i<count;i++){const x=-width/2+(i+.5)*step;box(parent,[step-.3,height-1.1,.05],[x,bottom+height/2,.08],0x21170f);
   for(const y of [bottom+.55,bottom+height-.55])box(parent,[step-.18,.055,.07],[x,y,.11],0x7a5634);
  }
  for(const y of [bottom+.12,bottom+height-.12]){box(parent,[width,.13,.2],[0,y,.1],P.deep);box(parent,[width,.055,.22],[0,y+.1,.11],P.light);}
+ for(const child of parent.children)if(child instanceof T.Mesh)child.userData.cameraOccluder=true;
 }
 function panel(parent:T.Object3D,width:number,height:number,y:number){
  lobbyWoodWall(parent,width,height,y-height/2);
@@ -45,8 +49,8 @@ function windowBay(parent:T.Object3D,width:number){
 }
 export function buildLobbyDetails(scene:T.Scene){
  const inner=A.halfWidth-A.balconyDepth;
- for(const side of [-1,1])lobbyWoodWall(wallFrame(scene,side*(A.halfWidth-.14),(A.front+A.back)/2,-side*Math.PI/2),A.back-A.front,19.1);
- for(const z of [A.front+.14,A.back-.14])lobbyWoodWall(wallFrame(scene,0,z,z>A.front+1?Math.PI:0),A.halfWidth*2,12,7.3);
+ for(const side of [-1,1])lobbyWoodWall(wallFrame(scene,side*(A.halfWidth-.14),(A.front+A.back)/2,-side*Math.PI/2),A.back-A.front,19.1,0,true);
+ for(const z of [A.front+.14,A.back-.14])lobbyWoodWall(wallFrame(scene,0,z,z>A.front+1?Math.PI:0),A.halfWidth*2,12,7.3,true);
  // End arcades continue the same spring heights and share the side cornice datum.
  for(const z of [A.front+A.balconyDepth,A.back-A.balconyDepth])for(const x of LOBBY_ARCADE.endColumns.slice(1,-1))for(const base of [A.balconyY,13.4]){
   cylinder(scene,.29,.16,[x,base+.08,z],P.deep);cylinder(scene,.235,1.95,[x,base+1.22,z],P.ivory);cylinder(scene,.31,.15,[x,base+2.35,z],P.gold);box(scene,[.72,.16,.72],[x,base+2.48,z],P.light);
@@ -68,7 +72,8 @@ export function buildLobbyDetails(scene:T.Scene){
   const frame=wallFrame(scene,x,z,z>A.front+1?Math.PI:0);panel(frame,2.25,4.3,10.25);windowBay(frame,2.5);
  }
  // Rear ground wall bays, beside the stair, receive the same framed ivory panels.
- for(const x of [-11.9,-7.7,7.7,11.9])panel(wallFrame(scene,x,A.back-.24,Math.PI),2.6,4.3,3);
+ // Keep the two rear doors clear; their bays must not also contain framed artwork.
+ for(const x of [-11.9,11.9])panel(wallFrame(scene,x,A.back-.24,Math.PI),2.6,4.3,3);
  // One UV-repeated strip per straight run: exact ends, no overlapping little image tiles at corners.
  const strip=(width:number,x:number,y:number,z:number,angle:number)=>{
   const f=hallImage(scene,'scroll',width,.46,x,y,z);f.rotation.y=angle;f.geometry=f.geometry.clone();const uv=f.geometry.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setX(i,uv.getX(i)*width/2.6);uv.needsUpdate=true;

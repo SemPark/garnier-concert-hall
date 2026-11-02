@@ -21,7 +21,7 @@ function atlas(){
 
 /** All head-top reaction icons in one camera-facing point batch. */
 export class EmoteLayer{
- readonly points:T.Points;private positions:Float32Array;private icons:Float32Array;private sizes:Float32Array;readonly material:T.ShaderMaterial;
+ private hadIcons=false;readonly points:T.Points;private positions:Float32Array;private icons:Float32Array;private sizes:Float32Array;readonly material:T.ShaderMaterial;
  constructor(readonly capacity:number){
   this.positions=new Float32Array(capacity*3);this.icons=new Float32Array(capacity);this.sizes=new Float32Array(capacity);
   const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.BufferAttribute(this.positions,3).setUsage(T.DynamicDrawUsage));geometry.setAttribute('icon',new T.BufferAttribute(this.icons,1).setUsage(T.DynamicDrawUsage));geometry.setAttribute('size',new T.BufferAttribute(this.sizes,1).setUsage(T.DynamicDrawUsage));
@@ -47,5 +47,5 @@ vec4 c=texture2D(atlas,uv);if(c.a<.05)discard;gl_FragColor=vec4(c.rgb,c.a*vAlpha
  clear(){this.sizes.fill(0);}
  visibleCount(){let n=0;for(const s of this.sizes)if(s>0)n++;return n;}
  iconAt(slot:number):Icon|null{return this.sizes[slot]>0?ICONS[this.icons[slot]]:null;}
- commit(){const g=this.points.geometry;for(const name of ['position','icon','size'])g.getAttribute(name).needsUpdate=true;}
+ commit(){const hasIcons=this.visibleCount()>0;this.points.visible=hasIcons;if(!hasIcons&&!this.hadIcons)return;this.hadIcons=hasIcons;const g=this.points.geometry;for(const name of ['position','icon','size'])g.getAttribute(name).needsUpdate=true;}
 }
