@@ -1,4 +1,8 @@
 import * as T from 'three';
+import {Avatar} from '../character/Avatar';
+import {LOUNGE_SEATS} from '../../shared/loungeSeats';
+import {buildProgramBoard} from './ProgramBoard';
+import {buildTicketRails} from './TicketGuide';
 import {box,cylinder,sphere,line,text,material,C} from './primitives';
 import {woodMaterial} from './HallTextures';
 import {LOBBY_FURNITURE as F,COMPOSERS} from '../../shared/grandStair';
@@ -9,8 +13,10 @@ const velvet=0x7c2430,brass=0xb8934f,walnut=0x5a3b25,marbleWhite=0xe8e1d3;
 
 /** Box office, cloakroom, café, lounge, composer busts and the live programme board for the lobby. */
 export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{programBoard:ProgramBoard}{
+ buildTicketRails(scene);
  const hit=new T.MeshBasicMaterial({visible:false});
- const goldTrim=0xc9a250,glass=new T.MeshLambertMaterial({color:0x2a3238,transparent:true,opacity:.35});
+ for(const seat of LOUNGE_SEATS){const target=new T.Mesh(new T.BoxGeometry(.8,1.1,.8),hit);target.position.set(seat.x,.65,seat.z);target.userData.loungeSeatId=seat.id;scene.add(target);clickTargets.push(target);}
+ const goldTrim=0xc9a250,glass=new T.MeshLambertMaterial({color:0xe4eee8,transparent:true,opacity:.12,depthWrite:false});
  // Both sit in the first ground-tier arcade bay, so the stone arch frames them. Local frame: +z faces the hall, the
  // arch face is z=0, the bay runs back to the outer wall at about z=-1.85, x runs along the bay (opening 4.1 wide).
  const inBay=(f:{x:number;z:number})=>{const g=new T.Group();g.position.set(Math.sign(f.x)*13.15,0,f.z);g.rotation.y=f.x<0?Math.PI/2:-Math.PI/2;scene.add(g);return g;};
@@ -29,6 +35,12 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
   const lunette=new T.Mesh(new T.CircleGeometry(2.05,24,0,Math.PI),glass);lunette.position.set(0,3.6,.3);lunette.userData.fullDetail=true;g.add(lunette);
   for(let k=1;k<6;k++){const a=k/6*Math.PI;line(g,new T.Vector3(0,3.6,.35),new T.Vector3(Math.cos(a)*2.05,3.6+Math.sin(a)*2.05,.35),.025,goldTrim);}
   box(g,[w,2.2,.06],[0,2.2,-1.65],0x4a3020);for(let r=0;r<4;r++)for(let c=0;c<9;c++)box(g,[.32,.24,.14],[-1.6+c*.4,1.6+r*.34,-1.58],0x3a2618);
+  // A fixed member of staff behind the middle window, facing visitors; no animation registration.
+  const clerk=new Avatar(0xb77d86,undefined,7);
+  clerk.update(1,0,false,false,null,10,0);
+  clerk.eyes.scale.y=1;clerk.head.rotation.set(0,0,0);
+  clerk.root.name='box-office-clerk';clerk.root.position.set(0,0,-.95);
+  clerk.root.rotation.y=Math.PI;clerk.root.scale.setScalar(1.5);g.add(clerk.root);
   plaque(g,'BILLETTERIE');g.traverse(o=>{o.userData.preserveSilhouette=true;});
   const target=new T.Mesh(new T.BoxGeometry(w,3,1),hit);target.position.set(0,1.6,0);target.userData.boxOffice=true;g.add(target);clickTargets.push(target);}
  // Cloakroom: a marble-topped counter across the arch with a bell and brass tokens; behind it, in the bay, two rows
@@ -73,26 +85,5 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
   box(g,[.9,.75,.8],[0,2.8,-.15],st);box(g,[.85,.9,.3],[0,3.6,-.45],st);cylinder(g,.33,.95,[0,3.55,-.05],st);sphere(g,.24,[0,4.25,-.05],st);
   for(const side of [-1,1]){box(g,[.26,.22,.8],[side*.2,3.0,.35],st);box(g,[.22,.75,.24],[side*.2,2.6,.72],st);line(g,new T.Vector3(side*.33,3.85,-.05),new T.Vector3(side*.4,3.15,.35),.09,st);}
   box(g,[.9,.24,.02],[0,1.45,.66],brass);text(g,COMPOSERS[i],.85,[0,1.45,.68],'#3a2a1c');});
- // Freestanding framed sign: two side posts and a weighted base, with an unobstructed face.
- const f=F.programBoard,g=new T.Group();g.position.set(f.x,0,f.z);g.rotation.y=Math.PI-.5;scene.add(g);
- box(g,[1.7,.12,.65],[0,.06,0],brass);
- for(const x of [-.72,.72])box(g,[.07,2.9,.08],[x,1.51,0],brass);
- box(g,[1.5,2.3,.12],[0,1.85,0],walnut);
- for(const x of [-.75,.75])box(g,[.07,2.36,.16],[x,1.85,.015],brass);
- for(const y of [.67,3.03])box(g,[1.55,.07,.16],[0,y,.015],brass);
- const canvas=typeof document==='undefined'?null:document.createElement('canvas'),ctx=canvas?.getContext('2d')??null;
- const map=canvas?new T.CanvasTexture(canvas):null;if(canvas){canvas.width=640;canvas.height=920;}if(map){map.colorSpace=T.SRGBColorSpace;map.anisotropy=4;}
- const face=new T.Mesh(new T.PlaneGeometry(1.36,2.16),new T.MeshBasicMaterial({map,color:map?0xffffff:0x2c211a}));face.position.set(0,1.85,.075);face.userData.programBoard=true;face.userData.fullDetail=true;face.userData.cameraWall=true;g.add(face);
- let last='';
- const update=(info:ProgramInfo)=>{if(!ctx||!canvas||!map)return;const key=JSON.stringify(info);if(key===last)return;last=key;
-  ctx.setTransform(2,0,0,2,0,0);ctx.fillStyle='#231a14';ctx.fillRect(0,0,320,460);ctx.strokeStyle='#c9a250';ctx.lineWidth=4;ctx.strokeRect(10,10,300,440);
-  ctx.fillStyle='#c9a250';ctx.textAlign='center';ctx.font='600 22px Georgia, serif';ctx.fillText('PROGRAMME',160,52);ctx.font='15px sans-serif';ctx.fillStyle='#e7d7b5';ctx.fillText('오늘의 프로그램',160,76);
-  const wrap=(t:string,y:number,size:number,color:string)=>{ctx.font=`${size}px sans-serif`;ctx.fillStyle=color;let line='',yy=y,rows=0;for(const ch of t){if(ctx.measureText(line+ch).width>270){ctx.fillText(line,160,yy);line='';yy+=size+6;if(++rows===2){line='…';break;}}line+=ch;}ctx.fillText(line,160,yy);return yy;};
-  ctx.fillStyle='#c9a250';ctx.font='13px sans-serif';ctx.fillText(info.playing?'지금 연주 중':'잠시 쉬는 시간',160,118);
-  let y=wrap(info.now,146,19,'#fbf1dc');ctx.fillStyle='#bfae8c';ctx.font='14px sans-serif';ctx.fillText(info.remaining,160,y+28);
-  ctx.fillStyle='#c9a250';ctx.font='13px sans-serif';ctx.fillText('다음 곡',160,y+70);y=wrap(info.next,y+96,16,'#e7d7b5');
-  ctx.strokeStyle='#6b5536';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(40,380);ctx.lineTo(280,380);ctx.stroke();
-  const full=info.seats>=info.capacity;ctx.font='600 18px sans-serif';ctx.fillStyle=full?'#e08a7a':'#a8d0a0';ctx.fillText(full?'만석 · 잠시 기다려 주세요':'입장 가능',160,412);
-  ctx.font='13px sans-serif';ctx.fillStyle='#d8c8a8';ctx.fillText(`공연장 ${info.seats} / ${info.capacity}석`,160,436);map.needsUpdate=true;};
- return {programBoard:{update}};
+ return {programBoard:buildProgramBoard(scene)};
 }

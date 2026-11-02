@@ -21,6 +21,7 @@ export type ClientMessage=
  |{type:'zone';zone:Zone}
  |{type:'reserve';seatId:string;requestId:string}
  |{type:'seated';seatId:string}
+ |{type:'loungeSit';seatId:string}
  |{type:'release';requestId?:string}
  |{type:'renew';seatId:string}
  |{type:'gesture';gesture:Gesture}

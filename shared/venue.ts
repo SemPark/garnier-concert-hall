@@ -10,7 +10,7 @@ export type Look='man'|'woman';
 export const isLook=(v:unknown):v is Look=>v==='man'||v==='woman';
 /** Avatar variant for a visitor: the chosen look decides man or woman; skin and hair still vary by id. */
 export function visitorVariant(v:{id:string;look?:Look}){const base=parseInt(v.id.slice(0,2),16)||0,look=v.look??(base%8>=4?'woman':'man');return base%4+(look==='woman'?4:0);}
-export type Visitor={id:string;name:string;color:number;look?:Look;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;gesture:Gesture|null;gestureAt:number};
+export type Visitor={id:string;name:string;color:number;look?:Look;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
 export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
 // Adapt the official three-block stalls to the app's existing 352 seats.
@@ -69,7 +69,7 @@ const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s
  ...LOBBY_ARCADE.endColumns.flatMap(x=>[ATRIUM.front+ATRIUM.balconyDepth,ATRIUM.back-ATRIUM.balconyDepth].map(z=>({x,z,hx:.33,hz:.33,y:ATRIUM.balconyY}))),
  ...[-1,1].flatMap(side=>[0,ATRIUM.balconyY].flatMap(y=>LOBBY_ARCADE.columns.map(z=>({x:side*LOBBY_ARCADE.x,z,hx:.33,hz:.33,y})))),
 ...[-1,1].map(side=>({x:side*(GRAND_STAIR.flightHalf+3.6),z:GRAND_STAIR.flightStart-.9,hx:.65,hz:.65,y:0})),
- ...[F.boxOffice,F.cloakroom,F.cafeCounter,...F.cafeTables,...F.sofas,F.ottoman,...F.busts,...F.torchieres,F.programBoard].map(f=>({...f,y:0}))]};
+ ...[F.boxOffice,F.cloakroom,F.cafeCounter,...F.cafeTables,...F.ticketRails,...F.sofas,F.ottoman,...F.busts,...F.torchieres,F.programBoard].map(f=>({...f,y:0}))]};
 const CELLS:Record<Zone,Map<string,Obstacle[]>>={lobby:new Map(),auditorium:new Map()};
 for(const zone of ['lobby','auditorium'] as const)for(const o of OBSTACLES[zone])for(let x=Math.floor((o.x-o.hx-1)/2);x<=Math.floor((o.x+o.hx+1)/2);x++)for(let z=Math.floor((o.z-o.hz-1)/2);z<=Math.floor((o.z+o.hz+1)/2);z++){const key=`${x},${z}`,items=CELLS[zone].get(key)??[];items.push(o);CELLS[zone].set(key,items);}
 export function obstacles(zone:Zone):Obstacle[]{return OBSTACLES[zone];}

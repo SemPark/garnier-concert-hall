@@ -1,3 +1,5 @@
+import {LobbyCat} from '../character/LobbyCat';
+import {buildTicketGuide} from './TicketGuide';
 import * as T from 'three';
 import {box,cylinder,sphere,line,text,material,detailedMaterial,wallWithOpenings,C} from './primitives';
 import {ATRIUM,GRAND_STAIR,LOBBY_BRANCH,LOBBY_ARCADE,AMPHITHEATRE_DOOR} from '../../shared/grandStair';
@@ -17,7 +19,7 @@ import {buildGoldenHallSteps,timberDoor} from './GoldenHall';
 import {woodMaterial,applyWoodSurface,hallImage,hallImageMaterial} from './HallTextures';
 import {batchArchitectureSteps,batchCharactersSteps} from './batching';
 import {EmoteLayer} from '../character/EmoteLayer';
-export type Venue={programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
+export type Venue={cat:LobbyCat|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
 
 function chandelier(parent:T.Object3D,x:number,y:number,z:number,r=1){
  const g=new T.Group();g.position.set(x,y,z);g.userData.landmark='lobby-chandelier';parent.add(g);
@@ -99,10 +101,10 @@ function stoneArch(parent:T.Object3D,width:number,height:number,depth:number,col
  const r=width/2-pier,spring=Math.max(0,height-1.1-r),shape=new T.Shape();
  const bottom=crownOnly?spring:0;
  shape.moveTo(-width/2,bottom);shape.lineTo(-width/2,height);shape.lineTo(width/2,height);shape.lineTo(width/2,bottom);shape.lineTo(r,bottom);shape.lineTo(r,spring);shape.absarc(0,spring,r,0,Math.PI,false);shape.lineTo(-r,bottom);shape.closePath();
- const mesh=new T.Mesh(new T.ExtrudeGeometry(shape,{depth,bevelEnabled:false,curveSegments:10}),material(color));mesh.position.set(position[0],position[1],position[2]);mesh.rotation.y=rotation;mesh.userData.fullDetail=true;parent.add(mesh);return mesh;
+ const mesh=new T.Mesh(new T.ExtrudeGeometry(shape,{depth,bevelEnabled:false,curveSegments:10}).translate(0,0,-depth/2),material(color));mesh.position.set(position[0],position[1],position[2]);mesh.rotation.y=rotation;mesh.userData.fullDetail=true;parent.add(mesh);return mesh;
 }
 /** A simplified Garnier-inspired lobby with an open floor, a central stair, two balcony tiers,
- * marble wall panels and bronze lighting. Freestanding columns are omitted; the ground-floor arch crowns remain. */
+ * marble wall panels and bronze lighting. Arcade crowns and round columns share the same centre lines. */
 function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Object3D[]){
  const A=ATRIUM,S=GRAND_STAIR,W=A.halfWidth,D=A.balconyDepth,len=A.back-A.front,midZ=(A.front+A.back)/2,inner=W-D,tier2=13.4;
  // Match the auditorium ivory palette and keep the stair stone slightly lighter.
@@ -117,7 +119,8 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
   for(const x of [-6.8,0,6.8]){
    stoneArch(scene,4.8,h,.6,stone,[x,0,A.front-.1]);
    const bay=new T.Group();bay.position.set(x,0,A.front-.5);scene.add(bay);
-   lobbyWoodWall(bay,3.9,5.15);timberDoor(bay,0,.03,3.3,4.85,.18);
+   // Keep one door face: a plain stone backing replaces the second framed timber panel.
+   box(bay,[3.9,5.2,.12],[0,2.6,0],stone);timberDoor(bay,0,.03,3.3,4.85,.18);
   }
   for(const x of [-10.2,-3.4,3.4,10.2]){const g=new T.Group();g.position.set(x,0,A.front+.5);scene.add(g);lobbyWoodWall(g,1.7,h);hallImage(g,'relief',1.1,2.1,0,2.8,.2);}
  }
@@ -127,17 +130,13 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
  for(const y of [A.balconyY-.55,A.height-.7]){for(const side of [-1,1])box(scene,[.9,.9,len],[side*(W-.45),y,midZ],stoneDark);box(scene,[W*2,.9,.9],[0,y,A.back-.45],stoneDark);box(scene,[W*2,.9,.9],[0,y,A.front+.45],stoneDark);for(const side of [-1,1])box(scene,[.2,.25,len],[side*(inner+.05),y-.35,midZ],C.gold);
  }
  // Both arcade levels share one shaft at each joint between adjacent arch crowns.
- for(const side of [-1,1])for(const z of LOBBY_ARCADE.bays){
+ for(const side of [-1,1])for(const z of [LOBBY_ARCADE.bays[0]-LOBBY_ARCADE.width,...LOBBY_ARCADE.bays,LOBBY_ARCADE.bays.at(-1)!+LOBBY_ARCADE.width]){
   stoneArch(scene,LOBBY_ARCADE.width,A.balconyY-.45,.4,stone,[side*LOBBY_ARCADE.x,0,z],Math.PI/2,.45,true);
   for(const base of [A.balconyY,tier2])stoneArch(scene,LOBBY_ARCADE.width,5.75,.4,stone,[side*LOBBY_ARCADE.x,base,z],Math.PI/2,.45,true);
  }
  for(const z of [A.front+D,A.back-D])for(const x of LOBBY_ARCADE.endBays)for(const base of [A.balconyY,tier2])
   stoneArch(scene,LOBBY_ARCADE.width,5.75,.35,stone,[x,base,z],0,.45,true);
- // Ground-floor returns close the short end bays instead of exposing a dark slit beside an arch.
- for(const side of [-1,1])for(const z of [A.front+D/2,A.back-D/2]){
-  box(scene,[.4,A.balconyY-.45,D],[side*LOBBY_ARCADE.x,(A.balconyY-.45)/2,z],stone);
-  for(const dz of [-D/2+.12,D/2-.12])box(scene,[.46,A.balconyY-.45,.12],[side*LOBBY_ARCADE.x,(A.balconyY-.45)/2,z+dz],LOBBY_PALETTE.light);
- }
+ // Partial end arches continue to the front/rear walls instead of solid returns hiding artwork.
  buildLobbyDetails(scene);
  // Balcony floors for both tiers.
  for(const y of [A.balconyY,tier2]){for(const side of [-1,1])box(scene,[D,.45,len],[side*(W-D/2),y-.22,midZ],stone);box(scene,[inner*2,.45,D],[0,y-.22,A.back-D/2],stone);box(scene,[inner*2,.45,D],[0,y-.22,A.front+D/2],stone);}
@@ -218,14 +217,15 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
   portal=box(scene,[6.75,6.4,.3],[0,3.2,GOLDEN_HALL.rear-.18],C.wood);portal.userData.portal=true;text(scene,'AUREA FOYER',4,[0,7.2,GOLDEN_HALL.rear-1]).rotation.y=Math.PI;
   musicians.push(...(yield* buildOrchestraSteps(scene)));
  }
+ const cat=zone==='lobby'?new LobbyCat(scene):null;
  cameraWalls.push(portal);
  for(const wall of cameraWalls)wall.traverse(o=>{o.userData.cameraWall=true;});
- const updateLOD=yield* batchArchitectureSteps(scene,[floor,portal,...walkTargets.filter(o=>o instanceof T.Mesh&&!Array.isArray(o.material)&&!o.material.visible),...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
- const updateMusicians=yield* batchCharactersSteps(scene,musicians.map(a=>a.root));updateMusicians();
+ const updateLOD=yield* batchArchitectureSteps(scene,[floor,portal,...(cat?[cat.root,...cat.targets]:[]),...walkTargets.filter(o=>o instanceof T.Mesh&&!Array.isArray(o.material)&&!o.material.visible),...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
+ const updateMusicians=yield* batchCharactersSteps(scene,[...musicians.map(a=>a.root),...(cat?[cat.root]:[])]);updateMusicians();
  // Visitor reaction icons share one draw call per hall.
  const emotes=new EmoteLayer(64);scene.add(emotes.points);
  // Sun shafts use their own shaders, so they join after batching.
  const sunlight=zone==='lobby'?buildSunlight(scene,[23.1,33.1,38.1].map(z=>new T.Vector3(14.5,16.5,z))):buildSunlight(scene);
- const stairArrows=zone==='lobby'?null:buildStairArrows(scene);
- return {programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
+ const stairArrows=zone==='lobby'?buildTicketGuide(scene):buildStairArrows(scene);
+ return {cat,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
 }

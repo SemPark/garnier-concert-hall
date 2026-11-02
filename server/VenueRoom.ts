@@ -2,6 +2,7 @@ import {DurableObject} from 'cloudflare:workers';
 import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,distance,canSit,stairLink,isLook,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shared/protocol';
 import {isGesture} from '../shared/gestures';
+import {LOUNGE_SEATS} from '../shared/loungeSeats';
 
 type Attachment={visitor:Visitor;token:string;generation:string;lastMessage:number;windowAt:number;messageCount:number;reservationRequest?:string;roomId:string};
 type ClaimRow={seatId:string;visitorId:string;status:'reserved'|'seated';expiresAt:number|null};
@@ -61,7 +62,8 @@ export class VenueRoom extends DurableObject<Env>{
   const visitor:Visitor=active?.a.visitor??(existing?JSON.parse(existing.visitor) as Visitor:{id:crypto.randomUUID(),name:`${nameParts[crypto.getRandomValues(new Uint8Array(1))[0]%nameParts.length]} 관객`,color:PALETTE[crypto.getRandomValues(new Uint8Array(1))[0]%PALETTE.length],zone:'lobby',...SPAWN.lobby,yaw:0,pose:'idle',seatId:null,gesture:null,gestureAt:0});
   const savedToken=existing?.token??crypto.randomUUID();
   const claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE visitorId=?',visitor.id).toArray()[0];
-  if(!claim){visitor.seatId=null;if(visitor.pose==='sit'){visitor.pose='idle';Object.assign(visitor,SPAWN[visitor.zone]);}}
+  const lounge=visitor.zone==='lobby'&&LOUNGE_SEATS.find(s=>s.id===visitor.loungeSeatId)&&!this.active().some(({a})=>a.visitor.id!==visitor.id&&a.visitor.pose==='sit'&&a.visitor.loungeSeatId===visitor.loungeSeatId);
+  if(!claim){visitor.seatId=null;if(visitor.pose==='sit'&&!lounge){visitor.pose='idle';visitor.loungeSeatId=null;Object.assign(visitor,SPAWN[visitor.zone]);}}
   if(visitor.pose==='sit')visitor.y=SEATS.find(s=>s.id===visitor.seatId)?.y??0;else visitor.y??=0;
   if(active){active.ws.serializeAttachment(null);active.ws.close(4001,'Session resumed elsewhere');}
   this.ctx.storage.sql.exec('INSERT INTO sessions(id,token,visitor,until) VALUES(?,?,?,NULL) ON CONFLICT(id) DO UPDATE SET visitor=excluded.visitor,until=NULL',visitor.id,savedToken,JSON.stringify(visitor));
@@ -87,7 +89,7 @@ export class VenueRoom extends DurableObject<Env>{
    if(v.pose==='sit')return;Object.assign(v,{x:round(msg.x),y:round(msg.y??0),z:round(msg.z),yaw:round(msg.yaw),pose:msg.pose});
   }else if(msg.type==='zone'){
    if(!['lobby','auditorium'].includes(msg.zone)||msg.zone===v.zone)return;
-   this.release(v.id);Object.assign(v,{zone:msg.zone,...SPAWN[msg.zone],seatId:null,pose:'idle'});
+   this.release(v.id);Object.assign(v,{zone:msg.zone,...SPAWN[msg.zone],seatId:null,loungeSeatId:null,pose:'idle'});
   }else if(msg.type==='reserve'){
    if(typeof msg.requestId!=='string'||msg.requestId.length>80||typeof msg.seatId!=='string')return;
    const seat=SEATS.find(s=>s.id===msg.seatId),claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE seatId=?',msg.seatId).toArray()[0];
@@ -101,9 +103,14 @@ export class VenueRoom extends DurableObject<Env>{
    const seat=SEATS.find(s=>s.id===msg.seatId),claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE seatId=? AND visitorId=?',msg.seatId,v.id).toArray()[0];
    if(!seat||!claim||v.zone!=='auditorium'||!canSit(v,seat)){this.send(ws,{type:'error',message:'좌석 가까이로 이동해 주세요.'});return;}
    this.ctx.storage.sql.exec("UPDATE claims SET status='seated',expiresAt=NULL WHERE seatId=?",seat.id);Object.assign(v,{x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw,pose:'sit',seatId:seat.id});
+  }else if(msg.type==='loungeSit'){
+   const seat=LOUNGE_SEATS.find(s=>s.id===msg.seatId);
+   if(v.zone!=='lobby'||!seat||distance(v,seat.approach)>.45){this.send(ws,{type:'error',message:'의자 앞으로 이동해 주세요.'});return;}
+   if(this.active().some(({a})=>a.visitor.id!==v.id&&a.visitor.loungeSeatId===seat.id&&a.visitor.pose==='sit')){this.send(ws,{type:'error',message:'다른 관객이 앉아 있어요.'});return;}
+   this.release(v.id);Object.assign(v,{x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw,pose:'sit',seatId:null,loungeSeatId:seat.id});
   }else if(msg.type==='release'){
    if(msg.requestId&&msg.requestId!==a.reservationRequest)return;
-   const seat=SEATS.find(s=>s.id===v.seatId);this.release(v.id);if(v.pose==='sit'&&seat)Object.assign(v,seat.approach);v.seatId=null;v.pose='idle';
+   const seat=v.loungeSeatId?LOUNGE_SEATS.find(s=>s.id===v.loungeSeatId):SEATS.find(s=>s.id===v.seatId);this.release(v.id);if(v.pose==='sit'&&seat)Object.assign(v,seat.approach);v.seatId=null;v.loungeSeatId=null;v.pose='idle';
   }else if(msg.type==='renew'){
    this.ctx.storage.sql.exec("UPDATE claims SET expiresAt=? WHERE seatId=? AND visitorId=? AND status='reserved'",now+RESERVE_MS,msg.seatId,v.id);
   }else if(msg.type==='look'){

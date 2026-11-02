@@ -20,13 +20,14 @@ export const LOBBY_FURNITURE={
  // Box office and cloakroom sit inside the first ground-tier arcade bay on each side, behind the arch.
  boxOffice:{x:-14.1,z:LOBBY_ARCADE.bays[0],hx:.95,hz:2.1},cloakroom:{x:14.1,z:LOBBY_ARCADE.bays[0],hx:.95,hz:2.1},
  cafeCounter:{x:-14.2,z:30.85,hx:.5,hz:4.45},
- cafeTables:[24,28,32,36].map(z=>({x:-9.8,z,hx:.45,hz:.45})),
+ cafeTables:[24,28,32,36].map(z=>({x:z===24?-8.1:-9.8,z:z===24?25.8:z,hx:.45,hz:.45})),
+ ticketRails:[-1,1].map(side=>({x:-10.9,z:BOX_OFFICE_APPROACH.z+side*1.05,hx:1.6,hz:.08})),
  sofas:[28.1,33.1,38.1].map(z=>({x:14.15,z,hx:.55,hz:1.3})),
  ottoman:{x:9.6,z:24,hx:1.3,hz:1.3},
  // The composer statues stand in the street vestibule beyond the entrance, not in this hall.
  busts:[] as {x:number;z:number;hx:number;hz:number}[],
  torchieres:[-10.2,-3.4,3.4,10.2].map(x=>({x,z:19.2,hx:.45,hz:.45})),
- programBoard:{x:-6.4,z:28.4,hx:.75,hz:.4},
+ programBoard:{x:-6.4,z:28.4,hx:1.1,hz:.6},
 } as const;
 export const COMPOSERS=['LULLI','GLUCK'] as const;
 /** Lobby floor: the Grand Escalier hall itself. */
