@@ -5,6 +5,7 @@ import {constrainCamera} from './controls/cameraCollision';
 import {createVenue,createVenueAsync,type Venue} from './scene/Venue';
 import {Crowd} from './scene/Crowd';
 import {Avatar,musicianSits} from './character/Avatar';
+import {CAT_VISITOR_GAP} from './character/LobbyCat';
 import {Input} from './controls/Input';
 import {stageShow} from './orchestra/stageShow';
 /** Gestures that make applause heard in the quiet time between pieces. */
@@ -34,7 +35,7 @@ export class World{
  position=new T.Vector3(SPAWN.lobby.x,SPAWN.lobby.y,SPAWN.lobby.z);pose:'idle'|'walk'|'sit'='idle';yaw=0;cameraYaw=0;cameraPitch=.13;cameraDistance=4.8;fps=60;entered=false;
  onChange:()=>void=()=>{};onToast:(message:string)=>void=()=>{};onSeatMap:()=>void=()=>{};private pendingSeat:string|null=null;private loungeTarget:string|null=null;private visitingCat=false;private petUntil=0;private visitingBoxOffice=false;private seatWalkAt=0;private boardAt=0;
  private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private route:Point[]=[];private avatarVariant=-1;private climb:{points:Point[];up:boolean}|null=null;private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
- private seatedTarget:T.Vector3|null=null;private petFocus=new T.Vector3();
+ private collisionPauseUntil=0;private seatedTarget:T.Vector3|null=null;private petFocus=new T.Vector3();
  private ray=new T.Raycaster();private ndc=new T.Vector2();private frame=0;private last=performance.now();private sentAt=0;private lastPose='';private renewAt=0;private lastUI=0;private look=new T.Vector3();private gesture:Gesture|null=null;private headTop=new T.Vector3();private gestureAt=0;
  private disposed=false;private lodAt=0;private orchestraAt=0;quality:RenderQuality='balanced';readonly mobile=matchMedia('(pointer: coarse)').matches||/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);private renderedAt=0;
  diagnosticActive=false;diagnosticMode:'normal'|'no-draw'|'audio-only'='normal';drawCount=0;frameCost={at:0,cpu:0,submit:0};
@@ -113,8 +114,8 @@ export class World{
    if(this.reservedSeat&&state.seats[this.reservedSeat]?.visitorId!==self.id){this.route=[];this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
   }
   const ids=new Set(state.visitors.filter(v=>v.id!==this.net.selfId).map(v=>v.id));for(const [id,r]of this.remotes)if(!ids.has(id)){r.avatar.root.removeFromParent();this.remotes.delete(id);}
-  for(const v of state.visitors){if(v.id===this.net.selfId)continue;let r=this.remotes.get(v.id);if(r&&r.avatar.variant!==visitorVariant(v)){r.avatar.root.removeFromParent();this.remotes.delete(v.id);r=undefined;}if(!r){const avatar=new Avatar(visitorColor(v),undefined,visitorVariant(v));avatar.root.position.set(v.x,0,v.z);r={avatar,visitor:v,lastPosition:avatar.root.position.clone(),zone:v.zone};this.remotes.set(v.id,r);}if(v.zone===this.zone&&v.gesture&&CLAPS.includes(v.gesture)&&v.gestureAt>r.visitor.gestureAt)this.audio.clap(.6);r.visitor=v;
-   if(r.zone!==v.zone){r.zone=v.zone;r.avatar.root.position.set(v.x,0,v.z);}r.avatar.root.visible=v.zone===this.zone;
+  for(const v of state.visitors){if(v.id===this.net.selfId)continue;let r=this.remotes.get(v.id);if(r&&r.avatar.variant!==visitorVariant(v)){r.avatar.root.removeFromParent();this.remotes.delete(v.id);r=undefined;}if(!r){const avatar=new Avatar(visitorColor(v),undefined,visitorVariant(v));avatar.root.position.set(v.x,v.y??0,v.z);r={avatar,visitor:v,lastPosition:avatar.root.position.clone(),zone:v.zone};this.remotes.set(v.id,r);}if(v.zone===this.zone&&v.gesture&&CLAPS.includes(v.gesture)&&v.gestureAt>r.visitor.gestureAt)this.audio.clap(.6);r.visitor=v;
+   if(r.zone!==v.zone){r.zone=v.zone;r.avatar.root.position.set(v.x,v.y??0,v.z);}r.avatar.root.visible=v.zone===this.zone;
   }
   for(const [id,light]of this.venues.auditorium?.seatLights??[]){const claim=state.seats[id];light.visible=!claim||claim.visitorId===this.net.selfId;(light.material as T.MeshBasicMaterial).color.setHex(claim?0xa2c8b4:0xd2b373);}
   this.onChange();
@@ -226,21 +227,18 @@ export class World{
  /** Respect both authoritative and displayed positions while other visitors interpolate. */
  private visitorStepClear(target:Point){
   for(const remote of this.remotes.values())if(remote.visitor.zone===this.zone){
-   if(visitorBlocksStep(this.position,target,remote.visitor)||visitorBlocksStep(this.position,target,remote.avatar.root.position))return false;
+   if(visitorBlocksStep(this.position,target,remote.visitor,VISITOR_GAP+.08)||visitorBlocksStep(this.position,target,remote.avatar.root.position,VISITOR_GAP+.08))return false;
   }
+  const cat=this.zone==='lobby'?this.venue.cat:null;
+  if(cat&&visitorBlocksStep(this.position,target,cat.root.position,CAT_VISITOR_GAP))return false;
   return true;
  }
- private advanceRoute(target:Point,goal:Point){
+ private advanceRoute(target:Point){
   if(this.visitorStepClear(target)){this.position.set(target.x,target.y??0,target.z);return;}
-  if(distance(this.position,goal)<VISITOR_GAP)return;
-  const dx=target.x-this.position.x,dz=target.z-this.position.z;
-  for(const angle of [Math.PI/3,-Math.PI/3,Math.PI/2,-Math.PI/2]){
-   const x=this.position.x+dx*Math.cos(angle)-dz*Math.sin(angle),z=this.position.z+dx*Math.sin(angle)+dz*Math.cos(angle),y=surfaceHeight(this.zone,{x,z},this.position.y);
-   if(y===null)continue;const next={x,y,z};if(segmentClear(this.zone,this.position,next)&&this.visitorStepClear(next)){this.position.set(x,y,z);return;}
-  }
+  // Wait for the occupied route to clear; steering sideways can leave a stair flight.
  }
- correctMove(point:{x:number;y:number;z:number}){if(this.pose==='sit')return;this.position.set(point.x,point.y,point.z);this.pose='idle';this.sentAt=performance.now();}
- private sendPosition(now:number,force=false){if(!this.entered||!this.self||this.pose==='sit'||this.climb)return;if(force||now-this.sentAt>300||this.lastPose!==this.pose){this.sentAt=now;this.lastPose=this.pose;this.net.send({type:'move',x:this.position.x,y:this.position.y,z:this.position.z,yaw:this.yaw,pose:this.pose});}}
+ correctMove(point:{x:number;y:number;z:number}){if(this.pose==='sit')return;this.position.set(point.x,point.y,point.z);this.pose='idle';this.route=[];this.marker.visible=false;this.collisionPauseUntil=performance.now()+350;this.sentAt=performance.now();}
+ private sendPosition(now:number,force=false){if(!this.entered||!this.self||this.pose==='sit'||this.climb)return;if(force||now-this.sentAt>(this.pose==='walk'?100:300)||this.lastPose!==this.pose){this.sentAt=now;this.lastPose=this.pose;this.net.send({type:'move',x:this.position.x,y:this.position.y,z:this.position.z,yaw:this.yaw,pose:this.pose});}}
  private snapCamera(){const f=this.cameraFrame();this.look.copy(f.look);this.camera.position.copy(f.position);this.camera.lookAt(this.look);}
  private cameraFrame(){
   const sitting=this.pose==='sit',baseY=(sitting?2.05:1.05)+this.position.y,look=new T.Vector3(this.position.x,baseY,this.position.z-1.5),d=this.cameraDistance;
@@ -285,12 +283,14 @@ export class World{
   if(this.diagnosticActive&&this.diagnosticMode==='audio-only'){this.frameCost={at:now,cpu:0,submit:0};if(now-this.lastUI>500){this.lastUI=now;this.onChange();}return;}
   let speed=0;const keys=this.input.keys;let kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+this.input.touchMove.x;let kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+this.input.touchMove.z;
   if(this.entered&&this.net.status==='connected'){
-   if(this.climb)kx=kz=0;
+   if(this.climb||now<this.collisionPauseUntil)kx=kz=0;
    if((kx||kz)&&this.pose==='sit')this.stand();
    const previous=this.position.clone();
    if(kx||kz){this.route=[];this.cancelSeat();const v=new T.Vector3(kx,0,kz).clampLength(0,1).applyAxisAngle(new T.Vector3(0,1,0),this.cameraYaw).multiplyScalar(2.8*dt),candidate=this.position.clone().add(v);
     const move=(x:number,z:number)=>{const y=surfaceHeight(this.zone,{x,z},this.position.y);if(y===null)return false;const target={x,y,z};if(!segmentClear(this.zone,this.position,target)||!this.visitorStepClear(target))return false;this.position.set(x,y,z);return true;};
-    if(!move(candidate.x,candidate.z)){if(!move(candidate.x,this.position.z))move(this.position.x,candidate.z);}
+    // Slide along architecture, but never slide around a person or the cat.
+    const candidateY=surfaceHeight(this.zone,candidate,this.position.y);
+    if((candidateY===null||this.visitorStepClear({x:candidate.x,y:candidateY,z:candidate.z}))&&!move(candidate.x,candidate.z)){if(!move(candidate.x,this.position.z))move(this.position.x,candidate.z);}
    }else if(this.route.length&&this.pose!=='sit'){
     const p=this.route[0],d=distance(this.position,p);
     // Through a stair door: walk the corridor stair behind the rear wall, then come out at the partner door.
@@ -301,7 +301,7 @@ export class World{
      if(!this.climb.points.length){const up=this.climb.up;this.climb=null;this.cameraYaw=0;this.cameraPitch=.13;// Out of the door, look straight ahead into the hall.
       this.position.set(p.x,p.y??0,p.z);this.route.shift();this.sentAt=0;this.sendPosition(now,true);this.onToast(up?'계단을 올라 2층에 왔어요.':'계단을 내려 1층에 왔어요.');}
     }
-    else if(d<.035){if(this.visitorStepClear(p)){this.position.set(p.x,p.y??0,p.z);this.route.shift();}}else{const step=Math.min(d,3.4*dt);this.advanceRoute({x:this.position.x+(p.x-this.position.x)/d*step,z:this.position.z+(p.z-this.position.z)/d*step,y:this.position.y+((p.y??0)-this.position.y)/d*step},p);
+    else if(d<.035){if(this.visitorStepClear(p)){this.position.set(p.x,p.y??0,p.z);this.route.shift();}}else{const step=Math.min(d,3.4*dt);this.advanceRoute({x:this.position.x+(p.x-this.position.x)/d*step,z:this.position.z+(p.z-this.position.z)/d*step,y:this.position.y+((p.y??0)-this.position.y)/d*step});
      // Follow the currently connected lobby floor, flight or balcony.
      if(this.zone==='lobby'){const h=surfaceHeight('lobby',this.position,this.position.y);if(h!==null)this.position.y=h;}}
     if(!this.route.length){this.marker.visible=false;this.pose='idle';if(this.reservedSeat&&!this.seating){this.seating=true;this.sendPosition(now,true);this.net.send({type:'seated',seatId:this.reservedSeat});}}
@@ -322,7 +322,7 @@ export class World{
   const music=this.audio.playback.playing&&!this.reduced;
   // Dust and shimmer hold still for visitors who prefer reduced motion.
   this.venue.sunlight?.update(this.reduced?0:now/1000);this.venue.stairArrows?.update(this.reduced?0:now/1000);
-  this.venue.cat?.update(now/1000,this.entered?this.position:new T.Vector3(Infinity,0,0),this.reduced,[...this.remotes.values()].filter(r=>r.visitor.zone===this.zone).map(r=>r.visitor));
+  this.venue.cat?.update(now/1000,this.entered?this.position:new T.Vector3(Infinity,0,0),this.reduced,[...this.remotes.values()].filter(r=>r.visitor.zone===this.zone).flatMap(r=>[r.visitor,r.avatar.root.position]));
   if(this.avatar){this.avatar.root.position.copy(this.position);this.avatar.root.rotation.y=this.yaw;this.avatar.update(this.net.now()/1000,speed,this.pose==='sit',music,this.gesture,(this.net.now()-this.gestureAt)/1000,dt);this.avatar.root.visible=this.entered;
    if(now<this.petUntil&&this.venue.cat)this.avatar.pet(this.venue.cat.petPoint(this.petFocus),now/1000,this.reduced);
   }

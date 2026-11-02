@@ -5,6 +5,7 @@ import {sphere,line,material} from '../scene/primitives';
 import {segmentClear} from '../navigation/path';
 import {walkable} from '../../shared/venue';
 
+export const CAT_VISITOR_GAP=.64;
 const HOME={x:6.4,y:0,z:27};
 /** A small, rounded resident, using the same dot eyes, blush and soft shapes as our visitors. */
 export class LobbyCat{
@@ -71,10 +72,10 @@ export class LobbyCat{
  invite(visitor:T.Vector3){
   this.destination=null;this.heldUntil=Infinity;const p=this.petPoint(new T.Vector3());p.y=0;
   const distance=Math.hypot(visitor.x-p.x,visitor.z-p.z);
-  if(Math.abs(visitor.y)<.2&&distance>=.45&&distance<=.6&&walkable('lobby',visitor)){Object.assign(this.approach,{x:visitor.x,y:0,z:visitor.z});return true;}
+  if(Math.abs(visitor.y)<.2&&distance>=.45&&distance<=.6&&walkable('lobby',visitor)&&!visitorBlocksStep(visitor,visitor,this.root.position,CAT_VISITOR_GAP+.02)){Object.assign(this.approach,{x:visitor.x,y:0,z:visitor.z});return true;}
   const angle=Math.atan2(visitor.x-p.x,visitor.z-p.z);
   for(const offset of [0,.4,-.4,.8,-.8,1.6,-1.6,2.4,-2.4,Math.PI]){
-   const a=angle+offset,point={x:p.x+Math.sin(a)*.53,y:0,z:p.z+Math.cos(a)*.53};if(walkable('lobby',point)){Object.assign(this.approach,point);return true;}
+   const a=angle+offset,point={x:p.x+Math.sin(a)*.72,y:0,z:p.z+Math.cos(a)*.72};if(walkable('lobby',point)&&!visitorBlocksStep(point,point,this.root.position,CAT_VISITOR_GAP+.02)){Object.assign(this.approach,point);return true;}
   }
   this.heldUntil=0;return false;
  }
@@ -98,7 +99,7 @@ export class LobbyCat{
     // Turn toward the path before advancing, instead of sliding sideways or backwards.
     const step=Math.min(d,dt*.65*Math.max(0,Math.cos(turn))**2);walking=step>.0001;
     const next={x:p.x+dx/d*step,y:0,z:p.z+dz/d*step};
-    if((Number.isFinite(visitor.x)&&visitorBlocksStep(p,next,visitor,.52))||others.some(other=>visitorBlocksStep(p,next,other,.52))){walking=false;this.destination=null;this.wanderAt=now+1;}
+    if((Number.isFinite(visitor.x)&&visitorBlocksStep(p,next,visitor,CAT_VISITOR_GAP))||others.some(other=>visitorBlocksStep(p,next,other,CAT_VISITOR_GAP))){walking=false;this.destination=null;this.wanderAt=now+1;}
     else{p.x=next.x;p.z=next.z;this.gait+=step/(this.root.scale.x*.52);}
    }
   }
