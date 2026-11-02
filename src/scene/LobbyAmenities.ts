@@ -25,7 +25,7 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
   for(let i=0;i<3;i++){const x=-w/2+(i+.5)*w/3;box(g,[.5,.24,.06],[x,1.25,-.26],0x1d1712);for(let k=-3;k<=3;k++)line(g,new T.Vector3(x+k*.1,1.2,-.25),new T.Vector3(x+k*.1,1.85,-.25),.012,brass);}
   const lunette=new T.Mesh(new T.CircleGeometry(2.05,24,0,Math.PI),glass);lunette.position.set(0,3.1,-.3);lunette.userData.fullDetail=true;g.add(lunette);
   for(let k=1;k<6;k++){const a=k/6*Math.PI;line(g,new T.Vector3(0,3.1,-.28),new T.Vector3(Math.cos(a)*2.05,3.1+Math.sin(a)*2.05,-.28),.025,goldTrim);}
-  box(g,[w,2.2,.06],[0,2.2,-1.8],0x4a3020);for(let r=0;r<4;r++)for(let c=0;c<9;c++)box(g,[.32,.24,.14],[-1.6+c*.4,1.6+r*.34,-1.72],0x3a2618);
+  box(g,[w,2.2,.06],[0,2.2,-1.65],0x4a3020);for(let r=0;r<4;r++)for(let c=0;c<9;c++)box(g,[.32,.24,.14],[-1.6+c*.4,1.6+r*.34,-1.58],0x3a2618);
   plaque(g,'BILLETTERIE');
   const target=new T.Mesh(new T.BoxGeometry(w,3,1),hit);target.position.set(0,1.6,0);target.userData.boxOffice=true;g.add(target);clickTargets.push(target);}
  // Cloakroom: a marble-topped counter across the arch with a bell and brass tokens; behind it, in the bay, two rows
@@ -33,7 +33,7 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
  {const g=inBay(F.cloakroom),w=4.1;
   box(g,[w,1.0,.55],[0,.5,-.15],walnut);box(g,[w+.1,.08,.72],[0,1.04,-.1],0xe8e1d3);for(let i=0;i<4;i++)box(g,[w/4-.25,.6,.03],[-w/2+(i+.5)*w/4,.52,.14],0x6e4a2e);
   cylinder(g,.09,.05,[w/2-.4,1.11,0],brass);sphere(g,.06,[w/2-.4,1.17,0],brass);for(let i=0;i<8;i++)cylinder(g,.05,.012,[-w/2+.5+i*.14,1.09,0],brass);
-  box(g,[w,3.4,.06],[0,1.9,-1.8],0x7c2430);for(const y of [.25,3.55])box(g,[w,.1,.08],[0,y,-1.76],goldTrim);
+  box(g,[w,3.4,.06],[0,1.9,-1.65],0x7c2430);for(const y of [.25,3.55])box(g,[w,.1,.08],[0,y,-1.61],goldTrim);
   const coats=[0x2b2b33,0x5a3e2b,0x3d4a3a,0x6b2e2e,0x1f2a3a,0x7a6a55,0x3a3a3a,0x4a2a3a];
   for(const [y,z] of [[1.5,-.95],[1.5,-1.5]] as const){line(g,new T.Vector3(-w/2+.1,y+.85,z),new T.Vector3(w/2-.1,y+.85,z),.02,brass);
    for(let i=0;i<11;i++){const x=-w/2+.3+i*(w-.6)/10,c=coats[(i*3+(z<-1.2?1:0))%coats.length];box(g,[.28,1.05+((i*7)%3)*.08,.22],[x,y+.25,z],c);box(g,[.12,.12,.12],[x,y+.8,z],c);line(g,new T.Vector3(x-.13,y+.82,z),new T.Vector3(x+.13,y+.82,z),.012,0xa0a0a0);box(g,[.07,.09,.01],[x+.09,y+.7,z+.12],0xe8d9a8);}}
@@ -42,10 +42,10 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
  // Café: a marble-topped walnut bar along the wall, a mirrored back shelf with bottles, and standing tables.
  {const f=F.cafeCounter,g=new T.Group();g.position.set(f.x,0,f.z);scene.add(g);
   box(g,[f.hx*2,1.1,f.hz*2],[0,.55,0],walnut);box(g,[f.hx*2+.2,.08,f.hz*2+.1],[.05,1.14,0],marbleWhite);
-  box(g,[.1,2.2,f.hz*2],[-.75,2.1,0],0x9fb3b8);for(const y of [1.6,2.2,2.8])box(g,[.3,.05,f.hz*2-.2],[-.6,y,0],brass);
-  for(let i=0;i<24;i++){const z=-f.hz+.3+(i%12)*(f.hz*2-.6)/11,y=i<12?1.78:2.38;cylinder(g,.06,.3,[-.6,y,z],[0x3c5c3a,0x7a2c22,0xd9c27a,0x2f3f5a][i%4]);}
+  const backsplash=box(g,[.06,2.2,f.hz*2],[-.57,2.1,0],0x9fb3b8);backsplash.userData.fullDetail=true;backsplash.userData.cameraWall=true;for(const y of [1.6,2.2,2.8])box(g,[.35,.05,f.hz*2-.2],[-.50,y,0],brass);
+  for(let i=0;i<24;i++){const z=-f.hz+.3+(i%12)*(f.hz*2-.6)/11,y=i<12?1.78:2.38;cylinder(g,.06,.3,[-.42,y,z],[0x3c5c3a,0x7a2c22,0xd9c27a,0x2f3f5a][i%4]);}
   cylinder(g,.25,.45,[.1,1.4,-2],0x8d8d8d);box(g,[.5,.45,.4],[.1,1.4,2],0xa8a8a8);
-  box(g,[.6,.5,.04],[-.7,3.6,0],0x2c211a);text(g,'CAFÉ',1.6,[-.66,3.6,0],'#f0d9a0').rotation.y=Math.PI/2;
+  box(g,[.04,.5,1.6],[-.55,3.2,0],0x2c211a);text(g,'CAFÉ',1.6,[-.515,3.2,0],'#f0d9a0').rotation.y=Math.PI/2;
   for(const t of F.cafeTables){cylinder(scene,.32,.05,[t.x,.03,t.z],brass);cylinder(scene,.05,1.05,[t.x,.55,t.z],brass);cylinder(scene,.42,.05,[t.x,1.08,t.z],marbleWhite);}}
  // Lounge: red velvet sofas against the wall and a round button ottoman, the Garnier "borne".
  for(const f of F.sofas){const g=new T.Group();g.position.set(f.x,0,f.z);scene.add(g);

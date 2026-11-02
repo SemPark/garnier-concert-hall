@@ -1,4 +1,5 @@
 import {BOUNDS,FLOOR_AISLES,FLOOR_CROSS_AISLE,walkable,distance,stairPoint,stairLink,type Point,type Zone} from '../../shared/venue';
+import {lobbyRouteNodes} from '../../shared/grandStair';
 const STEP=.35;
 export function segmentClear(zone:Zone,a:Point,b:Point){const n=Math.max(1,Math.ceil(distance(a,b)/.12));for(let i=0;i<=n;i++)if(!walkable(zone,{x:a.x+(b.x-a.x)*i/n,z:a.z+(b.z-a.z)*i/n,y:(a.y??0)+((b.y??0)-(a.y??0))*i/n}))return false;return true;}
 function planarPath(zone:Zone,start:Point,end:Point):Point[]|null{
@@ -36,7 +37,7 @@ function planarPath(zone:Zone,start:Point,end:Point):Point[]|null{
 export function findPath(zone:Zone,start:Point,end:Point):Point[]|null{
  if(!walkable(zone,start)||!walkable(zone,end))return null;
  if(segmentClear(zone,start,end))return [end];
- if(zone==='lobby')return planarPath(zone,start,end);
+ if(zone==='lobby')return lobbyPath(start,end);
  if(Math.abs((start.y??0)-(end.y??0))<.1){const planar=planarPath(zone,start,end);if(planar)return planar;}
  const nodes=[start,end,stairPoint(-1,false),stairPoint(-1,true),stairPoint(1,false),stairPoint(1,true)],best=nodes.map(()=>Infinity),previous=new Map<number,{from:number;path:Point[]}>(),done=new Set<number>();best[0]=0;
  while(done.size<nodes.length){let current=-1;for(let i=0;i<nodes.length;i++)if(!done.has(i)&&(current<0||best[i]<best[current]))current=i;if(current<0||!Number.isFinite(best[current]))break;if(current===1){const parts:Point[][]=[];let at=1;while(at!==0){const edge=previous.get(at)!;parts.unshift(edge.path);at=edge.from;}return parts.flat();}done.add(current);
@@ -45,6 +46,18 @@ export function findPath(zone:Zone,start:Point,end:Point):Point[]|null{
    const climb=i>=2&&current>=2&&Math.floor((i-2)/2)===Math.floor((current-2)/2)&&stairLink(a,b,.01);
    if(climb)path=[b];else if(segmentClear(zone,a,b))path=[b];else if(Math.abs((a.y??0)-(b.y??0))<.1)path=planarPath(zone,a,b);
    if(!path)continue;let cost=climb?12:0,p=a;if(!climb)for(const point of path){cost+=distance(p,point);p=point;}if(best[current]+cost<best[i]){best[i]=best[current]+cost;previous.set(i,{from:current,path});}
+  }
+ }
+ return null;
+}
+
+/** The lobby is a multi-level graph: the only rising edges are the actual visible flights. */
+function lobbyPath(start:Point,end:Point):Point[]|null{
+ const nodes=[start,end,...lobbyRouteNodes()],best=nodes.map(()=>Infinity),done=new Set<number>(),prev=new Map<number,{from:number;path:Point[]}>();best[0]=0;
+ while(done.size<nodes.length){let at=-1;for(let i=0;i<nodes.length;i++)if(!done.has(i)&&(at<0||best[i]<best[at]))at=i;if(at<0||!Number.isFinite(best[at]))return null;if(at===1){const parts:Point[][]=[];while(at!==0){const p=prev.get(at)!;parts.unshift(p.path);at=p.from;}return parts.flat();}done.add(at);
+  for(let i=1;i<nodes.length;i++){if(done.has(i))continue;const a=nodes[at],b=nodes[i];let path:Point[]|null=segmentClear('lobby',a,b)?[b]:null;
+   if(!path&&Math.abs(a.y??0)<.05&&Math.abs(b.y??0)<.05)path=planarPath('lobby',a,b);
+   if(!path)continue;let cost=best[at],p=a;for(const q of path){cost+=distance(p,q);p=q;}if(cost<best[i]){best[i]=cost;prev.set(i,{from:at,path});}
   }
  }
  return null;

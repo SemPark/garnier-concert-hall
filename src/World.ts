@@ -194,7 +194,7 @@ export class World{
    }else if(this.route.length&&this.pose!=='sit'){
     const p=this.route[0],d=distance(this.position,p);
     // Through a stair door: walk the corridor stair behind the rear wall, then come out at the partner door.
-    if(this.climb||(d>1&&stairLink(this.position,p,.05))){
+    if(this.zone==='auditorium'&&(this.climb||(d>1&&stairLink(this.position,p,.05)))){
      if(!this.climb){this.sendPosition(now,true);const up=(p.y??0)>this.position.y;this.climb={points:corridorRoute(this.position.x<0?-1:1,up).slice(1),up};}
      const target=this.climb.points[0],left=distance(this.position,target),step=Math.min(left,(this.reduced?40:3.4)*dt);
      if(left<.001)this.climb.points.shift();else{this.position.x+=(target.x-this.position.x)/left*step;this.position.y+=((target.y??0)-this.position.y)/left*step;this.position.z+=(target.z-this.position.z)/left*step;}
@@ -202,15 +202,15 @@ export class World{
       this.position.set(p.x,p.y??0,p.z);this.route.shift();this.sentAt=0;this.sendPosition(now,true);this.onToast(up?'계단을 올라 2층에 왔어요.':'계단을 내려 1층에 왔어요.');}
     }
     else if(d<.035){this.position.set(p.x,p.y??0,p.z);this.route.shift();}else{const step=Math.min(d,3.4*dt);this.position.x+=(p.x-this.position.x)/d*step;this.position.z+=(p.z-this.position.z)/d*step;this.position.y+=((p.y??0)-this.position.y)/d*step;
-     // The lobby is one height field: keep feet on the floor, the flight or the landing.
-     if(this.zone==='lobby'){const h=surfaceHeight('lobby',this.position);if(h!==null)this.position.y=h;}}
+     // Follow the currently connected lobby floor, flight or balcony.
+     if(this.zone==='lobby'){const h=surfaceHeight('lobby',this.position,this.position.y);if(h!==null)this.position.y=h;}}
     if(!this.route.length){this.marker.visible=false;this.pose='idle';if(this.reservedSeat&&!this.seating){this.seating=true;this.sendPosition(now,true);this.net.send({type:'seated',seatId:this.reservedSeat});}}
    }
    speed=previous.distanceTo(this.position)/Math.max(dt,.001);if(this.pose!=='sit'){this.pose=speed>.015?'walk':'idle';if(speed>.015)this.yaw=Math.atan2(-(this.position.x-previous.x),-(this.position.z-previous.z));}
    if(this.reservedSeat&&this.pose!=='sit'&&now-this.renewAt>5000){this.net.send({type:'renew',seatId:this.reservedSeat});this.renewAt=now;}
    this.sendPosition(now);
    // Walking through the amphitheatre door at the head of the flight enters the hall.
-   if(this.zone==='lobby'&&this.position.y>GRAND_STAIR.rise-.3&&this.position.z>AMPHITHEATRE_DOOR.z-.4&&Math.abs(this.position.x)<AMPHITHEATRE_DOOR.halfWidth)this.changeZone();
+   if(this.zone==='lobby'&&Math.abs(this.position.y-GRAND_STAIR.rise)<.3&&this.position.z>AMPHITHEATRE_DOOR.z-.4&&Math.abs(this.position.x)<AMPHITHEATRE_DOOR.halfWidth)this.changeZone();
   }
   if(this.pose==='sit'&&this.seatedTarget)this.position.lerp(this.seatedTarget,1-Math.exp(-dt*12));
   const music=this.audio.playback.playing&&!this.reduced;
