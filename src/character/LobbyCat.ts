@@ -11,24 +11,21 @@ export class LobbyCat{
  private head=new T.Group();private eyes=new T.Group();private tail=new T.Group();
  private heart:T.Sprite;private hint:T.Sprite;private happyUntil=0;
  private heldUntil=0;private lastTime=0;private wanderAt=0;private destination:T.Vector3|null=null;
- private legs:{root:T.Group;upper:T.Mesh;lower:T.Mesh;knee:T.Mesh;foot:T.Mesh;phase:number;rear:boolean}[]=[];
+ private legs:{root:T.Group;phase:number}[]=[];
  private gait=0;private gaitWeight=0;
- private hip=new T.Vector3();private kneePoint=new T.Vector3();private ankle=new T.Vector3();private axis=new T.Vector3(0,1,0);private direction=new T.Vector3();
  constructor(scene:T.Scene){
   this.root.name='lobby-cat';this.root.position.set(HOME.x,0,HOME.z);this.root.scale.setScalar(.62);scene.add(this.root);
   const cream=0xf2ddbb,ginger=0xc88a50;
-  // A horizontal torso over four separate jointed legs, rather than seated haunches.
+  // Four soft, straight legs with no separate joints or paws.
   sphere(this.root,.3,[0,.47,.07],cream).scale.set(.255,.225,.48);
   sphere(this.root,.22,[0,.5,.28],ginger).scale.set(.245,.21,.25);
+  const legGeometry=new T.CapsuleGeometry(.065,.30,4,8);
   for(const rear of [false,true])for(const side of [-1,1]){
-   const leg=new T.Group();leg.position.set(side*.175,0,rear?.31:-.27);this.root.add(leg);
-   const upper=line(leg,new T.Vector3(0,.42,0),new T.Vector3(0,.24,0),.07,rear?ginger:cream);
-   const lower=line(leg,new T.Vector3(0,.24,0),new T.Vector3(0,.065,0),.055,cream);
-   const knee=sphere(leg,.07,[0,.24,0],rear?ginger:cream);
-   const foot=sphere(leg,.1,[0,.065,-.025],cream);foot.scale.set(.09,.065,.12);
+   const leg=new T.Group();leg.position.set(side*.175,.43,rear?.31:-.27);this.root.add(leg);
+   const piece=new T.Mesh(legGeometry,material(cream));piece.position.y=-.215;leg.add(piece);
    // Four-beat lateral walk: rear left, front left, rear right, front right.
    const phase=side<0?(rear?0:.25):(rear?.5:.75);
-   this.legs.push({root:leg,upper,lower,knee,foot,phase,rear});
+   this.legs.push({root:leg,phase});
   }
   this.head.position.set(0,.72,-.37);this.root.add(this.head);this.head.add(this.eyes);
   sphere(this.head,.35,[0,0,0],cream).scale.set(.37,.32,.32);
@@ -77,9 +74,6 @@ export class LobbyCat{
  }
  release(){this.heldUntil=0;}
  pet(now:number){this.happyUntil=now+3;this.heldUntil=now+4;}
- private limb(mesh:T.Mesh,a:T.Vector3,b:T.Vector3,radius:number){
-  this.direction.copy(b).sub(a);mesh.position.copy(a).add(b).multiplyScalar(.5);mesh.scale.set(radius,this.direction.length(),radius);mesh.quaternion.setFromUnitVectors(this.axis,this.direction.normalize());
- }
  update(now:number,visitor:T.Vector3,reduced=false){
   const dt=this.lastTime?Math.min(.1,Math.max(0,now-this.lastTime)):0;this.lastTime=now;
   const happy=now<this.happyUntil,t=reduced?0:now,p=this.root.position;
@@ -108,11 +102,9 @@ export class LobbyCat{
    let z:number,lift=0;
    if(phase<stance)z=-travel/2+travel*phase/stance;
    else{const u=(phase-stance)/(1-stance);z=travel/2-travel*(u*u*(3-2*u));lift=Math.sin(Math.PI*u)*.12;}
-   this.hip.set(0,leg.rear?.43:.42,0);this.ankle.set(0,.065+lift*this.gaitWeight,z*this.gaitWeight);
-   const dy=this.ankle.y-this.hip.y,dz=this.ankle.z,length=Math.hypot(dy,dz),bend=Math.sqrt(Math.max(0,.215**2-(length/2)**2))*(leg.rear?-1:1);
-   this.kneePoint.copy(this.hip).add(this.ankle).multiplyScalar(.5);this.kneePoint.y+=dz/length*bend;this.kneePoint.z-=dy/length*bend;
-   this.limb(leg.upper,this.hip,this.kneePoint,.07);this.limb(leg.lower,this.kneePoint,this.ankle,.055);
-   leg.knee.position.copy(this.kneePoint);leg.foot.position.copy(this.ankle);leg.foot.position.z-=.025;
+   const angle=-Math.atan2(z*this.gaitWeight,.43-lift*this.gaitWeight);
+   leg.root.rotation.x=angle;
+   leg.root.position.y=.43*Math.cos(angle)+lift*this.gaitWeight;
   }
   this.targets[0].position.set(p.x,.42,p.z);this.targets[0].rotation.y=this.root.rotation.y;this.targets[0].updateMatrixWorld(true);
   this.head.rotation.z=happy?-.13+Math.sin(t*5)*.035:Math.sin(t*.8)*.035;
