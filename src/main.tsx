@@ -58,13 +58,13 @@ function App(){
  useEffect(()=>{const key=(e:KeyboardEvent)=>{const i=Number(e.code.replace('Digit',''))-1;if(!app||!entered||settings||!(i>=0&&i<GESTURES.length)||app.net.status!=='connected'||(e.target as HTMLElement)?.closest('input,textarea,select,dialog'))return;e.preventDefault();app.world.gestureAction(GESTURES[i].id);};window.addEventListener('keydown',key);return ()=>window.removeEventListener('keydown',key);},[app,entered,settings]);
  useEffect(()=>{if(settings){dialog.current?.showModal();app?.world.input.keys.clear();}else dialog.current?.close();},[settings,app]);
  const world=app?.world,net=app?.net,audio=app?.audio,p=audio?.playback,zone=world?.zone??'lobby',connected=net?.status==='connected',sitting=world?.pose==='sit';
- const enter=()=>{if(!app)return;setEntered(true);app.world.start();app.net.connect();void app.audio.unlock();};
+ const enter=()=>{if(!app||!app.world.ready)return;setEntered(true);app.world.start();app.net.connect();void app.audio.unlock();};
  const diagnose=async()=>{if(!world||!audio)return;if(!audio.playback.playing||audio.playback.remaining<35){setProbeMessage('곡이 바뀌는 구간입니다. 다음 곡이 시작되면 진단해 주세요.');return;}setSettings(false);setProbeReport('');setProbeMessage('');try{const report=await runDeviceProbe(world,audio,setProbeProgress);setProbeReport(JSON.stringify(report));setProbeMessage('진단 완료 · 결과를 복사해 보내주세요. 결과는 자동 전송되지 않습니다.');}catch(e){setProbeMessage(e instanceof Error?e.message:'진단을 완료하지 못했어요.');}finally{setProbeProgress('');setSettings(true);}};
  return <>
   <div className="vignette"/>
   <header className="topbar">
-   <div className="brand"><span className="brand-mark"><Icon name="hall" size={25}/></span><div><span className="brand-name">GARNIER</span><span className="brand-sub">함께 듣는 음악당</span></div></div>
-   {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LE GRAND ESCALIER':'GOLDENER SAAL'}</span><span>{zone==='lobby'?'대계단':'황금홀'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ')??'입장 중'}</span></div>}
+   <div className="brand"><span className="brand-mark"><Icon name="hall" size={25}/></span><div><span className="brand-name">AUREA</span><span className="brand-sub">함께 듣는 음악당</span></div></div>
+   {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'AUREA FOYER':'AUREA GRAND HALL'}</span><span>{zone==='lobby'?'아우레아 로비':'아우레아 홀'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ')??'입장 중'}</span></div>}
    <nav className="tools" aria-label="음악당 설정">
     {entered&&<span className="visitor-count" title={connected?'함께 있는 관객':'연결을 기다리고 있어요'}><span className={`connection ${connected?'online':''}`}/><Icon name="people" size={18}/>{net?.local?'혼자 감상':net?.state?.visitors.length??'—'}</span>}
     <button className="icon-button" aria-label={audio?.enabled?'소리 끄기':'소리 켜기'} onClick={()=>{audio?.toggle();redraw(n=>n+1);}}><Icon name={audio?.enabled?'sound':'mute'}/></button>
@@ -75,14 +75,14 @@ function App(){
    <div className="eyebrow"><span/>A PLACE TO LISTEN, TOGETHER</div>
    <h1>잠시,<br/>음악 속에 머물러요.</h1>
    <p>황금빛 로비를 지나, 나만의 자리에 앉아보세요.<br/>어느 때 찾아와도 음악은 흐르고 있습니다.</p>
-   <button className="enter-button" onClick={enter} disabled={!app}>음악당 들어가기 <Icon name="arrow" size={19}/></button>
+   <button className="enter-button" onClick={enter} disabled={!app||!world?.ready}>음악당 들어가기 <Icon name="arrow" size={19}/></button>
    <div className="welcome-note">가입 없이, 편안하게. <span>소리와 함께 입장합니다.</span></div>
   </section>}
-  {!entered&&<div className="intro-caption"><span>01 / LE GRAND ESCALIER</span><span>팔레 가르니에에서 영감을 받은 작은 공간</span></div>}
+  {!entered&&<div className="intro-caption"><span>AUREA · A PLACE TO LISTEN</span><span>로비에서 시작되는 클래식의 시간</span></div>}
   {entered&&<>
    {!connected&&<div className="connection-banner" role="status">{net?.status==='connecting'?'음악당의 문을 여는 중이에요…':'연결이 잠시 끊겼어요. 다시 연결하고 있습니다.'}</div>}
    {connected&&zone==='lobby'&&lookPicker&&<div className="look-picker" role="dialog" aria-label="내 캐릭터 고르기"><span>YOUR CHARACTER</span><h2>내 캐릭터를 골라주세요</h2><div className="look-choice">{(["man","woman"] as const).map(v=><button key={v} className={world?.visitorLook===v?"active":""} onClick={()=>{try{localStorage.setItem('garnier-look',v);}catch{}if(world?.visitorLook!==v)world?.setLook(v);setLookPicker(false);}}>{v==="man"?"남자":"여자"}</button>)}</div></div>}
-   {connected&&zone==='lobby'&&!lookPicker&&<aside className="room-note"><span>LE GRAND ESCALIER</span><h2>오늘의 자리는 <br/>비워두었어요.</h2><p>계단 위 문이나 아래 ‘공연장 입장’을 눌러 들어가세요. 매표소에서 좌석을 고를 수 있어요.</p></aside>}
+
    {menu&&<><nav className="icon-menu" role="menu" aria-label="음악당 메뉴" title="음악당 메뉴" onKeyDown={e=>{if(e.key==='Escape')setMenu(false);}}>
     {zone==='auditorium'?<>
      <button role="menuitem" className="icon-menu-item" aria-label="좌석 고르기" title="좌석 고르기" onClick={()=>{world?.input.keys.clear();setSeats(true);}}><Icon name="ticket" size={20}/></button>

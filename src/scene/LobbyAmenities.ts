@@ -57,7 +57,7 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
   const caseGlass=new T.MeshLambertMaterial({color:0xc5d4ce,transparent:true,opacity:.25,depthWrite:false});
   const display=box(g,[.65,.52,1.75],[.15,1.46,2.8],marbleWhite);display.material=caseGlass;
   for(const y of [1.22,1.51]){box(g,[.65,.04,1.75],[.15,y,2.8],brass);for(let i=0;i<4;i++){const pastry=sphere(g,.11,[.23,y+.1,2.2+i*.36],0xb78540);pastry.scale.y*=.55;}}
-  box(g,[.1,.6,3.8],[1.9,6.1,0],brass);box(g,[.06,.45,3.6],[1.98,6.1,0],0x211a14);const name=text(g,'CAFÉ • GARNIER',3.2,[2.02,6.1,0],'#f3dc9c');name.rotation.y=Math.PI/2;
+  box(g,[.1,.6,3.8],[1.9,6.1,0],brass);box(g,[.06,.45,3.6],[1.98,6.1,0],0x211a14);const name=text(g,'CAFÉ • AUREA',3.2,[2.02,6.1,0],'#f3dc9c');name.rotation.y=Math.PI/2;
   const menu=box(g,[.08,1.2,2.8],[-.12,2.3,-1.1],0x211a14);
   for(const [label,y] of [['ESPRESSO',2.65],['CAPPUCCINO',2.35],['PÂTISSERIE',2.05]] as const){const t=text(g,label,2.3,[-.06,y,-1.1],'#f0d9a0');t.rotation.y=Math.PI/2;}
   for(const t of F.cafeTables){cylinder(scene,.32,.05,[t.x,.03,t.z],brass);cylinder(scene,.05,1.05,[t.x,.55,t.z],brass);cylinder(scene,.48,.05,[t.x,1.08,t.z],marbleWhite);cylinder(scene,.1,.025,[t.x,1.12,t.z],marbleWhite);cylinder(scene,.07,.13,[t.x,1.19,t.z],marbleWhite);}

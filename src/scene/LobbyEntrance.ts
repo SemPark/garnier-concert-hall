@@ -31,11 +31,11 @@ export function buildLobbyEntrance(scene:T.Scene,cameraWalls:T.Object3D[]){
  const facade=new T.Group();facade.position.set(0,S.rise,DOOR.z-.35);scene.add(facade);facade.userData.landmark='entrance-aedicule';
  for(const side of [-1,1]){const x=side*1.7;box(facade,[.6,4.25,.65],[x,2.12,0],0xbda98a);cylinder(facade,.2,3.65,[x,2.1,-.37],0xd4c5a5);box(facade,[.8,.22,.8],[x,.12,-.12],P.deep);}
  box(facade,[4.1,.85,.75],[0,3.85,0],0xbca889);box(facade,[3.25,.58,.1],[0,3.87,-.43],0x423a2e);
- text(facade,'AMPHITHÉÂTRE',2.95,[0,3.88,-.5],'#e5d3a2').rotation.y=Math.PI;
+ text(facade,'AUREA GRAND HALL',2.95,[0,3.88,-.5],'#e5d3a2').rotation.y=Math.PI;
  for(const y of [3.33,4.36,4.53])box(facade,[4.55,.13,.9],[0,y,-.08],P.light);
  const shape=new T.Shape();shape.moveTo(-2.25,0);shape.bezierCurveTo(-1.4,.06,-1.3,.8,0,.85);shape.bezierCurveTo(1.3,.8,1.4,.06,2.25,0);shape.closePath();
  const crest=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:.55,bevelEnabled:false,curveSegments:16}),material(0xc9b99b));crest.position.set(0,4.6,-.36);crest.userData.fullDetail=true;facade.add(crest);
- for(const side of [-1,1]){const scroll=new T.Mesh(new T.TorusGeometry(.38,.075,8,20,Math.PI*1.65),material(P.light));scroll.position.set(side*1.38,4.9,-.42);scroll.rotation.z=side*Math.PI*.2;scroll.userData.fullDetail=true;facade.add(scroll);lobbyStatue(facade,side*2.75,.5,-.25,.8,Math.PI);}
+ for(const side of [-1,1]){const scroll=new T.Mesh(new T.TorusGeometry(.38,.075,8,20,Math.PI*1.65),material(P.light));scroll.position.set(side*1.38,4.9,-.42);scroll.rotation.z=side*Math.PI*.2;scroll.userData.fullDetail=true;facade.add(scroll);}
  sphere(facade,.26,[0,5.15,-.44],P.light);lobbyStatue(facade,0,5.38,-.1,.48,Math.PI);
  // A continuous parapet links the pavilion roof to the rear gallery instead of leaving a bare slab.
  for(const [a,b] of [[-half,-2.5],[2.5,half]]){

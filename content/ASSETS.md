@@ -46,3 +46,8 @@
 - License: **CC BY-SA 4.0**, https://creativecommons.org/licenses/by-sa/4.0/
 - Local file: `src/assets/hall/garnier-stair-ceiling.webp` (4596px JPEG resized to 2048px and converted to WebP).
 - Mapped onto the lobby ceiling as a photographic surface; this texture adaptation remains CC BY-SA 4.0. The auditorium fresco is unchanged.
+
+## AUREA startup preview
+
+- `public/lobby-preview.webp`: a 1600×1000 render of this application's lobby, generated from its current Three.js scene.
+- The render includes the Diego Delso ceiling photograph credited above; the preview is distributed under CC BY-SA 4.0 with the same source attribution in the settings panel.

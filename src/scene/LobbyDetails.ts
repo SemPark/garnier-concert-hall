@@ -1,5 +1,5 @@
 import * as T from 'three';
-import {ATRIUM as A,LOBBY_ARCADE} from '../../shared/grandStair';
+import {ATRIUM as A,GRAND_STAIR as S,LOBBY_ARCADE} from '../../shared/grandStair';
 import {box,cylinder,sphere,line,material} from './primitives';
 import {hallImage,woodMaterial} from './HallTextures';
 
@@ -75,9 +75,11 @@ export function buildLobbyDetails(scene:T.Scene){
  };
  for(const y of [A.balconyY-.36,13.4-.36]){
   for(const side of [-1,1])strip(A.back-A.front-2*A.balconyDepth,side*(inner-.035),y,(A.front+A.back)/2,-side*Math.PI/2);
-  strip(inner*2,0,y,A.front+A.balconyDepth+.035,0);strip(inner*2,0,y,A.back-A.balconyDepth-.035,Math.PI);
+  strip(inner*2,0,y,A.front+A.balconyDepth+.035,0);
+  const spans=y<A.balconyY?[[-inner,-S.branchInner],[S.branchInner,inner]]:[[-inner,inner]];
+  for(const [a,b]of spans)strip(b-a,(a+b)/2,y,A.back-A.balconyDepth-.035,Math.PI);
   for(const side of [-1,1])for(const dy of [-.34,.31])box(scene,[.24,.12,A.back-A.front-2*A.balconyDepth],[side*inner,y+dy,(A.front+A.back)/2],P.light);
-  for(const z of [A.front+A.balconyDepth,A.back-A.balconyDepth])for(const dy of [-.34,.31])box(scene,[inner*2,.12,.24],[0,y+dy,z],P.light);
+  for(const z of [A.front+A.balconyDepth,A.back-A.balconyDepth])for(const dy of [-.34,.31]){const pieces=z>A.front+A.balconyDepth&&y<A.balconyY?spans:[[-inner,inner]];for(const[a,b]of pieces)box(scene,[b-a,.12,.24],[(a+b)/2,y+dy,z],P.light);}
   for(const x of [-inner,inner])for(const z of [A.front+A.balconyDepth,A.back-A.balconyDepth])box(scene,[.28,.8,.28],[x,y,z],P.gold);
  }
  // Continuous layered cornices use the same proportions and colours as the hall.

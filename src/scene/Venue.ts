@@ -140,12 +140,11 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
  buildLobbyDetails(scene);
  // Balcony floors for both tiers.
  for(const y of [A.balconyY,tier2]){for(const side of [-1,1])box(scene,[D,.45,len],[side*(W-D/2),y-.22,midZ],stone);box(scene,[inner*2,.45,D],[0,y-.22,A.back-D/2],stone);box(scene,[inner*2,.45,D],[0,y-.22,A.front+D/2],stone);}
- const statueAt=(x:number,y:number,z:number,size=1)=>lobbyStatue(scene,x,y,z,size*.65,x>0?-Math.PI/2:Math.PI/2);
  const rail=(x1:number,z1:number,y1:number,x2:number,z2:number,y2:number,lamps=false,bal=redMarble)=>{
   const n=Math.max(1,Math.round(Math.hypot(x2-x1,z2-z1)/.36));
   for(let i=0;i<=n;i++){const t=i/n;cylinder(scene,bal===redMarble?.06:.09,.78,[x1+(x2-x1)*t,y1+(y2-y1)*t+.47,z1+(z2-z1)*t],bal);}
   line(scene,new T.Vector3(x1,y1+.93,z1),new T.Vector3(x2,y2+.93,z2),.11,onyx);line(scene,new T.Vector3(x1,y1+.06,z1),new T.Vector3(x2,y2+.06,z2),.12,stone);
-  if(lamps)for(const [x,y,z]of [[x1,y1,z1],[x2,y2,z2]]){box(scene,[.36,1.05,.36],[x,y+.52,z],stone);statueAt(x,y+1.05,z,.8);}
+  if(lamps)for(const [x,y,z]of [[x1,y1,z1],[x2,y2,z2]]){box(scene,[.36,1.05,.36],[x,y+.52,z],stone);}
  };
  const B=LOBBY_BRANCH;
  for(const y of [A.balconyY,tier2])for(const side of [-1,1]){
@@ -188,8 +187,8 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
  // Street doors under the far arcade, and the foyer named over its opening.
  for(const x of [-8.4,8.4]){box(scene,[2.6,4.4,.2],[x,2.2,A.back-.06],C.wood);arch(scene,2.9,4.5,[x,0,A.back-.2],Math.PI);}
  for(const x of [-10.2,-3.4,3.4,10.2]){box(scene,[.8,.8,.8],[x,.4,A.front+1.2],stoneDark);lobbyStatue(scene,x,.8,A.front+1.2,.95);}
- text(scene,'PALAIS GARNIER',5,[0,A.height-1.5,A.front+.95],'#f0d9a0');
- chandelier(scene,0,15.5,24,2.2);for(const z of [23.1,38.1])for(const x of [-inner+1,inner-1])statueAt(x,A.balconyY+.9,z,.9);
+ text(scene,'AUREA CONCERT HALL',5,[0,A.height-1.5,A.front+.95],'#f0d9a0');
+ chandelier(scene,0,15.5,24,2.2);
 }
 export function createVenue(zone:Zone):Venue{
  const scene=new T.Scene();scene.background=new T.Color(0x24201b);scene.fog=new T.FogExp2(zone==='lobby'?0x292119:0xc2a372,zone==='lobby'?.009:.002);
@@ -213,7 +212,7 @@ export function createVenue(zone:Zone):Venue{
   for(const s of SEATS){const g=seat(scene,s.x,s.z);g.position.y=s.y;g.rotation.y=s.yaw;
    const target=new T.Mesh(hitGeometry,hitMaterial);target.position.set(s.x,s.y+.7,s.z);target.rotation.y=s.yaw;target.userData.seatId=s.id;scene.add(target);seatTargets.push(target);
   }
-  portal=box(scene,[6.75,6.4,.3],[0,3.2,GOLDEN_HALL.rear-.18],C.wood);portal.userData.portal=true;text(scene,'GRAND FOYER',4,[0,7.2,GOLDEN_HALL.rear-1]).rotation.y=Math.PI;
+  portal=box(scene,[6.75,6.4,.3],[0,3.2,GOLDEN_HALL.rear-.18],C.wood);portal.userData.portal=true;text(scene,'AUREA FOYER',4,[0,7.2,GOLDEN_HALL.rear-1]).rotation.y=Math.PI;
   musicians.push(...buildOrchestra(scene));
  }
  cameraWalls.push(portal);
