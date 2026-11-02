@@ -8,6 +8,7 @@ export class Presence{
  private preview:LocalConcert|null=null;
  selfId='';state:Snapshot|null=null;status:'connecting'|'connected'|'offline'='offline';
  onState:(state:Snapshot)=>void=()=>{};onStatus:()=>void=()=>{};onError:(message:string)=>void=()=>{};
+ onMoveBlocked:(point:{x:number;y:number;z:number})=>void=()=>{};
  private socket:WebSocket|null=null;private syncing=false;private retry=0;private stopped=false;private timer=0;private heartbeat=0;
  private origin=Date.now()-performance.now();private offset=0;private bestRTT=Infinity;
  private requests=new Map<string,{resolve:(ok:boolean)=>void;timer:number}>();
@@ -30,7 +31,8 @@ export class Presence{
     const end=performance.now(),rtt=end-msg.sentAt;if(rtt<this.bestRTT){this.bestRTT=rtt;this.offset=msg.serverNow-(this.origin+(msg.sentAt+end)/2);}
    }else if(msg.type==='seatResult'){
     const q=this.requests.get(msg.requestId);if(q){clearTimeout(q.timer);q.resolve(msg.ok);this.requests.delete(msg.requestId);}if(!msg.ok)this.onError(msg.reason??'이 좌석을 선택할 수 없어요.');
-   }else if(msg.type==='error')this.onError(msg.message);
+   }else if(msg.type==='moveBlocked')this.onMoveBlocked(msg);
+   else if(msg.type==='error')this.onError(msg.message);
   };
   socket.onclose=()=>{if(this.socket!==socket)return;this.status='offline';this.onStatus();clearInterval(this.heartbeat);for(const q of this.requests.values()){clearTimeout(q.timer);q.resolve(false);}this.requests.clear();
    if(!this.stopped)this.timer=window.setTimeout(()=>this.connect(),Math.min(10000,600*2**Math.min(this.retry++,4)));};

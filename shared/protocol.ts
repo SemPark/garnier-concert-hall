@@ -29,6 +29,7 @@ export type ClientMessage=
  |{type:'sync'}
  |{type:'clock';sentAt:number};
 export type ServerMessage=
+ |{type:'moveBlocked';x:number;y:number;z:number}
  |{type:'welcome';selfId:string;resumeToken:string;state:Snapshot}
  |{type:'state';state:Snapshot}
  |{type:'delta';delta:Delta}

@@ -70,7 +70,7 @@ export class Avatar{
  constructor(color=0x252733,instrument?:Instrument,variant=0){this.variant=variant;
   this.appearance=variant%8>=4?'woman':'man';this.hair=this.appearance==='woman'?'long':'short';
   this.instrumentType=instrument;this.root.add(this.body);this.body.add(this.head,this.leftArm,this.rightArm,this.leftLeg,this.rightLeg,this.instrument);
-  const skin=[0xf2c8a2,0xe5b48d,0xf7d5b4,0xd49e78][variant%4],hair=[0x3b2c27,0x5a3423,0x232022,0xb4552a][Math.floor(variant/2)%4],cheek=0xf0938a;
+  const skin=[0xf2c8a2,0xe5b48d,0xf7d5b4,0xd49e78][variant%4],hair=[0x3b2c27,0x5a3423,0x232022,0xb4552a,0xb88a48,0x7e6b5c,0x553f32,0xaaa59b][Math.floor(variant/8)%8],cheek=0xf0938a;
   // Bell body with a small white collar, like a village resident.
   const torso=new T.Mesh(bellGeometry,material(color));torso.position.y=.47;torso.scale.z=.78;this.body.add(torso);
   sphere(this.body,.13,[0,1.02,-.055],0xf6efe0).scale.set(.15,.045,.11);

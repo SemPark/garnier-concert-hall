@@ -31,16 +31,16 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
   box(g,[w+.1,.08,.6],[0,1.09,-.05],0xe8e1d3);box(g,[w+.12,.05,.62],[0,1.03,-.05],goldTrim);
   const pane=new T.Mesh(new T.PlaneGeometry(w,2.45),glass);pane.position.set(0,2.375,.3);pane.userData.fullDetail=true;g.add(pane);
   for(const x of [-w/2+.06,-w/6,w/6,w/2-.06]){box(g,[.09,2.45,.10],[x,2.375,.35],goldTrim);}box(g,[w,.1,.14],[0,3.6,.35],goldTrim);
-  for(let i=0;i<3;i++){const x=-w/2+(i+.5)*w/3;box(g,[.5,.24,.06],[x,1.25,.35],0x1d1712);for(let k=-3;k<=3;k++)line(g,new T.Vector3(x+k*.1,1.2,.4),new T.Vector3(x+k*.1,1.85,.4),.012,brass);}
+  for(let i=0;i<3;i++){if(i===1)continue;const x=-w/2+(i+.5)*w/3;box(g,[.5,.24,.06],[x,1.25,.35],0x1d1712);for(let k=-3;k<=3;k++)line(g,new T.Vector3(x+k*.1,1.2,.4),new T.Vector3(x+k*.1,1.85,.4),.012,brass);}
   const lunette=new T.Mesh(new T.CircleGeometry(2.05,24,0,Math.PI),glass);lunette.position.set(0,3.6,.3);lunette.userData.fullDetail=true;g.add(lunette);
   for(let k=1;k<6;k++){const a=k/6*Math.PI;line(g,new T.Vector3(0,3.6,.35),new T.Vector3(Math.cos(a)*2.05,3.6+Math.sin(a)*2.05,.35),.025,goldTrim);}
   box(g,[w,2.2,.06],[0,2.2,-1.65],0x4a3020);for(let r=0;r<4;r++)for(let c=0;c<9;c++)box(g,[.32,.24,.14],[-1.6+c*.4,1.6+r*.34,-1.58],0x3a2618);
   // A fixed member of staff behind the middle window, facing visitors; no animation registration.
-  const clerk=new Avatar(0xb77d86,undefined,7);
+  const clerk=new Avatar(0xb77d86,undefined,31);
   clerk.update(1,0,false,false,null,10,0);
   clerk.eyes.scale.y=1;clerk.head.rotation.set(0,0,0);
   clerk.root.name='box-office-clerk';clerk.root.position.set(0,0,-.95);
-  clerk.root.rotation.y=Math.PI;clerk.root.scale.setScalar(1.5);g.add(clerk.root);
+  clerk.root.rotation.y=Math.PI;clerk.root.scale.setScalar(1);g.add(clerk.root);
   plaque(g,'BILLETTERIE');g.traverse(o=>{o.userData.preserveSilhouette=true;});
   const target=new T.Mesh(new T.BoxGeometry(w,3,1),hit);target.position.set(0,1.6,0);target.userData.boxOffice=true;g.add(target);clickTargets.push(target);}
  // Cloakroom: a marble-topped counter across the arch with a bell and brass tokens; behind it, in the bay, two rows

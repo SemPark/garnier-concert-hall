@@ -52,7 +52,7 @@ function App(){
  const toastTimer=useRef(0),dialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{let world:World|undefined;const net=new Presence(),audio=new ConcertAudio(net.now);
   try{world=new World(document.getElementById('world')!,net,audio);const active=world;const update=()=>redraw(n=>n+1);const notify=(message:string)=>{setToast(message);clearTimeout(toastTimer.current);toastTimer.current=window.setTimeout(()=>setToast(''),3500);};
-   world.onChange=update;world.onToast=notify;world.onSeatMap=()=>{world!.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onStatus=update;net.onError=notify;setApp({world,net,audio});
+   world.onChange=update;world.onToast=notify;world.onSeatMap=()=>{world!.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onMoveBlocked=point=>active.correctMove(point);net.onStatus=update;net.onError=notify;setApp({world,net,audio});
    if(import.meta.env.DEV)Object.assign(window,{__concert:{world,net,audio}});
   }catch(e){setError(e instanceof Error?e.message:'3D 화면을 열지 못했어요.');}
   return ()=>{world?.destroy();net.destroy();audio.destroy();};

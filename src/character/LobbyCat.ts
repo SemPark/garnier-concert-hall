@@ -1,3 +1,5 @@
+import {visitorBlocksStep} from '../../shared/visitorCollision';
+import type {Point} from '../../shared/venue';
 import * as T from 'three';
 import {sphere,line,material} from '../scene/primitives';
 import {segmentClear} from '../navigation/path';
@@ -78,7 +80,7 @@ export class LobbyCat{
  }
  release(){this.heldUntil=0;}
  pet(now:number){this.happyUntil=now+3;this.heldUntil=now+4;}
- update(now:number,visitor:T.Vector3,reduced=false){
+ update(now:number,visitor:T.Vector3,reduced=false,others:readonly Point[]=[]){
   const dt=this.lastTime?Math.min(.1,Math.max(0,now-this.lastTime)):0;this.lastTime=now;
   const happy=now<this.happyUntil,t=reduced?0:now,p=this.root.position;
   if(now>=this.heldUntil&&!happy&&now>=this.wanderAt&&!this.destination){
@@ -95,7 +97,9 @@ export class LobbyCat{
     this.root.rotation.y+=turn*Math.min(1,dt*6);
     // Turn toward the path before advancing, instead of sliding sideways or backwards.
     const step=Math.min(d,dt*.65*Math.max(0,Math.cos(turn))**2);walking=step>.0001;
-    p.x+=dx/d*step;p.z+=dz/d*step;this.gait+=step/(this.root.scale.x*.52);
+    const next={x:p.x+dx/d*step,y:0,z:p.z+dz/d*step};
+    if((Number.isFinite(visitor.x)&&visitorBlocksStep(p,next,visitor,.52))||others.some(other=>visitorBlocksStep(p,next,other,.52))){walking=false;this.destination=null;this.wanderAt=now+1;}
+    else{p.x=next.x;p.z=next.z;this.gait+=step/(this.root.scale.x*.52);}
    }
   }
   this.gaitWeight=T.MathUtils.damp(this.gaitWeight,walking?1:0,12,dt);

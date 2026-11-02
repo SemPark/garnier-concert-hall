@@ -34,15 +34,18 @@ export const COMPOSERS=['LULLI','GLUCK'] as const;
 export function onLobbyFloor(x:number,z:number){return Math.abs(x)<=ATRIUM.halfWidth-.5&&z>=ATRIUM.front+.5&&z<=ATRIUM.back-.5;}
 /** The amphitheatre door at the head of the flight is the way into the hall. */
 export const AMPHITHEATRE_DOOR={x:0,z:41.6-.7,halfWidth:1.3} as const;
+/** The closed hall door beyond the open outer doorway and its walkable vestibule. */
+export const HALL_INNER_DOOR={x:0,z:ATRIUM.back-.55,halfWidth:1.25,approachZ:ATRIUM.back-1.3} as const;
 /** Choose the floor contiguous with the visitor, including the space beneath the branch stairs. */
 export function lobbyHeight(x:number,z:number,fromY=0):number|null{
  const S=GRAND_STAIR,B=LOBBY_BRANCH,A=ATRIUM,a=Math.abs(x);if(!onLobbyFloor(x,z))return null;
  const candidates:number[]=[];
+ if(z>=AMPHITHEATRE_DOOR.z-.25&&z<=HALL_INNER_DOOR.z-.25&&a<=1.07)candidates.push(S.rise);
  if((onLobbyBalcony(x,z)||(a<=S.branchInner-.3&&z>=S.landingEnd+.5&&z<=A.back-.5))&&Math.abs(A.balconyY-fromY)<.65)candidates.push(A.balconyY);
  if(a>=B.startX-.015&&a<=B.endX+.65&&Math.abs(z-B.z)<=B.width/2-.25){const y=lobbyBranchHeight(x);if(Math.abs(y-fromY)<.65)candidates.push(y);}
  let ground:number|null=0;
  if(z>=S.flightStart&&z<=S.flightEnd){if(a<=S.flightHalf-.3)ground=(z-S.flightStart)/(S.flightEnd-S.flightStart)*S.rise;else if(a<=S.branchInner+.27)ground=null;}
- else if(z>S.flightEnd&&z<=S.landingEnd){if(a<=S.branchInner+.015)ground=z<=S.landingEnd-.35?S.rise:null;else if(a<=S.branchInner+.27)ground=null;}
+ else if(z>S.flightEnd&&z<=S.landingEnd){if(a<=S.branchInner+.015)ground=z<=AMPHITHEATRE_DOOR.z-.2?S.rise:null;else if(a<=S.branchInner+.27)ground=null;}
  else if(z>S.landingEnd&&a<=S.branchInner+.25)ground=null;
  else if(z>=S.flightStart-1.6&&z<S.flightStart&&a>S.flightHalf-.3&&a<=S.flightHalf+2.6)ground=null;
  if(ground!==null)candidates.push(ground);

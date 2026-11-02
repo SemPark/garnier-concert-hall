@@ -9,6 +9,7 @@ export class ConcertAudio{
  private doorLeak=0;
  private context:AudioContext|null=null;private filters:BiquadFilterNode[]=[];
  private musicGain:GainNode|null=null;private outputTarget=-1;
+ private lastMeow=-Infinity;
  // The lobby's own room sound: a soft, seamless murmur loop of a large hall, decoded once and looped gaplessly.
  private ambience:GainNode|null=null;private ambienceLoading=false;
  private async startAmbience(context:AudioContext){
@@ -23,7 +24,7 @@ export class ConcertAudio{
   const context=new AudioContext(),source=context.createMediaElementSource(this.media);
   this.context=context;let previous:AudioNode=source;
   // Two low-pass stages leave the bass audible through a closed door.
-  for(let i=0;i<2;i++){const filter=context.createBiquadFilter();filter.type='lowpass';filter.Q.value=.707;filter.frequency.value=this.zone==='lobby'?320:22000;previous.connect(filter);previous=filter;this.filters.push(filter);}
+  for(let i=0;i<2;i++){const filter=context.createBiquadFilter();filter.type='lowpass';filter.Q.value=.707;filter.frequency.value=this.zone==='lobby'?450:22000;previous.connect(filter);previous=filter;this.filters.push(filter);}
   this.musicGain=context.createGain();this.musicGain.gain.value=0;previous.connect(this.musicGain);this.musicGain.connect(context.destination);
   void this.startAmbience(context);return context.resume();
  }
@@ -55,6 +56,24 @@ export class ConcertAudio{
  /** A burst of applause for a visitor's clap; only heard in the quiet time between pieces. */
  clap(gain=1){if(!this.enabled||this.zone!=='auditorium'||!this.clapTime||document.hidden)return false;
   const a=new Audio(this.mediaUrl('/api/audio/hall-clap.mp3'));a.volume=Math.max(0,Math.min(1,this.volume*gain));void a.play().catch(()=>{});return true;}
+ /** A short, soft cartoon meow; generated locally, with no extra file or download. */
+ meow(){
+  const c=this.context;if(!this.enabled||this.volume<=0||document.hidden||!c||c.state!=='running'||c.currentTime-this.lastMeow<1.2)return false;
+  const t=c.currentTime;this.lastMeow=t;
+  const voice=c.createOscillator(),body=c.createOscillator(),vibrato=c.createOscillator(),depth=c.createGain(),envelope=c.createGain(),bodyGain=c.createGain();
+  voice.type='sawtooth';body.type='triangle';vibrato.frequency.value=5.5;depth.gain.value=8;bodyGain.gain.value=.18;
+  for(const oscillator of [voice,body]){
+   oscillator.frequency.setValueAtTime(520,t);oscillator.frequency.exponentialRampToValueAtTime(740,t+.08);oscillator.frequency.exponentialRampToValueAtTime(570,t+.2);oscillator.frequency.exponentialRampToValueAtTime(340,t+.56);oscillator.frequency.exponentialRampToValueAtTime(290,t+.7);depth.connect(oscillator.frequency);
+  }
+  vibrato.connect(depth);body.connect(bodyGain);bodyGain.connect(envelope);
+  const filters:BiquadFilterNode[]=[],levels:GainNode[]=[];
+  for(const [from,to,q,amount] of [[1400,820,2.5,.7],[3000,1550,3.5,.25]]){
+   const filter=c.createBiquadFilter(),gain=c.createGain();filter.type='bandpass';filter.Q.value=q;filter.frequency.setValueAtTime(from,t);filter.frequency.exponentialRampToValueAtTime(to,t+.6);gain.gain.value=amount;voice.connect(filter);filter.connect(gain);gain.connect(envelope);filters.push(filter);levels.push(gain);
+  }
+  envelope.gain.setValueAtTime(0,t);envelope.gain.linearRampToValueAtTime(this.volume*.25,t+.025);envelope.gain.setValueAtTime(this.volume*.22,t+.18);envelope.gain.exponentialRampToValueAtTime(.0001,t+.7);envelope.connect(c.destination);
+  for(const oscillator of [voice,body,vibrato]){oscillator.start(t);oscillator.stop(t+.72);}
+  voice.onended=()=>{for(const node of [voice,body,vibrato,depth,envelope,bodyGain,...filters,...levels])node.disconnect();};return true;
+ }
  /** Return to the concert everyone else is hearing. */
  rejoin(){this.shift=0;this.lastId='';this.sync.request();}
  async unlock(){this.enabled=true;this.unlocking=true;this.media.src=this.mediaUrl(this.playback.track.url);this.lastId=this.playback.track.id;this.cycle=this.playback.cycle;this.media.volume=1;this.media.muted=false;this.sync.request();
@@ -63,10 +82,10 @@ export class ConcertAudio{
   catch{this.enabled=false;this.state='소리를 켜주세요';return false;}finally{this.unlocking=false;}
  }
  toggle(){if(this.enabled){this.enabled=false;this.media.pause();this.state='소리 꺼짐';}else void this.unlock();}
- setZone(zone:Zone){this.zone=zone;this.sync.request();if(this.context)for(const filter of this.filters)filter.frequency.setTargetAtTime(zone==='lobby'?320:22000,this.context.currentTime,.15);}
+ setZone(zone:Zone){this.zone=zone;this.sync.request();if(this.context)for(const filter of this.filters)filter.frequency.setTargetAtTime(zone==='lobby'?450:22000,this.context.currentTime,.15);}
  /** Closed-door spill uses the existing concert stream, with no extra decoder or audio loop. */
  setDoorDistance(distance:number){
-  const t=Math.max(0,Math.min(1,(6.5-distance)/5.3)),level=.22*t*t*(3-2*t);
+  const t=Math.max(0,Math.min(1,(9-distance)/7.8)),level=.5*t*t*(3-2*t);
   if(!this.doorLeak&&level>0)this.sync.request();this.doorLeak=level;
  }
  private playMedia(){
@@ -74,7 +93,7 @@ export class ConcertAudio{
   void this.media.play().catch(()=>{this.enabled=false;this.state='소리 버튼을 눌러주세요';}).finally(()=>{this.playingRequest=false;});
  }
  tick(dt:number){
-  if(this.ambience&&this.context){const on=this.enabled&&this.zone==='lobby'&&!document.hidden;this.ambience.gain.setTargetAtTime(on?this.volume*.45:0,this.context.currentTime,.4);}
+  if(this.ambience&&this.context){const on=this.enabled&&this.zone==='lobby'&&!document.hidden;this.ambience.gain.setTargetAtTime(on?this.volume*.45*(1-.8*Math.min(1,this.doorLeak/.5)):0,this.context.currentTime,.4);}
   if(this.unlocking)return;
   const p=this.playback,level=this.zone==='auditorium'?1:this.doorLeak,active=this.enabled&&!document.hidden;
   const target=active&&p.playing?this.volume*level:0;

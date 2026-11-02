@@ -8,8 +8,9 @@ export type Point={x:number;z:number;y?:number};
 export type Pose='idle'|'walk'|'sit';
 export type Look='man'|'woman';
 export const isLook=(v:unknown):v is Look=>v==='man'||v==='woman';
-/** Avatar variant for a visitor: the chosen look decides man or woman; skin and hair still vary by id. */
-export function visitorVariant(v:{id:string;look?:Look}){const base=parseInt(v.id.slice(0,2),16)||0,look=v.look??(base%8>=4?'woman':'man');return base%4+(look==='woman'?4:0);}
+function appearanceSeed(id:string){let hash=2166136261;for(const ch of id)hash=Math.imul(hash^ch.charCodeAt(0),16777619);return hash>>>0;}
+/** Independent skin, look and hair choices, stable for the same visitor on every screen. */
+export function visitorVariant(v:{id:string;look?:Look}){const seed=appearanceSeed(v.id),look=v.look??(seed&4?'woman':'man');return (seed&3)+(look==='woman'?4:0)+((seed>>>8)&7)*8;}
 export type Visitor={id:string;name:string;color:number;look?:Look;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
 export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
@@ -46,7 +47,8 @@ export function seatLabel(s:Seat){return s.level==='parterre'?`1층 ${s.row}열 
 export const STAGE_APRON_Z=-9.2;
 export const BOUNDS={lobby:{minX:-ATRIUM.halfWidth+.5,maxX:ATRIUM.halfWidth-.5,minZ:ATRIUM.front+.5,maxZ:ATRIUM.back-.5},auditorium:{minX:-15.65,maxX:15.65,minZ:-26.5,maxZ:50.3}};
 export const SPAWN={lobby:{x:0,y:0,z:24},auditorium:{x:0,y:0,z:47}};
-export const PALETTE=[0xc09a61,0x8c9c92,0x9c7181,0x71899c,0xc0ab87,0x9180a3];
+export const PALETTE=[0xc09a61,0x8c9c92,0xb77d86,0x668db3,0xd1b36d,0x9585b5,0x56767e,0x995e69,0xb6ad91,0x7f8d9b,0xa0846c,0x8c9f70];
+export function visitorColor(v:{id:string}){return PALETTE[(appearanceSeed(v.id)>>>16)%PALETTE.length];}
 /** The door on one level that leads to the hidden corridor stair on that side. */
 export function stairPoint(side:number,upper:boolean):Point{const d=upper?STAIR_DOORS.upper:STAIR_DOORS.lower;return {x:side*d.x,y:upper?STAIR_DOORS.height:0,z:d.z};}
 /** True when a step from a to b is a pass through the corridor stair: from one stair door to its partner on the same side. */

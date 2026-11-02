@@ -3,6 +3,7 @@ import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,distance,canSit,stairLink,isLook,t
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shared/protocol';
 import {isGesture} from '../shared/gestures';
 import {LOUNGE_SEATS} from '../shared/loungeSeats';
+import {visitorBlocksStep,freeVisitorPosition} from '../shared/visitorCollision';
 
 type Attachment={visitor:Visitor;token:string;generation:string;lastMessage:number;windowAt:number;messageCount:number;reservationRequest?:string;roomId:string};
 type ClaimRow={seatId:string;visitorId:string;status:'reserved'|'seated';expiresAt:number|null};
@@ -65,6 +66,10 @@ export class VenueRoom extends DurableObject<Env>{
   const lounge=visitor.zone==='lobby'&&LOUNGE_SEATS.find(s=>s.id===visitor.loungeSeatId)&&!this.active().some(({a})=>a.visitor.id!==visitor.id&&a.visitor.pose==='sit'&&a.visitor.loungeSeatId===visitor.loungeSeatId);
   if(!claim){visitor.seatId=null;if(visitor.pose==='sit'&&!lounge){visitor.pose='idle';visitor.loungeSeatId=null;Object.assign(visitor,SPAWN[visitor.zone]);}}
   if(visitor.pose==='sit')visitor.y=SEATS.find(s=>s.id===visitor.seatId)?.y??0;else visitor.y??=0;
+  if(visitor.pose!=='sit'){
+   const point=freeVisitorPosition(visitor.zone,visitor,this.active().map(({a})=>a.visitor),visitor.id);
+   if(!point)return new Response('No clear entry space',{status:409});Object.assign(visitor,point);
+  }
   if(active){active.ws.serializeAttachment(null);active.ws.close(4001,'Session resumed elsewhere');}
   this.ctx.storage.sql.exec('INSERT INTO sessions(id,token,visitor,until) VALUES(?,?,?,NULL) ON CONFLICT(id) DO UPDATE SET visitor=excluded.visitor,until=NULL',visitor.id,savedToken,JSON.stringify(visitor));
   const pair=new WebSocketPair(),server=pair[1];this.ctx.acceptWebSocket(server);
@@ -86,10 +91,14 @@ export class VenueRoom extends DurableObject<Env>{
    if(!walkable(v.zone,{x:msg.x,y:msg.y??0,z:msg.z})||!Number.isFinite(msg.yaw)||!['idle','walk'].includes(msg.pose))return;
    // A generous per-packet allowance accommodates interpolation and mobile pauses.
    if(distance(v,msg)>Math.max(2.2,(now-a.lastMessage)/1000*4.5)&&a.lastMessage&&!stairLink(v,msg))return;
-   if(v.pose==='sit')return;Object.assign(v,{x:round(msg.x),y:round(msg.y??0),z:round(msg.z),yaw:round(msg.yaw),pose:msg.pose});
+   if(v.pose==='sit')return;
+   if(this.active().some(({a})=>a.visitor.id!==v.id&&a.visitor.zone===v.zone&&visitorBlocksStep(v,msg,a.visitor))){this.send(ws,{type:'moveBlocked',x:v.x,y:v.y??0,z:v.z});return;}
+   Object.assign(v,{x:round(msg.x),y:round(msg.y??0),z:round(msg.z),yaw:round(msg.yaw),pose:msg.pose});
   }else if(msg.type==='zone'){
    if(!['lobby','auditorium'].includes(msg.zone)||msg.zone===v.zone)return;
-   this.release(v.id);Object.assign(v,{zone:msg.zone,...SPAWN[msg.zone],seatId:null,loungeSeatId:null,pose:'idle'});
+   const point=freeVisitorPosition(msg.zone,SPAWN[msg.zone],this.active().map(({a})=>a.visitor),v.id);
+   if(!point){this.send(ws,{type:'error',message:'입구가 붐벼요. 잠시 후 다시 들어와 주세요.'});return;}
+   this.release(v.id);Object.assign(v,{zone:msg.zone,...point,seatId:null,loungeSeatId:null,pose:'idle'});
   }else if(msg.type==='reserve'){
    if(typeof msg.requestId!=='string'||msg.requestId.length>80||typeof msg.seatId!=='string')return;
    const seat=SEATS.find(s=>s.id===msg.seatId),claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE seatId=?',msg.seatId).toArray()[0];
@@ -110,7 +119,9 @@ export class VenueRoom extends DurableObject<Env>{
    this.release(v.id);Object.assign(v,{x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw,pose:'sit',seatId:null,loungeSeatId:seat.id});
   }else if(msg.type==='release'){
    if(msg.requestId&&msg.requestId!==a.reservationRequest)return;
-   const seat=v.loungeSeatId?LOUNGE_SEATS.find(s=>s.id===v.loungeSeatId):SEATS.find(s=>s.id===v.seatId);this.release(v.id);if(v.pose==='sit'&&seat)Object.assign(v,seat.approach);v.seatId=null;v.loungeSeatId=null;v.pose='idle';
+   const seat=v.loungeSeatId?LOUNGE_SEATS.find(s=>s.id===v.loungeSeatId):SEATS.find(s=>s.id===v.seatId);
+   if(v.pose==='sit'&&seat){const point=freeVisitorPosition(v.zone,seat.approach,this.active().map(({a})=>a.visitor),v.id);if(!point){this.send(ws,{type:'error',message:'의자 앞이 붐벼요. 잠시 기다려 주세요.'});return;}Object.assign(v,point);}
+   this.release(v.id);v.seatId=null;v.loungeSeatId=null;v.pose='idle';
   }else if(msg.type==='renew'){
    this.ctx.storage.sql.exec("UPDATE claims SET expiresAt=? WHERE seatId=? AND visitorId=? AND status='reserved'",now+RESERVE_MS,msg.seatId,v.id);
   }else if(msg.type==='look'){

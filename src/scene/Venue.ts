@@ -2,7 +2,7 @@ import {LobbyCat} from '../character/LobbyCat';
 import {buildTicketGuide} from './TicketGuide';
 import * as T from 'three';
 import {box,cylinder,sphere,line,text,material,detailedMaterial,wallWithOpenings,C} from './primitives';
-import {ATRIUM,GRAND_STAIR,LOBBY_BRANCH,LOBBY_ARCADE,AMPHITHEATRE_DOOR} from '../../shared/grandStair';
+import {ATRIUM,GRAND_STAIR,LOBBY_BRANCH,LOBBY_ARCADE,HALL_INNER_DOOR} from '../../shared/grandStair';
 import {buildGarnierCeiling} from './GarnierCeiling';
 import {buildLobbyEntrance} from './LobbyEntrance';
 import {buildLobbyDetails,lobbyStatue,lobbyWoodWall,LOBBY_PALETTE} from './LobbyDetails';
@@ -157,7 +157,7 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
   box(scene,[w,top,d],[0,top/2,z],stepStone).userData.landmark='grand-stair-step';if(flare>0)for(const side of [-1,1])cylinder(scene,d/2,top,[side*w/2,top/2,z],stepStone);}
  box(scene,[lh*2,S.rise,S.landingEnd-S.flightEnd],[0,S.rise/2,(S.flightEnd+S.landingEnd)/2],stepStone).userData.landmark='grand-stair-landing';
  for(const side of [-1,1])box(scene,[lh-S.flightHalf,S.rise,.3],[side*(lh+S.flightHalf)/2,S.rise/2,S.flightEnd-.05],stone);
- buildLobbyEntrance(scene,cameraWalls);
+ buildLobbyEntrance(scene,cameraWalls,walkTargets);
  // Straight outward flights meet the first gallery flush, with one uninterrupted rail per edge.
  for(const side of [-1,1]){
   const tread=(B.endX-B.startX)/B.steps,rise=(A.balconyY-S.rise)/B.steps;
@@ -205,7 +205,7 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
   grandEscalier(scene,cameraWalls,walkTargets);
   programBoard=buildLobbyAmenities(scene,walkTargets).programBoard;
   // The amphitheatre door at the head of the flight is the way into the hall.
-  portal=new T.Mesh(new T.BoxGeometry(2.5,3.4,.5),new T.MeshBasicMaterial({visible:false}));portal.position.set(AMPHITHEATRE_DOOR.x,GRAND_STAIR.rise+1.7,AMPHITHEATRE_DOOR.z);portal.userData.portal=true;scene.add(portal);
+  portal=new T.Mesh(new T.BoxGeometry(2.5,3.4,.5),new T.MeshBasicMaterial({visible:false}));portal.position.set(HALL_INNER_DOOR.x,GRAND_STAIR.rise+1.7,HALL_INNER_DOOR.z);portal.userData.portal=true;scene.add(portal);
   sun.position.set(-7,30,26);sun.target.position.set(0,0,31);scene.add(sun.target);
  }else{
   cameraWalls.push(...(yield* buildGoldenHallSteps(scene)).cameraWalls);
