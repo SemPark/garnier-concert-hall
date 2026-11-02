@@ -1,6 +1,7 @@
 import {GOLDEN_HALL as H} from './goldenHall';
 import type {Gesture} from './gestures';
 import {STAIR_DOORS,GALLERY_BRIDGE,REAR_COLUMNS,REAR_SCREENS,hasGalleryFloor} from './gallery';
+import {ATRIUM,ATRIUM_COLUMNS,GRAND_STAIR,LOBBY_FURNITURE as F,onLobbyFloor} from './grandStair';
 export {STAIR_DOORS} from './gallery';
 export type Zone='lobby'|'auditorium';
 export type Point={x:number;z:number;y?:number};
@@ -43,8 +44,8 @@ export function seatGrade(s:Seat):SeatGrade{
 export function seatLabel(s:Seat){return s.level==='parterre'?`1층 ${s.row}열 ${s.column}번`:`2층 ${s.x<0?'왼쪽':'오른쪽'} ${seatNumber(s)}번`;}
 /** The parterre runs right up to the stage lip (stage front is z -9.5). */
 export const STAGE_APRON_Z=-9.2;
-export const BOUNDS={lobby:{minX:-6.5,maxX:6.5,minZ:-16,maxZ:16},auditorium:{minX:-15.65,maxX:15.65,minZ:-26.5,maxZ:50.3}};
-export const SPAWN={lobby:{x:0,y:0,z:10},auditorium:{x:0,y:0,z:47}};
+export const BOUNDS={lobby:{minX:-ATRIUM.halfWidth+.5,maxX:ATRIUM.halfWidth-.5,minZ:-16,maxZ:ATRIUM.back-.5},auditorium:{minX:-15.65,maxX:15.65,minZ:-26.5,maxZ:50.3}};
+export const SPAWN={lobby:{x:0,y:0,z:24},auditorium:{x:0,y:0,z:47}};
 export const PALETTE=[0xc09a61,0x8c9c92,0x9c7181,0x71899c,0xc0ab87,0x9180a3];
 /** The door on one level that leads to the hidden corridor stair on that side. */
 export function stairPoint(side:number,upper:boolean):Point{const d=upper?STAIR_DOORS.upper:STAIR_DOORS.lower;return {x:side*d.x,y:upper?STAIR_DOORS.height:0,z:d.z};}
@@ -58,12 +59,15 @@ export function inGallery(p:Point,padding=.27){const side=Math.abs(p.x)>=12.9+pa
 /** Pick the surface contiguous with the visitor, never jump to another floor. */
 export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  if(!Number.isFinite(p.x)||!Number.isFinite(p.z)||!Number.isFinite(fromY))return null;
- if(zone==='lobby')return Math.abs(fromY)<.4?0:null;
+ if(zone==='lobby')return Math.abs(fromY)<.4&&onLobbyFloor(p.x,p.z)?0:null;
  if(fromY>H.balconyHeight-.45&&inGallery(p))return H.balconyHeight;
  if(Math.abs(fromY)<.4&&Math.abs(p.x)<=13.8&&p.z>=STAGE_APRON_Z&&p.z<=50.3)return 0;
  return null;
 }
-const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.57,hz:.48,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [{x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y:0}];})],lobby:[-10,-3,4,11].flatMap(z=>[-5.4,5.4].map(x=>({x,z,hx:.48,hz:.48,y:0})))};
+const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.57,hz:.48,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [{x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y:0}];})],lobby:[...[-10,-3,4,11].flatMap(z=>[-5.4,5.4].map(x=>({x,z,hx:.48,hz:.48,y:0}))),...ATRIUM_COLUMNS.map(c=>({x:c.x,z:c.z,hx:.45,hz:.45,y:0})),
+ // Only the central flight and its landing stand on the floor; the curved branches pass overhead.
+ {x:0,z:(GRAND_STAIR.flightStart+GRAND_STAIR.landingEnd)/2,hx:GRAND_STAIR.branchInner+1.5,hz:(GRAND_STAIR.landingEnd-GRAND_STAIR.flightStart)/2+.2,y:0},...[-1,1].map(side=>({x:side*(GRAND_STAIR.flightHalf+3.6),z:GRAND_STAIR.flightStart-.9,hx:.65,hz:.65,y:0})),
+ ...[F.boxOffice,F.cloakroom,F.cafeCounter,...F.cafeTables,...F.sofas,F.ottoman,...F.busts,F.programBoard].map(f=>({...f,y:0}))]};
 const CELLS:Record<Zone,Map<string,Obstacle[]>>={lobby:new Map(),auditorium:new Map()};
 for(const zone of ['lobby','auditorium'] as const)for(const o of OBSTACLES[zone])for(let x=Math.floor((o.x-o.hx-1)/2);x<=Math.floor((o.x+o.hx+1)/2);x++)for(let z=Math.floor((o.z-o.hz-1)/2);z<=Math.floor((o.z+o.hz+1)/2);z++){const key=`${x},${z}`,items=CELLS[zone].get(key)??[];items.push(o);CELLS[zone].set(key,items);}
 export function obstacles(zone:Zone):Obstacle[]{return OBSTACLES[zone];}
