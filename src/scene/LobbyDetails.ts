@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {ATRIUM as A,LOBBY_ARCADE} from '../../shared/grandStair';
 import {box,cylinder,sphere,line,material} from './primitives';
-import {hallImage} from './HallTextures';
+import {hallImage,woodMaterial} from './HallTextures';
 
 /** The hall's ivory, gilt frames and shared image motifs continue into the foyer. */
 export const LOBBY_PALETTE={ivory:0xe8d6ac,gold:0xc69b49,light:0xe7c77a,deep:0x8e622a,red:0x6f2830,glass:0xc5d4ce};
@@ -19,16 +19,21 @@ export function lobbyStatue(parent:T.Object3D,x:number,y:number,z:number,scale=1
  box(g,[.36,.44,.09],[.18,1.72,.31],P.gold);
  g.traverse(o=>{o.userData.fullDetail=true;});
 }
+export function lobbyWoodWall(parent:T.Object3D,width:number,height:number,bottom=0){
+ const body=box(parent,[width,height,.09],[0,bottom+height/2,0],0x4a3324);body.material=woodMaterial('walnut');
+ const count=Math.max(1,Math.round(width/2.4)),step=width/count;
+ for(let i=0;i<count;i++){const x=-width/2+(i+.5)*step;box(parent,[step-.3,height-1.1,.05],[x,bottom+height/2,.08],0x21170f);
+  for(const y of [bottom+.55,bottom+height-.55])box(parent,[step-.18,.055,.07],[x,y,.11],0x7a5634);
+ }
+ for(const y of [bottom+.12,bottom+height-.12]){box(parent,[width,.13,.2],[0,y,.1],P.deep);box(parent,[width,.055,.22],[0,y+.1,.11],P.light);}
+}
 function panel(parent:T.Object3D,width:number,height:number,y:number){
- box(parent,[width,height,.07],[0,y,0],P.deep);
- box(parent,[width-.16,height-.16,.09],[0,y,.055],P.gold);
- box(parent,[width-.32,height-.32,.07],[0,y,.12],P.ivory);
- for(const x of [-width/2+.22,width/2-.22])box(parent,[.045,height-.43,.06],[x,y,.18],P.light);
- for(const dy of [-height/2+.22,height/2-.22])box(parent,[width-.43,.045,.06],[0,y+dy,.18],P.light);
- hallImage(parent,'relief',width*.72,Math.min(.9,height*.35),0,y,.225);
+ lobbyWoodWall(parent,width,height,y-height/2);
+ const art=hallImage(parent,'relief',Math.min(1.3,width*.58),Math.min(2.1,height*.65),0,y,.16);art.userData.landmark='lobby-upright-art';
 }
 function wallFrame(scene:T.Scene,x:number,z:number,angle:number){const g=new T.Group();g.position.set(x,0,z);g.rotation.y=angle;scene.add(g);return g;}
 function windowBay(parent:T.Object3D,width:number){
+ const reveal=new T.Group();reveal.position.z=.3;parent.add(reveal);parent=reveal;
  const h=4.6,bottom=14.15,r=width/2,spring=h-r;
  const shape=new T.Shape();shape.moveTo(-r,0);shape.lineTo(r,0);shape.lineTo(r,spring);shape.absarc(0,spring,r,0,Math.PI,false);shape.closePath();
  const glass=new T.Mesh(new T.ShapeGeometry(shape,18),new T.MeshLambertMaterial({color:P.glass,emissive:0x5b737b,emissiveIntensity:.2}));glass.position.set(0,bottom,.04);glass.userData.fullDetail=true;parent.add(glass);
@@ -40,8 +45,14 @@ function windowBay(parent:T.Object3D,width:number){
 }
 export function buildLobbyDetails(scene:T.Scene){
  const inner=A.halfWidth-A.balconyDepth;
+ for(const side of [-1,1])lobbyWoodWall(wallFrame(scene,side*(A.halfWidth-.14),(A.front+A.back)/2,-side*Math.PI/2),A.back-A.front,19.1);
+ for(const z of [A.front+.14,A.back-.14])lobbyWoodWall(wallFrame(scene,0,z,z>A.front+1?Math.PI:0),A.halfWidth*2,12,7.3);
+ // End arcades continue the same spring heights and share the side cornice datum.
+ for(const z of [A.front+A.balconyDepth,A.back-A.balconyDepth])for(const x of [-12.6,-6.3,0,6.3,12.6])for(const base of [A.balconyY,13.4]){
+  cylinder(scene,.29,.16,[x,base+.08,z],P.deep);cylinder(scene,.235,1.95,[x,base+1.22,z],P.ivory);cylinder(scene,.31,.15,[x,base+2.35,z],P.gold);box(scene,[.72,.16,.72],[x,base+2.48,z],P.light);
+ }
  // Single round shafts at the joints shared by adjacent arches; no doubled piers.
- for(const side of [-1,1])for(const z of LOBBY_ARCADE.columns)for(const [base,h] of [[0,3.6],[A.balconyY,2.6]]){
+ for(const side of [-1,1])for(const z of LOBBY_ARCADE.columns)for(const [base,h] of [[0,3.6],[A.balconyY,2.6],[13.4,2.6]]){
   const x=side*LOBBY_ARCADE.x;
   cylinder(scene,.34,.16,[x,base+.08,z],P.deep);cylinder(scene,.29,.14,[x,base+.23,z],P.light);
   cylinder(scene,.235,h-.55,[x,base+h/2,z],P.ivory);cylinder(scene,.3,.14,[x,base+h-.22,z],P.gold);box(scene,[.72,.16,.72],[x,base+h-.07,z],P.light);
@@ -70,7 +81,7 @@ export function buildLobbyDetails(scene:T.Scene){
   for(const x of [-inner,inner])for(const z of [A.front+A.balconyDepth,A.back-A.balconyDepth])box(scene,[.28,.8,.28],[x,y,z],P.gold);
  }
  // Continuous layered cornices use the same proportions and colours as the hall.
- for(const y of [.35,13.75,19.2])for(const [dy,h,depth,color] of [[0,.14,.25,P.deep],[.18,.15,.4,P.gold],[.36,.12,.55,P.light]]){
+ for(const y of [13.75,19.2])for(const [dy,h,depth,color] of [[0,.14,.25,P.deep],[.18,.15,.4,P.gold],[.36,.12,.55,P.light]]){
   for(const side of [-1,1])box(scene,[depth,h,A.back-A.front],[side*(A.halfWidth-depth/2),y+dy,(A.front+A.back)/2],color);
   for(const z of [A.front+depth/2,A.back-depth/2])box(scene,[A.halfWidth*2-depth*2,h,depth],[0,y+dy,z],color);
  }

@@ -1,5 +1,6 @@
 import * as T from 'three';
 import {box,cylinder,sphere,line,text,material,C} from './primitives';
+import {woodMaterial} from './HallTextures';
 import {LOBBY_FURNITURE as F,COMPOSERS} from '../../shared/grandStair';
 
 export type ProgramInfo={now:string;next:string;remaining:string;playing:boolean;seats:number;capacity:number};
@@ -13,18 +14,20 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
  // Both sit in the first ground-tier arcade bay, so the stone arch frames them. Local frame: +z faces the hall, the
  // arch face is z=0, the bay runs back to the outer wall at about z=-1.85, x runs along the bay (opening 4.1 wide).
  const inBay=(f:{x:number;z:number})=>{const g=new T.Group();g.position.set(Math.sign(f.x)*13.15,0,f.z);g.rotation.y=f.x<0?Math.PI/2:-Math.PI/2;scene.add(g);return g;};
- const plaque=(g:T.Group,label:string)=>{box(g,[2.6,.55,.08],[0,5.62,.05],0x7a3428);box(g,[2.75,.66,.06],[0,5.62,.02],goldTrim);text(g,label,2.3,[0,5.64,.1],'#f3dc9c');
-  for(const x of [-2.32,2.32]){cylinder(g,.04,.4,[x,3.45,.18],brass);sphere(g,.14,[x,3.75,.18],0xfff0c6);}};
+ const plaque=(g:T.Group,label:string)=>{
+  box(g,[2.8,.52,.1],[0,6.1,.9],goldTrim);box(g,[2.62,.38,.05],[0,6.1,.97],0x2c211a);
+  const name=text(g,label,2.4,[0,6.1,1.01],'#f3dc9c');name.userData.fullDetail=true;
+ };
  // Box office, after the ticket windows of 19th-century theatres: the arch is closed by a walnut base with a marble
  // counter, a glazed screen in gilt mullions with three brass-grilled ticket windows, and a glazed lunette above.
  {const g=inBay(F.boxOffice),w=4.1;
   box(g,[w,1.05,.3],[0,.53,-.2],walnut);for(let i=0;i<3;i++){const x=-w/2+(i+.5)*w/3;box(g,[w/3-.3,.62,.04],[x,.55,-.03],0x6e4a2e);box(g,[w/3-.44,.48,.03],[x,.55,0],0x7d5636);}
   box(g,[w+.1,.08,.6],[0,1.09,-.05],0xe8e1d3);box(g,[w+.12,.05,.62],[0,1.03,-.05],goldTrim);
-  const pane=new T.Mesh(new T.PlaneGeometry(w,1.98),glass);pane.position.set(0,2.11,-.3);pane.userData.fullDetail=true;g.add(pane);
-  for(const x of [-w/2+.06,-w/6,w/6,w/2-.06]){box(g,[.12,1.98,.12],[x,2.11,-.28],goldTrim);}box(g,[w,.1,.14],[0,3.1,-.28],goldTrim);
-  for(let i=0;i<3;i++){const x=-w/2+(i+.5)*w/3;box(g,[.5,.24,.06],[x,1.25,-.26],0x1d1712);for(let k=-3;k<=3;k++)line(g,new T.Vector3(x+k*.1,1.2,-.25),new T.Vector3(x+k*.1,1.85,-.25),.012,brass);}
-  const lunette=new T.Mesh(new T.CircleGeometry(2.05,24,0,Math.PI),glass);lunette.position.set(0,3.1,-.3);lunette.userData.fullDetail=true;g.add(lunette);
-  for(let k=1;k<6;k++){const a=k/6*Math.PI;line(g,new T.Vector3(0,3.1,-.28),new T.Vector3(Math.cos(a)*2.05,3.1+Math.sin(a)*2.05,-.28),.025,goldTrim);}
+  const pane=new T.Mesh(new T.PlaneGeometry(w,2.45),glass);pane.position.set(0,2.375,.3);pane.userData.fullDetail=true;g.add(pane);
+  for(const x of [-w/2+.06,-w/6,w/6,w/2-.06]){box(g,[.09,2.45,.10],[x,2.375,.35],goldTrim);}box(g,[w,.1,.14],[0,3.6,.35],goldTrim);
+  for(let i=0;i<3;i++){const x=-w/2+(i+.5)*w/3;box(g,[.5,.24,.06],[x,1.25,.35],0x1d1712);for(let k=-3;k<=3;k++)line(g,new T.Vector3(x+k*.1,1.2,.4),new T.Vector3(x+k*.1,1.85,.4),.012,brass);}
+  const lunette=new T.Mesh(new T.CircleGeometry(2.05,24,0,Math.PI),glass);lunette.position.set(0,3.6,.3);lunette.userData.fullDetail=true;g.add(lunette);
+  for(let k=1;k<6;k++){const a=k/6*Math.PI;line(g,new T.Vector3(0,3.6,.35),new T.Vector3(Math.cos(a)*2.05,3.6+Math.sin(a)*2.05,.35),.025,goldTrim);}
   box(g,[w,2.2,.06],[0,2.2,-1.65],0x4a3020);for(let r=0;r<4;r++)for(let c=0;c<9;c++)box(g,[.32,.24,.14],[-1.6+c*.4,1.6+r*.34,-1.58],0x3a2618);
   plaque(g,'BILLETTERIE');
   const target=new T.Mesh(new T.BoxGeometry(w,3,1),hit);target.position.set(0,1.6,0);target.userData.boxOffice=true;g.add(target);clickTargets.push(target);}
@@ -39,14 +42,26 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
    for(let i=0;i<11;i++){const x=-w/2+.3+i*(w-.6)/10,c=coats[(i*3+(z<-1.2?1:0))%coats.length];box(g,[.28,1.05+((i*7)%3)*.08,.22],[x,y+.25,z],c);box(g,[.12,.12,.12],[x,y+.8,z],c);line(g,new T.Vector3(x-.13,y+.82,z),new T.Vector3(x+.13,y+.82,z),.012,0xa0a0a0);box(g,[.07,.09,.01],[x+.09,y+.7,z+.12],0xe8d9a8);}}
   box(g,[w,.05,.4],[0,3.25,-1.55],walnut);for(let i=0;i<8;i++){const x=-w/2+.35+i*(w-.7)/7,c=coats[i%coats.length];cylinder(g,.15,.12,[x,3.34,-1.55],c);cylinder(g,.22,.02,[x,3.29,-1.55],c);}
   plaque(g,'VESTIAIRE');}
- // Café: a marble-topped walnut bar along the wall, a mirrored back shelf with bottles, and standing tables.
+ // Coffee bar: dark joinery, a backlit menu, espresso machine, cups and pastry case.
  {const f=F.cafeCounter,g=new T.Group();g.position.set(f.x,0,f.z);scene.add(g);
-  box(g,[f.hx*2,1.1,f.hz*2],[0,.55,0],walnut);box(g,[f.hx*2+.2,.08,f.hz*2+.1],[.05,1.14,0],marbleWhite);
-  const backsplash=box(g,[.06,2.2,f.hz*2],[-.25,2.1,0],0x9fb3b8);backsplash.userData.fullDetail=true;backsplash.userData.cameraWall=true;for(const y of [1.6,2.2,2.8])box(g,[.35,.05,f.hz*2-.2],[-.18,y,0],brass);
-  for(let i=0;i<24;i++){const z=-f.hz+.3+(i%12)*(f.hz*2-.6)/11,y=i<12?1.78:2.38;cylinder(g,.06,.3,[-.12,y,z],[0x3c5c3a,0x7a2c22,0xd9c27a,0x2f3f5a][i%4]);}
-  cylinder(g,.25,.45,[.1,1.4,-2],0x8d8d8d);box(g,[.5,.45,.4],[.1,1.4,2],0xa8a8a8);
-  box(g,[.04,.5,1.6],[-.25,3.2,0],0x2c211a);text(g,'CAFÉ',1.6,[-.215,3.2,0],'#f0d9a0').rotation.y=Math.PI/2;
-  for(const t of F.cafeTables){cylinder(scene,.32,.05,[t.x,.03,t.z],brass);cylinder(scene,.05,1.05,[t.x,.55,t.z],brass);cylinder(scene,.42,.05,[t.x,1.08,t.z],marbleWhite);}}
+  const counter=box(g,[1.05,1.1,f.hz*2],[0,.55,0],walnut);counter.material=woodMaterial('walnut');
+  box(g,[1.2,.1,f.hz*2+.15],[.06,1.15,0],marbleWhite);
+  for(let z=-3.7;z<4;z+=1.5){box(g,[.08,.78,1.27],[.55,.55,z],0x2b1d15);for(const y of [.18,.92])box(g,[.1,.045,1.3],[.59,y,z],brass);}
+  const back=box(g,[.08,2.1,f.hz*2],[-.28,2.28,0],walnut);back.material=woodMaterial('walnut');back.userData.cameraWall=true;
+  for(const y of [1.65,2.55])for(const [z,length] of [[-3.45,1.7],[2.4,3.8]])box(g,[.45,.07,length],[-.05,y,z],brass);
+  // Cups and saucers, grouped away from the machine.
+  for(let i=0;i<5;i++){const z=-4+i*.3;for(const y of [1.77,2.67]){cylinder(g,.09,.12,[.08,y,z],marbleWhite);cylinder(g,.12,.025,[.08,y-.07,z],marbleWhite);}}
+  const machine=box(g,[.55,.55,1.15],[.15,1.49,.7],0x777a78);box(g,[.05,.28,.95],[.45,1.48,.7],0x252724);
+  for(const z of [.4,.95]){cylinder(g,.10,.26,[.15,1.9,z],0x37261c);line(g,new T.Vector3(.47,1.6,z),new T.Vector3(.65,1.6,z),.025,brass);}
+  for(const z of [.42,.96])cylinder(g,.07,.1,[.45,1.28,z],marbleWhite);
+  const caseGlass=new T.MeshLambertMaterial({color:0xc5d4ce,transparent:true,opacity:.25,depthWrite:false});
+  const display=box(g,[.65,.52,1.75],[.15,1.46,2.8],marbleWhite);display.material=caseGlass;
+  for(const y of [1.22,1.51]){box(g,[.65,.04,1.75],[.15,y,2.8],brass);for(let i=0;i<4;i++){const pastry=sphere(g,.11,[.23,y+.1,2.2+i*.36],0xb78540);pastry.scale.y*=.55;}}
+  box(g,[.1,.6,3.8],[1.9,6.1,0],brass);box(g,[.06,.45,3.6],[1.98,6.1,0],0x211a14);const name=text(g,'CAFÉ • GARNIER',3.2,[2.02,6.1,0],'#f3dc9c');name.rotation.y=Math.PI/2;
+  const menu=box(g,[.08,1.2,2.8],[-.12,2.3,-1.1],0x211a14);
+  for(const [label,y] of [['ESPRESSO',2.65],['CAPPUCCINO',2.35],['PÂTISSERIE',2.05]] as const){const t=text(g,label,2.3,[-.06,y,-1.1],'#f0d9a0');t.rotation.y=Math.PI/2;}
+  for(const t of F.cafeTables){cylinder(scene,.32,.05,[t.x,.03,t.z],brass);cylinder(scene,.05,1.05,[t.x,.55,t.z],brass);cylinder(scene,.48,.05,[t.x,1.08,t.z],marbleWhite);cylinder(scene,.1,.025,[t.x,1.12,t.z],marbleWhite);cylinder(scene,.07,.13,[t.x,1.19,t.z],marbleWhite);}
+ }
  // Lounge: red velvet sofas against the wall and a round button ottoman, the Garnier "borne".
  for(const f of F.sofas){const g=new T.Group();g.position.set(f.x,0,f.z);scene.add(g);
   box(g,[.9,.42,2.5],[0,.32,0],velvet);box(g,[.25,.9,2.6],[.38,.75,0],velvet);for(const z of [-1.25,1.25])box(g,[.9,.62,.18],[0,.5,z],velvet);
@@ -58,18 +73,21 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
   box(g,[.9,.75,.8],[0,2.8,-.15],st);box(g,[.85,.9,.3],[0,3.6,-.45],st);cylinder(g,.33,.95,[0,3.55,-.05],st);sphere(g,.24,[0,4.25,-.05],st);
   for(const side of [-1,1]){box(g,[.26,.22,.8],[side*.2,3.0,.35],st);box(g,[.22,.75,.24],[side*.2,2.6,.72],st);line(g,new T.Vector3(side*.33,3.85,-.05),new T.Vector3(side*.4,3.15,.35),.09,st);}
   box(g,[.9,.24,.02],[0,1.45,.66],brass);text(g,COMPOSERS[i],.85,[0,1.45,.68],'#3a2a1c');});
- // Programme board at the foot of the flight: an easel frame around a canvas redrawn from the live playback.
+ // Freestanding framed sign: two side posts and a weighted base, with an unobstructed face.
  const f=F.programBoard,g=new T.Group();g.position.set(f.x,0,f.z);g.rotation.y=Math.PI-.5;scene.add(g);
- for(const x of [-.6,.6])line(g,new T.Vector3(x,0,.25),new T.Vector3(x*.8,2.7,0),.04,brass);line(g,new T.Vector3(0,0,-.35),new T.Vector3(0,2.5,0),.04,brass);
- box(g,[1.4,2,.08],[0,1.75,0],0x2c211a);
+ box(g,[1.7,.12,.65],[0,.06,0],brass);
+ for(const x of [-.72,.72])box(g,[.07,2.9,.08],[x,1.51,0],brass);
+ box(g,[1.5,2.3,.12],[0,1.85,0],walnut);
+ for(const x of [-.75,.75])box(g,[.07,2.36,.16],[x,1.85,.015],brass);
+ for(const y of [.67,3.03])box(g,[1.55,.07,.16],[0,y,.015],brass);
  const canvas=typeof document==='undefined'?null:document.createElement('canvas'),ctx=canvas?.getContext('2d')??null;
- const map=canvas?new T.CanvasTexture(canvas):null;if(canvas){canvas.width=320;canvas.height=460;}if(map)map.colorSpace=T.SRGBColorSpace;
- const face=new T.Mesh(new T.PlaneGeometry(1.26,1.84),new T.MeshBasicMaterial({map,color:map?0xffffff:0x2c211a}));face.position.set(0,1.75,.05);face.userData.programBoard=true;g.add(face);
+ const map=canvas?new T.CanvasTexture(canvas):null;if(canvas){canvas.width=640;canvas.height=920;}if(map){map.colorSpace=T.SRGBColorSpace;map.anisotropy=4;}
+ const face=new T.Mesh(new T.PlaneGeometry(1.36,2.16),new T.MeshBasicMaterial({map,color:map?0xffffff:0x2c211a}));face.position.set(0,1.85,.075);face.userData.programBoard=true;face.userData.fullDetail=true;face.userData.cameraWall=true;g.add(face);
  let last='';
  const update=(info:ProgramInfo)=>{if(!ctx||!canvas||!map)return;const key=JSON.stringify(info);if(key===last)return;last=key;
-  ctx.fillStyle='#231a14';ctx.fillRect(0,0,320,460);ctx.strokeStyle='#c9a250';ctx.lineWidth=4;ctx.strokeRect(10,10,300,440);
+  ctx.setTransform(2,0,0,2,0,0);ctx.fillStyle='#231a14';ctx.fillRect(0,0,320,460);ctx.strokeStyle='#c9a250';ctx.lineWidth=4;ctx.strokeRect(10,10,300,440);
   ctx.fillStyle='#c9a250';ctx.textAlign='center';ctx.font='600 22px Georgia, serif';ctx.fillText('PROGRAMME',160,52);ctx.font='15px sans-serif';ctx.fillStyle='#e7d7b5';ctx.fillText('오늘의 프로그램',160,76);
-  const wrap=(t:string,y:number,size:number,color:string)=>{ctx.font=`${size}px sans-serif`;ctx.fillStyle=color;let line='',yy=y;for(const ch of t){if(ctx.measureText(line+ch).width>270){ctx.fillText(line,160,yy);line='';yy+=size+6;}line+=ch;}ctx.fillText(line,160,yy);return yy;};
+  const wrap=(t:string,y:number,size:number,color:string)=>{ctx.font=`${size}px sans-serif`;ctx.fillStyle=color;let line='',yy=y,rows=0;for(const ch of t){if(ctx.measureText(line+ch).width>270){ctx.fillText(line,160,yy);line='';yy+=size+6;if(++rows===2){line='…';break;}}line+=ch;}ctx.fillText(line,160,yy);return yy;};
   ctx.fillStyle='#c9a250';ctx.font='13px sans-serif';ctx.fillText(info.playing?'지금 연주 중':'잠시 쉬는 시간',160,118);
   let y=wrap(info.now,146,19,'#fbf1dc');ctx.fillStyle='#bfae8c';ctx.font='14px sans-serif';ctx.fillText(info.remaining,160,y+28);
   ctx.fillStyle='#c9a250';ctx.font='13px sans-serif';ctx.fillText('다음 곡',160,y+70);y=wrap(info.next,y+96,16,'#e7d7b5');

@@ -70,10 +70,10 @@ function beamBasis(){
 
 export type Sunlight={root:T.Group;update(time:number):void;setViewport(heightPx:number,fov:number):void};
 /** Added after architecture batching: these custom-shaded meshes must stay as they are. */
-export function buildSunlight(scene:T.Scene):Sunlight{
+export function buildSunlight(scene:T.Scene,windows=SUN_WINDOWS):Sunlight{
  const root=new T.Group();root.userData.landmark='sunlight';scene.add(root);
  const basis=beamBasis(),dust:number[]=[],seeds:number[]=[];
- SUN_WINDOWS.forEach((window,i)=>{
+ windows.forEach((window,i)=>{
   const floor=sunFloorPoint(window),length=window.distanceTo(floor);
   const beam=new T.Mesh(beamGeometry(length,(i*.37)%1),beamMaterial);beam.matrixAutoUpdate=false;
   beam.matrix.copy(basis).setPosition(window);beam.renderOrder=5;beam.frustumCulled=false;beam.userData.landmark='sun-shaft';root.add(beam);

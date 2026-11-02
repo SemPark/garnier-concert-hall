@@ -217,7 +217,7 @@ function openDoor(g:T.Object3D,x:number,bottom:number,width:number,height:number
  doorFrame(frame,width,height,.02,.18);
  openLeaves(frame,width,height,.16);return frame;
 }
-function timberDoor(g:T.Object3D,x:number,bottom:number,width:number,height:number,z=.57,panels=3){
+export function timberDoor(g:T.Object3D,x:number,bottom:number,width:number,height:number,z=.57,panels=3){
  const frame=new T.Group();frame.position.set(x,bottom,z);frame.userData.landmark='timber-door';frame.userData.doorBottom=bottom;g.add(frame);
  box(frame,[width+.36,height+.35,.18],[0,height/2,.02],P.ivory);
  const leaf=box(frame,[width,height,.18],[0,height/2,.15],P.wood);leaf.material=hallImageMaterial('walnut');
