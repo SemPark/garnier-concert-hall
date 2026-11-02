@@ -134,3 +134,18 @@ button.brand .brand-sub{font-size:12px;letter-spacing:1px;color:#f3e7cc;margin-t
 .ticket-seat.grade-R{background:#a8323e;border-color:#7d222c}.ticket-seat.grade-S{background:#6d4aa0;border-color:#4f3478}.ticket-seat.grade-A{background:#2f6db0;border-color:#225186}.ticket-seat.grade-B{background:#d08a2e;border-color:#a06420}.ticket-seat.grade-C{background:#7d8691;border-color:#5d656e}
 .ticket-seat.selected{background:#1d1a16!important;outline:3px solid #e7b73b}.ticket-seat.mine{background:#32816e!important}.ticket-seat.occupied{background:#d3cec3!important}
 .ticket-legend .grade i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}.ticket-legend .grade-R i{background:#a8323e}.ticket-legend .grade-S i{background:#6d4aa0}.ticket-legend .grade-A i{background:#2f6db0}.ticket-legend .grade-B i{background:#d08a2e}.ticket-legend .grade-C i{background:#7d8691}
+
+/* Keep action messages in the same vertical flow as the lowered navigation bar. */
+.bottom-center{bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:12px;width:max-content;max-width:calc(100vw - 24px)}
+.bottom-center .toast{position:static;top:auto!important;bottom:auto!important;left:auto;transform:none;box-sizing:border-box;width:max-content;max-width:min(480px,calc(100vw - 32px));margin:0;pointer-events:none}
+.bottom-center .actionbar{flex-shrink:0}
+
+/* Translucent mobile movement pad, clear of the bottom action bar. */
+.mobile-dpad{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(108px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:3px;pointer-events:none;user-select:none;-webkit-user-select:none;touch-action:none}
+.mobile-dpad button{display:grid;place-items:center;width:46px;height:46px;padding:10px;border:1px solid #fff1d443;border-radius:15px;color:#fff4d9c9;background:#f4e7c91c;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;box-shadow:0 2px 8px #00000012}
+.mobile-dpad button.pressed{background:#e1bd696b;border-color:#ffedb9b3;color:#fff9e7}
+.mobile-dpad button:disabled{opacity:.25}.mobile-dpad button:focus-visible{outline:2px solid #fff0bf;outline-offset:2px}
+.mobile-dpad svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.dpad-up{grid-area:1/2}.dpad-left{grid-area:2/1}.dpad-right{grid-area:2/3}.dpad-down{grid-area:3/2}
+.dpad-center{grid-area:2/2;align-self:center;justify-self:center;width:13px;height:13px;border:1px solid #fff1d438;border-radius:50%;background:#fff1d40d}
+@media(max-height:500px){.mobile-dpad{bottom:calc(94px + env(safe-area-inset-bottom,0px));grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px)}.mobile-dpad button{width:38px;height:38px;padding:8px;border-radius:12px}}

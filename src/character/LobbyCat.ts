@@ -9,7 +9,7 @@ export class LobbyCat{
  readonly root=new T.Group();readonly targets:T.Object3D[]=[];
  readonly approach={x:HOME.x+.7,y:0,z:HOME.z+.2};
  private head=new T.Group();private eyes=new T.Group();private tail=new T.Group();
- private heart:T.Sprite;private hint:T.Sprite;private happyUntil=0;
+ private heart:T.Sprite;private happyUntil=0;
  private heldUntil=0;private lastTime=0;private wanderAt=0;private destination:T.Vector3|null=null;
  private legs:{root:T.Group;phase:number}[]=[];
  private gait=0;private gaitWeight=0;
@@ -54,9 +54,8 @@ export class LobbyCat{
   const hit=new T.Mesh(new T.BoxGeometry(.7,.85,1.1),new T.MeshBasicMaterial({visible:false}));hit.position.set(HOME.x,.42,HOME.z);hit.userData.lobbyCat=true;scene.add(hit);this.targets.push(hit);
   this.heart=this.sprite('♥','#ed7189',1.8);this.heart.position.y=1.4;this.heart.visible=false;
   this.heart.material.depthTest=false;this.heart.renderOrder=30;
-  this.hint=this.sprite('쓰다듬기','#fff4da',1.05);this.hint.position.set(0,1.48,0);
   // Sprites stay in the scene while character geometry is rendered in shared instance batches.
-  scene.add(this.heart,this.hint);
+  scene.add(this.heart);
   // Keep the small moving groups alive when character meshes are instanced.
   this.root.traverse(o=>{if(o instanceof T.Group)o.userData.animated=true;});
  }
@@ -119,9 +118,7 @@ export class LobbyCat{
   const affectionAge=3-this.happyUntil+now;
   this.heart.visible=happy;this.heart.position.set(p.x,1.05+(reduced?0:Math.max(0,affectionAge)*.12),p.z);
   this.heart.material.opacity=happy?Math.min(1,affectionAge/.15,(this.happyUntil-now)/.5):0;
-  this.hint.position.set(p.x,1.03,p.z);
-  this.hint.visible=!happy&&visitor.distanceTo(this.root.position)<4;
   // Architecture batching freezes standalone sprite matrices; refresh their moving positions explicitly.
-  for(const sprite of [this.heart,this.hint]){sprite.updateMatrix();sprite.updateMatrixWorld(true);}
+  for(const sprite of [this.heart]){sprite.updateMatrix();sprite.updateMatrixWorld(true);}
  }
 }
