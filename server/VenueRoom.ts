@@ -1,5 +1,5 @@
 import {DurableObject} from 'cloudflare:workers';
-import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,distance,canSit,stairLink,isLook,type Visitor} from '../shared/venue';
+import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,surfaceHeight,distance,canSit,stairLink,isLook,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shared/protocol';
 import {isGesture} from '../shared/gestures';
 import {isOutfit,atCloakroom} from '../shared/wardrobe';
@@ -63,10 +63,11 @@ export class VenueRoom extends DurableObject<Env>{
   const nameParts=['고요한','느긋한','다정한','작은','빛나는','포근한'];
   const visitor:Visitor=active?.a.visitor??(existing?JSON.parse(existing.visitor) as Visitor:{id:crypto.randomUUID(),name:`${nameParts[crypto.getRandomValues(new Uint8Array(1))[0]%nameParts.length]} 관객`,color:PALETTE[crypto.getRandomValues(new Uint8Array(1))[0]%PALETTE.length],zone:'lobby',...SPAWN.lobby,yaw:0,pose:'idle',seatId:null,gesture:null,gestureAt:0});
   const savedToken=existing?.token??crypto.randomUUID();
-  const claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE visitorId=?',visitor.id).toArray()[0];
+  let claim:ClaimRow|undefined=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE visitorId=?',visitor.id).toArray()[0];
+  if(claim&&!SEATS.some(s=>s.id===claim?.seatId)){this.ctx.storage.sql.exec('DELETE FROM claims WHERE visitorId=?',visitor.id);claim=undefined;}
   const lounge=visitor.zone==='lobby'&&LOUNGE_SEATS.find(s=>s.id===visitor.loungeSeatId)&&!this.active().some(({a})=>a.visitor.id!==visitor.id&&a.visitor.pose==='sit'&&a.visitor.loungeSeatId===visitor.loungeSeatId);
   if(!claim){visitor.seatId=null;if(visitor.pose==='sit'&&!lounge){visitor.pose='idle';visitor.loungeSeatId=null;Object.assign(visitor,SPAWN[visitor.zone]);}}
-  if(visitor.pose==='sit')visitor.y=SEATS.find(s=>s.id===visitor.seatId)?.y??0;else visitor.y??=0;
+  if(visitor.pose==='sit')visitor.y=SEATS.find(s=>s.id===visitor.seatId)?.y??0;else visitor.y=surfaceHeight(visitor.zone,visitor,visitor.y??0)??visitor.y??0;
   if(visitor.pose!=='sit'){
    const point=freeVisitorPosition(visitor.zone,visitor,this.active().map(({a})=>a.visitor),visitor.id);
    if(!point)return new Response('No clear entry space',{status:409});Object.assign(visitor,point);

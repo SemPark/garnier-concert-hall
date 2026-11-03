@@ -46,8 +46,8 @@ export const GALLERY_FLOORS:FloorRect[]=[...[-1,1].flatMap(side=>{
 }),
  {...GALLERY_BRIDGE}];
 /** Side guardrails stop where the rear gallery joins, leaving the walkway between them open. */
-export function galleryRailSpans(bayZ:number){
- const start=Math.max(ORGAN_RAIL_JOIN_Z+ORGAN_RAIL_POST_HALF,bayZ-3),end=Math.min(51.8,bayZ+3);let spans=start<end?[{start,end}]:[];
+export function galleryRailSpans(bayZ:number,width=6){
+ const start=Math.max(ORGAN_RAIL_JOIN_Z+ORGAN_RAIL_POST_HALF,bayZ-width/2),end=Math.min(51.8,bayZ+width/2);let spans=start<end?[{start,end}]:[];
  for(const [cutStart,cutEnd]of [[GALLERY_BRIDGE.minZ,GALLERY_BRIDGE.maxZ+.35]])spans=spans.flatMap(span=>span.end<=cutStart||span.start>=cutEnd?[span]:[...(span.start<cutStart?[{start:span.start,end:cutStart}]:[]),...(span.end>cutEnd?[{start:cutEnd,end:span.end}]:[])]);
  return spans;
 }

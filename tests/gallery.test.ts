@@ -38,3 +38,10 @@ test('no visible surface shares the gallery floor plane, so the floor never flic
   const tops=new Set(ray.intersectObjects(visible,false).filter(h=>Math.abs(h.point.y-H.balconyHeight)<.003).map(h=>h.object.uuid));
   assert.ok(tops.size<=1,`two surfaces at the gallery floor height at ${x.toFixed(1)},${z.toFixed(1)}`);}
 });
+
+
+test('sitting keeps the orbit continuous and never raises its focus by a metre',()=>{
+ const p={x:0,y:0,z:20},standing=localCameraFrame(p,false,.7,.13,4.8),seated=localCameraFrame(p,true,.7,.13,4.8);
+ assert.ok(Math.abs(seated.origin.y-standing.origin.y-.1)<1e-6);
+ let previous=standing;for(let i=1;i<=20;i++){const next=localCameraFrame(p,i/20,.7,.13,4.8);assert.ok(next.position.distanceTo(previous.position)<.006);previous=next;}
+});

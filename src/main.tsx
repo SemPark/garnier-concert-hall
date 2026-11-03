@@ -50,6 +50,7 @@ function App(){
  const [lookPicker,setLookPicker]=useState(true);const [wardrobe,setWardrobe]=useState(false);
  const [app,setApp]=useState<{world:World;net:Presence;audio:ConcertAudio}|null>(null),[,redraw]=useState(0),[entered,setEntered]=useState(false),[settings,setSettings]=useState(false),[seats,setSeats]=useState(false),[musicExpanded,setMusicExpanded]=useState(false),[reactions,setReactions]=useState(false),[toast,setToast]=useState(''),[error,setError]=useState('');
  const [probeProgress,setProbeProgress]=useState(''),[probeReport,setProbeReport]=useState(''),[probeMessage,setProbeMessage]=useState('');
+ const entering=useRef(false);
  const toastTimer=useRef(0),dialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{let world:World|undefined;const net=new Presence(),audio=new ConcertAudio(net.now);
   try{world=new World(document.getElementById('world')!,net,audio);const active=world;const update=()=>redraw(n=>n+1);const notify=(message:string)=>{setToast(message);clearTimeout(toastTimer.current);toastTimer.current=window.setTimeout(()=>setToast(''),3500);};
@@ -65,7 +66,7 @@ function App(){
  const closeSeats=useCallback(()=>setSeats(false),[]);
  const chooseMappedSeat=useCallback((id:string)=>{if(!world)return;if(world.zone==='lobby')world.chooseSeatFromLobby(id);else void world.chooseSeat(id);},[world]);
  useEffect(()=>{if(!world)return;world.uiObscured=(seats||settings||wardrobe)&&!probeProgress;if(world.uiObscured)world.input.keys.clear();return()=>{world.uiObscured=false;};},[world,seats,settings,wardrobe,probeProgress]);
- const enter=()=>{if(!app||!app.world.ready)return;setEntered(true);app.world.start();app.net.connect();void app.audio.unlock();};
+ const enter=()=>{if(!app||!app.world.ready||entering.current)return;entering.current=true;setEntered(true);app.world.start();app.net.connect();void app.audio.unlock();};
  const diagnose=async()=>{if(!world||!audio)return;if(!audio.playback.playing||audio.playback.remaining<35){setProbeMessage('곡이 바뀌는 구간입니다. 다음 곡이 시작되면 진단해 주세요.');return;}setSettings(false);setProbeReport('');setProbeMessage('');try{const report=await runDeviceProbe(world,audio,setProbeProgress);setProbeReport(JSON.stringify(report));setProbeMessage('진단 완료 · 결과를 복사해 보내주세요. 결과는 자동 전송되지 않습니다.');}catch(e){setProbeMessage(e instanceof Error?e.message:'진단을 완료하지 못했어요.');}finally{setProbeProgress('');setSettings(true);}};
  return <>
   <div className="vignette"/>
@@ -79,12 +80,12 @@ function App(){
    </nav>
   </header>}
    {world?.ready&&<SeatMap open={seats} claims={net?.state?.seats??EMPTY_CLAIMS} selfId={net?.selfId??''} connected={connected} onClose={closeSeats} onChoose={chooseMappedSeat}/>}
-  {!entered&&!error&&<section className="entry-screen" aria-label="음악당 입장">
+  {!entered&&!error&&<section className="entry-screen" aria-label="음악당 입장" onClick={enter}>
    <div className="entry-heading"><h1>MODU HALL</h1>
     <svg className="entry-flourish" viewBox="0 0 240 35" aria-hidden="true"><defs><linearGradient id="flourish-gold"><stop stopColor="#b38c48"/><stop offset=".8" stopColor="#ffe9b1"/><stop offset="1" stopColor="#d2a75d"/></linearGradient></defs><path d="M15 26C88-13 134 36 221 17"/><circle cx="221" cy="17" r="2.2"/></svg>
    </div>
    <p>모두의 음악당</p>
-   <button className="entry-orb" aria-label="음악당 들어가기" onClick={enter} disabled={!app||!world?.ready}>
+   <button className="entry-orb" aria-label="음악당 들어가기" onClick={e=>{e.stopPropagation();enter();}} disabled={!app||!world?.ready}>
     <svg className="tap-hand" viewBox="0 0 88 88" aria-hidden="true"><path className="tap-outline" d="M30 43V20c0-7 10-7 10 0v18-2c0-6 10-6 10 0v5-2c0-6 10-6 10 0v7-1c0-6 9-6 9 0v9c0 13-8 21-20 21h-4c-7 0-11-4-15-9L17 48c-5-6 2-12 7-7l6 6Z"/><path className="tap-rays" d="M35 7V3M23 12l-4-4M47 12l4-4M19 23h-5M51 23h5"/></svg>
    </button>
    <span className="entry-instruction">{world?.ready?'탭하여 입장':'음악당을 준비하고 있어요'}</span>

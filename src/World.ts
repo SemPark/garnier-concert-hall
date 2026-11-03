@@ -38,7 +38,7 @@ export class World{
  position=new T.Vector3(SPAWN.lobby.x,SPAWN.lobby.y,SPAWN.lobby.z);pose:'idle'|'walk'|'sit'='idle';yaw=0;cameraYaw=0;cameraPitch=.13;cameraDistance=4.8;fps=60;entered=false;
  onChange:()=>void=()=>{};onToast:(message:string)=>void=()=>{};onSeatMap:()=>void=()=>{};onWardrobe:()=>void=()=>{};private wardrobeNear=false;private visitingWardrobe=false;private pendingSeat:string|null=null;private loungeTarget:string|null=null;private visitingCat=false;private petUntil=0;private visitingBoxOffice=false;private seatWalkAt=0;private boardAt=0;
  private lightingPass:LobbyLightPass|null=null;private environment:T.WebGLRenderTarget;private poseFrustum=new T.Frustum();private poseProjection=new T.Matrix4();private poseSphere=new T.Sphere();private poseCenter=new T.Vector3();private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private route:Point[]=[];private avatarVariant=-1;private climb:{points:Point[];up:boolean}|null=null;private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
- private collisionPauseUntil=0;private seatedTarget:T.Vector3|null=null;private petFocus=new T.Vector3();
+ private collisionPauseUntil=0;private seatedTarget:T.Vector3|null=null;private cameraSeatAmount=0;private petFocus=new T.Vector3();
  private ray=new T.Raycaster();private ndc=new T.Vector2();private frame=0;private last=performance.now();private sentAt=0;private lastPose='';private renewAt=0;private lastUI=0;private look=new T.Vector3();private gesture:Gesture|null=null;private headTop=new T.Vector3();private gestureAt=0;
  private disposed=false;private lodAt=0;private orchestraAt=0;quality:RenderQuality='balanced';readonly mobile=matchMedia('(pointer: coarse)').matches||/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);private renderedAt=0;
  diagnosticActive=false;diagnosticMode:'normal'|'no-draw'|'audio-only'='normal';drawCount=0;frameCost={at:0,cpu:0,submit:0};
@@ -109,13 +109,13 @@ export class World{
     if(self.pose==='sit'&&!initial&&!changedZone)this.seatedTarget=new T.Vector3(self.x,self.y??SEATS.find(s=>s.id===self.seatId)?.y??0,self.z);
     else{this.position.set(self.x,self.y??(self.pose==='sit'?(SEATS.find(s=>s.id===self.seatId)?.y??0):0),self.z);this.seatedTarget=null;}
     this.yaw=self.yaw;this.pose=self.pose;
-    if(initial||changedZone){this.zone=self.zone;
+    if(initial||changedZone){this.cameraSeatAmount=self.pose==='sit'?1:0;this.zone=self.zone;
      // Entering the hall: take in the whole room first, then settle behind your own character.
      // A ticket journey waits for the overview and the settled character camera before walking.
      if(self.zone==='auditorium'){this.concertView=true;this.hallOverview=true;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.introUntil=performance.now()+3500;this.seatWalkAt=this.pendingSeat?this.introUntil+2500:0;}else{this.introUntil=0;this.seatWalkAt=0;}
      this.avatar.root.removeFromParent();this.venue.scene.add(this.avatar.root);this.marker.removeFromParent();this.venue.scene.add(this.marker);this.route=[];this.marker.visible=false;this.reservedSeat=null;this.cameraYaw=this.zone==='lobby'?Math.PI:0;// In the lobby, open facing the Grand Escalier.
      this.audio.setZone(this.zone);this.snapCamera();this.venue.updateLOD(this.camera);this.venue.updateMusicians(this.camera);this.lodAt=0;}
-    if(self.pose==='sit'){this.route=[];this.seating=false;this.marker.visible=false;if(satDown){this.concertView=false;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;}}
+    if(self.pose==='sit'){this.route=[];this.seating=false;this.marker.visible=false;if(satDown){this.concertView=false;this.hallZoom=1;}}
    }
    if(this.reservedSeat&&state.seats[this.reservedSeat]?.visitorId!==self.id){this.route=[];this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
   }
@@ -253,6 +253,7 @@ export class World{
   return true;
  }
  private advanceRoute(target:Point){
+  const h=surfaceHeight(this.zone,target,this.position.y);if(h!==null)target={...target,y:h};
   if(this.visitorStepClear(target)){this.position.set(target.x,target.y??0,target.z);return;}
   // Wait for the occupied route to clear; steering sideways can leave a stair flight.
  }
@@ -260,7 +261,7 @@ export class World{
  private sendPosition(now:number,force=false){if(!this.entered||!this.self||this.pose==='sit'||this.climb)return;if(force||now-this.sentAt>(this.pose==='walk'?100:300)||this.lastPose!==this.pose){this.sentAt=now;this.lastPose=this.pose;this.net.send({type:'move',x:this.position.x,y:this.position.y,z:this.position.z,yaw:this.yaw,pose:this.pose});}}
  private snapCamera(){const f=this.cameraFrame();this.look.copy(f.look);this.camera.position.copy(f.position);this.camera.lookAt(this.look);}
  private cameraFrame(){
-  const sitting=this.pose==='sit',baseY=(sitting?2.05:1.05)+this.position.y,look=new T.Vector3(this.position.x,baseY,this.position.z-1.5),d=this.cameraDistance;
+  const sitting=this.cameraSeatAmount,baseY=1.05+.10*sitting+this.position.y,look=new T.Vector3(this.position.x,baseY,this.position.z-1.5),d=this.cameraDistance;
   if(!this.entered){const t=this.reduced?0:performance.now()/1000;return {look:new T.Vector3(Math.sin(t*.1)*.1,8.2,35.8),position:new T.Vector3(Math.sin(t*.12)*.32,7.5+Math.sin(t*.09)*.09,20.8+Math.cos(t*.1)*.14)};}
   // Inside the corridor stair: watch the climb from the passage side, kept within the stairwell walls.
   if(this.position.z>GOLDEN_HALL.rear){const c=STAIR_CORRIDOR,side=this.position.x<0?-1:1,ahead=this.climb?.up===false?1:-1;
@@ -322,7 +323,7 @@ export class World{
     }
     else if(d<.035){if(this.visitorStepClear(p)){this.position.set(p.x,p.y??0,p.z);this.route.shift();}}else{const step=Math.min(d,3.4*dt);this.advanceRoute({x:this.position.x+(p.x-this.position.x)/d*step,z:this.position.z+(p.z-this.position.z)/d*step,y:this.position.y+((p.y??0)-this.position.y)/d*step});
      // Follow the currently connected lobby floor, flight or balcony.
-     if(this.zone==='lobby'){const h=surfaceHeight('lobby',this.position,this.position.y);if(h!==null)this.position.y=h;}}
+     {const h=surfaceHeight(this.zone,this.position,this.position.y);if(h!==null)this.position.y=h;}}
     if(!this.route.length){this.marker.visible=false;this.pose='idle';if(this.reservedSeat&&!this.seating){this.seating=true;this.sendPosition(now,true);this.net.send({type:'seated',seatId:this.reservedSeat});}}
    }
    if(this.visitingCat&&!this.route.length&&this.venue.cat&&distance(this.position,this.venue.cat.approach)<.15){
@@ -340,7 +341,7 @@ export class World{
    // Walking through the amphitheatre door at the head of the flight enters the hall.
    if(this.zone==='lobby'&&Math.abs(this.position.y-GRAND_STAIR.rise)<.3&&this.position.z>=HALL_INNER_DOOR.approachZ-.02&&this.position.z<HALL_INNER_DOOR.z&&Math.abs(this.position.x)<HALL_INNER_DOOR.halfWidth)void this.changeZone(true);
   }
-  if(this.pose==='sit'&&this.seatedTarget)this.position.lerp(this.seatedTarget,1-Math.exp(-dt*12));
+  if(this.pose==='sit'&&this.seatedTarget)this.position.lerp(this.seatedTarget,1-Math.exp(-dt*7));
   const music=this.audio.playback.playing&&!this.reduced;
   // Dust and shimmer hold still for visitors who prefer reduced motion.
   this.venue.treeStar?.update(this.reduced?0:now/1000);this.venue.sunlight?.update(this.reduced?0:now/1000);this.venue.stairArrows?.update(this.reduced?0:now/1000);
@@ -378,7 +379,7 @@ export class World{
   // The walking camera stays locked to its orbit (no trailing glide); easing is kept only for big view changes.
   this.audio.setDoorDistance(this.entered&&this.zone==='lobby'?Math.hypot(this.position.x-HALL_INNER_DOOR.x,this.position.y-GRAND_STAIR.rise,this.position.z-HALL_INNER_DOOR.z):Infinity);
   this.updateBoard(now);
-  const f=this.cameraFrame(),snap=now-this.dragAt<150||!this.concertView&&this.introEase<=0&&this.camera.position.distanceTo(f.position)<1.5,smooth=snap?1:1-Math.exp(-dt*(this.introEase>0?1.6:7));if(this.introEase>0)this.introEase=Math.max(0,this.introEase-dt);this.camera.position.lerp(f.position,smooth);if(this.entered&&!this.concertView&&!this.climb&&this.position.z<=GOLDEN_HALL.rear){const origin=localCameraFrame(this.position,this.pose==='sit',this.cameraYaw,this.cameraPitch,this.cameraDistance).origin;this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));}this.venue.scene.userData.cameraFocus=this.entered?(this.concertView?f.look:localCameraFrame(this.position,this.pose==='sit',this.cameraYaw,this.cameraPitch,this.cameraDistance).origin):null;this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(this.avatar&&this.entered&&(this.zone==='lobby'||!this.concertView)){const head=this.position.clone();head.y+=1.1;this.avatar.root.visible=this.camera.position.distanceTo(head)>1.65;}if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;const submitStart=this.diagnosticActive?performance.now():0;if(!this.diagnosticActive||this.diagnosticMode==='normal'){this.crowds[this.zone].update(this.remoteAvatars(),this.camera);if(this.lightingPass)this.lightingPass.render(this.venue.scene,this.camera);else this.renderer.render(this.venue.scene,this.camera);this.drawCount++;
+  this.cameraSeatAmount=T.MathUtils.damp(this.cameraSeatAmount,this.pose==='sit'?1:0,8,dt);const f=this.cameraFrame(),snap=now-this.dragAt<150||!this.concertView&&this.introEase<=0&&this.camera.position.distanceTo(f.position)<1.5,smooth=snap?1:1-Math.exp(-dt*(this.introEase>0?1.6:7));if(this.introEase>0)this.introEase=Math.max(0,this.introEase-dt);this.camera.position.lerp(f.position,smooth);if(this.entered&&!this.concertView&&!this.climb&&this.position.z<=GOLDEN_HALL.rear){const origin=localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin;this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));}this.venue.scene.userData.cameraFocus=this.entered?(this.concertView?f.look:localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin):null;this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(this.avatar&&this.entered&&(this.zone==='lobby'||!this.concertView)){const head=this.position.clone();head.y+=1.1;this.avatar.root.visible=this.camera.position.distanceTo(head)>1.65;}if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;const submitStart=this.diagnosticActive?performance.now():0;if(!this.diagnosticActive||this.diagnosticMode==='normal'){this.crowds[this.zone].update(this.remoteAvatars(),this.camera);if(this.lightingPass)this.lightingPass.render(this.venue.scene,this.camera);else this.renderer.render(this.venue.scene,this.camera);this.drawCount++;
    if(!this.ready&&this.texturesLoaded){this.ready=true;performance.measure('aurea-first-scene',{start:0,end:performance.now()});document.body.classList.add('scene-ready');this.onChange();
     this.warmTimer=window.setTimeout(()=>{if(this.disposed)return;if('requestIdleCallback' in window)window.requestIdleCallback(()=>void this.warmHall().catch(()=>{}),{timeout:4000});else void this.warmHall().catch(()=>{});},1800);
    }

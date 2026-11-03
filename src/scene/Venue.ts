@@ -1,3 +1,4 @@
+import {PARTERRE,parterreHeight} from '../../shared/parterre';
 import {archedTimberDoor} from './ArchedTimberDoor';
 import {classicalLamp} from './ClassicalLamp';
 import {LOBBY_CHRISTMAS_TREE} from '../../shared/grandStair';
@@ -221,8 +222,9 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  scene.add(new T.HemisphereLight(0xffdfb8,0x3c2e28,.36));const ambient=new T.AmbientLight(0xffe8cc,.045);scene.add(ambient);
  const sun=new T.DirectionalLight(zone==='lobby'?0xffe1b5:0xffe6c4,zone==='lobby'?.6:.58);sun.position.set(-7,13,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-17,right:17,top:20,bottom:-20,near:1,far:55});sun.shadow.normalBias=.035;sun.shadow.bias=-.0002;sun.shadow.autoUpdate=false;sun.shadow.needsUpdate=true;scene.add(sun);
  const b=BOUNDS[zone],floor=box(scene,[zone==='lobby'?ATRIUM.halfWidth*2:GOLDEN_HALL.width,.15,zone==='lobby'?ATRIUM.back-ATRIUM.front:GOLDEN_HALL.rear-GOLDEN_HALL.front],[0,-.09,zone==='lobby'?(ATRIUM.front+ATRIUM.back)/2:(GOLDEN_HALL.front+GOLDEN_HALL.rear)/2],zone==='lobby'?0x8f7a5c:0x44352b);
- floor.userData.floor=true;if(zone==='auditorium'){applyWoodSurface(floor,'walnut');buildHallTimberFloor(scene,GOLDEN_HALL.width,GOLDEN_HALL.front,GOLDEN_HALL.rear);}
+ floor.userData.floor=true;if(zone==='auditorium'){floor.position.y+=PARTERRE.floor;applyWoodSurface(floor,'walnut');buildHallTimberFloor(scene,GOLDEN_HALL.width,GOLDEN_HALL.front,GOLDEN_HALL.rear);}
  const walkTargets:T.Object3D[]=[floor];
+ if(zone==='auditorium'){const target=new T.Mesh(new T.PlaneGeometry(GOLDEN_HALL.width,GOLDEN_HALL.rear-PARTERRE.stairFront,1,20),new T.MeshBasicMaterial({visible:false}));target.rotation.x=-Math.PI/2;const p=target.geometry.getAttribute('position');for(let i=0;i<p.count;i++){const z=(GOLDEN_HALL.rear+PARTERRE.stairFront)/2-p.getY(i);p.setZ(i,parterreHeight(p.getX(i),z)??0);}target.position.z=(GOLDEN_HALL.rear+PARTERRE.stairFront)/2;target.userData.floor=true;scene.add(target);walkTargets.push(target);}
  const cameraWalls:T.Object3D[]=[],overviewHidden:T.Object3D[]=[],seatTargets:T.Object3D[]=[],musicians:Avatar[]=[],seatLights=new Map<string,T.Mesh>();
  let portal:T.Object3D,programBoard:ProgramBoard|undefined;
  if(zone==='lobby'){
@@ -233,7 +235,7 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
   sun.position.set(21,28,22);sun.target.position.set(-3,0,32);scene.add(sun.target);
  }else{
   cameraWalls.push(...(yield* buildGoldenHallSteps(scene)).cameraWalls);
-  walkTargets.push(...buildStairs(scene).surfaces);
+  walkTargets.push(...buildStairs(scene).surfaces);scene.traverse(o=>{if(o instanceof T.Mesh&&o.userData.walkSurface)walkTargets.push(o);});
   const hitGeometry=new T.BoxGeometry(1.08,1.5,1.05),hitMaterial=new T.MeshBasicMaterial({visible:false});
   for(const [i,s] of SEATS.entries()){const g=seat(scene,s.x,s.z,s.level==='balcony'||[4,12,16].includes(s.column));g.position.y=s.y;g.rotation.y=s.yaw;
    const target=new T.Mesh(hitGeometry,hitMaterial);target.position.set(s.x,s.y+.7,s.z);target.rotation.y=s.yaw;target.userData.seatId=s.id;scene.add(target);seatTargets.push(target);if(i%12===11)yield;
@@ -245,7 +247,7 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  cameraWalls.push(portal);
  for(const wall of cameraWalls)wall.traverse(o=>{o.userData.cameraWall=true;});
  finishArchitecture(scene,[...(cat?[cat.root]:[]),...musicians.map(a=>a.root)]);
- const updateLOD=yield* batchArchitectureSteps(scene,[floor,portal,...(cat?[cat.root,...cat.targets]:[]),...walkTargets.filter(o=>o instanceof T.Mesh&&!Array.isArray(o.material)&&!o.material.visible),...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
+ const updateLOD=yield* batchArchitectureSteps(scene,[floor,portal,...(cat?[cat.root,...cat.targets]:[]),...walkTargets,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
  const updateMusicians=yield* batchCharactersSteps(scene,[...musicians.map(a=>a.root),...(cat?[cat.root]:[])]);updateMusicians();
  // Visitor reaction icons share one draw call per hall.
  const emotes=new EmoteLayer(64);scene.add(emotes.points);

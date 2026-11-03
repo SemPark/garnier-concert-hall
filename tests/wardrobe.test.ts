@@ -33,7 +33,7 @@ test('a seated skirt pins its waist and drapes onto the lap instead of rotating 
   woman.skirt.getVertexPosition(i,point);
   if(Math.abs(position.getY(i))<.0001)assert.ok(point.distanceTo(new T.Vector3().fromBufferAttribute(position,i))<.0001,'waist stays attached');
   assert.ok(point.y<=.001,'fabric never rises above the waist');
-  if(position.getY(i)<-.57){hem++;assert.ok(point.z<-.3&&point.y<-.20&&point.y>-.38,'hem drops over the knees');}
+  if(position.getY(i)<-.57){hem++;assert.ok(point.z<-.3&&point.y<-.20&&point.y>-.50,'hem drops over the knees');}
  }
  assert.ok(hem>20);assert.equal(woman.skirt.rotation.x,0);
  woman.update(2,0,false,false,null,10,1);assert.ok(woman.skirt.morphTargetInfluences![0]<.001,'standing restores the dress');
@@ -60,4 +60,12 @@ test('painted eyes, smile and blush follow the face and the head no longer scans
  const {faceSurfaceZ}=await import('../src/character/Face'),actor=new Avatar(0x293c56,undefined,4);
  let patches=0;actor.head.traverse(o=>{if(o instanceof T.Mesh&&o.userData.surfaceDecal){patches++;const points=o.geometry.getAttribute('position');for(let i=0;i<points.count;i++)assert.ok(Math.abs(points.getZ(i)-faceSurfaceZ(points.getX(i),points.getY(i)))<.0025,'facial paint stays flush');}});assert.equal(patches,7);
  for(const sitting of [false,true])for(const t of [.3,1,2,6]){actor.update(t,0,sitting,true,null,10,1);assert.equal(actor.head.rotation.y,0);assert.equal(actor.head.rotation.z,0);assert.equal(actor.body.rotation.z,0);}
+});
+
+test('seated dress covers the outer thighs while keeping the leg pose unchanged',()=>{
+ const actor=new Avatar(0x293c56,undefined,4);actor.update(1,0,true,false,null,10,1);
+ assert.ok(Math.abs(actor.leftLeg.rotation.x-.9)<.001);assert.ok(Math.abs(actor.rightLeg.rotation.x-.9)<.001);
+ const mesh=actor.skirt!,base=mesh.geometry.getAttribute('position'),v=new T.Vector3();let side=0;
+ for(let i=0;i<base.count;i++)if(base.getY(i)<-.57&&Math.abs(base.getX(i))>.34){mesh.getVertexPosition(i,v);assert.ok(v.y<-.42,'side fabric hangs below the thigh');side++;}
+ assert.ok(side>=2);
 });

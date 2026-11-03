@@ -1,16 +1,17 @@
+import {PARTERRE} from '../../shared/parterre';
 import * as T from 'three';
-import {GOLDEN_HALL as H} from '../../shared/goldenHall';
+import {UPPER_WINDOW_AXES} from '../../shared/upperHall';
 import {WALL_DATUM,WALL_LEVELS} from './HallWallBands';
 
 /** Late-afternoon sun entering through the right-hand windows, slanting down across the hall. */
 export const SUN_DIRECTION=new T.Vector3(-.62,-.74,.2).normalize();
 const SUN_COLOR=new T.Color(1,.84,.58);
 /** Every other right-side window, away from the stage, so each shaft reads on its own and never veils the orchestra. */
-export const SUN_WINDOWS=H.bayCenters.filter(z=>[-6,6,18,30].includes(z)).map(z=>new T.Vector3(WALL_DATUM.halfWidth-.2,WALL_LEVELS.window+2.9,z));
+export const SUN_WINDOWS=UPPER_WINDOW_AXES.filter((z,i)=>z>-9&&z<33&&i%2===0).map(z=>new T.Vector3(WALL_DATUM.halfWidth-.2,WALL_LEVELS.window+2.9,z));
 const DUST_PER_BEAM=16;
 
 /** Where a shaft from this window reaches the parterre floor. */
-export function sunFloorPoint(window:T.Vector3){return window.clone().addScaledVector(SUN_DIRECTION,window.y/-SUN_DIRECTION.y);}
+export function sunFloorPoint(window:T.Vector3,floorY=0){return window.clone().addScaledVector(SUN_DIRECTION,(window.y-floorY)/-SUN_DIRECTION.y);}
 
 const beamMaterial=new T.ShaderMaterial({
  transparent:true,depthWrite:false,blending:T.AdditiveBlending,side:T.DoubleSide,
@@ -77,12 +78,12 @@ export function buildSunlight(scene:T.Scene,windows=SUN_WINDOWS,style:{color?:nu
  const root=new T.Group();root.userData.landmark='sunlight';scene.add(root);
  const basis=beamBasis(),dust:number[]=[],seeds:number[]=[];
  windows.forEach((window,i)=>{
-  const floor=sunFloorPoint(window),length=window.distanceTo(floor);
+  const floor=sunFloorPoint(window,scene.userData.venue==='musikverein-golden-hall'?PARTERRE.floor:0),length=window.distanceTo(floor);
   const geometry=beamGeometry(length,(i*.37)%1);if(style.spread!==undefined)geometry.scale(style.spread,1,style.spread);
   const beam=new T.Mesh(geometry,beamMat);beam.matrixAutoUpdate=false;
   beam.matrix.copy(basis).setPosition(window);beam.renderOrder=5;beam.frustumCulled=false;beam.userData.landmark='sun-shaft';root.add(beam);
   const pool=new T.Mesh(new T.PlaneGeometry(1,1),poolMat);pool.rotation.set(-Math.PI/2,0,Math.atan2(SUN_DIRECTION.x,SUN_DIRECTION.z));
-  pool.scale.set(3.2,6.4,1);pool.position.set(floor.x,.04,floor.z);pool.renderOrder=4;pool.userData.landmark='sun-pool';root.add(pool);
+  pool.scale.set(3.2,6.4,1);pool.position.set(floor.x,floor.y+.04,floor.z);pool.renderOrder=4;pool.userData.landmark='sun-pool';root.add(pool);
   for(let n=0;n<DUST_PER_BEAM;n++){
    const p=window.clone().addScaledVector(SUN_DIRECTION,length*(.06+Math.random()*.6));
    p.add(new T.Vector3((Math.random()-.5)*2,(Math.random()-.5)*2.8,(Math.random()-.5)*2).applyMatrix4(new T.Matrix4().extractRotation(basis)));

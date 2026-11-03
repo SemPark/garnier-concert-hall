@@ -1,3 +1,5 @@
+import {LOWER_STATUES} from './lowerHall';
+import {PARTERRE,parterreHeight} from './parterre';
 import {AMPHITHEATRE_DOOR} from './grandStair';
 import {LOBBY_CHRISTMAS_TREE} from './grandStair';
 import {OUTFITS,type Outfit} from './wardrobe';
@@ -23,12 +25,14 @@ export const SEAT_COLUMNS=[-10.45,-9.35,-8.25,-7.15,-3.85,-2.75,-1.65,-.55,.55,1
 export const FLOOR_AISLES=[-12.9,-5.5,5.5,12.9];
 export const FLOOR_ROWS=Array.from({length:22},(_,row)=>-6.2+row*1.95+(row>=10?2:0));
 export const FLOOR_CROSS_AISLE=(FLOOR_ROWS[9]+FLOOR_ROWS[10])/2;
-export const FLOOR_SEATS:Seat[]=FLOOR_ROWS.flatMap((z,row)=>SEAT_COLUMNS.map((x,column)=>({id:`parterre-${row*16+column+1}`,x,z,approach:{x,y:0,z:z-1.05},row:row+1,column:column+1,level:'parterre' as const,y:0,yaw:0})));
+export const FLOOR_SEATS:Seat[]=FLOOR_ROWS.flatMap((z,row)=>SEAT_COLUMNS.map((x,column)=>({id:`parterre-${row*16+column+1}`,x,z,approach:{x,y:PARTERRE.floor,z:z-1.05},row:row+1,column:column+1,level:'parterre' as const,y:PARTERRE.floor,yaw:0})));
 // Leave the four seats next to each organ-loft wing empty. Retain all other IDs.
 // Chairs stand near the balustrade so they show from the hall; the bay by the stair top stays empty.
 export const BALCONY_SEATS:Seat[]=[-1,1].flatMap(side=>H.bayCenters.flatMap((z,row)=>row===0||z>GALLERY_BRIDGE.minZ?[]:[-1.8,-.6,.6,1.8].map((offset,column)=>({id:`balcony-${side<0?'left':'right'}-${row*4+column+1}`,x:side*14.4,z:z-side*offset,approach:{x:side*13.4,y:H.balconyHeight,z:z-side*offset},row:row+1,column:column+1+(side>0?4:0),level:'balcony' as const,y:H.balconyHeight,yaw:side<0?-Math.PI/2:Math.PI/2}))));
-export const SEATS:Seat[]=[...FLOOR_SEATS,...BALCONY_SEATS];
-/** The hall admits as many visitors as it has seats (1F 352 + 2F 88). */
+/** Raised wall-side boxes face the orchestra across the room, with an aisle behind the front rail. */
+export const SIDE_BOX_SEATS:Seat[]=[];
+export const SEATS:Seat[]=[...FLOOR_SEATS,...SIDE_BOX_SEATS,...BALCONY_SEATS];
+/** The hall admits as many visitors as it has seats, including the raised side boxes. */
 export const CAPACITY=SEATS.length;
 /** Gallery seats are numbered 1, 2, 3… along each side, from the stage end towards the back. */
 const BALCONY_NUMBER=new Map([-1,1].flatMap(side=>BALCONY_SEATS.filter(s=>Math.sign(s.x)===side).sort((a,b)=>a.z-b.z).map((s,i)=>[s.id,i+1] as const)));
@@ -45,7 +49,7 @@ export function seatGrade(s:Seat):SeatGrade{
  if(d<40)return 'S';
  return 'A';
 }
-export function seatLabel(s:Seat){return s.level==='parterre'?`1층 ${s.row}열 ${s.column}번`:`2층 ${s.x<0?'왼쪽':'오른쪽'} ${seatNumber(s)}번`;}
+export function seatLabel(s:Seat){if(s.id.startsWith('box-'))return `1층 ${s.x<0?'왼쪽':'오른쪽'} 측면석 ${(s.row-1)*3+s.column}번`;return s.level==='parterre'?`1층 ${s.row}열 ${s.column}번`:`2층 ${s.x<0?'왼쪽':'오른쪽'} ${seatNumber(s)}번`;}
 /** The parterre runs right up to the stage lip (stage front is z -9.5). */
 export const STAGE_APRON_Z=-9.2;
 export const BOUNDS={lobby:{minX:-ATRIUM.halfWidth+.5,maxX:ATRIUM.halfWidth-.5,minZ:ATRIUM.front+.5,maxZ:ATRIUM.back-.5},auditorium:{minX:-15.65,maxX:15.65,minZ:-26.5,maxZ:50.3}};
@@ -67,10 +71,10 @@ export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  // Select the connected lobby floor, stair flight or balcony at the current elevation.
  if(zone==='lobby')return lobbyHeight(p.x,p.z,fromY);
  if(fromY>H.balconyHeight-.45&&inGallery(p))return H.balconyHeight;
- if(Math.abs(fromY)<.4&&Math.abs(p.x)<=13.8&&p.z>=STAGE_APRON_Z&&p.z<=50.3)return 0;
+ if(fromY<1&&fromY>PARTERRE.floor-.4&&Math.abs(p.x)<=15.65&&p.z>=STAGE_APRON_Z&&p.z<=50.3)return parterreHeight(p.x,p.z);
  return null;
 }
-const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.54,hz:.45,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [{x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y:0}];})],lobby:[
+const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.54,hz:.45,y:s.y})),...[-1,1].flatMap(side=>LOWER_STATUES.map(z=>({x:side*15.3,z,hx:.45,hz:.48,y:0}))),...SIDE_BOX_SEATS.map(s=>({x:s.x,z:s.z,hx:.45,hz:.54,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...[-1,1].flatMap(side=>[PARTERRE.floor,0].map(y=>({x:side*(16+PARTERRE.stairHalfWidth)/2,z:(PARTERRE.stairFront+44.2)/2,hx:(16-PARTERRE.stairHalfWidth)/2,hz:(44.2-PARTERRE.stairFront)/2,y}))),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [PARTERRE.floor,0].map(y=>({x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y}));})],lobby:[
  ...[-1,1].map(side=>({x:side*(GRAND_STAIR.flightHalf+.06),z:GRAND_STAIR.flightEnd,hx:.29,hz:.29,y:GRAND_STAIR.rise})),
  ...[-1,1].map(side=>({x:side*2.55,z:AMPHITHEATRE_DOOR.z-.75,hx:.52,hz:.46,y:GRAND_STAIR.rise})),
  ...LOBBY_ARCADE.endColumns.flatMap(x=>[ATRIUM.front+ATRIUM.balconyDepth,ATRIUM.back-ATRIUM.balconyDepth].map(z=>({x,z,hx:.33,hz:.33,y:ATRIUM.balconyY}))),

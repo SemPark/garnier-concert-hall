@@ -133,7 +133,7 @@ export class Avatar{
   this.head.rotation.set(-pose.headPitch,0,0);for(const eye of this.eyes.children){const mesh=eye as T.Mesh;if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[0]=1-pose.blink;}
   // A seated cellist opens the knees around the instrument instead of kicking through it.
   const splay=type==='cello'?.75*sit:0;
-  for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const){hip.rotation.order='YXZ';hip.rotation.set(T.MathUtils.lerp(pose.swing*.5*sign,type?Math.PI/2:.9,sit)+pose.lean,splay*sign,-pose.sway);}
+  for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const){hip.rotation.order='YXZ';hip.rotation.set(T.MathUtils.lerp(pose.swing*.5*sign,type||this.appearance==='man'?Math.PI/2:.9,sit)+pose.lean,splay*sign,-pose.sway);}
   this.leftArm.rotation.set(-pose.swing*.34,0,-.1);this.rightArm.rotation.set(pose.swing*.34,0,.1);
   // Floor-standing keyboards and harps must not rise with the seated torso.
   // Floor instruments belong to the root, so the body can sway without lifting their feet.

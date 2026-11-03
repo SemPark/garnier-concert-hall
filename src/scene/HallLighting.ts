@@ -4,21 +4,7 @@ import {box,cylinder,sphere} from './primitives';
 
 /** Repeated fixtures share geometry/materials; a few broad lights illuminate each bank. */
 export function buildHallPracticalLights(scene:T.Scene){
- const size=64,pixels=new Uint8Array(size*size*4);
- for(let y=0;y<size;y++)for(let x=0;x<size;x++){const i=(y*size+x)*4,a=Math.max(0,1-Math.hypot(x-31.5,y-31.5)/32)**2;pixels[i]=255;pixels[i+1]=205;pixels[i+2]=136;pixels[i+3]=Math.round(a*160);}
- const map=new T.DataTexture(pixels,size,size);map.colorSpace=T.SRGBColorSpace;map.needsUpdate=true;
- const glow=new T.SpriteMaterial({map,transparent:true,depthWrite:false,blending:T.AdditiveBlending,opacity:.55});
- const bulb=new T.MeshStandardMaterial({color:0xffefd2,emissive:0xffcf89,emissiveIntensity:3,roughness:.3});
- for(const side of [-1,1])for(const y of [5.15])for(const center of H.bayCenters){
-  if([-18,6,30].includes(center))continue;
-  const z=center+(y>8?2.65:0);
-  const root=new T.Group();root.position.set(side*15.25,y,z);root.rotation.y=side<0?Math.PI/2:-Math.PI/2;root.userData.landmark='hall-wall-lantern';scene.add(root);
-  box(root,[.22,.48,.09],[0,0,0],0xc69b49);
-  cylinder(root,.045,.35,[0,-.02,.26],0xc69b49);
-  cylinder(root,.16,.08,[0,.13,.26],0xc69b49);
-  const lamp=sphere(root,.14,[0,.34,.26],0xffefd2);lamp.scale.y*=1.35;lamp.material=bulb;
-  const halo=new T.Sprite(glow);halo.position.set(0,.34,.29);halo.scale.setScalar(1.7);root.add(halo);
- }
+ // First-floor fixtures belong to the new centred wall composition.
  for(const z of [-20,6,32]){
   const light=new T.PointLight(0xffcf8f,120,35,2);light.position.set(0,15,z);scene.add(light);
   for(const side of [-1,1]){

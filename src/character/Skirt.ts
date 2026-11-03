@@ -8,7 +8,9 @@ skirtGeometry.setIndex(Array.from(index.array).filter((_,i,a)=>normals.getY(a[Ma
 const position=skirtGeometry.getAttribute('position'),seated=position.clone();
 for(let i=0;i<position.count;i++){
  const x=position.getX(i),y=position.getY(i),z=position.getZ(i),t=T.MathUtils.clamp(-y/.58,0,1),lap=T.MathUtils.smoothstep(t,0,.6),hem=T.MathUtils.smoothstep(t,.72,1);
- seated.setXYZ(i,x*(1+.06*lap),-.13*lap-.14*hem+z*.12*lap,z*(1-.62*lap)-.46*T.MathUtils.smoothstep(t,.15,1));
+ // Extra cloth drops at the outer thighs; the front hem still leaves the shins and shoes clear.
+ const side=Math.pow(T.MathUtils.clamp(Math.abs(x)/(.22+.133*t),0,1),4);
+ seated.setXYZ(i,x*(1+.06*lap),-.13*lap-.14*hem+z*.12*lap-.20*side*lap,z*(1-.62*lap)-.46*T.MathUtils.smoothstep(t,.15,1)+.10*side*lap*(1-.5*hem));
 }
 const copy=skirtGeometry.clone();copy.setAttribute('position',seated);copy.computeVertexNormals();
 skirtGeometry.morphAttributes.position=[seated];skirtGeometry.morphAttributes.normal=[copy.getAttribute('normal').clone()];
