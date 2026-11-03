@@ -12,8 +12,8 @@ def mp3(key,name,start=None,length=None,fade=None,quiet=False):
   if start is not None:cmd+=['-ss',str(start)]
   cmd+=['-i',meta[key]['file'] if os.path.isabs(meta[key]['file']) else os.path.join(src,os.path.basename(meta[key]['file']))]
   if length is not None:cmd+=['-t',str(length)]
-  # Between pieces: a steady murmur of an audience in a hall (no applause), kept soft and natural.
-  filters=['highpass=f=70','lowpass=f=9000'] if quiet else []
+  # Between pieces: only the sound of the room, the air of a concert hall, with no voices, kept soft and even.
+  filters=['highpass=f=60','lowpass=f=9000','acompressor=threshold=0.03:ratio=6:attack=20:release=400'] if quiet else []
   if fade:filters+=[f"afade=t=in:d={fade[0]}",f"afade=t=out:st={max(0,length-fade[1])}:d={fade[1]}"]
   # Every piece at the same average loudness (music -20 LUFS, the murmur between pieces -36), as one static gain:
   # linear loudnorm keeps each recording's own soft and loud passages.
@@ -29,23 +29,22 @@ def mp3(key,name,start=None,length=None,fade=None,quiet=False):
 def credit(key):
   m=meta[key];return {"sourceName":"Wikimedia Commons","sourceUrl":m["pageUrl"],"licenseName":m["license"] or "Public domain","licenseUrl":m["licenseUrl"] or "https://creativecommons.org/publicdomain/mark/1.0/"}
 # (key, file name, title, work, stage, gap, trim, composer)
-Q=lambda n,start,length:('hall-murmur',f'hall-quiet-{n}','곡 사이 — 조용한 공연장',None,'quiet',2,(start,length,(2,3.5),True),None)
-MZ='볼프강 아마데우스 모차르트'
+Q=lambda n,start,length:('empty-hall',f'hall-quiet-{n}','곡 사이 — 조용한 공연장',None,'quiet',2,(start,length,(2,3.5),True),None)
+MZ='볼프강 아마데우스 모차르트';
+CO='아르칸젤로 코렐리';SS='서울시립교향악단'
 program=[
- # Mozart evening as at a real concert: overture, concerto, symphony, encore; 15 s of quiet hall between pieces.
- ('figaro','mozart-figaro-overture','피가로의 결혼 K.492 — 서곡','피가로의 결혼 서곡',None,0,None,MZ),
- Q(1,30,15),
- ('clar-1','mozart-clarinet-concerto-1','클라리넷 협주곡 A장조 K.622 — 1악장 Allegro','클라리넷 협주곡',None,7,None,MZ),
- ('clar-2','mozart-clarinet-concerto-2','클라리넷 협주곡 — 2악장 Adagio','클라리넷 협주곡',None,7,None,MZ),
- ('clar-3','mozart-clarinet-concerto-3','클라리넷 협주곡 — 3악장 Rondo. Allegro','클라리넷 협주곡',None,0,None,MZ),
- Q(2,140,15),
- ('s40-1','mozart-symphony-40-1','교향곡 40번 G단조 K.550 — 1악장 Molto allegro','교향곡 40번',None,7,None,MZ),
- ('s40-2','mozart-symphony-40-2','교향곡 40번 — 2악장 Andante','교향곡 40번',None,7,None,MZ),
- ('s40-3','mozart-symphony-40-3','교향곡 40번 — 3악장 Menuetto. Allegretto','교향곡 40번',None,7,None,MZ),
- ('s40-4','mozart-symphony-40-4','교향곡 40번 — 4악장 Finale. Allegro assai','교향곡 40번',None,0,None,MZ),
- Q(3,260,15),
- ('nacht-1','mozart-eine-kleine-nachtmusik-1','앙코르 — 아이네 클라이네 나흐트무지크 K.525 — 1악장 Allegro','앙코르: 아이네 클라이네 나흐트무지크',None,0,None,MZ),
- Q(4,330,15),
+ # Christmas concert, orchestra only: Corelli's Christmas Concerto, then orchestral carols (Seoul Philharmonic), then an encore.
+ ('corelli-1','corelli-christmas-concerto-1','코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’ (1)','크리스마스 협주곡',None,4,None,CO),
+ ('corelli-2','corelli-christmas-concerto-2','코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’ (2)','크리스마스 협주곡',None,0,None,CO),
+ Q(1,520,15),
+ ('xm-joy','christmas-joy-to-the-world','기쁘다 구주 오셨네 (Joy to the World)','기쁘다 구주 오셨네',None,0,None,SS),
+ Q(2,540,15),
+ ('xm-bethlehem','christmas-o-little-town-of-bethlehem','오 베들레헴 작은 골 (O Little Town of Bethlehem)','오 베들레헴 작은 골',None,0,None,SS),
+ Q(3,560,15),
+ ('xm-jingle','christmas-jingle-bells','징글벨 (Jingle Bells)','징글벨',None,0,None,SS),
+ Q(4,580,15),
+ ('xm-merry','christmas-we-wish-you-a-merry-christmas','앙코르 — 우리 모두 즐거운 성탄을 (We Wish You a Merry Christmas)','우리 모두 즐거운 성탄을',None,0,None,SS),
+ Q(5,600,15),
 ]
 tracks=[];sizes={}
 # A short burst of applause, played only when visitors press clap during the quiet time between pieces.
@@ -57,9 +56,10 @@ for key,name,title,work,stage,gap,trim,composer in program:
   if work:t["work"]=work
   tracks.append(t);sizes[f"/audio/{name}.mp3"]=os.path.getsize(dst);print(f"{dur:7.1f}s {name}",flush=True)
 old=json.load(open(os.path.join(root,'content','playlist.json')))
-json.dump({"version":"mozart-evening-2","epochMs":old["epochMs"],"tracks":tracks},open(os.path.join(root,'content','playlist.json'),'w'),ensure_ascii=False,indent=2)
+json.dump({"version":"christmas-1","epochMs":old["epochMs"],"tracks":tracks},open(os.path.join(root,'content','playlist.json'),'w'),ensure_ascii=False,indent=2)
 for f in os.listdir(out):
-  if f.endswith('.mp3') and f'/audio/{f}' not in sizes:os.remove(os.path.join(out,f))
+  # Keep the lobby room tone, which is made separately from the concert programme.
+  if f.endswith('.mp3') and f'/audio/{f}' not in sizes and f!='lobby-ambience.mp3':os.remove(os.path.join(out,f))
 sizes.update({k:v for k,v in json.load(open(os.path.join(root,'content','audio-files.json'))).items() if k.endswith('.wav')})
 json.dump(sizes,open(os.path.join(root,'content','audio-files.json'),'w'),indent=2)
 print('total minutes',round(sum(t["durationSeconds"]+t["gapAfterSeconds"] for t in tracks)/60,1))

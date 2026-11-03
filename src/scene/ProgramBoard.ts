@@ -48,9 +48,9 @@ export function buildProgramBoard(scene:T.Scene):ProgramBoard{
    for(let i=0;i<4;i++){ctx.save();ctx.translate(x-side*6,267+i*9);ctx.rotate(side*(i%2?.8:-.8));ctx.beginPath();ctx.ellipse(0,0,3,8,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
   }
   if(portrait)ctx.drawImage(portrait,38,106,324,205);
-  ctx.textAlign='center';ctx.fillStyle='#efd49b';ctx.font='600 13px Georgia,serif';ctx.fillText('AUREA  ·  MOZART EVENING',200,36);
+  ctx.textAlign='center';ctx.fillStyle='#efd49b';ctx.font='600 13px Georgia,serif';ctx.fillText('AUREA  ·  CHRISTMAS CONCERT',200,36);
   ctx.fillStyle='#fff8e7';ctx.font='700 34px "Noto Serif KR",serif';
-  ctx.fillText('모차르트와',200,77);ctx.fillText('작은 밤 산책',200,117);
+  ctx.fillText('눈 내리는 밤의',200,77);ctx.fillText('캐럴 음악회',200,117);
   ctx.fillStyle='#c9a250';ctx.fillRect(16,309,368,3);
   ctx.fillStyle='#fff9ed';ctx.fillRect(16,312,368,342);
   ctx.textAlign='left';

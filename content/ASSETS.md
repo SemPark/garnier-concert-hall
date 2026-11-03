@@ -6,26 +6,23 @@
 - 글꼴: Google Fonts의 Noto Serif KR를 CSS로 요청하며 시스템 글꼴 대체를 지정. 운영 배포에서는 사용 조건 확인 후 자체 호스팅하거나 시스템 글꼴로 대체 가능.
 - 산사의 코드·모델·음원 파일은 앱 자산으로 포함하지 않았다. 공개 클라이언트에서 확인한 조작·접속 설계를 참고했다.
 
-## 현재 공연 프로그램 — 2026-11-02
+## 현재 공연 프로그램 — 2026-11-03
 
-모차르트의 저녁 공연 하나가 반복된다(약 64분). 모두 Wikimedia Commons에서 받았고, 파일 페이지에 표시된 사용 조건을 따른다.
+크리스마스 음악회 하나가 반복된다(약 20분). 오케스트라만 연주하는 곡만 넣었고, 합창·독창·피아노 독주가 있는 곡(‘저 들 밖에’, ‘천사 찬송하기를’, ‘오 거룩한 밤’, ‘고요한 밤’)은 뺐다. 차이콥스키 호두까기 인형 모음곡(1950년대 Decca 녹음)은 음질이 낮아 뺐다.
 
-- 모차르트의 저녁: 피가로의 결혼 서곡 → 클라리넷 협주곡 K.622 전 악장 → 교향곡 40번 전 악장 → 앙코르 아이네 클라이네 나흐트무지크 1악장.
-- 곡 사이: 15초씩, 박수 없는 객석 웅성거림 녹음(Geroezemoes in een zaal)을 음악보다 작게(-36 LUFS) 만든 실내음. 관객이 박수를 누를 때만 박수 클립(`hall-clap.mp3`)을 재생한다.
-- 변환: `scripts/build-program.py`로 FFmpeg/libmp3lame 192kbps CBR MP3(파일당 25MB 이하, Cloudflare 정적 파일 한도). 모든 곡을 같은 평균 음량(-20 LUFS)으로 맞추되 곡 안의 강약은 그대로 둔다(linear loudnorm). Musopen 녹음은 무손실 FLAC 원본, 나머지는 Ogg 원본(약 200–260kbps).
-- 저작자 표시가 필요한 녹음: 클라리넷 협주곡·아이네 클라이네 나흐트무지크(CC BY-SA 2.0), 곡 사이 실내음(CC BY-SA 3.0, Beeld en Geluid).
+- 순서: 코렐리 ‘크리스마스 협주곡’ 합주 협주곡 G단조 Op.6 No.8(Advent Chamber Orchestra, CC BY-SA 2.0, 두 파일) → 서울시립교향악단 캐럴(2020; CC BY-SA 3.0, 마지막 곡 4.0): 기쁘다 구주 오셨네 → 오 베들레헴 작은 골 → 징글벨 → 앙코르 우리 모두 즐거운 성탄을.
+- 곡 사이: 15초씩, 사람 소리 없는 빈 콘서트홀의 공기 소리만(Algemene sfeer van een lege concertzaal, Beeld en Geluid, CC BY-SA 3.0)을 부드럽게 눌러 작게(-36 LUFS) 만든 실내음. 관객이 박수를 누를 때만 박수 클립(`hall-clap.mp3`)을 재생한다.
+- 변환: `scripts/build-program.py`로 FFmpeg/libmp3lame 192kbps CBR MP3, 모든 곡 같은 평균 음량(-20 LUFS, 곡 안의 강약 유지).
+- 로비 배경음(`lobby-ambience.mp3`): 같은 빈 콘서트홀 공기 소리를 작게 반복.
 
 원본 목록:
-- Mozart - Le nozze di Figaro, K492 - Overture (Musopen Symphony).flac — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_-_Le_nozze_di_Figaro,_K492_-_Overture_(Musopen_Symphony).flac)
-- Wolfgang Amadeus Mozart - Clarinet Concerto - 1. Allegro.ogg — [CC BY-SA 2.0](https://commons.wikimedia.org/wiki/File:Wolfgang_Amadeus_Mozart_-_Clarinet_Concerto_-_1._Allegro.ogg)
-- Wolfgang Amadeus Mozart - Clarinet Concerto - 2. Adagio.ogg — [CC BY-SA 2.0](https://commons.wikimedia.org/wiki/File:Wolfgang_Amadeus_Mozart_-_Clarinet_Concerto_-_2._Adagio.ogg)
-- Wolfgang Amadeus Mozart - Clarinet Concerto - 3. Allegro.ogg — [CC BY-SA 2.0](https://commons.wikimedia.org/wiki/File:Wolfgang_Amadeus_Mozart_-_Clarinet_Concerto_-_3._Allegro.ogg)
-- Mozart - Symphony No. 40 in G minor, K550 - I. Molto allegro (Musopen Symphony).flac — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_I._Molto_allegro_(Musopen_Symphony).flac)
-- Mozart - Symphony No. 40 in G minor, K550 - II. Andante (Musopen Symphony).flac — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_II._Andante_(Musopen_Symphony).flac)
-- Mozart - Symphony No. 40 in G minor, K550 - III. Menuetto. Allegretto (Musopen Symphony).flac — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_III._Menuetto._Allegretto_(Musopen_Symphony).flac)
-- Mozart - Symphony No. 40 in G minor, K550 - IV. Finale. Allegro assai (Musopen Symphony).flac — [Public domain](https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_IV._Finale._Allegro_assai_(Musopen_Symphony).flac)
-- Mozart - Eine kleine Nachtmusik - 1. Allegro.ogg — [CC BY-SA 2.0](https://commons.wikimedia.org/wiki/File:Mozart_-_Eine_kleine_Nachtmusik_-_1._Allegro.ogg)
-- Geroezemoes in een zaal - SoundCloud - Beeld en Geluid.ogg — [CC BY-SA 3.0](https://commons.wikimedia.org/wiki/File:Geroezemoes_in_een_zaal_-_SoundCloud_-_Beeld_en_Geluid.ogg)
+- Corelli - Concerto Grosso in G minor - Christmas Concerto - part 1.ogg — [CC BY-SA 2.0](https://commons.wikimedia.org/wiki/File:Corelli_-_Concerto_Grosso_in_G_minor_-_Christmas_Concerto_-_part_1.ogg)
+- Corelli - Concerto Grosso in G minor - Christmas Concerto - part 2.ogg — [CC BY-SA 2.0](https://commons.wikimedia.org/wiki/File:Corelli_-_Concerto_Grosso_in_G_minor_-_Christmas_Concerto_-_part_2.ogg)
+- S^ulPO2020 Joy To The World.wav — [CC BY-SA 3.0](https://commons.wikimedia.org/wiki/File:S%5EulPO2020_Joy_To_The_World.wav)
+- S^ulPO2020 O Little Town Of Bethlehem.wav — [CC BY-SA 3.0](https://commons.wikimedia.org/wiki/File:S%5EulPO2020_O_Little_Town_Of_Bethlehem.wav)
+- S^ulPO2020 Jingle Bell.wav — [CC BY-SA 3.0](https://commons.wikimedia.org/wiki/File:S%5EulPO2020_Jingle_Bell.wav)
+- S^ulPO2020 We Wish You a Merry Christmas.wav — [CC BY-SA 4.0](https://commons.wikimedia.org/wiki/File:S%5EulPO2020_We_Wish_You_a_Merry_Christmas.wav)
+- Algemene sfeer van een lege concertzaal - SoundCloud - Beeld en Geluid.ogg — [CC BY-SA 3.0](https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_een_lege_concertzaal_-_SoundCloud_-_Beeld_en_Geluid.ogg)
 - Sound Effects - Applause after a concert.ogg — [CC0](https://commons.wikimedia.org/wiki/File:Sound_Effects_-_Applause_after_a_concert.ogg)
 
 ## 황금홀 건축 참고 — 2026-10-30

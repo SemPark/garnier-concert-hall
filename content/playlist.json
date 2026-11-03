@@ -1,21 +1,36 @@
 {
-  "version": "mozart-evening-2",
+  "version": "christmas-1",
   "epochMs": 1793327798000,
   "tracks": [
     {
-      "id": "mozart-figaro-overture",
-      "title": "피가로의 결혼 K.492 — 서곡",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-figaro-overture.mp3",
-      "durationSeconds": 241.0,
+      "id": "corelli-christmas-concerto-1",
+      "title": "코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’ (1)",
+      "composer": "아르칸젤로 코렐리",
+      "url": "/api/audio/corelli-christmas-concerto-1.mp3",
+      "durationSeconds": 202.907823,
+      "gapAfterSeconds": 4,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Corelli_-_Concerto_Grosso_in_G_minor_-_Christmas_Concerto_-_part_1.ogg",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+      },
+      "work": "크리스마스 협주곡"
+    },
+    {
+      "id": "corelli-christmas-concerto-2",
+      "title": "코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’ (2)",
+      "composer": "아르칸젤로 코렐리",
+      "url": "/api/audio/corelli-christmas-concerto-2.mp3",
+      "durationSeconds": 411.67229,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Le_nozze_di_Figaro,_K492_-_Overture_(Musopen_Symphony).flac",
-        "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Corelli_-_Concerto_Grosso_in_G_minor_-_Christmas_Concerto_-_part_2.ogg",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
       },
-      "work": "피가로의 결혼 서곡"
+      "work": "크리스마스 협주곡"
     },
     {
       "id": "hall-quiet-1",
@@ -26,56 +41,26 @@
       "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Geroezemoes_in_een_zaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_een_lege_concertzaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
         "licenseName": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
       "stage": "quiet"
     },
     {
-      "id": "mozart-clarinet-concerto-1",
-      "title": "클라리넷 협주곡 A장조 K.622 — 1악장 Allegro",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-clarinet-concerto-1.mp3",
-      "durationSeconds": 746.069342,
-      "gapAfterSeconds": 7,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Wolfgang_Amadeus_Mozart_-_Clarinet_Concerto_-_1._Allegro.ogg",
-        "licenseName": "CC BY-SA 2.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
-      },
-      "work": "클라리넷 협주곡"
-    },
-    {
-      "id": "mozart-clarinet-concerto-2",
-      "title": "클라리넷 협주곡 — 2악장 Adagio",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-clarinet-concerto-2.mp3",
-      "durationSeconds": 452.78873,
-      "gapAfterSeconds": 7,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Wolfgang_Amadeus_Mozart_-_Clarinet_Concerto_-_2._Adagio.ogg",
-        "licenseName": "CC BY-SA 2.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
-      },
-      "work": "클라리넷 협주곡"
-    },
-    {
-      "id": "mozart-clarinet-concerto-3",
-      "title": "클라리넷 협주곡 — 3악장 Rondo. Allegro",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-clarinet-concerto-3.mp3",
-      "durationSeconds": 531.378957,
+      "id": "christmas-joy-to-the-world",
+      "title": "기쁘다 구주 오셨네 (Joy to the World)",
+      "composer": "서울시립교향악단",
+      "url": "/api/audio/christmas-joy-to-the-world.mp3",
+      "durationSeconds": 103.251179,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Wolfgang_Amadeus_Mozart_-_Clarinet_Concerto_-_3._Allegro.ogg",
-        "licenseName": "CC BY-SA 2.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_Joy_To_The_World.wav",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
-      "work": "클라리넷 협주곡"
+      "work": "기쁘다 구주 오셨네"
     },
     {
       "id": "hall-quiet-2",
@@ -86,71 +71,26 @@
       "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Geroezemoes_in_een_zaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_een_lege_concertzaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
         "licenseName": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
       "stage": "quiet"
     },
     {
-      "id": "mozart-symphony-40-1",
-      "title": "교향곡 40번 G단조 K.550 — 1악장 Molto allegro",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-symphony-40-1.mp3",
-      "durationSeconds": 358.815488,
-      "gapAfterSeconds": 7,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_I._Molto_allegro_(Musopen_Symphony).flac",
-        "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
-      },
-      "work": "교향곡 40번"
-    },
-    {
-      "id": "mozart-symphony-40-2",
-      "title": "교향곡 40번 — 2악장 Andante",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-symphony-40-2.mp3",
-      "durationSeconds": 456.160204,
-      "gapAfterSeconds": 7,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_II._Andante_(Musopen_Symphony).flac",
-        "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
-      },
-      "work": "교향곡 40번"
-    },
-    {
-      "id": "mozart-symphony-40-3",
-      "title": "교향곡 40번 — 3악장 Menuetto. Allegretto",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-symphony-40-3.mp3",
-      "durationSeconds": 272.780544,
-      "gapAfterSeconds": 7,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_III._Menuetto._Allegretto_(Musopen_Symphony).flac",
-        "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
-      },
-      "work": "교향곡 40번"
-    },
-    {
-      "id": "mozart-symphony-40-4",
-      "title": "교향곡 40번 — 4악장 Finale. Allegro assai",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-symphony-40-4.mp3",
-      "durationSeconds": 284.738277,
+      "id": "christmas-o-little-town-of-bethlehem",
+      "title": "오 베들레헴 작은 골 (O Little Town of Bethlehem)",
+      "composer": "서울시립교향악단",
+      "url": "/api/audio/christmas-o-little-town-of-bethlehem.mp3",
+      "durationSeconds": 127.520816,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Symphony_No._40_in_G_minor,_K550_-_IV._Finale._Allegro_assai_(Musopen_Symphony).flac",
-        "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_O_Little_Town_Of_Bethlehem.wav",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
-      "work": "교향곡 40번"
+      "work": "오 베들레헴 작은 골"
     },
     {
       "id": "hall-quiet-3",
@@ -161,26 +101,26 @@
       "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Geroezemoes_in_een_zaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_een_lege_concertzaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
         "licenseName": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
       "stage": "quiet"
     },
     {
-      "id": "mozart-eine-kleine-nachtmusik-1",
-      "title": "앙코르 — 아이네 클라이네 나흐트무지크 K.525 — 1악장 Allegro",
-      "composer": "볼프강 아마데우스 모차르트",
-      "url": "/api/audio/mozart-eine-kleine-nachtmusik-1.mp3",
-      "durationSeconds": 355.413333,
+      "id": "christmas-jingle-bells",
+      "title": "징글벨 (Jingle Bells)",
+      "composer": "서울시립교향악단",
+      "url": "/api/audio/christmas-jingle-bells.mp3",
+      "durationSeconds": 102.642925,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Eine_kleine_Nachtmusik_-_1._Allegro.ogg",
-        "licenseName": "CC BY-SA 2.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_Jingle_Bell.wav",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
-      "work": "앙코르: 아이네 클라이네 나흐트무지크"
+      "work": "징글벨"
     },
     {
       "id": "hall-quiet-4",
@@ -191,7 +131,37 @@
       "gapAfterSeconds": 2,
       "credit": {
         "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Geroezemoes_in_een_zaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_een_lege_concertzaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+      },
+      "stage": "quiet"
+    },
+    {
+      "id": "christmas-we-wish-you-a-merry-christmas",
+      "title": "앙코르 — 우리 모두 즐거운 성탄을 (We Wish You a Merry Christmas)",
+      "composer": "서울시립교향악단",
+      "url": "/api/audio/christmas-we-wish-you-a-merry-christmas.mp3",
+      "durationSeconds": 187.838639,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_We_Wish_You_a_Merry_Christmas.wav",
+        "licenseName": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+      },
+      "work": "우리 모두 즐거운 성탄을"
+    },
+    {
+      "id": "hall-quiet-5",
+      "title": "곡 사이 — 조용한 공연장",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-quiet-5.mp3",
+      "durationSeconds": 15.0,
+      "gapAfterSeconds": 2,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_een_lege_concertzaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
         "licenseName": "CC BY-SA 3.0",
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
