@@ -45,10 +45,18 @@ program=[
  Q(2,540,10),
  ('xm-bethlehem','christmas-o-little-town-of-bethlehem','오 베들레헴 작은 골 (O Little Town of Bethlehem)','오 베들레헴 작은 골',None,0,None,SS),
  Q(3,560,10),
- ('xm-jingle','christmas-jingle-bells','징글벨 (Jingle Bells)','징글벨',None,0,None,SS),
+ ('xm-angels','christmas-angels-we-have-heard-on-high','천사들의 노래가 (Angels We Have Heard on High)','천사들의 노래가',None,0,None,SS),
  Q(4,580,10),
- ('xm-merry','christmas-we-wish-you-a-merry-christmas','앙코르 — 우리 모두 즐거운 성탄을 (We Wish You a Merry Christmas)','우리 모두 즐거운 성탄을',None,0,None,SS),
+ ('xm-noel','christmas-the-first-noel','저 들 밖에 한밤중에 (The First Noel)','저 들 밖에 한밤중에',None,0,None,SS),
  Q(5,600,10),
+ ('xm-jingle','christmas-jingle-bells','징글벨 (Jingle Bells)','징글벨',None,0,None,SS),
+ Q(6,620,10),
+ ('xm-silent','christmas-silent-night','고요한 밤 거룩한 밤 (Silent Night)','고요한 밤 거룩한 밤',None,0,None,SS),
+ Q(7,640,10),
+ ('xm-holy','christmas-o-holy-night','오 거룩한 밤 (O Holy Night)','오 거룩한 밤',None,0,None,SS),
+ Q(8,660,10),
+ ('xm-merry','christmas-we-wish-you-a-merry-christmas','앙코르 — 우리 모두 즐거운 성탄을 (We Wish You a Merry Christmas)','우리 모두 즐거운 성탄을',None,0,None,SS),
+ Q(9,680,10),
 ]
 tracks=[];sizes={}
 # A short burst of applause, played only when visitors press clap during the quiet time between pieces.

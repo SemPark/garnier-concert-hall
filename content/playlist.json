@@ -108,6 +108,66 @@
       "stage": "quiet"
     },
     {
+      "id": "christmas-angels-we-have-heard-on-high",
+      "title": "천사들의 노래가 (Angels We Have Heard on High)",
+      "composer": "서울시립교향악단",
+      "url": "/api/audio/christmas-angels-we-have-heard-on-high.mp3",
+      "durationSeconds": 232.56585,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_Angels_We_Have_Heard_on_High.wav",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+      },
+      "work": "천사들의 노래가"
+    },
+    {
+      "id": "hall-quiet-4",
+      "title": "곡 사이 — 조용한 공연장",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-quiet-4.mp3",
+      "durationSeconds": 10.0,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_een_lege_concertzaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+      },
+      "stage": "quiet"
+    },
+    {
+      "id": "christmas-the-first-noel",
+      "title": "저 들 밖에 한밤중에 (The First Noel)",
+      "composer": "서울시립교향악단",
+      "url": "/api/audio/christmas-the-first-noel.mp3",
+      "durationSeconds": 258.239841,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_The_First_Noel.wav",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+      },
+      "work": "저 들 밖에 한밤중에"
+    },
+    {
+      "id": "hall-quiet-5",
+      "title": "곡 사이 — 조용한 공연장",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-quiet-5.mp3",
+      "durationSeconds": 10.0,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_een_lege_concertzaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+      },
+      "stage": "quiet"
+    },
+    {
       "id": "christmas-jingle-bells",
       "title": "징글벨 (Jingle Bells)",
       "composer": "서울시립교향악단",
@@ -123,10 +183,70 @@
       "work": "징글벨"
     },
     {
-      "id": "hall-quiet-4",
+      "id": "hall-quiet-6",
       "title": "곡 사이 — 조용한 공연장",
       "composer": "공연장 현장음",
-      "url": "/api/audio/hall-quiet-4.mp3",
+      "url": "/api/audio/hall-quiet-6.mp3",
+      "durationSeconds": 10.0,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_een_lege_concertzaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+      },
+      "stage": "quiet"
+    },
+    {
+      "id": "christmas-silent-night",
+      "title": "고요한 밤 거룩한 밤 (Silent Night)",
+      "composer": "서울시립교향악단",
+      "url": "/api/audio/christmas-silent-night.mp3",
+      "durationSeconds": 280.7339,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_Silent_Night.wav",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+      },
+      "work": "고요한 밤 거룩한 밤"
+    },
+    {
+      "id": "hall-quiet-7",
+      "title": "곡 사이 — 조용한 공연장",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-quiet-7.mp3",
+      "durationSeconds": 10.0,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Algemene_sfeer_van_een_lege_concertzaal_-_SoundCloud_-_Beeld_en_Geluid.ogg",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+      },
+      "stage": "quiet"
+    },
+    {
+      "id": "christmas-o-holy-night",
+      "title": "오 거룩한 밤 (O Holy Night)",
+      "composer": "서울시립교향악단",
+      "url": "/api/audio/christmas-o-holy-night.mp3",
+      "durationSeconds": 236.621315,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_Oh_Holy_Night.wav",
+        "licenseName": "CC BY-SA 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+      },
+      "work": "오 거룩한 밤"
+    },
+    {
+      "id": "hall-quiet-8",
+      "title": "곡 사이 — 조용한 공연장",
+      "composer": "공연장 현장음",
+      "url": "/api/audio/hall-quiet-8.mp3",
       "durationSeconds": 10.0,
       "gapAfterSeconds": 0,
       "credit": {
@@ -153,10 +273,10 @@
       "work": "우리 모두 즐거운 성탄을"
     },
     {
-      "id": "hall-quiet-5",
+      "id": "hall-quiet-9",
       "title": "곡 사이 — 조용한 공연장",
       "composer": "공연장 현장음",
-      "url": "/api/audio/hall-quiet-5.mp3",
+      "url": "/api/audio/hall-quiet-9.mp3",
       "durationSeconds": 10.0,
       "gapAfterSeconds": 0,
       "credit": {
