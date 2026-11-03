@@ -53,7 +53,9 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
   for(const [y,z] of [[1.5,-.95],[1.5,-1.5]] as const){line(g,new T.Vector3(-w/2+.1,y+.85,z),new T.Vector3(w/2-.1,y+.85,z),.02,brass);
    for(let i=0;i<11;i++){const x=-w/2+.3+i*(w-.6)/10,c=coats[(i*3+(z<-1.2?1:0))%coats.length];box(g,[.28,1.05+((i*7)%3)*.08,.22],[x,y+.25,z],c);box(g,[.12,.12,.12],[x,y+.8,z],c);line(g,new T.Vector3(x-.13,y+.82,z),new T.Vector3(x+.13,y+.82,z),.012,0xa0a0a0);box(g,[.07,.09,.01],[x+.09,y+.7,z+.12],0xe8d9a8);}}
   box(g,[w,.05,.4],[0,3.25,-1.55],walnut);for(let i=0;i<8;i++){const x=-w/2+.35+i*(w-.7)/7,c=coats[i%coats.length];cylinder(g,.15,.12,[x,3.34,-1.55],c);cylinder(g,.22,.02,[x,3.29,-1.55],c);}
-  plaque(g,'VESTIAIRE');}
+  plaque(g,'VESTIAIRE');
+  const sign=text(g,'의상 바꾸기',2.1,[0,4.1,.26],'#ffe5b3');sign.userData.fullDetail=true;
+  const target=new T.Mesh(new T.BoxGeometry(w,3,1),hit);target.position.set(0,1.6,0);target.userData.cloakroom=true;g.add(target);clickTargets.push(target);}
  // Coffee bar: dark joinery, a backlit menu, espresso machine, cups and pastry case.
  {const f=F.cafeCounter,g=new T.Group();g.position.set(f.x,0,f.z);scene.add(g);
   const counter=box(g,[1.05,1.1,f.hz*2],[0,.55,0],walnut);counter.material=woodMaterial('walnut');

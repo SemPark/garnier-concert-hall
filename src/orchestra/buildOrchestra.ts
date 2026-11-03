@@ -10,7 +10,7 @@ function terraces(scene:T.Scene){
  for(const tier of STAGE_TERRACES){
   const half=STAGE.width/2,outline=terraceOutline(tier),points=[[-half,TERRACE_BACK],[half,TERRACE_BACK],...[...outline].reverse().map(p=>[p.x,p.z])];
   const shape=new T.Shape();points.forEach(([x,z],i)=>i?shape.lineTo(x,-z):shape.moveTo(x,-z));shape.closePath();
-  const mesh=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:tier.rise,bevelEnabled:false,steps:1}),material(0x9b7049));mesh.rotation.x=-Math.PI/2;mesh.position.y=STAGE_FLOOR;mesh.receiveShadow=true;mesh.userData.terrace=tier.index;scene.add(mesh);applyWoodSurface(mesh);
+  const mesh=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:tier.rise,bevelEnabled:false,steps:1}),material(0x9b7049));mesh.rotation.x=-Math.PI/2;mesh.position.y=STAGE_FLOOR;mesh.receiveShadow=true;mesh.userData.terrace=tier.index;scene.add(mesh);mesh.material=woodMaterial('stage-side');applyWoodSurface(mesh,'oak',true);
   // Thin front nosing follows the same continuous contour, without gold blocks.
   for(let i=1;i<outline.length;i++){const p=outline[i-1],q=outline[i],a=new T.Vector3(p.x,STAGE_FLOOR+tier.rise-.025,p.z),b=new T.Vector3(q.x,a.y,q.z),edge=box(scene,[a.distanceTo(b),.035,.035],a.clone().add(b).multiplyScalar(.5).toArray(),0xc39967);edge.rotation.y=-Math.atan2(b.z-a.z,b.x-a.x);}
 

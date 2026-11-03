@@ -25,6 +25,7 @@ export function buildProgramBoard(scene:T.Scene):ProgramBoard{
   ctx.setTransform(3,0,0,3,0,0);ctx.fillStyle='#fff9ed';ctx.fillRect(0,0,400,670);
   ctx.strokeStyle='#c9a250';ctx.lineWidth=1.5;ctx.strokeRect(8,8,384,654);
   // Illustrated moonlit concert poster, with our actual character layered over the scenery.
+  ctx.save();ctx.beginPath();ctx.rect(16,16,368,296);ctx.clip();
   const sky=ctx.createLinearGradient(0,16,0,312);sky.addColorStop(0,'#173d4a');sky.addColorStop(.6,'#426b76');sky.addColorStop(1,'#8ba4a1');
   ctx.fillStyle=sky;ctx.fillRect(16,16,368,296);
   const halo=ctx.createRadialGradient(200,220,8,200,220,123);halo.addColorStop(0,'#e8d8aa88');halo.addColorStop(1,'#d7dfc900');ctx.fillStyle=halo;ctx.fillRect(60,115,280,197);
@@ -47,11 +48,24 @@ export function buildProgramBoard(scene:T.Scene):ProgramBoard{
   for(const side of [-1,1]){const x=200+side*157;ctx.beginPath();ctx.moveTo(x,304);ctx.quadraticCurveTo(x-side*13,279,x-side*8,252);ctx.stroke();
    for(let i=0;i<4;i++){ctx.save();ctx.translate(x-side*6,267+i*9);ctx.rotate(side*(i%2?.8:-.8));ctx.beginPath();ctx.ellipse(0,0,3,8,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
   }
-  if(portrait)ctx.drawImage(portrait,38,106,324,205);
-  ctx.textAlign='center';ctx.fillStyle='#efd49b';ctx.font='600 13px Georgia,serif';ctx.fillText('AUREA  ·  CHRISTMAS CONCERT',200,36);
+  // A Christmas illustration: snow-tipped evergreens, glowing garlands and our own conductor.
+  for(const [x,base,height]of [[62,303,118],[335,307,145]]){
+   ctx.fillStyle='#355e48';
+   for(let tier=0;tier<4;tier++){const top=base-height+tier*height*.18,w=height*(.12+tier*.065);ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x+w,top+height*.4);ctx.lineTo(x-w,top+height*.4);ctx.closePath();ctx.fill();ctx.strokeStyle='#e5eddf';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-w,top+height*.4);ctx.lineTo(x-w*.35,top+height*.38);ctx.lineTo(x,top+height*.4);ctx.stroke();}
+   for(let j=0;j<13;j++){const yy=base-height*.74+j*height*.05,xx=x+Math.sin(j*2.4)*height*.17;ctx.fillStyle=j%2?'#ebcf86':'#ae3940';ctx.beginPath();ctx.arc(xx,yy,2.6,0,Math.PI*2);ctx.fill();}
+   ctx.fillStyle='#f2d18a';ctx.beginPath();ctx.arc(x,base-height-1,4,0,Math.PI*2);ctx.fill();
+  }
+  ctx.strokeStyle='#d9c28a';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(20,130);ctx.quadraticCurveTo(200,175,380,130);ctx.stroke();
+  for(let i=0;i<25;i++){const t=i/24,x=20+t*360,y=130+90*t*(1-t);ctx.fillStyle=i%4===0?'#bd4847':'#fff0b6';ctx.beginPath();ctx.arc(x,y+2,1.9,0,Math.PI*2);ctx.fill();}
+  ctx.fillStyle='#f4f5e3';for(let i=0;i<48;i++){const x=25+(i*73)%350,y=145+(i*47)%151;ctx.globalAlpha=.3+(i%4)*.16;ctx.beginPath();ctx.arc(x,y,.6+(i%3)*.35,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
+  if(portrait){ctx.drawImage(portrait,38,106,324,205);
+   ctx.fillStyle='#a92d3c';ctx.beginPath();ctx.moveTo(166,146);ctx.quadraticCurveTo(177,114,209,125);ctx.quadraticCurveTo(228,128,238,141);ctx.quadraticCurveTo(218,137,211,140);ctx.closePath();ctx.fill();
+   ctx.fillStyle='#fff3dc';ctx.beginPath();ctx.roundRect(165,142,76,9,4);ctx.fill();ctx.beginPath();ctx.arc(239,139,6,0,Math.PI*2);ctx.fill();
+  }
+  ctx.textAlign='center';ctx.fillStyle='#efd49b';ctx.font='600 14px "Noto Serif KR",serif';ctx.fillText('모두 오케스트라  ·  크리스마스 콘서트',200,36);
   ctx.fillStyle='#fff8e7';ctx.font='700 34px "Noto Serif KR",serif';
   ctx.fillText('눈 내리는 밤의',200,77);ctx.fillText('캐럴 음악회',200,117);
-  ctx.fillStyle='#c9a250';ctx.fillRect(16,309,368,3);
+  ctx.restore();ctx.fillStyle='#c9a250';ctx.fillRect(16,309,368,3);
   ctx.fillStyle='#fff9ed';ctx.fillRect(16,312,368,342);
   ctx.textAlign='left';
   const label=(value:string,y:number)=>{ctx.font='700 18px sans-serif';ctx.fillStyle='#573b22';ctx.fillText(value,34,y);};
@@ -72,6 +86,6 @@ export function buildProgramBoard(scene:T.Scene):ProgramBoard{
   ctx.fillStyle='#65533c';ctx.font='600 17px sans-serif';ctx.fillText(`공연장 ${info.seats} / ${info.capacity}석`,200,635);map.needsUpdate=true;
  };
  if(canvas)new T.ImageLoader().load(new URL('../assets/hall/conductor-programme.webp',import.meta.url).href,image=>{portrait=image;last='';if(current)update(current);});
- update({now:'공연을 준비하고 있습니다',next:'잠시 후 안내합니다',remaining:'AUREA CONCERT HALL',playing:false,seats:0,capacity:440});
+ update({now:'공연을 준비하고 있습니다',next:'잠시 후 안내합니다',remaining:'MODU HALL CONCERT HALL',playing:false,seats:0,capacity:440});
  return {update};
 }

@@ -9,7 +9,7 @@ const sources={
  soffit:new URL('../assets/hall/gallery-soffit.svg',import.meta.url).href,
  ceiling1:new URL('../assets/hall/ceiling-1.svg',import.meta.url).href,
  ceiling2:new URL('../assets/hall/ceiling-2.svg',import.meta.url).href,
- walnut:new URL('../assets/hall/oak-grain.webp',import.meta.url).href,
+ walnut:new URL('../assets/door/color.webp',import.meta.url).href,
 };
 export type HallImage=keyof typeof sources;
 const materials=new Map<HallImage,T.MeshLambertMaterial>();
@@ -26,13 +26,19 @@ export function hallImage(parent:T.Object3D,kind:HallImage,width:number,height:n
  const mesh=new T.Mesh(face,hallImageMaterial(kind));mesh.scale.set(width,height,1);mesh.position.set(x,y,z);mesh.userData.fullDetail=true;mesh.userData.cameraOccluder=true;mesh.userData.landmark=`hall-image-${kind}`;parent.add(mesh);return mesh;
 }
 
-export type WoodTone='oak'|'walnut'|'frame';
-const woods=new Map<string,T.MeshLambertMaterial|T.MeshStandardMaterial>();
+export type WoodTone='oak'|'walnut'|'frame'|'seat'|'door'|'stage-side'|'wall-panel'|'floor';
+const woods=new Map<string,T.MeshStandardMaterial>();
 /** One 512px image is shared by architecture and the original detailed chair materials. */
 export function woodMaterial(tone:WoodTone='oak',detailed=false){
  const key=`${tone}/${detailed}`;let result=woods.get(key);if(result)return result;
- const props={map:hallImageMaterial('walnut').map,color:{oak:0xe9cf9b,walnut:0x785d45,frame:0xd8b17f}[tone]};
- result=detailed?new T.MeshStandardMaterial({...props,roughness:.55,metalness:.035}):new T.MeshLambertMaterial(props);
+ const base=entranceWoodMaterial();const props={map:base.map,color:{oak:0xe0c09a,walnut:0x9b7354,frame:0xcba378,seat:0x805434,door:0x5d3824,'stage-side':0x765032,'wall-panel':0x9b7354,floor:0xe1ab70}[tone]};
+ result=new T.MeshStandardMaterial({...props,normalMap:base.normalMap,roughnessMap:base.roughnessMap,roughness:.56,metalness:0,envMapIntensity:.45});result.normalScale.setScalar(.07);
+ if(tone==='door'||tone==='wall-panel'){result.roughnessMap=null;result.roughness=.86;result.envMapIntensity=0;result.normalMap=null;result.roughness=.94;}
+ // Lift the dark source albedo into polished oak/walnut while preserving its natural grain.
+ result.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#ifdef USE_MAP
+ vec4 timberSample=texture2D(map,vMapUv);
+ diffuseColor.rgb*=mix(vec3(.32),sqrt(timberSample.rgb)*1.65,.85);
+ #endif`);if(tone==='door'||tone==='wall-panel')shader.fragmentShader=shader.fragmentShader.replace('#include <lights_physical_fragment>','#include <lights_physical_fragment>\n material.specularColor=vec3(.004); material.specularF90=.05;');};result.customProgramCacheKey=()=> 'modu-fine-timber-v2/'+tone;
  result.userData.hallImage='walnut';result.userData.woodTone=tone;woods.set(key,result);return result;
 }
 /** World-size UVs keep a hall-sized slab from stretching a single little patch of grain. */
@@ -53,4 +59,12 @@ export function applyWoodSurface(mesh:T.Mesh,tone:WoodTone='oak',topOnly=false){
  }else mesh.material=woodMaterial(tone);
  mesh.geometry=geo;mesh.userData.woodSurface=true;
  return mesh;
+}
+
+let entranceWood:T.MeshStandardMaterial|undefined;
+/** Fine-grain timber shared by the entrance leaves; a restrained normal scale avoids corrugated-looking grain. */
+export function entranceWoodMaterial(){
+ if(entranceWood)return entranceWood;
+ const load=(url:string,srgb=false)=>{if(typeof document==='undefined')return null;const map=new T.TextureLoader().load(url);map.colorSpace=srgb?T.SRGBColorSpace:T.NoColorSpace;map.wrapS=map.wrapT=T.RepeatWrapping;map.anisotropy=8;return map;};
+ entranceWood=new T.MeshStandardMaterial({color:0xc8ae92,map:load(new URL('../assets/door/color.webp',import.meta.url).href,true),normalMap:load(new URL('../assets/door/normal.webp',import.meta.url).href),roughnessMap:load(new URL('../assets/door/roughness.webp',import.meta.url).href),roughness:.7,envMapIntensity:.3});entranceWood.normalScale.setScalar(.055);return entranceWood;
 }

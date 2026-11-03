@@ -11,9 +11,8 @@
 크리스마스 음악회 하나가 반복된다(약 20분). 오케스트라만 연주하는 곡만 넣었고, 합창·독창·피아노 독주가 있는 곡(‘저 들 밖에’, ‘천사 찬송하기를’, ‘오 거룩한 밤’, ‘고요한 밤’)은 뺐다. 차이콥스키 호두까기 인형 모음곡(1950년대 Decca 녹음)은 음질이 낮아 뺐다.
 
 - 순서: 코렐리 ‘크리스마스 협주곡’ 합주 협주곡 G단조 Op.6 No.8(Advent Chamber Orchestra, CC BY-SA 2.0, 두 파일) → 서울시립교향악단 캐럴(2020; CC BY-SA 3.0, 마지막 곡 4.0): 기쁘다 구주 오셨네 → 오 베들레헴 작은 골 → 징글벨 → 앙코르 우리 모두 즐거운 성탄을.
-- 곡 사이: 15초씩, 사람 소리 없는 빈 콘서트홀의 공기 소리만(Algemene sfeer van een lege concertzaal, Beeld en Geluid, CC BY-SA 3.0)을 부드럽게 눌러 작게(-36 LUFS) 만든 실내음. 관객이 박수를 누를 때만 박수 클립(`hall-clap.mp3`)을 재생한다.
+- 곡 사이: 10초씩 음악만 쉬는 무음. 공간 소리(빈 콘서트홀의 공기 소리, `lobby-ambience.mp3`)는 로비와 공연장 모두에서 음악 아래에 계속 아주 작게(설정의 ‘공간 소리’ 1~10, 기본 5, 기본 5에서 로비와 공연장 모두 0.09(음악 100 기준), 10은 그 두 배) 반복된다. 관객이 박수를 누를 때만 박수 클립(`hall-clap.mp3`)을 재생한다.
 - 변환: `scripts/build-program.py`로 FFmpeg/libmp3lame 192kbps CBR MP3, 모든 곡 같은 평균 음량(-20 LUFS, 곡 안의 강약 유지).
-- 로비 배경음(`lobby-ambience.mp3`): 같은 빈 콘서트홀 공기 소리를 작게 반복.
 
 원본 목록:
 - Corelli - Concerto Grosso in G minor - Christmas Concerto - part 1.ogg — [CC BY-SA 2.0](https://commons.wikimedia.org/wiki/File:Corelli_-_Concerto_Grosso_in_G_minor_-_Christmas_Concerto_-_part_1.ogg)

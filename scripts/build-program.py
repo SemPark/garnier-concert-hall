@@ -7,6 +7,10 @@ src=sys.argv[1];root=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 meta=json.load(open(os.path.join(src,'meta.json')))
 def mp3(key,name,start=None,length=None,fade=None,quiet=False):
   dst=os.path.join(out,name+'.mp3');cmd=['ffmpeg','-y','-loglevel','error']
+  # The breaks between pieces are silent: the room tone is a separate loop that plays under the whole evening.
+  if quiet:
+    subprocess.run(cmd+['-f','lavfi','-i','anullsrc=r=44100:cl=stereo','-t',str(length),'-codec:a','libmp3lame','-b:a','192k',dst],check=True)
+    return dst,float(subprocess.run(['ffprobe','-v','error','-show_entries','format=duration','-of','default=nw=1:nk=1',dst],capture_output=True,text=True,check=True).stdout)
   # The quiet hall loops the murmur recording, softened to a distant room tone.
   if quiet:cmd+=['-stream_loop','-1']
   if start is not None:cmd+=['-ss',str(start)]
@@ -29,22 +33,22 @@ def mp3(key,name,start=None,length=None,fade=None,quiet=False):
 def credit(key):
   m=meta[key];return {"sourceName":"Wikimedia Commons","sourceUrl":m["pageUrl"],"licenseName":m["license"] or "Public domain","licenseUrl":m["licenseUrl"] or "https://creativecommons.org/publicdomain/mark/1.0/"}
 # (key, file name, title, work, stage, gap, trim, composer)
-Q=lambda n,start,length:('empty-hall',f'hall-quiet-{n}','곡 사이 — 조용한 공연장',None,'quiet',2,(start,length,(2,3.5),True),None)
+Q=lambda n,start,length:('empty-hall',f'hall-quiet-{n}','곡 사이 — 조용한 공연장',None,'quiet',0,(start,length,(2,3.5),True),None)
 MZ='볼프강 아마데우스 모차르트';
 CO='아르칸젤로 코렐리';SS='서울시립교향악단'
 program=[
  # Christmas concert, orchestra only: Corelli's Christmas Concerto, then orchestral carols (Seoul Philharmonic), then an encore.
  ('corelli-1','corelli-christmas-concerto-1','코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’ (1)','크리스마스 협주곡',None,4,None,CO),
  ('corelli-2','corelli-christmas-concerto-2','코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’ (2)','크리스마스 협주곡',None,0,None,CO),
- Q(1,520,15),
+ Q(1,520,10),
  ('xm-joy','christmas-joy-to-the-world','기쁘다 구주 오셨네 (Joy to the World)','기쁘다 구주 오셨네',None,0,None,SS),
- Q(2,540,15),
+ Q(2,540,10),
  ('xm-bethlehem','christmas-o-little-town-of-bethlehem','오 베들레헴 작은 골 (O Little Town of Bethlehem)','오 베들레헴 작은 골',None,0,None,SS),
- Q(3,560,15),
+ Q(3,560,10),
  ('xm-jingle','christmas-jingle-bells','징글벨 (Jingle Bells)','징글벨',None,0,None,SS),
- Q(4,580,15),
+ Q(4,580,10),
  ('xm-merry','christmas-we-wish-you-a-merry-christmas','앙코르 — 우리 모두 즐거운 성탄을 (We Wish You a Merry Christmas)','우리 모두 즐거운 성탄을',None,0,None,SS),
- Q(5,600,15),
+ Q(5,600,10),
 ]
 tracks=[];sizes={}
 # A short burst of applause, played only when visitors press clap during the quiet time between pieces.

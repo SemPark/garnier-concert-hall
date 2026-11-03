@@ -2,6 +2,7 @@ import * as T from 'three';
 const cache=new Map<string,T.BufferGeometry>();
 /** Reuse coarse geometry. Silhouettes remain; small surface details disappear with distance. */
 export function coarseGeometry(source:T.BufferGeometry){
+ if(source.morphAttributes.position?.length)return source;
  let low=cache.get(source.uuid);if(low)return low;
  if(source instanceof T.SphereGeometry)low=new T.SphereGeometry(source.parameters.radius,6,4);
  else if(source instanceof T.CylinderGeometry){const p=source.parameters;low=new T.CylinderGeometry(p.radiusTop,p.radiusBottom,p.height,6,1,p.openEnded);}
@@ -11,6 +12,7 @@ export function coarseGeometry(source:T.BufferGeometry){
  low??=source;cache.set(source.uuid,low);return low;
 }
 export function detailDistance(mesh:T.Mesh){
+ if(mesh.userData.essentialDetail)return Infinity;
  if(typeof mesh.userData.lodMax==='number')return mesh.userData.lodMax;
  mesh.geometry.computeBoundingBox();const size=mesh.geometry.boundingBox!.getSize(new T.Vector3()).multiply(mesh.getWorldScale(new T.Vector3()));const dims=[Math.abs(size.x),Math.abs(size.y),Math.abs(size.z)].sort((a,b)=>a-b);
  // Thread, beads, keys, moulding grooves and eye dots are subpixel from far away.

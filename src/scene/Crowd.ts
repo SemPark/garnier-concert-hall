@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {prepareInstanceMorph} from './instanceMorph';
 import type {Avatar} from '../character/Avatar';
 import {coarseGeometry,detailDistance,LOD_NEAR} from './lodGeometry';
 
@@ -32,12 +33,12 @@ export class Crowd{
   return {mesh,limit:detailDistance(mesh),near:this.partFor(mesh.geometry,material),far:this.partFor(low,material),color:isLit(material)?material.color:null};
  }
  private make(geometry:T.BufferGeometry,material:T.Material,size:number){
-  const mesh=new T.InstancedMesh(geometry,material,size);mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);mesh.frustumCulled=false;mesh.matrixAutoUpdate=false;mesh.count=0;this.scene.add(mesh);return mesh;
+  const mesh=new T.InstancedMesh(geometry,material,size);mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);mesh.frustumCulled=false;mesh.matrixAutoUpdate=false;prepareInstanceMorph(mesh);mesh.count=0;this.scene.add(mesh);return mesh;
  }
  /** Grow a batch when a full house needs more slots than it has. */
  private reserve(part:Part){
   const capacity=part.mesh.instanceMatrix.count;if(part.used<capacity)return;
-  const old=part.mesh;part.mesh=this.make(old.geometry,old.material as T.Material,capacity*2);old.removeFromParent();old.dispose();
+  const old=part.mesh;part.mesh=this.make(old.geometry,old.material as T.Material,capacity*2);old.removeFromParent();if(old.morphTexture&&part.mesh.morphTexture){(part.mesh.morphTexture.image.data as Float32Array).set(old.morphTexture.image.data as Float32Array);part.mesh.morphTexture.needsUpdate=true;}old.dispose();
   part.mesh.instanceMatrix.array.set(old.instanceMatrix.array);if(old.instanceColor){part.mesh.setColorAt(0,new T.Color());part.mesh.instanceColor!.array.set(old.instanceColor.array);}
  }
  update(visitors:Iterable<Avatar>,camera:T.Camera,now=performance.now()){
@@ -58,13 +59,14 @@ export class Crowd{
    for(const piece of pieces){
     const {mesh,limit}=piece;if(distance>limit)continue;
     const part=far?piece.far:piece.near;this.reserve(part);
-    part.mesh.setMatrixAt(part.used,mesh.matrixWorld);part.used++;
+    part.mesh.setMatrixAt(part.used,mesh.matrixWorld);if(mesh.morphTargetInfluences)part.mesh.setMorphAt(part.used,mesh);part.used++;
    }
   }
   const recolor=layout!==this.layout;this.layout=layout;
   if(recolor)this.recolor(avatars,camera);
   for(const part of this.parts.values()){
    const mesh=part.mesh;mesh.count=part.used;mesh.visible=part.used>0;if(!part.used)continue;
+   if(mesh.morphTexture)mesh.morphTexture.needsUpdate=true;
    mesh.instanceMatrix.clearUpdateRanges();mesh.instanceMatrix.addUpdateRange(0,part.used*16);mesh.instanceMatrix.needsUpdate=true;
    if(recolor&&mesh.instanceColor){mesh.instanceColor.clearUpdateRanges();mesh.instanceColor.addUpdateRange(0,part.used*3);mesh.instanceColor.needsUpdate=true;}
   }

@@ -22,12 +22,13 @@ export const LOBBY_FURNITURE={
  cafeCounter:{x:-14.2,z:30.85,hx:.5,hz:4.45},
  cafeTables:[24,28,32,36].map(z=>({x:z===24?-8.1:-9.8,z:z===24?25.8:z,hx:.45,hz:.45})),
  ticketRails:[-1,1].map(side=>({x:-10.9,z:BOX_OFFICE_APPROACH.z+side*1.05,hx:1.6,hz:.08})),
+ wardrobeRails:[-1,1].map(side=>({x:10.9,z:LOBBY_ARCADE.bays[0]+side*1.05,hx:1.6,hz:.08})),
  sofas:[28.1,33.1,38.1].map(z=>({x:14.15,z,hx:.55,hz:1.3})),
- ottoman:{x:9.6,z:24,hx:1.3,hz:1.3},
+ ottoman:{x:10.3,z:34.3,hx:1.3,hz:1.3},
  // The composer statues stand in the street vestibule beyond the entrance, not in this hall.
  busts:[] as {x:number;z:number;hx:number;hz:number}[],
- torchieres:[-10.2,-3.4,3.4,10.2].map(x=>({x,z:19.2,hx:.45,hz:.45})),
- programBoard:{x:-6.4,z:28.4,hx:1.1,hz:.6},
+ torchieres:[] as {x:number;z:number;hx:number;hz:number}[],
+ programBoard:{x:-5.7,z:30,hx:1.1,hz:.6},
 } as const;
 export const COMPOSERS=['LULLI','GLUCK'] as const;
 /** Lobby floor: the Grand Escalier hall itself. */
@@ -47,7 +48,9 @@ export function lobbyHeight(x:number,z:number,fromY=0):number|null{
  if(z>=S.flightStart&&z<=S.flightEnd){if(a<=S.flightHalf-.3)ground=(z-S.flightStart)/(S.flightEnd-S.flightStart)*S.rise;else if(a<=S.branchInner+.27)ground=null;}
  else if(z>S.flightEnd&&z<=S.landingEnd){if(a<=S.branchInner+.015)ground=z<=AMPHITHEATRE_DOOR.z-.2?S.rise:null;else if(a<=S.branchInner+.27)ground=null;}
  else if(z>S.landingEnd&&a<=S.branchInner+.25)ground=null;
- else if(z>=S.flightStart-1.6&&z<S.flightStart&&a>S.flightHalf-.3&&a<=S.flightHalf+2.6)ground=null;
+
  if(ground!==null)candidates.push(ground);
  candidates.sort((a,b)=>Math.abs(a-fromY)-Math.abs(b-fromY));return candidates[0]??null;
 }
+
+export const LOBBY_CHRISTMAS_TREE={x:9.3,z:29.5,radius:2.6} as const;

@@ -57,3 +57,21 @@ test('musician eyes and instrument details retain their original geometry at aud
  const sphere=batches.find(b=>b.geometry instanceof T.SphereGeometry)!;assert.equal((sphere.geometry as T.SphereGeometry).parameters.widthSegments,16);
  assert.ok(batches.some(b=>b.geometry===string.geometry&&b.count===1));
 });
+
+test('static geometry shares one cell without losing world transforms, and idle views do not upload it again',()=>{
+ const scene=new T.Scene(),mat=new T.MeshStandardMaterial({color:0xbba98b});
+ for(const x of [1,3]){const mesh=new T.Mesh(new T.BoxGeometry(1,2,1),mat);mesh.position.set(x,1,-5);scene.add(mesh);}
+ const update=batchArchitecture(scene,[]),camera=new T.PerspectiveCamera(80,1,.1,100);update(camera);
+ const batch=scene.children.find(o=>o instanceof T.InstancedMesh) as T.InstancedMesh;
+ assert.equal(scene.children.filter(o=>o instanceof T.InstancedMesh).length,1);
+ batch.geometry.computeBoundingBox();assert.equal(batch.geometry.boundingBox!.min.x,.5);assert.equal(batch.geometry.boundingBox!.max.x,3.5);
+ const version=batch.instanceMatrix.version;update(camera);assert.equal(batch.instanceMatrix.version,version);
+});
+test('static shadow preparation includes casters behind the camera and restores normal view culling afterward',()=>{
+ const scene=new T.Scene(),geometry=new T.BoxGeometry(),mat=new T.MeshStandardMaterial();
+ for(const z of [-6,6]){const mesh=new T.Mesh(geometry,mat);mesh.position.z=z;scene.add(mesh);}
+ const update=batchArchitecture(scene,[]),camera=new T.PerspectiveCamera(60,1,.1,100);update(camera);
+ const batch=scene.children.find(o=>o instanceof T.InstancedMesh) as T.InstancedMesh;assert.equal(batch.count,1);
+ scene.userData.showArchitectureForShadow();assert.equal(batch.count,2);assert.equal(batch.castShadow,true);
+ update(camera);assert.equal(batch.count,1);camera.rotation.y=Math.PI;update(camera);assert.equal(batch.count,1);
+});

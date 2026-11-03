@@ -2,6 +2,7 @@ import {DurableObject} from 'cloudflare:workers';
 import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,distance,canSit,stairLink,isLook,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shared/protocol';
 import {isGesture} from '../shared/gestures';
+import {isOutfit,atCloakroom} from '../shared/wardrobe';
 import {LOUNGE_SEATS} from '../shared/loungeSeats';
 import {visitorBlocksStep,freeVisitorPosition} from '../shared/visitorCollision';
 
@@ -124,6 +125,8 @@ export class VenueRoom extends DurableObject<Env>{
    this.release(v.id);v.seatId=null;v.loungeSeatId=null;v.pose='idle';
   }else if(msg.type==='renew'){
    this.ctx.storage.sql.exec("UPDATE claims SET expiresAt=? WHERE seatId=? AND visitorId=? AND status='reserved'",now+RESERVE_MS,msg.seatId,v.id);
+  }else if(msg.type==='outfit'){
+   if(!isOutfit(msg.outfit)||!atCloakroom(v))return;v.outfit=msg.outfit;
   }else if(msg.type==='look'){
    if(!isLook(msg.look))return;v.look=msg.look;
   }else if(msg.type==='gesture'){

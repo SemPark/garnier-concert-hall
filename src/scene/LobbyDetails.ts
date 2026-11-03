@@ -1,24 +1,12 @@
 import * as T from 'three';
 import {ATRIUM as A,GRAND_STAIR as S,LOBBY_ARCADE} from '../../shared/grandStair';
 import {box,cylinder,sphere,line,material} from './primitives';
+import {surfaceMaterial} from './SurfaceMaterials';
 import {hallImage,woodMaterial} from './HallTextures';
 
 /** The hall's ivory, gilt frames and shared image motifs continue into the foyer. */
-export const LOBBY_PALETTE={ivory:0xe8d6ac,gold:0xc69b49,light:0xe7c77a,deep:0x8e622a,red:0x6f2830,glass:0xc5d4ce};
+export const LOBBY_PALETTE={ivory:0xe8d6ac,gold:0xc69b49,light:0xe7c77a,deep:0x8e622a,red:0x6f2830,glass:0xb9cfd8};
 const P=LOBBY_PALETTE;
-export function lobbyStatue(parent:T.Object3D,x:number,y:number,z:number,scale=1,yaw=0){
- const g=new T.Group();g.position.set(x,y,z);g.scale.setScalar(scale);g.rotation.y=yaw;g.userData.landmark='lobby-classical-statue';parent.add(g);
- cylinder(g,.52,.16,[0,.08,0],P.deep);cylinder(g,.43,.15,[0,.23,0],P.light);
- const robe=new T.Mesh(new T.CylinderGeometry(.23,.4,1.45,12),material(P.ivory));robe.position.y=1.05;g.add(robe);
- for(let i=0;i<8;i++){const a=i/8*Math.PI*2;line(g,new T.Vector3(Math.cos(a)*.21,1.7,Math.sin(a)*.21),new T.Vector3(Math.cos(a)*.37,.38,Math.sin(a)*.37),.022,P.light);}
- sphere(g,.32,[0,1.94,0],P.ivory).scale.multiply(new T.Vector3(1,1.25,.7));cylinder(g,.105,.22,[0,2.3,0],P.ivory);
- sphere(g,.23,[0,2.59,0],P.ivory).scale.y*=1.2;sphere(g,.24,[0,2.72,-.035],P.deep).scale.y*=.6;sphere(g,.055,[0,2.57,.22],P.ivory);
- line(g,new T.Vector3(-.25,2.14,0),new T.Vector3(-.4,1.55,.04),.09,P.ivory);
- line(g,new T.Vector3(.25,2.14,0),new T.Vector3(.48,1.94,.12),.09,P.ivory);line(g,new T.Vector3(.48,1.94,.12),new T.Vector3(.3,1.68,.26),.075,P.ivory);
- // A folded score gives the figure a clear musical identity.
- box(g,[.36,.44,.09],[.18,1.72,.31],P.gold);
- g.traverse(o=>{o.userData.fullDetail=true;});
-}
 export function lobbyWoodWall(parent:T.Object3D,width:number,height:number,bottom=0,backingOnly=false){
  const body=box(parent,[width,height,.09],[0,bottom+height/2,0],0x4a3324);body.material=woodMaterial('walnut');body.userData.cameraOccluder=true;
  // The continuous backing is recessed behind the separately framed bays. Do not put another
@@ -40,7 +28,7 @@ function windowBay(parent:T.Object3D,width:number){
  const reveal=new T.Group();reveal.position.z=.3;parent.add(reveal);parent=reveal;
  const h=4.6,bottom=14.15,r=width/2,spring=h-r;
  const shape=new T.Shape();shape.moveTo(-r,0);shape.lineTo(r,0);shape.lineTo(r,spring);shape.absarc(0,spring,r,0,Math.PI,false);shape.closePath();
- const glass=new T.Mesh(new T.ShapeGeometry(shape,18),new T.MeshLambertMaterial({color:P.glass,emissive:0x5b737b,emissiveIntensity:.2}));glass.position.set(0,bottom,.04);glass.userData.fullDetail=true;parent.add(glass);
+ const glass=new T.Mesh(new T.ShapeGeometry(shape,18),new T.MeshBasicMaterial({color:P.glass,toneMapped:false}));glass.position.set(0,bottom,.04);glass.userData.fullDetail=true;parent.add(glass);
  for(const x of [-r,r])box(parent,[.14,spring,.2],[x,bottom+spring/2,.12],P.gold);
  for(let i=0;i<20;i++){const a=i/20*Math.PI,b=(i+1)/20*Math.PI;line(parent,new T.Vector3(Math.cos(a)*r,bottom+spring+Math.sin(a)*r,.12),new T.Vector3(Math.cos(b)*r,bottom+spring+Math.sin(b)*r,.12),.07,P.gold);}
  for(const x of [-r*.5,0,r*.5])box(parent,[.055,spring+.45,.1],[x,bottom+(spring+.45)/2,.15],P.light);
@@ -53,13 +41,13 @@ export function buildLobbyDetails(scene:T.Scene){
  for(const z of [A.front+.14,A.back-.14])lobbyWoodWall(wallFrame(scene,0,z,z>A.front+1?Math.PI:0),A.halfWidth*2,12,7.3,true);
  // End arcades continue the same spring heights and share the side cornice datum.
  for(const z of [A.front+A.balconyDepth,A.back-A.balconyDepth])for(const x of LOBBY_ARCADE.endColumns.slice(1,-1))for(const base of [A.balconyY,13.4]){
-  cylinder(scene,.29,.16,[x,base+.08,z],P.deep);cylinder(scene,.235,1.95,[x,base+1.22,z],P.ivory);cylinder(scene,.31,.15,[x,base+2.35,z],P.gold);box(scene,[.72,.16,.72],[x,base+2.48,z],P.light);
+  cylinder(scene,.29,.16,[x,base+.08,z],P.deep);cylinder(scene,.235,1.95,[x,base+1.22,z],P.ivory).material=surfaceMaterial('marble',0xded6c8);cylinder(scene,.31,.15,[x,base+2.35,z],P.gold);box(scene,[.72,.16,.72],[x,base+2.48,z],P.light);
  }
  // Single round shafts at the joints shared by adjacent arches; no doubled piers.
  for(const side of [-1,1])for(const z of LOBBY_ARCADE.columns)for(const [base,h] of [[0,3.6],[A.balconyY,2.6],[13.4,2.6]]){
   const x=side*LOBBY_ARCADE.x;
   cylinder(scene,.34,.16,[x,base+.08,z],P.deep);cylinder(scene,.29,.14,[x,base+.23,z],P.light);
-  cylinder(scene,.235,h-.55,[x,base+h/2,z],P.ivory);cylinder(scene,.3,.14,[x,base+h-.22,z],P.gold);box(scene,[.72,.16,.72],[x,base+h-.07,z],P.light);
+  cylinder(scene,.235,h-.55,[x,base+h/2,z],P.ivory).material=surfaceMaterial('marble',0xded6c8);cylinder(scene,.3,.14,[x,base+h-.22,z],P.gold);box(scene,[.72,.16,.72],[x,base+h-.07,z],P.light);
  }
  for(const side of [-1,1]){
   for(const z of LOBBY_ARCADE.bays){const frame=wallFrame(scene,side*(A.halfWidth-.2),z,-side*Math.PI/2);if(!(side===-1&&z<36)&&!(side===1&&z===LOBBY_ARCADE.bays[0]))panel(frame,3.7,4.3,3.05);panel(frame,3.7,4.5,10.25);windowBay(frame,3.3);}

@@ -8,7 +8,7 @@ import {FLOOR_AISLES,walkable,stairPoint} from '../shared/venue';
 import {GOLDEN_HALL as H} from '../shared/goldenHall';
 
 test('the repeatable architectural images stay below 192 KB and reuse one material per image',()=>{
- const dir=new URL('../src/assets/hall/',import.meta.url),files=readdirSync(dir).filter(f=>/\.(svg|webp)$/.test(f));
+ const dir=new URL('../src/assets/hall/',import.meta.url),files=readdirSync(dir).filter(f=>/\.(svg|webp)$/.test(f)&&!['conductor-programme.webp','garnier-stair-ceiling.webp'].includes(f));
  assert.equal(files.length,9);assert.ok(files.reduce((sum,f)=>sum+statSync(new URL(f,dir)).size,0)<192*1024);
  for(const kind of ['scroll','relief','pilaster','soffit','ceiling1','ceiling2','walnut','damask','fresco'] as const)assert.equal(hallImageMaterial(kind),hallImageMaterial(kind));
  for(const file of files.filter(f=>f.endsWith('.svg'))){const svg=readFileSync(new URL(file,dir),'utf8');assert.ok(!/<image\b|<script\b|https?:\/\/(?!www.w3.org)/.test(svg),'no photo, script or remote dependency belongs in the reusable art');}
@@ -26,7 +26,7 @@ test('six timber columns carry the rear gallery front, under the gallery front a
 test('upper doors start at balcony level and the repeated painted details are shared',()=>{
  const scene=new T.Scene();buildGoldenHall(scene);const upper:T.Object3D[]=[],images=new Set<T.Material>();scene.updateMatrixWorld(true);
  scene.traverse(o=>{if(o.userData.landmark==='timber-door'&&o.userData.doorBottom>H.balconyHeight)upper.push(o);if(o instanceof T.Mesh&&!Array.isArray(o.material)&&o.material.userData.hallImage)images.add(o.material);});
- assert.equal(upper.length,26);for(const door of upper){const b=new T.Box3().setFromObject(door);assert.ok(b.min.y>=H.balconyHeight&&b.min.y<H.balconyHeight+.5);assert.ok(b.max.y>H.balconyHeight+7&&b.max.y<H.balconyHeight+7.4);}
+ assert.equal(upper.length,14);const decorative:T.Object3D[]=[];scene.traverse(o=>{if(o.userData.landmark==='upper-decorated-panel')decorative.push(o);});assert.equal(decorative.length,12);for(const door of upper){const b=new T.Box3().setFromObject(door);assert.ok(b.min.y>=H.balconyHeight&&b.min.y<H.balconyHeight+.5);assert.ok(b.max.y>H.balconyHeight+7&&b.max.y<H.balconyHeight+7.6);}
  assert.equal(new Set([...images].map(m=>m.userData.hallImage)).size,9);
 });
 
@@ -89,4 +89,19 @@ test('short rear walls hide the stair doors from the front of the hall, as in th
   const from=new T.Vector3(...eye),to=new T.Vector3(side*STAIR_DOORS.lower.x,2,H.rear),dir=to.clone().sub(from);const length=dir.length();ray.set(from,dir.normalize());ray.far=length;
   assert.ok(ray.intersectObjects(blockers,false).length>0,`stair door ${side} hidden from ${eye}`);}
  for(const side of [-1,1]){assert.equal(walkable('auditorium',{x:side*12.6,y:0,z:REAR_SCREENS.z}),false);assert.ok(walkable('auditorium',{x:side*12.6,y:0,z:48.6}),'the corner is open behind the colonnade');}
+});
+
+test('door handles remain visible details and gallery inlays clear the ivory field',()=>{
+ const scene=new T.Scene();buildGoldenHall(scene);scene.updateMatrixWorld(true);
+ let handles=0;scene.traverse(o=>{if(o.userData.landmark==='door-handle'){handles++;assert.equal(o.userData.fullDetail,true);assert.equal(o.userData.essentialDetail,true);}});assert.ok(handles>20);
+ const panels:T.Object3D[]=[];scene.traverse(o=>{if(o.userData.landmark==='upper-decorated-panel')panels.push(o);});
+ for(const panel of panels){assert.equal(panel.children.filter(o=>o.userData.landmark==='ivory-panel-field').length,2);assert.ok(panel.children.some(o=>o.userData.landmark==='panel-portrait-medallion'),'new portrait crest sits over the twin fields');assert.ok(panel.children.some(o=>o.userData.landmark==='panel-centre-sconce'),'light is centred on the gilded spine');}
+});
+
+test('gallery ceiling lights remain shallow discs and door lights clear the leaf',()=>{
+ const scene=new T.Scene();buildGoldenHall(scene);scene.updateMatrixWorld(true);let flat=0,headers=0;
+ scene.traverse(o=>{
+  if(o.userData.landmark==='flat-ceiling-light'){flat++;const size=new T.Box3().setFromObject(o).getSize(new T.Vector3());assert.ok(size.y<.025&&size.x>.35&&size.z>.35,'light must not become a hanging capsule');}
+  if(o.userData.landmark==='door-header-light'){headers++;const frame=o.parent!,height=frame.children.find(c=>c.userData.landmark==='door-handle')?.position.y;assert.ok(height!==undefined&&o.position.y>height+2,'header stays above the door leaf, clear of its panels');}
+ });assert.ok(flat>40&&headers>15);
 });

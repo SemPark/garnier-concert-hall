@@ -147,3 +147,96 @@ button.brand .brand-sub{font-size:12px;letter-spacing:1px;color:#f3e7cc;margin-t
 .mobile-joystick.active{border-color:#ffe9ae88;background:#f4e7c928}.mobile-joystick.active .joystick-knob{background:#e1bd6980;border-color:#fff0becc}
 .mobile-joystick:disabled{opacity:.25}.mobile-joystick:focus-visible{outline:2px solid #fff0bf;outline-offset:3px}
 @media(max-height:500px){.mobile-joystick{width:106px;height:106px;bottom:calc(94px + env(safe-area-inset-bottom,0px))}.joystick-knob{width:40px;height:40px}.joystick-ring{inset:14px}}
+
+.wardrobe-dialog{width:min(490px,calc(100vw - 32px));box-sizing:border-box;max-height:calc(100dvh - 32px);padding:26px;background:#24201bf5;color:#f6eedf;border:1px solid #c8aa7166;border-radius:18px;box-shadow:0 20px 80px #0008;overflow:auto}
+.wardrobe-dialog::backdrop{background:#100d0b66;backdrop-filter:blur(3px)}
+.wardrobe-dialog header{display:flex;justify-content:space-between;align-items:flex-start}.wardrobe-dialog header span{font:10px Georgia,serif;letter-spacing:2px;color:#d0b982}.wardrobe-dialog h2{font:400 25px 'Noto Serif KR',Georgia,serif;margin:10px 0}.wardrobe-dialog p{font-size:13px;line-height:1.8;color:#d6c9b4;margin:4px 0 22px}.wardrobe-close{font-size:26px;color:#e7d5b0;background:none;border:0;padding:0 5px;cursor:pointer}
+.wardrobe-options{display:grid;grid-template-columns:1fr 1fr;gap:12px}.wardrobe-option{display:flex;flex-direction:column;align-items:center;padding:12px 8px;border:1px solid #b89e6445;border-radius:12px;background:#363028;color:#f3e9d8;cursor:pointer}.wardrobe-option:hover,.wardrobe-option.selected{background:#494030;border-color:#d9b76d}.wardrobe-option svg{height:100px;width:100px}.wardrobe-option strong{font-size:13px;margin:4px 0 5px;font-weight:500}.wardrobe-option small{font-size:11px;color:#c9bba2}.wardrobe-status{font-size:11px;color:#e7c783;margin-top:11px}.wardrobe-done{width:100%;margin-top:20px;padding:13px;border:0;border-radius:999px;background:#d7bc84;color:#292219;font-size:13px;cursor:pointer}.wardrobe-dialog button:focus-visible{outline:2px solid #f6deb0;outline-offset:3px}
+@media(max-height:650px){.wardrobe-dialog{padding:18px}.wardrobe-option svg{height:65px}.wardrobe-dialog p{margin-bottom:12px}.wardrobe-done{margin-top:12px}}
+
+/* A quiet, centered entry over the live lobby, with a single musical invitation. */
+.entry-screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 20px 10vh;text-align:center;background:linear-gradient(180deg,#17161360,#17161386 65%,#17161348);color:#fff2d9}
+.entry-screen h1{font:400 clamp(52px,8vw,100px)/1.1 Georgia,serif;letter-spacing:.01em;margin:0 0 20px;text-shadow:0 3px 30px #0005}
+.entry-screen>p{font-size:clamp(18px,2vw,24px);letter-spacing:.2em;margin:0 0 clamp(40px,7vh,72px)}
+.entry-orb{display:grid;place-items:center;width:clamp(138px,20vw,206px);aspect-ratio:1;border:2px solid #e9ca85;border-radius:50%;position:relative;background:radial-gradient(circle,#d9aa4e40,#30271c30 70%);color:#ffe2a0;box-shadow:0 0 0 5px #ffe4a61c,0 0 45px #eab5543d,inset 0 0 35px #e9b95b26;transition:box-shadow .3s,transform .3s}
+.entry-orb:before{content:'';position:absolute;inset:5px;border:1px solid #e9ca8580;border-radius:50%}
+.entry-orb svg{width:50%;height:50%;fill:#ffe3a8;stroke:#ffe3a8;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 12px #ffcb65aa)}
+.entry-orb:hover{transform:scale(1.035);box-shadow:0 0 0 5px #ffe4a62e,0 0 65px #eab55465,inset 0 0 35px #e9b95b33}
+.entry-orb:disabled{opacity:.6;cursor:wait}
+.entry-instruction{font-size:clamp(16px,2vw,21px);letter-spacing:.05em;margin-top:32px;text-shadow:0 2px 15px #0006}
+@media(max-height:550px){.entry-screen{padding:20px;gap:10px}.entry-screen h1{font-size:44px;margin:0}.entry-screen>p{margin:0 0 12px;font-size:17px}.entry-orb{width:110px}.entry-instruction{margin-top:12px}}
+
+.entry-orb svg path{fill:none}
+
+.entry-orb .tap-hand{fill:none;stroke-width:2.5}.entry-orb .tap-rays{opacity:.8;animation:tap-invite 2.4s ease-in-out infinite}@keyframes tap-invite{0%,100%{opacity:.35}50%{opacity:1}}@media(prefers-reduced-motion:reduce){.entry-orb .tap-rays{animation:none}}
+
+@font-face{font-family:'Modu Serif';src:url('./assets/fonts/cormorant-garamond-italic.ttf') format('truetype');font-style:italic;font-weight:500;font-display:swap}
+.entry-screen{justify-content:flex-start;padding-top:clamp(100px,24vh,250px);background:linear-gradient(180deg,#19150e19,#19150e0a 55%,#19150e18)}
+.entry-heading{display:flex;align-items:center;justify-content:center;gap:26px;position:relative;animation:ensemble-heading 1.7s cubic-bezier(.2,.65,.2,1) both}
+.entry-heading h1{font-family:'Modu Serif',Baskerville,Georgia,serif;font-style:italic;font-weight:500;font-size:clamp(58px,6vw,88px);line-height:1.1;letter-spacing:.005em;margin:0;text-shadow:0 2px 24px #281a0b85}
+.entry-rule{width:clamp(28px,5vw,72px);height:1px;background:linear-gradient(90deg,transparent,#e0bd77);position:relative;transform:scaleX(0);animation:ensemble-rule 1.2s .8s ease-out forwards}
+.entry-rule:last-of-type{transform-origin:left;rotate:180deg}.entry-rule:after{content:'';position:absolute;right:9px;top:-2px;width:5px;height:5px;rotate:45deg;background:#e2c38c}
+.entry-flourish{position:absolute;left:50%;top:100%;transform:translateX(-50%);width:240px;height:35px;overflow:visible}
+.entry-flourish path{fill:none;stroke:url(#flourish-gold);stroke-width:1.5;stroke-linecap:round;stroke-dasharray:235;stroke-dashoffset:235;animation:ensemble-draw 1.8s .7s ease-out forwards}
+.entry-flourish circle{fill:#ffe5a7;opacity:0;filter:drop-shadow(0 0 6px #ffc35d);animation:ensemble-spark 2s 1.8s ease-in-out forwards}
+.entry-screen>p{margin:36px 0 0;font-size:12px;letter-spacing:.28em;opacity:0;animation:ensemble-subtitle 1.3s 1s ease-out forwards}
+.entry-orb{position:absolute;left:50%;top:60%;translate:-50% -50%;width:94px;border:0;background:none;box-shadow:none;animation:ensemble-invite 3.4s 1.4s ease-in-out infinite}
+.entry-orb:before{display:none}.entry-orb svg{width:76%;height:76%;stroke-width:1.6;filter:drop-shadow(0 0 9px #e8b15b99)}
+.entry-orb:hover{box-shadow:none;transform:scale(1.08)}.entry-orb:focus-visible{outline-offset:2px;border-radius:50%}
+.entry-instruction{position:absolute;left:50%;top:calc(60% + 52px);translate:-50% 0;font-size:11px;letter-spacing:.16em;white-space:nowrap;opacity:0;animation:ensemble-subtitle 1.2s 1.4s forwards}
+@keyframes ensemble-heading{from{opacity:0;filter:blur(7px);transform:translateY(16px);letter-spacing:.08em}to{opacity:1;filter:blur(0);transform:translateY(0)}}
+@keyframes ensemble-rule{to{transform:scaleX(1)}}@keyframes ensemble-draw{to{stroke-dashoffset:0}}@keyframes ensemble-spark{0%{opacity:0}40%{opacity:1}100%{opacity:.7}}
+@keyframes ensemble-subtitle{from{opacity:0;transform:translateY(7px)}to{opacity:.9;transform:translateY(0)}}
+@keyframes ensemble-invite{0%,100%{transform:translateY(0);opacity:.8}50%{transform:translateY(-4px);opacity:1}}
+@media(max-width:540px){.entry-heading{gap:13px}.entry-heading h1{font-size:60px}.entry-screen{padding-top:24vh}.entry-flourish{width:190px}.entry-screen>p{font-size:10px}.entry-orb{top:61%;width:86px}.entry-instruction{top:calc(61% + 48px)}}
+@media(max-height:550px){.entry-screen{padding-top:18vh}.entry-heading h1{font-size:54px}.entry-screen>p{margin-top:27px}.entry-orb{top:64%;width:72px}.entry-instruction{top:calc(64% + 40px)}}
+@media(prefers-reduced-motion:reduce){.entry-heading,.entry-rule,.entry-flourish path,.entry-flourish circle,.entry-screen>p,.entry-instruction,.entry-orb{animation:none!important;opacity:1;filter:none;transform:none}.entry-flourish path{stroke-dashoffset:0}.entry-rule{transform:scaleX(1)}}
+
+/* Give the intro its own quiet backdrop and keep the ornament clear of the subtitle throughout the reveal. */
+.entry-screen:before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,11,9,.34),rgba(12,11,9,.26) 55%,rgba(12,11,9,.14));pointer-events:none;animation:ensemble-backdrop 1.6s ease-out both;z-index:0}
+.entry-heading,.entry-screen>p,.entry-orb,.entry-instruction{z-index:1}
+.entry-screen>p{margin-top:56px;line-height:1.5;animation-delay:1.45s}
+.entry-instruction{margin:0;top:calc(60% + 62px)}
+.entry-orb .tap-hand{width:80%;height:80%;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+.entry-orb .tap-outline{fill:rgba(255,225,170,.04)}
+@keyframes ensemble-backdrop{from{opacity:0}to{opacity:1}}
+@media(max-width:540px){.entry-screen>p{margin-top:54px}.entry-instruction{top:calc(61% + 58px)}}
+@media(max-height:550px){.entry-screen>p{margin-top:43px}.entry-instruction{top:calc(64% + 48px)}}
+@media(prefers-reduced-motion:reduce){.entry-screen:before{animation:none;opacity:1}}
+
+/* Reserve real space for italic overhangs: the rules must never shrink into the lettering. */
+.entry-heading{gap:clamp(24px,3.4vw,50px);max-width:100%;isolation:isolate}
+.entry-heading h1{flex:none;padding-inline:.12em;color:#fff5df;text-shadow:0 2px 4px #120d08,0 5px 24px #120d08cc}
+.entry-rule{flex:none;width:clamp(20px,4vw,58px)}
+.entry-screen:before{background:radial-gradient(ellipse 75% 24% at 50% 30%,#100e0b80,transparent 100%),linear-gradient(180deg,#100e0b45,#100e0b3d 58%,#100e0b30)}
+.entry-screen>p{font-size:clamp(16px,1.6vw,21px);font-weight:600;letter-spacing:.16em;color:#fff4dc;text-shadow:0 2px 4px #100c08,0 3px 14px #100c08;animation-name:ensemble-readable-subtitle}
+.entry-instruction{font-size:clamp(15px,1.5vw,19px);font-weight:600;letter-spacing:.08em;color:#fff4dc;text-shadow:0 2px 4px #100c08,0 3px 14px #100c08;animation-name:ensemble-readable-subtitle}
+.entry-orb .tap-hand{filter:drop-shadow(0 1px 2px #100c08) drop-shadow(0 0 12px #f4c272);stroke:#ffe5ad;stroke-width:2.5}
+@keyframes ensemble-readable-subtitle{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:540px){.entry-heading{gap:24px}.entry-heading h1{font-size:clamp(44px,13vw,60px)}.entry-rule{width:20px}.entry-screen>p{font-size:16px}.entry-instruction{font-size:16px}}
+
+/* One centered stack keeps the title, invitation and hint together at every viewport size. */
+.entry-screen{justify-content:center;padding:28px 20px 7vh;gap:0}
+.entry-heading{display:block;max-width:100%;text-align:center}
+.entry-heading h1{margin:0;padding:0 .12em;font-size:clamp(56px,7vw,90px)}
+.entry-screen>p{margin:16px 0 0;line-height:1.5;text-align:center}
+.entry-orb{position:relative;left:auto;top:auto;translate:none;flex:none;margin:28px 0 0;width:88px;height:88px}
+.entry-instruction{position:relative;left:auto;top:auto;translate:none;margin:8px 0 0;line-height:1.5;text-align:center}
+@media(max-width:540px){.entry-screen{padding:24px 20px 6vh}.entry-heading h1{font-size:clamp(50px,15vw,68px)}.entry-screen>p{margin-top:12px}.entry-orb{width:80px;height:80px;margin-top:24px}.entry-instruction{margin-top:8px}}
+@media(max-height:550px){.entry-screen{padding:18px}.entry-heading h1{font-size:50px}.entry-screen>p{margin-top:8px}.entry-orb{width:64px;height:64px;margin-top:16px}.entry-instruction{margin-top:4px}}
+
+/* Restore only the lower flourish, with its own reserved row and a later invitation. */
+.entry-heading{padding-bottom:40px}
+.entry-flourish{top:auto;bottom:0;left:50%;transform:translateX(-50%)}
+.entry-orb{animation:ensemble-tap-reveal .9s 2.8s ease-out both,ensemble-invite 3.4s 3.7s ease-in-out infinite}
+.entry-instruction{animation:ensemble-readable-subtitle 1s 3.1s ease-out both}
+@keyframes ensemble-tap-reveal{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.entry-orb,.entry-instruction{animation:none!important;opacity:1;transform:none}}
+
+/* Keep the delayed invitation secondary to the name. */
+.entry-instruction{font-size:12px;font-weight:400;letter-spacing:.12em;animation-name:ensemble-quiet-hint;text-shadow:0 1px 5px #100c0880}
+@keyframes ensemble-quiet-hint{from{opacity:0;transform:translateY(7px)}to{opacity:.65;transform:translateY(0)}}
+
+/* Longer new name retains the elegant centred title on phones. */
+.entry-heading h1{font-size:clamp(48px,6.5vw,84px);letter-spacing:.015em}
+@media(max-width:540px){.entry-heading h1{font-size:clamp(38px,11.5vw,60px)}}

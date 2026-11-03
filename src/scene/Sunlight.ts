@@ -34,10 +34,10 @@ void main(){
 
 const poolMaterial=new T.ShaderMaterial({
  transparent:true,depthWrite:false,blending:T.AdditiveBlending,
- uniforms:{time:{value:0},color:{value:SUN_COLOR}},
+ uniforms:{time:{value:0},color:{value:SUN_COLOR},strength:{value:.11}},
  vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
- fragmentShader:`uniform float time;uniform vec3 color;varying vec2 vUv;
-void main(){vec2 p=vUv*2.0-1.0;float r=dot(p,p);float a=(1.0-smoothstep(0.0,1.0,r))*(0.11+0.01*sin(time*0.7));gl_FragColor=vec4(color*a,1.0);}`,
+ fragmentShader:`uniform float time;uniform vec3 color;uniform float strength;varying vec2 vUv;
+void main(){vec2 p=vUv*2.0-1.0;float r=dot(p,p);float a=(1.0-smoothstep(0.0,1.0,r))*(strength+strength*.05*sin(time*0.7));gl_FragColor=vec4(color*a,1.0);}`,
 });
 
 const dustMaterial=new T.ShaderMaterial({
@@ -70,14 +70,18 @@ function beamBasis(){
 
 export type Sunlight={root:T.Group;update(time:number):void;setViewport(heightPx:number,fov:number):void};
 /** Added after architecture batching: these custom-shaded meshes must stay as they are. */
-export function buildSunlight(scene:T.Scene,windows=SUN_WINDOWS):Sunlight{
+export function buildSunlight(scene:T.Scene,windows=SUN_WINDOWS,style:{color?:number;strength?:number;pool?:number;fill?:number;spread?:number}={}):Sunlight{
+ const beamMat=beamMaterial.clone(),poolMat=poolMaterial.clone(),dustMat=dustMaterial.clone();
+ if(style.color!==undefined){beamMat.uniforms.color.value.setHex(style.color);poolMat.uniforms.color.value.setHex(style.color);dustMat.uniforms.color.value.setHex(style.color);}
+ beamMat.uniforms.strength.value=style.strength??.55;poolMat.uniforms.strength.value=style.pool??.11;
  const root=new T.Group();root.userData.landmark='sunlight';scene.add(root);
  const basis=beamBasis(),dust:number[]=[],seeds:number[]=[];
  windows.forEach((window,i)=>{
   const floor=sunFloorPoint(window),length=window.distanceTo(floor);
-  const beam=new T.Mesh(beamGeometry(length,(i*.37)%1),beamMaterial);beam.matrixAutoUpdate=false;
+  const geometry=beamGeometry(length,(i*.37)%1);if(style.spread!==undefined)geometry.scale(style.spread,1,style.spread);
+  const beam=new T.Mesh(geometry,beamMat);beam.matrixAutoUpdate=false;
   beam.matrix.copy(basis).setPosition(window);beam.renderOrder=5;beam.frustumCulled=false;beam.userData.landmark='sun-shaft';root.add(beam);
-  const pool=new T.Mesh(new T.PlaneGeometry(1,1),poolMaterial);pool.rotation.set(-Math.PI/2,0,Math.atan2(SUN_DIRECTION.x,SUN_DIRECTION.z));
+  const pool=new T.Mesh(new T.PlaneGeometry(1,1),poolMat);pool.rotation.set(-Math.PI/2,0,Math.atan2(SUN_DIRECTION.x,SUN_DIRECTION.z));
   pool.scale.set(3.2,6.4,1);pool.position.set(floor.x,.04,floor.z);pool.renderOrder=4;pool.userData.landmark='sun-pool';root.add(pool);
   for(let n=0;n<DUST_PER_BEAM;n++){
    const p=window.clone().addScaledVector(SUN_DIRECTION,length*(.06+Math.random()*.6));
@@ -86,12 +90,12 @@ export function buildSunlight(scene:T.Scene,windows=SUN_WINDOWS):Sunlight{
   }
  });
  const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(dust,3));geometry.setAttribute('seed',new T.Float32BufferAttribute(seeds,3));
- const motes=new T.Points(geometry,dustMaterial);motes.frustumCulled=false;motes.renderOrder=6;motes.userData.landmark='sun-dust';root.add(motes);
+ const motes=new T.Points(geometry,dustMat);motes.frustumCulled=false;motes.renderOrder=6;motes.userData.landmark='sun-dust';root.add(motes);
  // A warm key light from the same side gently lifts the surfaces facing the windows.
- const sun=new T.DirectionalLight(0xffd9a0,.3);sun.position.copy(SUN_DIRECTION).multiplyScalar(-40);sun.target.position.set(0,0,10);root.add(sun,sun.target);
+ const sun=new T.DirectionalLight(style.color??0xffd9a0,style.fill??.3);sun.position.copy(SUN_DIRECTION).multiplyScalar(-40);sun.target.position.set(0,0,10);root.add(sun,sun.target);
  return {
   root,
-  update(time){beamMaterial.uniforms.time.value=time;poolMaterial.uniforms.time.value=time;dustMaterial.uniforms.time.value=time;},
-  setViewport(heightPx,fov){dustMaterial.uniforms.scale.value=heightPx/(2*Math.tan(T.MathUtils.degToRad(fov)/2));},
+  update(time){beamMat.uniforms.time.value=time;poolMat.uniforms.time.value=time;dustMat.uniforms.time.value=time;},
+  setViewport(heightPx,fov){dustMat.uniforms.scale.value=heightPx/(2*Math.tan(T.MathUtils.degToRad(fov)/2));},
  };
 }

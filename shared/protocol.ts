@@ -1,3 +1,4 @@
+import type {Outfit} from './wardrobe';
 import type {Visitor,Zone,Pose,Look} from './venue';
 import type {Gesture} from './gestures';
 export type SeatClaim={visitorId:string;status:'reserved'|'seated';expiresAt:number|null};
@@ -26,6 +27,7 @@ export type ClientMessage=
  |{type:'renew';seatId:string}
  |{type:'gesture';gesture:Gesture}
  |{type:'look';look:Look}
+ |{type:'outfit';outfit:Outfit}
  |{type:'sync'}
  |{type:'clock';sentAt:number};
 export type ServerMessage=

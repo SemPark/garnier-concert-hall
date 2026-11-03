@@ -3,15 +3,20 @@ import {playbackAt,type Playback,type Playlist} from '../../shared/timeline';
 import type {Zone} from '../../shared/venue';
 import {MediaSync} from './MediaSync';
 export class ConcertAudio{
- readonly media=new Audio();enabled=false;volume=.55;zone:Zone='lobby';state='소리 꺼짐';
+ readonly media=new Audio();enabled=false;volume=1;zone:Zone='lobby';state='소리 꺼짐';
  private playingRequest=false;private unlocking=false;private lastId='';private cycle=-1;
  private sync=new MediaSync();private abort=new AbortController();private timer:ReturnType<typeof setInterval>;
  private doorLeak=0;
  private context:AudioContext|null=null;private filters:BiquadFilterNode[]=[];
  private musicGain:GainNode|null=null;private outputTarget=-1;
+ // Crossing the hall door switches the sound at once: muffled outside, full inside, with no fade.
+
  private lastMeow=-Infinity;
  // The lobby's own room sound: a soft, seamless murmur loop of a large hall, decoded once and looped gaplessly.
  private ambience:GainNode|null=null;private ambienceLoading=false;
+ // How loud the room tone is: 1 to 10, 5 in the middle (the default). 5 (the default) gives 0.09 in both the lobby and the hall with the music at 100; 10 is twice that, and each step down takes off a tenth of that.
+ roomLevel=(()=>{try{const raw=localStorage.getItem('garnier-room-level'),v=Number(raw);return raw!==null&&Number.isFinite(v)?Math.max(1,Math.min(10,Math.round(v))):5;}catch{return 5;}})();
+ setRoomLevel(value:number){this.roomLevel=Math.max(1,Math.min(10,Math.round(value)));try{localStorage.setItem('garnier-room-level',String(this.roomLevel));}catch{/* kept for this visit only */}}
  private async startAmbience(context:AudioContext){
   if(this.ambience||this.ambienceLoading)return;this.ambienceLoading=true;
   try{const data=await (await fetch(this.mediaUrl('/api/audio/lobby-ambience.mp3'))).arrayBuffer(),buffer=await context.decodeAudioData(data);
@@ -82,7 +87,13 @@ export class ConcertAudio{
   catch{this.enabled=false;this.state='소리를 켜주세요';return false;}finally{this.unlocking=false;}
  }
  toggle(){if(this.enabled){this.enabled=false;this.media.pause();this.state='소리 꺼짐';}else void this.unlock();}
- setZone(zone:Zone){this.zone=zone;this.sync.request();if(this.context)for(const filter of this.filters)filter.frequency.setTargetAtTime(zone==='lobby'?450:22000,this.context.currentTime,.15);}
+ setZone(zone:Zone){const changed=zone!==this.zone;this.zone=zone;this.sync.request();
+  if(!this.context)return;const t=this.context.currentTime,entering=zone==='auditorium';
+  // The level and the door muffle switch together on the audio clock, in this order: going in, the muffle stays on
+  // until the music is switched on; going out, the music is switched down first and the muffle comes on just after.
+  if(changed&&this.musicGain){const p=this.playback,target=this.enabled&&!document.hidden&&p.playing?this.volume*(entering?1:this.doorLeak):0,g=this.musicGain.gain;
+   g.cancelScheduledValues(t);g.setValueAtTime(target,t);this.outputTarget=target;}
+  for(const filter of this.filters){filter.frequency.cancelScheduledValues(t);filter.frequency.setValueAtTime(entering?22000:450,entering?t:t+.02);}}
  /** Closed-door spill uses the existing concert stream, with no extra decoder or audio loop. */
  setDoorDistance(distance:number){
   const t=Math.max(0,Math.min(1,(9-distance)/7.8)),level=.5*t*t*(3-2*t);
@@ -93,11 +104,15 @@ export class ConcertAudio{
   void this.media.play().catch(()=>{this.enabled=false;this.state='소리 버튼을 눌러주세요';}).finally(()=>{this.playingRequest=false;});
  }
  tick(dt:number){
-  if(this.ambience&&this.context){const on=this.enabled&&this.zone==='lobby'&&!document.hidden;this.ambience.gain.setTargetAtTime(on?this.volume*.45*(1-.8*Math.min(1,this.doorLeak/.5)):0,this.context.currentTime,.4);}
+  // The room tone stays under everything, in the lobby and in the hall, about 20 dB below the music; at the lobby door it ducks so the music spilling through stays clear.
+  if(this.ambience&&this.context){const on=this.enabled&&!document.hidden,duck=this.zone==='lobby'?1-.8*Math.min(1,this.doorLeak/.5):1;// the same level in the lobby and the hall; only near the hall door does it dip for the music
+   this.ambience.gain.setTargetAtTime(on?Math.min(1,this.volume*this.roomLevel*.018*duck):0,this.context.currentTime,.4);}
   if(this.unlocking)return;
   const p=this.playback,level=this.zone==='auditorium'?1:this.doorLeak,active=this.enabled&&!document.hidden;
   const target=active&&p.playing?this.volume*level:0;
-  if(this.context&&this.musicGain&&Math.abs(target-this.outputTarget)>.0001){this.musicGain.gain.setTargetAtTime(target,this.context.currentTime,.15);this.outputTarget=target;}
+  // Crossing the door is switched in setZone; here the level only follows smaller changes, smoothly.
+  if(this.context&&this.musicGain&&Math.abs(target-this.outputTarget)>.0001){const g=this.musicGain.gain,t=this.context.currentTime;
+   g.setTargetAtTime(target,t,.15);this.outputTarget=target;}
   // Keep the user-unlocked stream running silently in the lobby. Pausing it here can
   // make a later asynchronous hall entry fail mobile autoplay restrictions.
   if(!active){this.media.pause();this.state=this.enabled?'음악 일시 정지':'소리 꺼짐';return;}
