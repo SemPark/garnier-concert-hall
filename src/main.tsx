@@ -1,3 +1,4 @@
+import {reportLoading,failLoading} from './loading';
 import {Wardrobe} from './Wardrobe';
 import {MobileDPad} from './MobileDPad';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
@@ -11,6 +12,7 @@ import {SeatMap} from './SeatMap';
 import './style.css';
 import {runDeviceProbe} from './diagnostics/DeviceProbe';
 import {GESTURES,type Gesture} from '../shared/gestures';
+reportLoading(10,'시작 화면을 준비하고 있어요');
 const EMPTY_CLAIMS={};
 const GLYPH:Record<Gesture,string>={wave:'〜',clap:'♪',bravo:'!',ovation:'✦',bow:'⌒',moved:'♥',shh:'…',doze:'Zz'};
 
@@ -56,7 +58,7 @@ function App(){
   try{world=new World(document.getElementById('world')!,net,audio);const active=world;const update=()=>redraw(n=>n+1);const notify=(message:string)=>{setToast(message);clearTimeout(toastTimer.current);toastTimer.current=window.setTimeout(()=>setToast(''),3500);};
    world.onChange=update;world.onToast=notify;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{world!.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onMoveBlocked=point=>active.correctMove(point);net.onStatus=update;net.onError=notify;setApp({world,net,audio});
    if(import.meta.env.DEV)Object.assign(window,{__concert:{world,net,audio}});
-  }catch(e){setError(e instanceof Error?e.message:'3D 화면을 열지 못했어요.');}
+  }catch(e){failLoading();setError(e instanceof Error?e.message:'3D 화면을 열지 못했어요.');}
   return ()=>{world?.destroy();net.destroy();audio.destroy();};
  },[]);
  useEffect(()=>{const key=(e:KeyboardEvent)=>{const i=Number(e.code.replace('Digit',''))-1;if(!app||!entered||settings||!(i>=0&&i<GESTURES.length)||app.net.status!=='connected'||(e.target as HTMLElement)?.closest('input,textarea,select,dialog'))return;e.preventDefault();app.world.gestureAction(GESTURES[i].id);};window.addEventListener('keydown',key);return ()=>window.removeEventListener('keydown',key);},[app,entered,settings]);
@@ -71,8 +73,8 @@ function App(){
  return <>
   <div className="vignette"/>
   {entered&&<header className="topbar">
-   <div className="brand"><span className="brand-mark"><Icon name="hall" size={25}/></span><div><span className="brand-name">MODU HALL</span><span className="brand-sub">모두의 음악당</span></div></div>
-   {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LOBBY':'CONCERT HALL'}</span><span>{zone==='lobby'?'로비':'공연장'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ')??'입장 중'}</span></div>}
+   <div className="brand"><span className="brand-mark"><Icon name="hall" size={25}/></span><div><span className="brand-name">pleee</span><span className="brand-sub">플리 · 음악으로 만나는 공간</span></div></div>
+   {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LOBBY':'pleee hall'}</span><span>{zone==='lobby'?'로비':'공연장'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ')??'입장 중'}</span></div>}
    <nav className="tools" aria-label="음악당 설정">
     {entered&&<span className="visitor-count" title={connected?'함께 있는 관객':'연결을 기다리고 있어요'}><span className={`connection ${connected?'online':''}`}/><Icon name="people" size={18}/>{net?.local?'혼자 감상':net?.state?.visitors.length??'—'}</span>}
     <button className="icon-button" aria-label={audio?.enabled?'소리 끄기':'소리 켜기'} onClick={()=>{audio?.toggle();redraw(n=>n+1);}}><Icon name={audio?.enabled?'sound':'mute'}/></button>
@@ -80,11 +82,11 @@ function App(){
    </nav>
   </header>}
    {world?.ready&&<SeatMap open={seats} claims={net?.state?.seats??EMPTY_CLAIMS} selfId={net?.selfId??''} connected={connected} onClose={closeSeats} onChoose={chooseMappedSeat}/>}
-  {!entered&&!error&&<section className="entry-screen" aria-label="음악당 입장" onClick={enter}>
-   <div className="entry-heading"><h1>MODU HALL</h1>
+  {!entered&&!error&&world?.ready&&<section className="entry-screen" aria-label="음악당 입장" onClick={enter}>
+   <div className="entry-heading"><h1>pleee</h1>
     <svg className="entry-flourish" viewBox="0 0 240 35" aria-hidden="true"><defs><linearGradient id="flourish-gold"><stop stopColor="#b38c48"/><stop offset=".8" stopColor="#ffe9b1"/><stop offset="1" stopColor="#d2a75d"/></linearGradient></defs><path d="M15 26C88-13 134 36 221 17"/><circle cx="221" cy="17" r="2.2"/></svg>
    </div>
-   <p>모두의 음악당</p>
+   <p>음악으로 만나는 공간</p>
    <button className="entry-orb" aria-label="음악당 들어가기" onClick={e=>{e.stopPropagation();enter();}} disabled={!app||!world?.ready}>
     <svg className="tap-hand" viewBox="0 0 88 88" aria-hidden="true"><path className="tap-outline" d="M30 43V20c0-7 10-7 10 0v18-2c0-6 10-6 10 0v5-2c0-6 10-6 10 0v7-1c0-6 9-6 9 0v9c0 13-8 21-20 21h-4c-7 0-11-4-15-9L17 48c-5-6 2-12 7-7l6 6Z"/><path className="tap-rays" d="M35 7V3M23 12l-4-4M47 12l4-4M19 23h-5M51 23h5"/></svg>
    </button>

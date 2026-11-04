@@ -34,7 +34,7 @@ export function buildLobbyEntrance(scene:T.Scene,cameraWalls:T.Object3D[],walkTa
  const facade=new T.Group();facade.position.set(0,S.rise,DOOR.z-.35);scene.add(facade);facade.userData.landmark='entrance-aedicule';
  for(const side of [-1,1]){const x=side*1.7;box(facade,[.6,4.25,.65],[x,2.12,0],0xbda98a);cylinder(facade,.2,3.65,[x,2.1,-.37],0xd4c5a5);box(facade,[.8,.22,.8],[x,.12,-.12],P.deep);}
  box(facade,[4.1,.85,.75],[0,3.85,0],0xbca889);box(facade,[3.25,.58,.1],[0,3.87,-.43],0x423a2e);
- text(facade,'CONCERT HALL',2.95,[0,3.88,-.5],'#e5d3a2').rotation.y=Math.PI;
+ text(facade,'pleee hall',2.95,[0,3.88,-.5],'#e5d3a2').rotation.y=Math.PI;
  for(const y of [3.33,4.36,4.53])box(facade,[4.55,.13,.9],[0,y,-.08],P.light);
  buildEntranceCrest(facade);buildEntranceGuardians(scene);
  // One complete U-shaped railing protects the pavilion roof and joins the rear gallery.

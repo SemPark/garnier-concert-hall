@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {keepFrontLight} from '../character/characterLight';
 import {prepareInstanceMorph} from './instanceMorph';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {finishBuild} from './buildBudget';
@@ -12,8 +13,8 @@ function isLit(mat:T.Material):mat is Lit{return mat instanceof T.MeshStandardMa
 function collect(groups:Map<string,BatchGroup>,mesh:T.Mesh){
  if(Array.isArray(mesh.material))return;
  const mat=mesh.material,lit=isLit(mat)&&!mat.map;
- const key=mesh.geometry.uuid+'/'+(mesh.castShadow?'shadow/':'unshadowed/')+(mesh.userData.fullDetail?'full/':'adaptive/')+(mesh.userData.preserveSilhouette?'persistent/':'')+(lit?JSON.stringify([mat.type,mat instanceof T.MeshStandardMaterial?mat.roughness:0,mat instanceof T.MeshStandardMaterial?mat.metalness:0,mat.emissive.getHex(),mat.emissiveIntensity,mat.transparent,mat.opacity,mat.depthWrite,mat.side]):mat.uuid);
- let group=groups.get(key);if(!group){const material=lit?mat.clone():mat;if(lit)(material as Lit).color.setHex(0xffffff);group={material,objects:[],colors:lit};groups.set(key,group);}group.objects.push(mesh);
+ const key=mesh.geometry.uuid+'/'+(mesh.castShadow?'shadow/':'unshadowed/')+(mesh.userData.fullDetail?'full/':'adaptive/')+(mesh.userData.preserveSilhouette?'persistent/':'')+(lit?JSON.stringify([mat.type,mat instanceof T.MeshStandardMaterial?mat.roughness:0,mat instanceof T.MeshStandardMaterial?mat.metalness:0,mat.emissive.getHex(),mat.emissiveIntensity,mat.transparent,mat.opacity,mat.depthWrite,mat.side,mat.userData.characterLight??'']):mat.uuid);
+ let group=groups.get(key);if(!group){const material=lit?mat.clone():mat;keepFrontLight(mat,material);if(lit)(material as Lit).color.setHex(0xffffff);group={material,objects:[],colors:lit};groups.set(key,group);}group.objects.push(mesh);
 }
 function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean){
  const geometry=group.objects[0].geometry,fullDetail=!!group.objects[0].userData.fullDetail,lowGeometry=fullDetail?geometry:coarseGeometry(geometry);

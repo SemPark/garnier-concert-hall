@@ -23,12 +23,13 @@ import {GOLDEN_HALL} from '../../shared/goldenHall';
 import {buildStairs} from './Stairs';
 import {buildStairArrows,type StairArrows} from './StairArrows';
 import {buildHallTimberFloor} from './HallTimberFloor';
+import {buildFloatingCandles} from './FloatingCandles';
 import {buildSunlight,type Sunlight} from './Sunlight';
 import {buildGoldenHallSteps,timberDoor} from './GoldenHall';
 import {woodMaterial,applyWoodSurface,hallImage,hallImageMaterial} from './HallTextures';
 import {batchArchitectureSteps,batchCharactersSteps} from './batching';
 import {EmoteLayer} from '../character/EmoteLayer';
-export type Venue={treeStar:ReturnType<typeof buildFloatingTreeStar>|null;cat:LobbyCat|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
+export type Venue={treeStar:ReturnType<typeof buildFloatingTreeStar>|null;candles:ReturnType<typeof buildFloatingCandles>|null;cat:LobbyCat|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
 
 function chandelier(parent:T.Object3D,x:number,y:number,z:number,r=1){
  const g=new T.Group();g.position.set(x,y,z);g.userData.landmark='lobby-chandelier';parent.add(g);
@@ -212,15 +213,15 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
  surface([[-lh,A.balconyY,S.landingEnd+.5],[lh,A.balconyY,S.landingEnd+.5],[lh,A.balconyY,A.back],[-lh,A.balconyY,A.back]]);
  // Street doors under the far arcade, and the foyer named over its opening.
  for(const x of [-8.4,8.4]){const doorway=new T.Group();doorway.position.set(x,0,A.back-.2);doorway.rotation.y=Math.PI;doorway.userData.landmark='lobby-rear-door';scene.add(doorway);timberDoor(doorway,0,0,2.6,4.4,0);arch(scene,2.9,4.5,[x,0,A.back-.2],Math.PI);}
- text(scene,'MODU HALL',5,[0,A.height-1.5,A.front+.95],'#f0d9a0');
+ text(scene,'pleee',5,[0,A.height-1.5,A.front+.95],'#f0d9a0');
  chandelier(scene,0,15.5,24,2.2);
 }
 export function createVenue(zone:Zone):Venue{return finishBuild(createVenueSteps(zone));}
 export function createVenueAsync(zone:Zone,cancelled:()=>boolean){return buildOverFrames(createVenueSteps(zone),cancelled);}
 function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
- const scene=new T.Scene();scene.background=new T.Color(0x24201b);scene.fog=new T.FogExp2(zone==='lobby'?0x342b25:0x493626,zone==='lobby'?.015:.005);
- scene.add(new T.HemisphereLight(0xffdfb8,0x3c2e28,.36));const ambient=new T.AmbientLight(0xffe8cc,.045);scene.add(ambient);
- const sun=new T.DirectionalLight(zone==='lobby'?0xffe1b5:0xffe6c4,zone==='lobby'?.6:.58);sun.position.set(-7,13,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-17,right:17,top:20,bottom:-20,near:1,far:55});sun.shadow.normalBias=.035;sun.shadow.bias=-.0002;sun.shadow.autoUpdate=false;sun.shadow.needsUpdate=true;scene.add(sun);
+ const scene=new T.Scene();scene.background=new T.Color(0x24201b);scene.fog=new T.FogExp2(zone==='lobby'?0x342b25:0x2b221b,zone==='lobby'?.015:.0025);
+ scene.add(new T.HemisphereLight(0xffdfb8,0x3c2e28,zone==='lobby'?.36:.22));const ambient=new T.AmbientLight(0xffe8cc,zone==='lobby'?.045:.028);scene.add(ambient);
+ const sun=new T.DirectionalLight(zone==='lobby'?0xffe1b5:0xffe6c4,zone==='lobby'?.6:.24);sun.position.set(-7,13,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-17,right:17,top:20,bottom:-20,near:1,far:55});sun.shadow.normalBias=.035;sun.shadow.bias=-.0002;sun.shadow.autoUpdate=false;sun.shadow.needsUpdate=true;scene.add(sun);
  const b=BOUNDS[zone],floor=box(scene,[zone==='lobby'?ATRIUM.halfWidth*2:GOLDEN_HALL.width,.15,zone==='lobby'?ATRIUM.back-ATRIUM.front:GOLDEN_HALL.rear-GOLDEN_HALL.front],[0,-.09,zone==='lobby'?(ATRIUM.front+ATRIUM.back)/2:(GOLDEN_HALL.front+GOLDEN_HALL.rear)/2],zone==='lobby'?0x8f7a5c:0x44352b);
  floor.userData.floor=true;if(zone==='auditorium'){floor.position.y+=PARTERRE.floor;applyWoodSurface(floor,'walnut');buildHallTimberFloor(scene,GOLDEN_HALL.width,GOLDEN_HALL.front,GOLDEN_HALL.rear);}
  const walkTargets:T.Object3D[]=[floor];
@@ -252,8 +253,9 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  // Visitor reaction icons share one draw call per hall.
  const emotes=new EmoteLayer(64);scene.add(emotes.points);
  // Sun shafts use their own shaders, so they join after batching.
- const sunlight=zone==='lobby'?buildSunlight(scene,[23.1,33.1,38.1].map(z=>new T.Vector3(14.5,16.5,z)),{color:0xffdfb0,strength:.18,pool:.035,fill:.08,spread:.6}):buildSunlight(scene,undefined,{color:0xffdfb0,strength:.22,pool:.045,fill:.12,spread:.85});
+ const sunlight=zone==='lobby'?buildSunlight(scene,[23.1,33.1,38.1].map(z=>new T.Vector3(14.5,16.5,z)),{color:0xffdfb0,strength:.18,pool:.035,fill:.08,spread:.6}):buildSunlight(scene,undefined,{color:0xffd09a,strength:.07,pool:.015,fill:.035,spread:.85});
  const treeStar=zone==='lobby'?buildFloatingTreeStar(scene,LOBBY_CHRISTMAS_TREE.x,LOBBY_CHRISTMAS_TREE.z):null;
+ const candles=zone==='lobby'?buildFloatingCandles(scene):null;
  const stairArrows=zone==='lobby'?buildTicketGuide(scene):buildStairArrows(scene);
- return {treeStar,cat,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
+ return {treeStar,candles,cat,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
 }

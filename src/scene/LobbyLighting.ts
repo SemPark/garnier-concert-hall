@@ -33,11 +33,16 @@ export function lobbyPracticalLights(scene:T.Scene){
   const light=piece(shade,lamp,0,.26,.46);light.scale.set(1,1.45,1);piece(cap,brass,0,.53,.46);
   piece(plane,washMat,0,.25,.045);const bloom=new T.Sprite(glow);bloom.position.set(0,.27,.48);bloom.scale.set(1.1,1.1,1);g.add(bloom);
  };
- // Fix the lantern backs onto the solid spandrels above capitals, clear of arch reveals and corner joints.
- for(const side of [-1,1])for(const z of LOBBY_ARCADE.columns.slice(1,-1))for(const [base,capital] of [[0,3.6],[ATRIUM.balconyY,2.6],[13.4,2.6]]){if(base===0&&z===LOBBY_ARCADE.columns[1])continue;sconce(side*(LOBBY_ARCADE.x-.25),base+capital+.25,z,-side*Math.PI/2);}
- for(const z of [ATRIUM.front+ATRIUM.balconyDepth,ATRIUM.back-ATRIUM.balconyDepth])for(const x of LOBBY_ARCADE.endColumns.slice(1,-1))for(const base of [ATRIUM.balconyY,13.4])sconce(x,base+2.85,z+(z<30?.25:-.25),z<30?0:Math.PI);
- // Lower lanterns beside both service counters, and above the entrance-wall artworks.
- for(const side of [-1,1])for(const z of LOBBY_ARCADE.columns.slice(0,2))sconce(side*(LOBBY_ARCADE.x-.25),2.25,z,-side*Math.PI/2);
+ // Keep the established mounting point just above each capital, where the arches spring.
+ // Include both end columns so the corner arches receive the same fixture and height.
+ for(const side of [-1,1])for(const z of LOBBY_ARCADE.columns)
+  for(const [base,capital] of [[0,3.6],[ATRIUM.balconyY,2.6],[13.4,2.6]])
+   sconce(side*(LOBBY_ARCADE.x-.25),base+capital+.25,z,-side*Math.PI/2);
+ // End-arcade interior joints follow that same datum; the corner joints are supplied above.
+ for(const z of [ATRIUM.front+ATRIUM.balconyDepth,ATRIUM.back-ATRIUM.balconyDepth])
+  for(const x of LOBBY_ARCADE.endColumns.slice(1,-1))for(const base of [ATRIUM.balconyY,13.4])
+   sconce(x,base+2.85,z+(z<30?.25:-.25),z<30?0:Math.PI);
+ // Existing entrance-wall artwork lights remain on the wall.
  for(const x of [-10.2,-3.4,3.4,10.2])sconce(x,4.45,ATRIUM.front+.66,0);
  // Four broad, shadow-free fills supply the light shared by these fixtures.
  for(const side of [-1,1])for(const z of [25,42])spot(0xffd3a1,85,[side*11.5,6,z],[side*11.5,0,z],.8);
@@ -58,5 +63,5 @@ export class LobbyLightPass{
   this.scenePass.scene=scene;this.scenePass.camera=camera;const auto=this.renderer.info.autoReset;this.renderer.info.reset();this.renderer.info.autoReset=false;
   try{this.composer.render();}finally{this.renderer.info.autoReset=auto;}
  }
- dispose(){this.bloom.dispose();this.composer.dispose();}
+ dispose(){for(const pass of this.composer.passes)pass.dispose();this.composer.dispose();}
 }

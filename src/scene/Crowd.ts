@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {keepFrontLight} from '../character/characterLight';
 import {prepareInstanceMorph} from './instanceMorph';
 import type {Avatar} from '../character/Avatar';
 import {coarseGeometry,detailDistance,LOD_NEAR} from './lodGeometry';
@@ -22,9 +23,9 @@ export class Crowd{
  constructor(private scene:T.Scene){}
  private partFor(geometry:T.BufferGeometry,source:T.Material){
   const lit=isLit(source);
-  const look=lit?[source.type,source instanceof T.MeshStandardMaterial?[source.roughness,source.metalness]:0,source.emissive.getHex(),source.transparent,source.opacity,source.side].join('/'):source.uuid;
+  const look=lit?[source.type,source instanceof T.MeshStandardMaterial?[source.roughness,source.metalness]:0,source.emissive.getHex(),source.transparent,source.opacity,source.side,source.userData.characterLight??''].join('/'):source.uuid;
   const key=geometry.uuid+'|'+look;let part=this.parts.get(key);
-  if(!part){let material=this.materials.get(look);if(!material){material=lit?source.clone():source;if(lit)(material as Lit).color.setHex(0xffffff);this.materials.set(look,material);}
+  if(!part){let material=this.materials.get(look);if(!material){material=lit?source.clone():source;keepFrontLight(source,material);if(lit)(material as Lit).color.setHex(0xffffff);this.materials.set(look,material);}
    part={mesh:this.make(geometry,material,64),used:0,colors:lit};this.parts.set(key,part);}
   return part;
  }

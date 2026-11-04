@@ -26,8 +26,10 @@ export function buildInstrument(type:Instrument,g:T.Group,leftHand:T.Group,right
  g.userData.instrument=type;
  if(['violin','viola','cello','bass'].includes(type)){
   const small=type==='violin'||type==='viola',size=type==='violin'?.42:type==='viola'?.5:type==='cello'?.83:1.07;
-  stringBody(g,size);g.position.set(small?-.12:type==='bass'?-.24:.025,small?1.05:type==='cello'?.51:.74,small?-.4:-.38);if(small){g.rotation.z=1.05;g.rotation.y=-.25;}else{g.rotation.x=-.07;g.rotation.z=.16;cylinder(g,.012,type==='cello'?.23:.15,[0,-size*.5-.1,0],silver);}
-  const bow=new T.Group();rightHand.add(bow);line(bow,new T.Vector3(-.31,0,-.14),new T.Vector3(.31,0,-.14),.012,0x61391f);line(bow,new T.Vector3(-.3,.025,-.14),new T.Vector3(.3,.025,-.14),.005,0xe9d5a7);bow.rotation.z=small?-.18:.1;
+  stringBody(g,size);g.position.set(small?-.12:type==='bass'?-.24:.025,small?1.05:type==='cello'?.51:.74,small?-.4:-.38);if(small){g.position.set(-.14,1.04,-.30);g.rotation.set(1.47,0,2.1);}else{g.rotation.x=-.07;g.rotation.z=.16;cylinder(g,.012,type==='cello'?.23:.15,[0,-size*.5-.1,0],silver);}
+  const bow=new T.Group();rightHand.add(bow);
+  if(small){line(bow,new T.Vector3(.015,.065,-.10),new T.Vector3(-.35,.065,.25),.010,0x61391f);line(bow,new T.Vector3(.015,.055,-.10),new T.Vector3(-.35,.055,.25),.004,0xe9d5a7);}
+  else{line(bow,new T.Vector3(-.31,0,-.14),new T.Vector3(.31,0,-.14),.012,0x61391f);line(bow,new T.Vector3(-.3,.025,-.14),new T.Vector3(.3,.025,-.14),.005,0xe9d5a7);bow.rotation.z=.1;}
  }else if(type==='flute'||type==='piccolo'){
   const f=new T.Group();g.add(f);f.position.set(.08,1.11,-.4);f.rotation.z=Math.PI/2;const length=type==='piccolo'?.43:.72;cylinder(f,.028,length,[0,0,0],type==='piccolo'?ebony:silver);for(let i=0;i<7;i++){const y=-length*.35+i*length*.1;cylinder(f,.039,.015,[0,y,0],silver);sphere(f,.025,[0,y,-.03],silver);}
  }else if(['oboe','english-horn','clarinet','bass-clarinet','bassoon','contrabassoon'].includes(type)){

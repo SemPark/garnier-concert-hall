@@ -1,18 +1,26 @@
 import * as T from 'three';
 
-const jawPower=.65;
+const jawPower=.45,jawHeight=.92;
+// Rounded rectangular lower outline: upright cheeks and a broad, soft chin.
+function jawWidth(y:number){
+ const t=Math.pow(-y,jawPower);
+ return .96*Math.cbrt(Math.max(0,1-t*t*t))/Math.sqrt(Math.max(1e-8,1-y*y));
+}
+// Keep the lower face forward, rounding into a flatter chin in profile.
+function chinDepth(y:number){return Math.pow(Math.max(1e-6,1-y*y),-.2);}
+function flattenFront(z:number){return z<0?-.9*Math.pow(-z,.72):z;}
 function buildFaceGeometry(columns:number,rows:number){
  const geometry=new T.SphereGeometry(1,columns,rows),points=geometry.getAttribute('position');
- for(let i=0;i<points.count;i++){const y=points.getY(i);if(y<0){points.setY(i,-Math.pow(-y,jawPower));points.setX(i,points.getX(i)*(1+.055*Math.sin(-y*Math.PI)));}}
+ for(let i=0;i<points.count;i++){const y=points.getY(i);points.setX(i,points.getX(i)*(y<0?jawWidth(y):.96));if(y<0){points.setY(i,-jawHeight*Math.pow(-y,jawPower));if(points.getZ(i)<0)points.setZ(i,points.getZ(i)*chinDepth(y));}points.setZ(i,flattenFront(points.getZ(i)));}
  geometry.computeVertexNormals();return geometry;
 }
 export const faceGeometry=buildFaceGeometry(48,40),faceFarGeometry=buildFaceGeometry(16,12);
 
 /** Front surface of the same cheek/jaw used by the head, in head-local metres. */
 export function faceSurfaceZ(x:number,y:number){
- const height=(y-.03)/.345,u=height<0?-Math.pow(-height,1/jawPower):height;
- const fullness=u<0?1+.055*Math.sin(-u*Math.PI):1;
- return -.35*Math.sqrt(Math.max(0,1-u*u-(x/(.37*fullness))**2));
+ const height=(y-.03)/.345,u=height<0?-Math.pow(-height/jawHeight,1/jawPower):height;
+ const fullness=u<0?jawWidth(u):.96;
+ return .35*flattenFront(-Math.sqrt(Math.max(0,1-u*u-(x/(.37*fullness))**2))*(u<0?chinDepth(u):1));
 }
 const ink=new T.MeshBasicMaterial({color:0x211b19,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
 const white=new T.MeshBasicMaterial({color:0xfff8e9,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});

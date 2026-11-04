@@ -42,5 +42,5 @@ export class Presence{
  private ping(){this.bestRTT=Infinity;for(let i=0;i<3;i++)window.setTimeout(()=>this.send({type:'clock',sentAt:performance.now()}),i*150);}
  send(msg:ClientMessage){if(this.preview){const ok=this.preview.send(msg);this.accept(this.preview.snapshot());return ok;}if(this.socket?.readyState===WebSocket.OPEN&&this.status==='connected'){this.socket.send(JSON.stringify(msg));return true;}return false;}
  reserve(seatId:string,requestId=crypto.randomUUID()){if(this.preview){const ok=this.preview.send({type:'reserve',seatId,requestId});this.accept(this.preview.snapshot());return Promise.resolve(ok);}if(this.status!=='connected')return Promise.resolve(false);return new Promise<boolean>(resolve=>{const timer=window.setTimeout(()=>{this.requests.delete(requestId);resolve(false);},6000);this.requests.set(requestId,{resolve,timer});this.send({type:'reserve',seatId,requestId});});}
- destroy(){this.stopped=true;clearTimeout(this.timer);clearInterval(this.heartbeat);this.socket?.close();}
+ destroy(){this.stopped=true;clearTimeout(this.timer);clearInterval(this.heartbeat);for(const q of this.requests.values()){clearTimeout(q.timer);q.resolve(false);}this.requests.clear();this.socket?.close();}
 }

@@ -54,7 +54,7 @@ export function seatLabel(s:Seat){if(s.id.startsWith('box-'))return `1층 ${s.x<
 export const STAGE_APRON_Z=-9.2;
 export const BOUNDS={lobby:{minX:-ATRIUM.halfWidth+.5,maxX:ATRIUM.halfWidth-.5,minZ:ATRIUM.front+.5,maxZ:ATRIUM.back-.5},auditorium:{minX:-15.65,maxX:15.65,minZ:-26.5,maxZ:50.3}};
 export const SPAWN={lobby:{x:0,y:0,z:24},auditorium:{x:0,y:0,z:47}};
-export const PALETTE=[0xc09a61,0x8c9c92,0xb77d86,0x668db3,0xd1b36d,0x9585b5,0x56767e,0x995e69,0xb6ad91,0x7f8d9b,0xa0846c,0x8c9f70];
+export const PALETTE=[0xc9564d,0xd98a4f,0xd9b04f,0x5fa860,0x3f9c8f,0x4f7fd0,0x7462c9,0xd7769f,0xc25283,0x5aa9c9,0x95b856,0xd86662];
 export function visitorColor(v:{id:string;outfit?:Outfit}){return OUTFITS.find(o=>o.id===v.outfit)?.color??PALETTE[(appearanceSeed(v.id)>>>16)%PALETTE.length];}
 /** The door on one level that leads to the hidden corridor stair on that side. */
 export function stairPoint(side:number,upper:boolean):Point{const d=upper?STAIR_DOORS.upper:STAIR_DOORS.lower;return {x:side*d.x,y:upper?STAIR_DOORS.height:0,z:d.z};}

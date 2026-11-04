@@ -20,6 +20,6 @@ test('there is no staircase inside the hall: stair doors pair only on the same s
 
 test('the strip right in front of the stage is walkable from the aisles',async()=>{
  const {findPath}=await import('../src/navigation/path');const {walkable,STAGE_APRON_Z}=await import('../shared/venue');
- for(const x of [-12,-6.4,0,6.4,12]){const p={x,y:0,z:STAGE_APRON_Z+.3};assert.ok(walkable('auditorium',p),`x ${x}`);assert.ok(findPath('auditorium',{x:0,y:0,z:47},p),`reach x ${x}`);}
+ for(const x of [-12,-6.4,0,6.4,12]){const z=STAGE_APRON_Z+.3,y=surfaceHeight('auditorium',{x,z});assert.notEqual(y,null,`floor at x ${x}`);const p={x,y:y!,z};assert.ok(walkable('auditorium',p),`x ${x}`);assert.ok(findPath('auditorium',{x:0,y:0,z:47},p),`reach x ${x}`);}
  assert.ok(!walkable('auditorium',{x:0,y:0,z:-10}),'the stage itself stays off limits');
 });

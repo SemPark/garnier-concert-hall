@@ -6,17 +6,17 @@ import {box,cylinder,sphere} from './primitives';
 export function buildHallPracticalLights(scene:T.Scene){
  // First-floor fixtures belong to the new centred wall composition.
  for(const z of [-20,6,32]){
-  const light=new T.PointLight(0xffcf8f,120,35,2);light.position.set(0,15,z);scene.add(light);
+  const light=new T.PointLight(0xffc17b,70,35,2);light.position.set(0,15,z);scene.add(light);
   for(const side of [-1,1]){
-   const wash=new T.SpotLight(0xffc272,135,26,.95,.85,2);wash.position.set(side*12,10.5,z);wash.target.position.set(side*15.6,2.5,z);scene.add(wash,wash.target);
+   const wash=new T.SpotLight(0xffbb70,90,26,.95,.85,2);wash.position.set(side*12,10.5,z);wash.target.position.set(side*15.6,2.5,z);scene.add(wash,wash.target);
   }
  }
  for(const side of [-1,1])for(const z of [-12,24]){
-  const upper=new T.SpotLight(0xffd18d,100,28,1.1,.9,2);upper.position.set(side*10.8,18,z);upper.target.position.set(side*15.5,12,z);scene.add(upper,upper.target);
+  const upper=new T.SpotLight(0xffc27e,65,28,1.1,.9,2);upper.position.set(side*10.8,18,z);upper.target.position.set(side*15.5,12,z);scene.add(upper,upper.target);
  }
  // Light across the performers, rather than bleaching the whole audience floor.
  for(const side of [-1,1]){
-  const key=new T.SpotLight(0xffdfb3,135,32,.85,.8,2);key.position.set(side*10,12,-15);key.target.position.set(-side*3,1,-21);scene.add(key,key.target);
+  const key=new T.SpotLight(0xffd19b,120,32,.85,.8,2);key.position.set(side*10,12,-15);key.target.position.set(-side*3,1,-21);scene.add(key,key.target);
  }
 }
 

@@ -86,6 +86,6 @@ export function buildProgramBoard(scene:T.Scene):ProgramBoard{
   ctx.fillStyle='#65533c';ctx.font='600 17px sans-serif';ctx.fillText(`공연장 ${info.seats} / ${info.capacity}석`,200,635);map.needsUpdate=true;
  };
  if(canvas)new T.ImageLoader().load(new URL('../assets/hall/conductor-programme.webp',import.meta.url).href,image=>{portrait=image;last='';if(current)update(current);});
- update({now:'공연을 준비하고 있습니다',next:'잠시 후 안내합니다',remaining:'MODU HALL CONCERT HALL',playing:false,seats:0,capacity:440});
+ update({now:'공연을 준비하고 있습니다',next:'잠시 후 안내합니다',remaining:'pleee hall',playing:false,seats:0,capacity:440});
  return {update};
 }

@@ -7,7 +7,7 @@ export function buildChristmasTree(scene:T.Scene,x:number,z:number){
  const gold=new T.MeshStandardMaterial({color:0xe1ba66,metalness:.85,roughness:.2});
  const silver=new T.MeshStandardMaterial({color:0xe6dccc,metalness:.92,roughness:.18});
  const red=new T.MeshStandardMaterial({color:0x9d172c,metalness:.5,roughness:.24});
- const glow=new T.MeshStandardMaterial({color:0xffe3a1,emissive:0xffc76b,emissiveIntensity:6,roughness:.3});
+ const glow=new T.MeshStandardMaterial({color:0xffe3a1,emissive:0xffc76b,emissiveIntensity:4.5,roughness:.3});
  const ball=new T.SphereGeometry(1,16,12),bulbGeometry=new T.SphereGeometry(1,6,4);
  const add=(geometry:T.BufferGeometry,mat:T.Material,px:number,py:number,pz:number,sx:number,sy=sx,sz=sx)=>{const mesh=new T.Mesh(geometry,mat);mesh.position.set(px,py,pz);mesh.scale.set(sx,sy,sz);mesh.receiveShadow=true;root.add(mesh);return mesh;};
  cylinder(root,2.05,.08,[0,.045,0],0x772b35);cylinder(root,1.94,.025,[0,.095,0],0xb7904c);
@@ -74,7 +74,7 @@ export function buildChristmasTree(scene:T.Scene,x:number,z:number){
   const canvas=document.createElement('canvas');canvas.width=canvas.height=128;const c=canvas.getContext('2d')!;
   const gradient=c.createRadialGradient(64,64,0,64,64,64);gradient.addColorStop(0,'rgba(255,249,221,1)');gradient.addColorStop(.12,'rgba(255,235,184,.8)');gradient.addColorStop(.38,'rgba(255,218,148,.18)');gradient.addColorStop(1,'rgba(255,204,112,0)');c.fillStyle=gradient;c.fillRect(0,0,128,128);
   const halo=new T.CanvasTexture(canvas);halo.colorSpace=T.SRGBColorSpace;
-  const sparkle=new T.Points(new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(sparklePositions,3)),new T.PointsMaterial({map:halo,color:0xffe3af,size:.19,transparent:true,blending:T.AdditiveBlending,depthWrite:false,toneMapped:false}));root.add(sparkle);
+  const sparkle=new T.Points(new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(sparklePositions,3)),new T.PointsMaterial({map:halo,color:0xffe3af,size:.19,transparent:true,opacity:.7,blending:T.AdditiveBlending,depthWrite:false,toneMapped:false}));root.add(sparkle);
 
  }
  for(let i=0;i<12;i++){
@@ -82,7 +82,7 @@ export function buildChristmasTree(scene:T.Scene,x:number,z:number){
   box(root,[w,h,w],[px,.12+h/2,pz],i%2?0x762333:0xc9b185);
   box(root,[w+.01,.025,.055],[px,.13+h,pz],0xd5b26a);box(root,[.055,h+.025,w+.01],[px,.12+h/2,pz],0xd5b26a);
  }
- const light=new T.PointLight(0xffd49c,24,10,2);light.position.set(0,1.1,0);root.add(light);
+ const light=new T.PointLight(0xffd49c,18,10,2);light.position.set(0,1.1,0);root.add(light);
  root.traverse(o=>{o.userData.preserveSilhouette=true;});return root;
 }
 
