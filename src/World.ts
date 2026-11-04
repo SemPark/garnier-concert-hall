@@ -379,7 +379,8 @@ export class World{
     const conductor=actor.instrumentType==='conductor',poseAt=actor.root.userData.poseAt??0,actorDt=Math.min(.25,Math.max(animationDt,(now-poseAt)/1000));
     // The conductor also travels across the stage; keep his route live when the camera looks away.
     if(!conductor&&!inView)continue;
-    const actorInterval=this.camera.position.distanceToSquared(this.poseCenter)>625?100:1000/30;
+    const actorInterval=1000/30;
+    // Every visible musician moves 30 times a second; far ones used to step at 10 a second, which read as stutter.
     if(!conductor&&now-poseAt<actorInterval)continue;actor.root.userData.poseAt=now;
     if(actor.instrumentType==='conductor'){const c=show.conductor;actor.root.position.set(c.x,c.y,c.z);actor.root.rotation.y=c.yaw;actor.update(clock,c.walking?1.2:0,false,show.orchestraPlays&&!this.reduced,c.bowAge===null?null:'bow',c.bowAge??10,actorDt);continue;}
     if(actor.root.userData.concertmaster){actor.update(clock,0,!show.concertmasterStands,(show.concertmasterPlays||show.orchestraPlays)&&!this.reduced,null,10,actorDt);continue;}

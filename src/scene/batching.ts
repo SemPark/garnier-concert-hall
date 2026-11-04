@@ -6,6 +6,8 @@ import {finishBuild} from './buildBudget';
 import {detailedMaterial} from './primitives';
 import {coarseGeometry,detailDistance,LOD_NEAR} from './lodGeometry';
 const restoredSphere=new T.SphereGeometry(1,16,12);
+// Far musicians (beyond LOD_NEAR) use this lighter ball; at that distance a hand or nose is a few pixels wide.
+const farSphere=new T.SphereGeometry(1,9,6);
 type Lit=T.MeshStandardMaterial|T.MeshLambertMaterial;
 type Item={mesh:T.Mesh;matrix:T.Matrix4;center:T.Vector3;radius:number;limit:number;min:number;color:T.Color|null;level:number;shown:boolean;occluder?:T.Box3};
 type BatchGroup={material:T.Material;objects:T.Mesh[];colors:boolean};
@@ -17,7 +19,7 @@ function collect(groups:Map<string,BatchGroup>,mesh:T.Mesh){
  let group=groups.get(key);if(!group){const material=lit?mat.clone():mat;keepFrontLight(mat,material);if(lit)(material as Lit).color.setHex(0xffffff);group={material,objects:[],colors:lit};groups.set(key,group);}group.objects.push(mesh);
 }
 function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean){
- const geometry=group.objects[0].geometry,fullDetail=!!group.objects[0].userData.fullDetail,lowGeometry=fullDetail?geometry:coarseGeometry(geometry);
+ const geometry=group.objects[0].geometry,fullDetail=!!group.objects[0].userData.fullDetail,lowGeometry=fullDetail?geometry:(group.objects[0].userData.lowDetail as T.BufferGeometry|undefined)??coarseGeometry(geometry);
  const make=(g:T.BufferGeometry)=>{const batch=new T.InstancedMesh(g,group.material,group.objects.length);batch.instanceMatrix.setUsage(dynamic?T.DynamicDrawUsage:T.StaticDrawUsage);batch.matrixAutoUpdate=false;batch.frustumCulled=false;batch.castShadow=!dynamic&&group.objects[0].castShadow;batch.receiveShadow=true;prepareInstanceMorph(batch);scene.add(batch);return batch;};
  const high=make(geometry),low=lowGeometry===geometry?high:make(lowGeometry);
  geometry.computeBoundingSphere();
@@ -88,12 +90,13 @@ export function* batchArchitectureSteps(scene:T.Scene,exclude:T.Object3D[]){
   for(const update of updates)update(camera);eye.copy(camera.position);rotation.copy(camera.quaternion);projection.copy(camera.projectionMatrix);
  };
 }
-/** Instruments, torsos and legs are static; only live head/arm subtrees upload each tick. */
+/** Instruments, torsos and legs are static; only live head/arm subtrees upload each tick. Characters are never hidden
+ * by distance, but beyond LOD_NEAR they switch to their far shapes (lowDetail or a coarse copy). */
 export function batchCharacters(scene:T.Scene,roots:T.Object3D[]){return finishBuild(batchCharactersSteps(scene,roots));}
 export function* batchCharactersSteps(scene:T.Scene,roots:T.Object3D[]){
  scene.updateMatrixWorld(true);const moving=new Map<string,BatchGroup>(),fixed=new Map<string,BatchGroup>();
  for(const root of roots){root.updateMatrixWorld(true);let marked=false;root.traverse(o=>{if(o.userData.animated)marked=true;});
-  const visit=(node:T.Object3D,animated:boolean)=>{animated=animated||!!node.userData.animated;if(node instanceof T.Mesh){node.userData.fullDetail=true;if(!Array.isArray(node.material))node.material=detailedMaterial(node.material);if(node.geometry instanceof T.SphereGeometry&&node.geometry.parameters.widthSegments<16)node.geometry=restoredSphere;collect(animated?moving:fixed,node);}for(const child of node.children)visit(child,animated);};visit(root,!marked);
+  const visit=(node:T.Object3D,animated:boolean)=>{animated=animated||!!node.userData.animated;if(node instanceof T.Mesh){node.userData.preserveSilhouette=true;if(!Array.isArray(node.material))node.material=detailedMaterial(node.material);if(node.geometry instanceof T.SphereGeometry&&node.geometry.parameters.widthSegments<16)node.geometry=restoredSphere;if(node.geometry instanceof T.SphereGeometry)node.userData.lowDetail??=farSphere;collect(animated?moving:fixed,node);}for(const child of node.children)visit(child,animated);};visit(root,!marked);
   if(marked){const freeze=(node:T.Object3D,animated:boolean)=>{animated=animated||!!node.userData.animated;node.updateMatrix();node.matrixAutoUpdate=animated;for(const child of node.children)freeze(child,animated);};freeze(root,false);}
   root.removeFromParent();yield;
  }
