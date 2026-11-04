@@ -58,7 +58,7 @@ function mergeStaticCells(groups:Map<string,BatchGroup>){
  }
  for(const cell of cells.values()){
   if(cell.meshes.length<2)continue;
-  const geometries=cell.meshes.map(mesh=>{let g=mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);if(g.index){const indexed=g;g=indexed.toNonIndexed();indexed.dispose();}for(const name of Object.keys(g.attributes))if(!['position','normal','uv'].includes(name))g.deleteAttribute(name);g.clearGroups();return g;});
+  const geometries=cell.meshes.map(mesh=>{let g=mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);if(g.index){const indexed=g;g=indexed.toNonIndexed();indexed.dispose();}const attributes=['position','normal','uv'];if((mesh.material as T.Material).userData.characterLight==='cloth')attributes.push('clothContact');for(const name of Object.keys(g.attributes))if(!attributes.includes(name))g.deleteAttribute(name);g.clearGroups();return g;});
   const geometry=mergeGeometries(geometries,false);for(const g of geometries)g.dispose();if(!geometry)continue;
   const mesh=new T.Mesh(geometry,cell.material);mesh.userData.lodMax=cell.limit;mesh.userData.lodMin=cell.min;mesh.userData.fullDetail=cell.limit===Infinity;mesh.userData.staticCell=true;mesh.castShadow=cell.meshes[0].castShadow;mesh.updateMatrixWorld(true);
   for(const original of cell.meshes){const key=owners.get(original)!,group=groups.get(key)!;group.objects.splice(group.objects.indexOf(original),1);if(!group.objects.length)groups.delete(key);original.removeFromParent();}

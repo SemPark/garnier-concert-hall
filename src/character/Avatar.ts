@@ -3,7 +3,7 @@ import {skirtGeometry} from './Skirt';
 import type {Outfit} from '../../shared/wardrobe';
 import * as T from 'three';
 import {box,cylinder,sphere,material} from '../scene/primitives';
-import {frontLitMaterial} from './characterLight';
+import {frontLitMaterial,prepareClothContact,type ClothContact} from './characterLight';
 import {buildInstrument} from '../orchestra/instruments';
 import {poseVillager,type Icon} from './villager';
 import type {Gesture} from '../../shared/gestures';
@@ -104,7 +104,7 @@ export class Avatar{
   this.instrumentType=instrument;this.root.add(this.body);this.body.add(this.head,this.leftArm,this.rightArm,this.leftLeg,this.rightLeg,this.instrument);
   const skin=0xf9cfcc,hair=[0x3b2c27,0x5a3423,0x232022,0xb4552a,0xb88a48,0x7e6b5c,0x553f32,0xaaa59b][Math.floor(variant/8)%8];
   // Narrow body with a plain neckline and a very short skin-coloured neck.
-  const torso=new T.Mesh(bellGeometry,material(color));torso.position.y=.47;torso.scale.set(.82,1,.72);this.body.add(torso);
+  const torso=new T.Mesh(bellGeometry,material(color));torso.position.y=.47;torso.scale.set(.82,1,.72);torso.userData.clothContact='torso';this.body.add(torso);
   if(this.appearance==='man')box(this.body,[.075,.06,.045],[0,.96,-.1775],0xa23c3c);else sphere(this.body,.04,[0,.97,-.16],0xe8b647);
   // Big round head with dot eyes, catch-lights, blush and a button nose.
   cylinder(this.body,.08,.02,[0,1.005,0],skin).userData.facePart='neck';
@@ -119,21 +119,25 @@ export class Avatar{
   else{const long=new T.Mesh(longHairGeometry,material(hair));long.userData.hairPart='long';long.userData.lowDetail=longHairFar;this.head.add(long);}
   const wearsSkirt=this.appearance==='woman'&&!instrument;
   this.skirt=wearsSkirt?new T.Mesh(skirtGeometry,material(color)):null;
-  if(this.skirt){this.skirt.position.y=.78;this.skirt.scale.z=.87;this.skirt.userData.garment='skirt';this.body.add(this.skirt);}
-  if(outfit&&this.appearance==='man'){const shirt=garmentPatch(this.body,torso,.15,.23,0,.84,0xf4efe5);shirt.userData.garment='dress-shirt';for(const side of [-1,1]){const lapel=box(this.body,[.055,.28,.09],[side*.105,.86,-.15],color);lapel.rotation.z=side*.23;lapel.userData.garment='lapel';}}
+  if(this.skirt){this.skirt.position.y=.78;this.skirt.scale.z=.87;this.skirt.userData.garment='skirt';this.skirt.userData.clothContact='skirt';this.body.add(this.skirt);}
+  if(outfit&&this.appearance==='man'){const shirt=garmentPatch(this.body,torso,.15,.23,0,.84,0xf4efe5);shirt.userData.garment='dress-shirt';shirt.userData.clothContact='plain';for(const side of [-1,1]){const lapel=box(this.body,[.055,.28,.09],[side*.105,.86,-.15],color);lapel.rotation.z=side*.23;lapel.userData.garment='lapel';lapel.userData.clothContact='plain';}}
   this.left={shoulder:this.leftArm,hand:this.leftHand};this.right={shoulder:this.rightArm,hand:this.rightHand};
   for(const [side,arm]of [[-1,this.left],[1,this.right]] as const){
    // Arms start inside the torso, so the top of the arm is buried in the body instead of hanging beside it.
    arm.shoulder.position.set(side*.16,.99,0);arm.shoulder.add(arm.hand);arm.hand.position.y=-ARM_LENGTH;
-   const limb=new T.Mesh(armGeometry,material(color));limb.position.y=-(ARM_LENGTH-.06)/2;arm.shoulder.add(limb);
+   const limb=new T.Mesh(armGeometry,material(color));limb.position.y=-(ARM_LENGTH-.06)/2;limb.userData.clothContact='sleeve';arm.shoulder.add(limb);
    sphere(arm.hand,.082,[0,0,0],skin).scale.set(.082,.088,.078);
   }
   // Hidden by zero scale (not visibility) so batched musicians never show it.
   this.finger=new T.Mesh(fingerGeometry,material(skin));this.finger.position.set(...FINGER_OFFSET);this.finger.scale.setScalar(0);this.rightHand.add(this.finger);
-  for(const [side,hip]of [[-1,this.leftLeg],[1,this.rightLeg]] as const){hip.position.set(side*.115,.55,0);const leg=cylinder(hip,wearsSkirt?.065:.085,.42,[0,-.21,0],wearsSkirt?skin:0x242329);leg.userData.garment=wearsSkirt?'stocking':'trousers';sphere(hip,.12,[0,-.49,-.045],0x2b2422).scale.set(.11,.075,.155);}
-  // Front light: full on the head (face, ears, hair), weaker and narrower on the body (instruments are added later).
-  this.head.traverse(o=>{if(o instanceof T.Mesh&&!Array.isArray(o.material))o.material=frontLitMaterial(o.material,'head');});
-  this.root.traverse(o=>{if(o instanceof T.Mesh&&!Array.isArray(o.material))o.material=frontLitMaterial(o.material,'body');});
+  for(const [side,hip]of [[-1,this.leftLeg],[1,this.rightLeg]] as const){hip.position.set(side*.115,.55,0);const leg=cylinder(hip,wearsSkirt?.065:.085,.42,[0,-.21,0],wearsSkirt?skin:0x242329);leg.userData.garment=wearsSkirt?'stocking':'trousers';if(!wearsSkirt)leg.userData.clothContact='trousers';sphere(hip,.12,[0,-.49,-.045],0x2b2422).scale.set(.11,.075,.155);}
+  // Existing materials share a broad character fill; cloth, skin and hair keep distinct responses.
+  this.head.traverse(o=>{if(o instanceof T.Mesh&&!Array.isArray(o.material))o.material=frontLitMaterial(o.material,o.userData.hairPart?'hair':'head');});
+  this.root.traverse(o=>{if(o instanceof T.Mesh&&!Array.isArray(o.material)){
+   const cloth=o.userData.clothContact as ClothContact|undefined;
+   if(cloth)prepareClothContact(o.geometry,cloth);
+   o.material=frontLitMaterial(o.material,cloth?'cloth':'body');
+  }});
   const shadow=new T.Mesh(shadowGeometry,shadowMaterial);shadow.rotation.x=-Math.PI/2;shadow.position.y=.012;this.root.add(shadow);
   if(instrument){buildInstrument(instrument,this.instrument,this.leftHand,this.rightHand);if(FLOOR_INSTRUMENTS.has(instrument)){this.root.add(this.instrument);this.instrument.userData.floorAnchored=true;if(instrument==='cello')this.instrument.position.y=.64;}if(instrument==='conductor')santaHat(this.head);}
  }
