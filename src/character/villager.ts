@@ -66,7 +66,8 @@ export function poseVillager(input:PoseInput,phase=0):VillagerPose{
   case 'bow':pose.lean=.55*w;pose.headPitch=mix(pose.headPitch,.2);break;
   case 'moved':pose.left=[-.12,.86,-.32];pose.right=[.12,.86,-.32];pose.headRoll=mix(pose.headRoll,.18);pose.headPitch=mix(pose.headPitch,-.1);break;
   // The mitten rests just under the chin so the raised index finger lies across the lips.
-  case 'shh':pose.right=[.03,.98,-.36];pose.headPitch=mix(pose.headPitch,-.05);pose.headRoll=mix(pose.headRoll,.15);pose.sway=mix(pose.sway,0);break;
+  case 'shh':pose.right=[.03,1.07,-.37];// The hand comes up to the lips, the finger in front of the mouth.
+  pose.headPitch=mix(pose.headPitch,-.05);pose.headRoll=mix(pose.headRoll,.15);pose.sway=mix(pose.sway,0);break;
   case 'doze':pose.headPitch=mix(pose.headPitch,.38+Math.sin(age*2.2)*.06);pose.lean=.08*w;pose.blink=Math.min(pose.blink,1-.88*w);break;
  }
  return pose;

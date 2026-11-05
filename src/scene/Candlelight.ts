@@ -40,6 +40,10 @@ export function buildCandlelight(scene:T.Scene){
  for(let z=FLOOR_ROWS[0]-.9;z<FLOOR_ROWS[FLOOR_ROWS.length-1]+1;z+=1.95)for(const x of [-6.4,-4.6,4.6,6.4,-11.9,11.9])clusters.push({x,y:ground(x,z),z,n:2+Math.floor(rnd()*2),r:.18});
  for(let z=PARTERRE.stairFront+.3;z<PARTERRE.stairBack;z+=.6)for(const x of [-8.85,8.85])clusters.push({x,y:ground(x,z),z,n:2,r:.12});
  for(const side of [-1,1])for(const dx of [-2.3,2.3])clusters.push({x:side*STAIR_DOORS.lower.x+dx,y:0,z:STAIR_DOORS.lower.z-.7,n:6,r:.35});
+ // Either side of the centre door from the lobby, so the candlelight greets visitors as they come in,
+ // and small groups spaced along the foot of both side walls to draw the outline of the room.
+ for(const x of [-2.7,2.7])clusters.push({x,y:0,z:50.7,n:8,r:.4});
+ for(const side of [-1,1])for(let z=-6;z<41;z+=3.4){if(PARTERRE.sideStairZ.some(c=>Math.abs(z-c)<PARTERRE.sideStairWidth/2+.4))continue;const x=side*15.15;clusters.push({x,y:ground(x,z),z,n:3,r:.2});}
  const candles:{x:number;y:number;z:number;h:number}[]=[];
  for(const c of clusters)for(let i=0;i<c.n;i++){const a=rnd()*Math.PI*2,d=Math.sqrt(rnd())*c.r;candles.push({x:c.x+Math.cos(a)*d,y:c.y,z:c.z+Math.sin(a)*d,h:.12+rnd()*.3});}
  // Wax bodies.
@@ -58,15 +62,30 @@ export function buildCandlelight(scene:T.Scene){
  const pools=new T.InstancedMesh(new T.PlaneGeometry(1,1).rotateX(-Math.PI/2),new T.MeshBasicMaterial({map:glowTexture(.55,.3),transparent:true,depthWrite:false,blending:T.AdditiveBlending,color:0xffb347,opacity:.75,polygonOffset:true,polygonOffsetFactor:-2,fog:false}),clusters.length);
  clusters.forEach((c,i)=>{const r=1.5+c.n*.12;m.compose(new T.Vector3(c.x,c.y+.015,c.z),q,new T.Vector3(r,1,r));pools.setMatrixAt(i,m);});pools.renderOrder=1;root.add(pools);
  // No new lights (each one costs every lit surface in the hall): the hall's own lamps become candle light instead.
- // The three ceiling lamps come down to the candles (stage front, mid stage, rear risers); the stage key lights turn amber.
- const lights:T.Light[]=[],targets=[[0,floor+1.2,STAGE.front+1.2],[0,1.6,-15],[0,1.4,-22]];
- scene.traverse(o=>{const l=o as T.PointLight;if(l.isPointLight&&l.position.y>14&&lights.length<3){const [x,y,z]=targets[lights.length];l.position.set(x,y,z);l.color.set(0xffbf66);l.intensity=110;l.distance=17;l.decay=1.6;lights.push(l);}});
- scene.traverse(o=>{const l=o as T.SpotLight;if(l.isSpotLight&&l.position.z===-15&&l.position.y===12){l.color.set(0xffc06a);l.intensity=70;l.position.y=4;lights.push(l);}});
+ // Reuse the ceiling lamps as broad fills above both sides of the orchestra.
+ const lights:T.Light[]=[],targets=[[0,floor+1.2,STAGE.front+1.2],[-6,7,-17],[6,7,-20]];
+ scene.traverse(o=>{const l=o as T.PointLight;if(l.isPointLight&&l.position.y>14&&lights.length<3){const [x,y,z]=targets[lights.length];l.position.set(x,y,z);l.color.set(0xffbf66);l.intensity=lights.length===0?0:85;l.distance=25;l.decay=2;lights.push(l);}});
+ scene.traverse(o=>{const l=o as T.SpotLight;if(l.isSpotLight&&l.position.z===-15&&l.position.y===12){l.color.set(0xffc874);l.intensity=85;lights.push(l);}});
+ // The two wall washes nearest the stage turn to light the players softly from above, so faces and instruments read.
+ scene.traverse(o=>{const l=o as T.SpotLight;if(l.isSpotLight&&l.position.z===-20&&l.position.y===10.5){const side=Math.sign(l.position.x);l.position.set(side*7,15,-10);l.target.position.set(side*4,0,-19);l.color.set(0xffd08a);l.intensity=300;l.distance=32;l.angle=.95;l.penumbra=1;}});
+ // The hall is frozen after building (no automatic matrix updates), so moved lights and targets must be updated by hand.
+ scene.traverse(o=>{const l=o as T.SpotLight;if(!l.isLight)return;l.updateMatrix();l.updateMatrixWorld(true);if(l.target){l.target.updateMatrix();l.target.updateMatrixWorld(true);}});
  const base=lights.map(l=>l.intensity);
  // Candle flicker: flames, halos and lights breathe together, each area a little out of step.
  flame.onBeforeRender=()=>{const t=performance.now()/1000;
   const f=(k:number)=>.86+.08*Math.sin(t*7.3+k*1.7)+.05*Math.sin(t*13.1+k*2.9)+.03*Math.sin(t*23+k);
   lights.forEach((l,i)=>{l.intensity=base[i]*f(i);});(halo.material as T.PointsMaterial).opacity=.8*f(9);(flame.material as T.PointsMaterial).size=.2*(.93+.08*Math.sin(t*11));};
+ // Floating candles, as in a school of magic: high over the stalls, between the galleries and the ceiling,
+ // each drifting slowly up and down on its own rhythm. Above the gallery rails so they never hide the stage.
+ const floating=Array.from({length:170},()=>({x:(rnd()-.5)*23,y:9.6+rnd()*5.4,z:-6+rnd()*46,h:.22+rnd()*.18,phase:rnd()*Math.PI*2,speed:.35+rnd()*.35}));
+ const floatBody=new T.InstancedMesh(new T.CylinderGeometry(.075,.075,1,8),body.material as T.Material,floating.length);floatBody.frustumCulled=false;
+ const floatFlame=new Float32Array(floating.length*3),floatGeometry=new T.BufferGeometry();floatGeometry.setAttribute('position',new T.BufferAttribute(floatFlame,3));
+ const floatPoints=new T.Points(floatGeometry,flame.material as T.PointsMaterial),floatHalo=new T.Points(floatGeometry,new T.PointsMaterial({map:glowTexture(.6,.3),size:1.3,transparent:true,depthWrite:false,blending:T.AdditiveBlending,color:0xffc463,opacity:.75,fog:false}));
+ floatPoints.frustumCulled=floatHalo.frustumCulled=false;floatPoints.renderOrder=floatHalo.renderOrder=2;root.add(floatBody,floatHalo,floatPoints);
+ const place=(t:number)=>{floating.forEach((c,i)=>{const y=c.y+Math.sin(t*c.speed+c.phase)*.35;m.compose(new T.Vector3(c.x,y+c.h/2,c.z),q,new T.Vector3(1,c.h,1));floatBody.setMatrixAt(i,m);floatFlame.set([c.x,y+c.h+.06,c.z],i*3);});
+  floatBody.instanceMatrix.needsUpdate=true;floatGeometry.getAttribute('position').needsUpdate=true;};
+ place(0);let placedAt=0;
+ floatPoints.onBeforeRender=()=>{const t=performance.now()/1000;if(t-placedAt<1/30)return;placedAt=t;place(t);};// 30 updates a second are plenty for a slow drift
  root.traverse(o=>{o.userData.fullDetail=true;});
  return root;
 }

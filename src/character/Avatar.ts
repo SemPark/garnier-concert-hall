@@ -120,7 +120,8 @@ export class Avatar{
   const wearsSkirt=this.appearance==='woman'&&!instrument;
   this.skirt=wearsSkirt?new T.Mesh(skirtGeometry,material(color)):null;
   if(this.skirt){this.skirt.position.y=.78;this.skirt.scale.z=.87;this.skirt.userData.garment='skirt';this.skirt.userData.clothContact='skirt';this.body.add(this.skirt);}
-  if(outfit&&this.appearance==='man'){const shirt=garmentPatch(this.body,torso,.15,.23,0,.84,0xf4efe5);shirt.userData.garment='dress-shirt';shirt.userData.clothContact='plain';for(const side of [-1,1]){const lapel=box(this.body,[.055,.28,.09],[side*.105,.86,-.15],color);lapel.rotation.z=side*.23;lapel.userData.garment='lapel';lapel.userData.clothContact='plain';}}
+  // Every visiting man wears the dress shirt and lapels; the cloakroom outfit only changes the colour.
+  if((outfit||!instrument)&&this.appearance==='man'){const shirt=garmentPatch(this.body,torso,.15,.23,0,.84,0xf4efe5);shirt.userData.garment='dress-shirt';shirt.userData.clothContact='plain';for(const side of [-1,1]){const lapel=box(this.body,[.055,.28,.09],[side*.105,.86,-.15],color);lapel.rotation.z=side*.23;lapel.userData.garment='lapel';lapel.userData.clothContact='plain';}}
   this.left={shoulder:this.leftArm,hand:this.leftHand};this.right={shoulder:this.rightArm,hand:this.rightHand};
   for(const [side,arm]of [[-1,this.left],[1,this.right]] as const){
    // Arms start inside the torso, so the top of the arm is buried in the body instead of hanging beside it.
