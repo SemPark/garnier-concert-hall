@@ -25,6 +25,11 @@ export function buildCandlelight(scene:T.Scene){
   if((l as T.SpotLight).isSpotLight||(l as T.PointLight).isPointLight)l.intensity*=.12;else if((l as T.DirectionalLight).isDirectionalLight)l.intensity*=.15;else l.intensity*=.3;
   // What little room light remains takes the candles' colour, so the whole hall feels warm rather than grey.
   if((l as T.HemisphereLight).isHemisphereLight){l.color.set(0xffc58a);(l as T.HemisphereLight).groundColor.set(0x40261a);}else if(!(l as T.SpotLight).isSpotLight&&!(l as T.PointLight).isPointLight)l.color.set(0xffc27e);});
+ // Redirect the existing aisle-side washes onto the seating and floor. Their limited range keeps the stage lighting intact.
+ scene.traverse(o=>{const light=o as T.SpotLight;if(!light.isSpotLight||light.position.y!==10.5||![6,32].includes(light.position.z))return;
+  const side=Math.sign(light.position.x);light.position.set(side*9,9,light.position.z);light.target.position.set(side*3,0,light.position.z);
+  light.color.set(0xffce94);light.intensity=100;light.distance=22;light.angle=1.0;light.penumbra=1;
+ });
  let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
  const half=STAGE.width/2,floor=PARTERRE.floor,clusters:Cluster[]=[];
  const clearOfPlayers=(x:number,z:number)=>Math.hypot(x-CONDUCTOR.x,z-CONDUCTOR.z)>1.3&&ORCHESTRA_LAYOUT.every(p=>Math.hypot(x-p.x,z-p.z)>.95);
