@@ -22,7 +22,7 @@ import program from '../content/playlist.json';
 import {nextPiece,type Playlist} from '../shared/timeline';
 import {localCameraFrame} from './controls/localCamera';
 import {findPath,segmentClear} from './navigation/path';
-import {SPAWN,SEATS,CAPACITY,BOUNDS,seatLabel,walkable,distance,surfaceHeight,stairPoint,stairLink,STAGE_APRON_Z,visitorVariant,visitorColor,CANDLE_TABLE,type Look,type Visitor,type Zone,type Point} from '../shared/venue';
+import {SPAWN,SEATS,CAPACITY,BOUNDS,seatLabel,walkable,distance,surfaceHeight,stairPoint,stairLink,STAGE_APRON_Z,visitorVariant,visitorColor,CANDLE_TABLES,type CandleTable,type Look,type Visitor,type Zone,type Point} from '../shared/venue';
 import type {Snapshot} from '../shared/protocol';
 import type {Presence} from './network/Presence';
 import type {ConcertAudio} from './audio/ConcertAudio';
@@ -247,16 +247,16 @@ export class World{
  toggleCandle(){const c=this.candle;if(c)this.net.send({type:'candle',state:c==='on'?'off':'on'});}
  private candleLayers=new WeakMap<T.Scene,CarriedCandles>();private candleAskAt=0;
  /** Walk to the candle table; arriving next to it picks up a lit candle. */
- visitCandleTable(){if(this.zone!=='auditorium'||!this.entered||this.climb)return;if(this.pose==='sit')this.stand();
-  const path=findPath(this.zone,this.position,CANDLE_TABLE.approach);if(!path)return;this.cancelSeat();this.route=path;this.marker.position.set(CANDLE_TABLE.approach.x,.035,CANDLE_TABLE.approach.z);this.marker.visible=true;}
+ visitCandleTable(table:CandleTable){if(this.zone!=='auditorium'||!this.entered||this.climb)return;if(this.pose==='sit')this.stand();
+  const path=findPath(this.zone,this.position,table.approach);if(!path)return;this.cancelSeat();this.route=path;this.marker.position.set(table.approach.x,.035,table.approach.z);this.marker.visible=true;}
  private updateCandles(now:number){
   // Passing the candle table picks up a lit candle (once a second at most, until the server confirms it).
-  if(this.zone==='auditorium'&&this.entered&&!this.candle&&now-this.candleAskAt>1000&&Math.hypot(this.position.x-CANDLE_TABLE.approach.x,this.position.z-CANDLE_TABLE.approach.z)<1.1&&Math.abs(this.position.y)<.5){this.candleAskAt=now;this.net.send({type:'candle',state:'on'});}
-  if(this.zone!=='auditorium')return;
+  if(this.zone==='auditorium'&&this.entered&&!this.candle&&now-this.candleAskAt>1000&&CANDLE_TABLES.some(table=>Math.hypot(this.position.x-table.approach.x,this.position.z-table.approach.z)<1.1)&&Math.abs(this.position.y)<.5){this.candleAskAt=now;this.net.send({type:'candle',state:'on'});}
+  if(this.zone!=='auditorium'){if(this.avatar)this.avatar.holdingCandle=false;for(const r of this.remotes.values())r.avatar.holdingCandle=false;return;}
   let layer=this.candleLayers.get(this.venue.scene);if(!layer){layer=new CarriedCandles(this.venue.scene);this.candleLayers.set(this.venue.scene,layer);}
   const carriers:{hand:T.Object3D;lit:boolean;own?:boolean}[]=[],mine=this.candle;
-  if(this.avatar){this.avatar.holdingCandle=!!mine&&this.entered;if(this.avatar.holdingCandle)carriers.push({hand:this.avatar.leftHand,lit:mine==='on',own:true});}
-  for(const r of this.remotes.values()){const c=r.visitor.zone===this.zone?r.visitor.candle:undefined;r.avatar.holdingCandle=!!c;if(c)carriers.push({hand:r.avatar.leftHand,lit:c==='on'});}
+  if(this.avatar){this.avatar.holdingCandle=!!mine&&this.entered;if(this.avatar.holdingCandle)carriers.push({hand:this.avatar.rightHand,lit:mine==='on',own:true});}
+  for(const r of this.remotes.values()){const c=r.visitor.zone===this.zone?r.visitor.candle:undefined;r.avatar.holdingCandle=!!c;if(c)carriers.push({hand:r.avatar.rightHand,lit:c==='on'});}
   layer.update(carriers,this.reduced?0:now/1000);
  }
  gestureAction(gesture:Gesture){this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});if(CLAPS.includes(gesture))this.audio.clap();}
@@ -265,7 +265,7 @@ export class World{
   if(hit.object.userData.lobbyCat){this.visitCat();return;}
   if(hit.object.userData.loungeSeatId){this.sitInLobby(hit.object.userData.loungeSeatId);return;}
   if(hit.object.userData.cloakroom){this.visitWardrobe();return;}
-  if(hit.object.userData.candleTable){this.visitCandleTable();return;}
+  if(hit.object.userData.candleTable){this.visitCandleTable(hit.object.userData.candleTable as CandleTable);return;}
   if(hit.object.userData.boxOffice){this.visitBoxOffice();return;}
   if(hit.object.userData.stairSide){this.useStair(hit.object.userData.stairSide,hit.object.userData.stairUp);return;}
   if(hit.object.userData.lobbyExit){this.changeZone();return;}let obj:T.Object3D|null=hit.object,seatId:string|undefined;while(obj){seatId=seatId??obj.userData.seatId;if(obj.userData.portal){if(this.zone==='lobby')this.walkToEntrance();else void this.changeZone();return;}obj=obj.parent;}

@@ -190,8 +190,8 @@ export class Avatar{
    this.aimAt(this.right,.45+Math.sin(u)*.32*play,1.18+(Math.abs(Math.sin(u*2))*.42-.12)*play,-.25-Math.cos(u)*.08*play);
    this.aimAt(this.left,-.45-Math.sin(u+.7)*.22*play,1.12+Math.sin(u*.5)*.3*play,-.22);
   }
-  // A carried candle is held up in front of the chest in the left hand.
-  if(this.holdingCandle&&!type)this.aimAt(this.left,-.1,.93,-.3);
+  // The candle stays in the right hand, including while that hand waves.
+  if(this.holdingCandle&&!type)this.aimAt(this.right,.1,.93,-.3);
   if(pose.weight>0){if(pose.left)this.aimAt(this.left,...pose.left,pose.weight);if(pose.right)this.aimAt(this.right,...pose.right,pose.weight);}
   this.icon=pose.icon;this.iconAlpha=pose.iconAlpha;
   // The finger rises only once the hand has reached the chin.

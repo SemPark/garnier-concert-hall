@@ -58,6 +58,8 @@ export const BOUNDS={lobby:{minX:-ATRIUM.halfWidth+.5,maxX:ATRIUM.halfWidth-.5,m
 export type CandleState='on'|'off';
 export const isCandleState=(v:unknown):v is CandleState=>v==='on'||v==='off';
 export const CANDLE_TABLE={x:2.8,z:44.6,approach:{x:2.8,y:0,z:45.6}} as const;
+export const CANDLE_TABLES=[CANDLE_TABLE,{x:-2.8,z:44.6,approach:{x:-2.8,y:0,z:45.6}}] as const;
+export type CandleTable=(typeof CANDLE_TABLES)[number];
 export const SPAWN={lobby:{x:0,y:0,z:24},auditorium:{x:0,y:0,z:47}};
 export const PALETTE=[0xc9564d,0xd98a4f,0xd9b04f,0x5fa860,0x3f9c8f,0x4f7fd0,0x7462c9,0xd7769f,0xc25283,0x5aa9c9,0x95b856,0xd86662];
 export function visitorColor(v:{id:string;outfit?:Outfit}){return OUTFITS.find(o=>o.id===v.outfit)?.color??PALETTE[(appearanceSeed(v.id)>>>16)%PALETTE.length];}

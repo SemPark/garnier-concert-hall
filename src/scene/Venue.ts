@@ -1,3 +1,4 @@
+import {CANDLE_TABLES} from '../../shared/venue';
 import {PARTERRE,parterreHeight} from '../../shared/parterre';
 import {archedTimberDoor} from './ArchedTimberDoor';
 import {classicalLamp} from './ClassicalLamp';
@@ -256,7 +257,7 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  // Sun shafts use their own shaders, so they join after batching.
  const sunlight=zone==='lobby'?buildSunlight(scene,[23.1,33.1,38.1].map(z=>new T.Vector3(14.5,16.5,z)),{color:0xffdfb0,strength:.18,pool:.035,fill:.08,spread:.6}):buildSunlight(scene,undefined,{color:0xffd09a,strength:.07,pool:.015,fill:.035,spread:.85});
  // Candlelight concert: candles fill the stage and the hall's own lights go down (after batching, which they must not join).
- if(zone==='auditorium'){buildCandlelight(scene);walkTargets.push(buildCandleTable(scene).hit);}
+ if(zone==='auditorium'){buildCandlelight(scene);for(const table of CANDLE_TABLES)walkTargets.push(buildCandleTable(scene,table).hit);}
  const treeStar=zone==='lobby'?buildFloatingTreeStar(scene,LOBBY_CHRISTMAS_TREE.x,LOBBY_CHRISTMAS_TREE.z):null;
  const stairArrows=zone==='lobby'?buildTicketGuide(scene):buildStairArrows(scene);
  return {treeStar,cat,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};

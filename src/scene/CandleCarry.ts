@@ -1,10 +1,10 @@
 import * as T from 'three';
-import {CANDLE_TABLE} from '../../shared/venue';
+import {CANDLE_TABLE,type CandleTable} from '../../shared/venue';
 import {glowTexture} from './Candlelight';
 
 /** The candle table inside the hall entrance, where visitors pick up a candle to carry. */
-export function buildCandleTable(scene:T.Scene){
- const root=new T.Group();root.position.set(CANDLE_TABLE.x,0,CANDLE_TABLE.z);root.userData.landmark='candle-table';root.userData.candleTable=true;scene.add(root);
+export function buildCandleTable(scene:T.Scene,table:CandleTable=CANDLE_TABLE){
+ const root=new T.Group();root.position.set(table.x,0,table.z);root.userData.landmark='candle-table';root.userData.candleTable=table;scene.add(root);
  const wood=new T.MeshLambertMaterial({color:0x4a2e1c}),cloth=new T.MeshLambertMaterial({color:0x6b1f24});
  const top=new T.Mesh(new T.BoxGeometry(1.4,.06,.6),wood);top.position.y=.86;root.add(top);
  const drape=new T.Mesh(new T.BoxGeometry(1.42,.5,.62),cloth);drape.position.y=.6;root.add(drape);
@@ -21,10 +21,10 @@ export function buildCandleTable(scene:T.Scene){
  c.fillStyle='rgba(255,214,140,.95)';c.fillRect(100,128,56,80);c.fillRect(124,112,8,18);// wax and wick
  c.beginPath();c.moveTo(128,36);c.bezierCurveTo(160,70,166,96,128,118);c.bezierCurveTo(90,96,96,70,128,36);c.fill();// a full teardrop flame on the wick
  const sign=new T.Mesh(new T.PlaneGeometry(1.25,1.25).rotateX(-Math.PI/2),new T.MeshBasicMaterial({map:new T.CanvasTexture(canvas),transparent:true,depthWrite:false,blending:T.AdditiveBlending,polygonOffset:true,polygonOffsetFactor:-2}));
- (sign.material.map as T.Texture).colorSpace=T.SRGBColorSpace;sign.position.set(CANDLE_TABLE.approach.x-CANDLE_TABLE.x,.02,CANDLE_TABLE.approach.z-CANDLE_TABLE.z);sign.userData.candleTable=true;root.add(sign);
+ (sign.material.map as T.Texture).colorSpace=T.SRGBColorSpace;sign.position.set(table.approach.x-table.x,.02,table.approach.z-table.z);sign.userData.candleTable=table;root.add(sign);
  sign.onBeforeRender=()=>{(sign.material as T.MeshBasicMaterial).opacity=.65+.3*Math.sin(performance.now()/450);};
  // An invisible, generous tap target over the whole table.
- const hit=new T.Mesh(new T.BoxGeometry(1.6,1.4,.9),new T.MeshBasicMaterial({visible:false}));hit.position.y=.7;hit.userData.candleTable=true;root.add(hit);
+ const hit=new T.Mesh(new T.BoxGeometry(1.6,1.4,.9),new T.MeshBasicMaterial({visible:false}));hit.position.y=.7;hit.userData.candleTable=table;root.add(hit);
  root.traverse(o=>{o.userData.fullDetail=true;});
  return {root,hit};
 }
@@ -47,7 +47,7 @@ export class CarriedCandles{
   this.own=new T.PointLight(0xffb35a,0,3.2,1.6);scene.add(this.own);
  }
  private hand=new T.Vector3();private m=new T.Matrix4();private q=new T.Quaternion();private one=new T.Vector3(1,1,1);
- /** Each carrier's left hand, and whether its candle is lit. Wax goes in the hand; lit flames are packed first. */
+ /** Each carrier's right hand, and whether its candle is lit. Wax goes in the hand; lit flames are packed first. */
  update(carriers:{hand:T.Object3D;lit:boolean;own?:boolean}[],time:number){
   let n=0,f=0;this.own.intensity=0;
   for(const c of carriers){if(n>=this.capacity)break;c.hand.getWorldPosition(this.hand);this.hand.y+=.06;
