@@ -29,6 +29,7 @@ export type ClientMessage=
  |{type:'look';look:Look}
  |{type:'outfit';outfit:Outfit}
  |{type:'candle';state:CandleState}
+ |{type:'activity'}
  |{type:'sync'}
  |{type:'clock';sentAt:number};
 export type ServerMessage=

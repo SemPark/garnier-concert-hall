@@ -6,7 +6,7 @@ import {isOutfit,atCloakroom} from '../shared/wardrobe';
 import {LOUNGE_SEATS} from '../shared/loungeSeats';
 import {freeVisitorPosition} from '../shared/visitorCollision';
 
-type Attachment={visitor:Visitor;token:string;generation:string;lastMessage:number;windowAt:number;messageCount:number;reservationRequest?:string;roomId:string};
+type Attachment={lastActivity?:number;visitor:Visitor;token:string;generation:string;lastMessage:number;windowAt:number;messageCount:number;reservationRequest?:string;roomId:string};
 type ClaimRow={seatId:string;visitorId:string;status:'reserved'|'seated';expiresAt:number|null};
 type SessionRow={id:string;token:string;visitor:string;until:number|null};
 const RESERVE_MS=20000,GRACE_MS=12000,FLUSH_MS=100;
@@ -46,7 +46,8 @@ export class VenueRoom extends DurableObject<Env>{
  private async schedule(){
   const a=this.ctx.storage.sql.exec<{next:number|null}>('SELECT MIN(expiresAt) AS next FROM claims WHERE expiresAt IS NOT NULL').one().next;
   const b=this.ctx.storage.sql.exec<{next:number|null}>('SELECT MIN(until) AS next FROM sessions WHERE until IS NOT NULL').one().next;
-  const next=Math.min(a??Infinity,b??Infinity);if(Number.isFinite(next))await this.ctx.storage.setAlarm(Math.max(Date.now()+10,next));else await this.ctx.storage.deleteAlarm();
+  let idle=Infinity;for(const {ws,a:attachment} of this.active())if(attachment.visitor.zone==='lobby'){if(!attachment.lastActivity){attachment.lastActivity=Date.now();ws.serializeAttachment(attachment);}idle=Math.min(idle,attachment.lastActivity+30000);}
+  const next=Math.min(a??Infinity,b??Infinity,idle);if(Number.isFinite(next))await this.ctx.storage.setAlarm(Math.max(Date.now()+10,next));else await this.ctx.storage.deleteAlarm();
  }
  private expire(){const now=Date.now();
   const expired=this.ctx.storage.sql.exec<{id:string}>('SELECT id FROM sessions WHERE until IS NOT NULL AND until<=?',now).toArray();for(const {id} of expired)this.release(id);
@@ -75,7 +76,7 @@ export class VenueRoom extends DurableObject<Env>{
   if(active){active.ws.serializeAttachment(null);active.ws.close(4001,'Session resumed elsewhere');}
   this.ctx.storage.sql.exec('INSERT INTO sessions(id,token,visitor,until) VALUES(?,?,?,NULL) ON CONFLICT(id) DO UPDATE SET visitor=excluded.visitor,until=NULL',visitor.id,savedToken,JSON.stringify(visitor));
   const pair=new WebSocketPair(),server=pair[1];this.ctx.acceptWebSocket(server);
-  server.serializeAttachment({visitor,token:savedToken,generation:crypto.randomUUID(),lastMessage:0,windowAt:Date.now(),messageCount:0,roomId});
+  server.serializeAttachment({lastActivity:Date.now(),visitor,token:savedToken,generation:crypto.randomUUID(),lastMessage:0,windowAt:Date.now(),messageCount:0,roomId});
   // The snapshot first sends everyone (the newcomer ignores it) the delta that adds this visitor.
   this.send(server,{type:'welcome',selfId:visitor.id,resumeToken:savedToken,state:this.snapshot(roomId)});await this.schedule();
   return new Response(null,{status:101,webSocket:pair[0]});
@@ -89,11 +90,13 @@ export class VenueRoom extends DurableObject<Env>{
   this.expire();const v=a.visitor;
   if(msg.type==='clock'){if(Number.isFinite(msg.sentAt))this.send(ws,{type:'clock',sentAt:msg.sentAt,serverNow:now});return;}
   if(msg.type==='sync'){this.send(ws,{type:'state',state:this.snapshot(this.roomId())});return;}
+  if(msg.type==='activity'){a.lastActivity=now;ws.serializeAttachment(a);await this.schedule();return;}
   if(msg.type==='move'){
    if(!walkable(v.zone,{x:msg.x,y:msg.y??0,z:msg.z})||!Number.isFinite(msg.yaw)||!['idle','walk'].includes(msg.pose))return;
    // A generous per-packet allowance accommodates interpolation and mobile pauses.
    if(distance(v,msg)>Math.max(2.2,(now-a.lastMessage)/1000*6)&&a.lastMessage&&!stairLink(v,msg))return;
    if(v.pose==='sit')return;
+   if(distance(v,msg)>.02)a.lastActivity=now;
    Object.assign(v,{x:round(msg.x),y:round(msg.y??0),z:round(msg.z),yaw:round(msg.yaw),pose:msg.pose});
   }else if(msg.type==='zone'){
    if(!['lobby','auditorium'].includes(msg.zone)||msg.zone===v.zone)return;
@@ -135,6 +138,7 @@ export class VenueRoom extends DurableObject<Env>{
   }else if(msg.type==='gesture'){
    if(!isGesture(msg.gesture)||now-v.gestureAt<1200)return;v.gesture=msg.gesture;v.gestureAt=now;
   }else return;
+  if(msg.type!=='move')a.lastActivity=now;
   a.lastMessage=now;ws.serializeAttachment({...a,roomId:this.roomId()});this.broadcast();await this.schedule();
  }
  async webSocketClose(ws:WebSocket){await this.disconnected(ws);}
@@ -143,5 +147,12 @@ export class VenueRoom extends DurableObject<Env>{
   if(this.active().some(x=>x.a.visitor.id===a.visitor.id))return;
   this.ctx.storage.sql.exec('UPDATE sessions SET visitor=?,until=? WHERE id=?',JSON.stringify(a.visitor),Date.now()+GRACE_MS,a.visitor.id);this.broadcast();await this.schedule();
  }
- async alarm(){this.expire();this.broadcast();await this.schedule();}
+ async alarm(){
+  this.expire();const now=Date.now();
+  for(const {ws,a} of this.active())if(a.visitor.zone==='lobby'&&a.lastActivity&&now-a.lastActivity>=30000){
+   const v=a.visitor;this.release(v.id);Object.assign(v,{zone:'auditorium',...SPAWN.auditorium,pose:'idle',seatId:null,loungeSeatId:null});delete v.candle;
+   ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(v),v.id);
+  }
+  this.broadcast();await this.schedule();
+ }
 }
