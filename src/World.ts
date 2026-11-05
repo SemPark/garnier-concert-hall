@@ -43,8 +43,7 @@ export class World{
  private lightingPass:LobbyLightPass|null=null;private environment:T.WebGLRenderTarget;private poseFrustum=new T.Frustum();private poseProjection=new T.Matrix4();private poseSphere=new T.Sphere();private poseCenter=new T.Vector3();private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private route:Point[]=[];private avatarVariant=-1;private climb:{points:Point[];up:boolean}|null=null;private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
  private collisionPauseUntil=0;private seatedTarget:T.Vector3|null=null;private cameraSeatAmount=0;private petFocus=new T.Vector3();
  hallLoading=false;private hallLoadingTimeout=0;
- private lobbyIdleSince=0;
- private spawnIdleAt=0;private spawnIdleOrigin=new T.Vector3();
+ private lobbyEnteredAt=0;private activityEvents=new AbortController();
  private ray=new T.Raycaster();private ndc=new T.Vector2();private frame=0;private last=performance.now();private sentAt=0;private lastPose='';private renewAt=0;private lastUI=0;private look=new T.Vector3();private gesture:Gesture|null=null;private headTop=new T.Vector3();private gestureAt=0;
  private disposed=false;private lodAt=0;private orchestraAt=0;quality:RenderQuality='balanced';readonly mobile=matchMedia('(pointer: coarse)').matches||/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);private renderedAt=0;
  private releaseLoadingCallbacks=()=>{};
@@ -70,6 +69,7 @@ export class World{
   this.crowds={lobby:new Crowd(this.venues.lobby.scene)} as Record<Zone,Crowd>;
   this.marker=new T.Mesh(new T.RingGeometry(.16,.24,24),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.8,depthWrite:false}));this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.venues.lobby.scene.add(this.marker);
   this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>this.stand()});
+  for(const event of ['pointerdown','pointermove','keydown','wheel'])window.addEventListener(event,()=>{this.lobbyEnteredAt=performance.now();},{passive:true,signal:this.activityEvents.signal});
   window.addEventListener('resize',this.resize);canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();this.onToast('화면 연결이 끊겼어요. 새로고침해 주세요.');});this.resize();this.snapCamera();bakeArchitectureShadows(this.renderer,this.venues.lobby.scene,this.camera);this.venues.lobby.updateLOD(this.camera);this.animate();if(new URLSearchParams(location.search).has('diagnostics'))Object.assign(window,{__concertMetrics:()=>({fps:this.fps,calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,pixelRatio:this.renderer.getPixelRatio(),buffer:[this.renderer.domElement.width,this.renderer.domElement.height],quality:this.quality,mobile:this.mobile,targetFPS:frameRate(this.mobile,this.quality),animationHz:30,antialias:this.renderer.getContext().getContextAttributes()?.antialias})});
  }
  private ensureHall(){
@@ -124,7 +124,7 @@ export class World{
     if(self.pose==='sit'&&!initial&&!changedZone)this.seatedTarget=new T.Vector3(self.x,self.y??SEATS.find(s=>s.id===self.seatId)?.y??0,self.z);
     else{this.position.set(self.x,self.y??(self.pose==='sit'?(SEATS.find(s=>s.id===self.seatId)?.y??0):0),self.z);this.seatedTarget=null;}
     this.yaw=self.yaw;this.pose=self.pose;
-    if(initial||changedZone){if(this.entered&&self.pose!=='sit'){this.spawnIdleAt=performance.now();this.spawnIdleOrigin.copy(this.position);}this.cameraSeatAmount=self.pose==='sit'?1:0;this.zone=self.zone;if(self.zone==='auditorium')this.stopHallLoading();
+    if(initial||changedZone){this.cameraSeatAmount=self.pose==='sit'?1:0;this.zone=self.zone;this.lobbyEnteredAt=self.zone==='lobby'?performance.now():0;if(self.zone==='auditorium')this.stopHallLoading();
      // Entering the hall: take in the whole room first, then settle behind your own character.
      // A ticket journey waits for the overview and the settled character camera before walking.
      if(self.zone==='auditorium'){this.concertView=true;this.hallOverview=true;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.introUntil=performance.now()+3500;this.seatWalkAt=this.pendingSeat?this.introUntil:0;}else{this.introUntil=0;this.seatWalkAt=0;}
@@ -145,7 +145,7 @@ export class World{
   // Before the welcome snapshot arrives, use exactly the same spawn/orbit as the server.
   // The old temporary z=10 / yaw=0 put the camera outside the lobby for a frame.
   if(!this.self){this.position.set(SPAWN.lobby.x,SPAWN.lobby.y,SPAWN.lobby.z);this.cameraYaw=Math.PI;}
-  this.entered=true;this.spawnIdleAt=performance.now();this.spawnIdleOrigin.copy(this.position);this.snapCamera();this.renderer.domElement.focus();this.onChange();
+  this.entered=true;this.lobbyEnteredAt=performance.now();this.snapCamera();this.renderer.domElement.focus();this.onChange();
  }
  stopHallLoading(){clearTimeout(this.hallLoadingTimeout);this.hallLoading=false;this.onChange();}
  async changeZone(fromDoor=false){
@@ -279,11 +279,11 @@ export class World{
   if(this.zone!=='auditorium'){if(this.avatar)this.avatar.holdingCandle=false;for(const r of this.remotes.values())r.avatar.holdingCandle=false;return;}
   let layer=this.candleLayers.get(this.venue.scene);if(!layer){layer=new CarriedCandles(this.venue.scene);this.candleLayers.set(this.venue.scene,layer);}
   const carriers:{hand:T.Object3D;lit:boolean;own?:boolean}[]=[],mine=this.candle;
-  if(this.avatar){this.avatar.holdingCandle=!!mine&&this.entered;if(this.avatar.holdingCandle)carriers.push({hand:this.avatar.rightHand,lit:mine==='on',own:true});}
-  for(const r of this.remotes.values()){const c=r.visitor.zone===this.zone?r.visitor.candle:undefined;r.avatar.holdingCandle=!!c;if(c)carriers.push({hand:r.avatar.rightHand,lit:c==='on'});}
+  if(this.avatar){this.avatar.holdingCandle=!!mine&&this.entered;if(this.avatar.holdingCandle)carriers.push({hand:this.avatar.leftHand,lit:mine==='on',own:true});}
+  for(const r of this.remotes.values()){const c=r.visitor.zone===this.zone?r.visitor.candle:undefined;r.avatar.holdingCandle=!!c;if(c)carriers.push({hand:r.avatar.leftHand,lit:c==='on'});}
   layer.update(carriers,this.reduced?0:now/1000);
  }
- gestureAction(gesture:Gesture){this.lobbyIdleSince=0;this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});if(CLAPS.includes(gesture))this.audio.clap();}
+ gestureAction(gesture:Gesture){this.lobbyEnteredAt=performance.now();this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});if(CLAPS.includes(gesture))this.audio.clap();}
  private click(x:number,y:number){if(!this.entered||this.climb)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
   const hits=this.ray.intersectObjects([...(this.venue.cat?.targets??[]),...(this.venue.stairArrows?.targets??[]),...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);if(!hits.length)return;const hit=hits[0];
   if(hit.object.userData.lobbyCat){this.visitCat();return;}
@@ -357,21 +357,11 @@ export class World{
   if(this.diagnosticActive&&this.diagnosticMode==='audio-only'){this.frameCost={at:now,cpu:0,submit:0};if(now-this.lastUI>500){this.lastUI=now;this.onChange();}return;}
   let speed=0;const keys=this.input.keys;let kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+this.input.touchMove.x;let kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+this.input.touchMove.z;
   if(this.entered&&this.net.status==='connected'){
-   // Idle visitors should reach the performance without needing to discover the entrance button.
-   const lobbyIdle=this.zone==='lobby'&&!kx&&!kz&&!this.route.length&&this.pose==='idle'&&!this.climb&&!this.changingZone&&!this.uiObscured&&!document.hidden;
-   if(!lobbyIdle)this.lobbyIdleSince=0;
-   else if(!this.lobbyIdleSince)this.lobbyIdleSince=now;
-   else if(now-this.lobbyIdleSince>=30000){this.lobbyIdleSince=0;void this.changeZone();}
-   if(this.spawnIdleAt){
-    if(kx||kz||this.route.length||this.pose==='sit'||this.climb||this.position.distanceTo(this.spawnIdleOrigin)>.12)this.spawnIdleAt=0;
-    else if(now-this.spawnIdleAt>=10000&&!this.uiObscured){
-     this.spawnIdleAt=0;
-     for(const side of [this.net.selfId.charCodeAt(0)%2?1:-1,this.net.selfId.charCodeAt(0)%2?-1:1]){
-      const target={x:this.position.x+side*1.8,y:this.position.y,z:this.position.z};
-      if(walkable(this.zone,target)&&segmentClear(this.zone,this.position,target)){this.route=[target];break;}
-     }
-    }
-   }
+   // Automatically enter only after 30 seconds without activity.
+   if(this.zone!=='lobby')this.lobbyEnteredAt=0;
+   else if(kx||kz||this.route.length||this.climb||this.uiObscured||document.hidden)this.lobbyEnteredAt=now;
+   else if(!this.lobbyEnteredAt)this.lobbyEnteredAt=now;
+   else if(now-this.lobbyEnteredAt>=30000&&!this.climb&&!this.changingZone&&!this.uiObscured&&!document.hidden){this.lobbyEnteredAt=now;void this.changeZone();}
    if(this.climb||now<this.collisionPauseUntil)kx=kz=0;
    if((kx||kz)&&this.pose==='sit')this.stand();
    const previous=this.position.clone();
@@ -457,5 +447,5 @@ export class World{
   }if(this.diagnosticActive){const end=performance.now();this.frameCost={at:now,cpu:end-workStart,submit:end-submitStart};}
   if(now-this.lastUI>500){this.lastUI=now;this.onChange();}
  };
- destroy(){this.disposed=true;clearTimeout(this.hallLoadingTimeout);this.releaseLoadingCallbacks();clearTimeout(this.warmTimer);cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.lightingPass?.dispose();this.environment.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
+ destroy(){this.activityEvents.abort();this.disposed=true;clearTimeout(this.hallLoadingTimeout);this.releaseLoadingCallbacks();clearTimeout(this.warmTimer);cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.lightingPass?.dispose();this.environment.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
 }

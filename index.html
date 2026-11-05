@@ -10,8 +10,24 @@
 <img class="boot-art" src="/loading-background.svg" alt="" fetchpriority="high"/>
 <div class="boot-card"><svg class="boot-emblem" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><circle cx="32" cy="32" r="30" opacity=".35"/><path d="M15 27 32 17l17 10H15Zm3 4h28M18 47h28M21 32v11m11-11v11m11-11v11M15 50h34"/></svg><h1 class="boot-title">pleee</h1><div class="boot-meta"><span id="boot-label" class="boot-status" role="status">음악당을 준비하고 있어요</span><span class="boot-number"><span id="boot-percent">0</span><small>%</small></span></div><div class="boot-track" id="boot-progress" role="progressbar" aria-label="음악당 준비 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="boot-bar"></span></div></div>
 </section><script>
-(()=>{let value=0,done=false;const screen=document.getElementById('boot-screen');
-window.addEventListener('concert-loading',event=>{if(done)return;value=Math.max(value,Math.min(100,Math.round(event.detail.progress)));document.getElementById('boot-percent').textContent=String(value);document.getElementById('boot-bar').style.width=value+'%';document.getElementById('boot-progress').setAttribute('aria-valuenow',String(value));document.getElementById('boot-label').textContent=event.detail.label;if(value===100){done=true;setTimeout(()=>{screen.classList.add('is-leaving');setTimeout(()=>screen.remove(),850)},200)}});
-window.addEventListener('concert-loading-failed',()=>{done=true;screen.remove()},{once:true});
+(()=>{
+let value=0,target=0,done=false,frame=0,lastStep=0;
+const screen=document.getElementById('boot-screen'),number=document.getElementById('boot-percent'),bar=document.getElementById('boot-bar'),progress=document.getElementById('boot-progress'),label=document.getElementById('boot-label');
+function tick(now){
+ frame=0;if(done)return;
+ // Show every integer, catching up faster when a completed stage advances the target a long way.
+ const delay=Math.max(12,34-(target-value)*.6);
+ if(value<target&&now-lastStep>=delay){
+  value++;lastStep=now;number.textContent=String(value);bar.style.width=value+'%';progress.setAttribute('aria-valuenow',String(value));
+ }
+ if(value===100){done=true;setTimeout(()=>{screen.classList.add('is-leaving');setTimeout(()=>screen.remove(),850)},200);return;}
+ if(value<target)frame=requestAnimationFrame(tick);
+}
+window.addEventListener('concert-loading',event=>{
+ if(done)return;
+ target=Math.max(target,Math.min(100,Math.round(event.detail.progress)));label.textContent=event.detail.label;
+ if(!frame&&value<target)frame=requestAnimationFrame(tick);
+});
+window.addEventListener('concert-loading-failed',()=>{done=true;cancelAnimationFrame(frame);screen.remove()},{once:true});
 })();
 </script><noscript>음악당을 열려면 JavaScript를 켜 주세요.</noscript><div id="world"></div><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>

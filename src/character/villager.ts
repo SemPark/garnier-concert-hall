@@ -59,14 +59,14 @@ export function poseVillager(input:PoseInput,phase=0):VillagerPose{
  pose.headYaw=mix(pose.headYaw,0);
  switch(gesture){
   // The hand goes up high while the whole body leans away from it, so the arm clears the big head.
-  case 'wave':pose.right=[.74+Math.sin(age*11)*.08,1.42+Math.cos(age*11)*.04,-.05];pose.sway=mix(pose.sway,.26);pose.headRoll=mix(pose.headRoll,.12+Math.sin(age*11)*.03);break;
+  case 'wave':pose.left=[-.74-Math.sin(age*11)*.08,1.42+Math.cos(age*11)*.04,-.05];pose.sway=mix(pose.sway,-.26);pose.headRoll=mix(pose.headRoll,-.12-Math.sin(age*11)*.03);break;
   case 'clap':{const d=.08+.18*(.5+.5*Math.cos(age*13.5));pose.left=[-d,.94,-.3];pose.right=[d,.94,-.3];pose.headPitch=mix(pose.headPitch,-.05);break;}
   case 'bravo':{const pump=Math.sin(age*9)*.05;pose.left=[-.8,1.38+pump,-.1];pose.right=[.8,1.38+pump,-.1];pose.headPitch=mix(pose.headPitch,-.18);break;}
   // Keep the protocol ID for compatibility; this action now greets the rows behind.
   case 'ovation':{
    const turn=smooth(age,.05,.7)*(1-smooth(age,gestureSeconds('ovation')-.65,gestureSeconds('ovation')));
    pose.turn=-(input.sit>.5?1.55:2.4)*turn;pose.headYaw=-(input.sit>.5?.95:.3)*turn;
-   pose.right=[.72+Math.sin(age*11)*.05,1.40,-.03];pose.sway=mix(pose.sway,.10);pose.headPitch=mix(pose.headPitch,-.05);break;
+   pose.right=[.90+Math.sin(age*11)*.04,1.80,-.18];pose.sway=mix(pose.sway,.10);pose.headPitch=mix(pose.headPitch,-.05);break;
   }
   case 'bow':pose.lean=.55*w;pose.headPitch=mix(pose.headPitch,.2);break;
   case 'moved':pose.left=[-.12,.86,-.32];pose.right=[.12,.86,-.32];pose.headRoll=mix(pose.headRoll,.18);pose.headPitch=mix(pose.headPitch,-.1);break;

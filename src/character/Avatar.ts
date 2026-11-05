@@ -158,6 +158,8 @@ export class Avatar{
  }
  holdingCandle=false;
  update(time:number,speed:number,sitting:boolean,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60){
+  this.rightHand.position.set(0,-ARM_LENGTH,0);
+  const sleeve=this.rightArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;if(sleeve){sleeve.scale.y=1;sleeve.position.y=-(ARM_LENGTH-.06)/2;}
   const t=time+this.phase,play=performing?1:0,type=this.instrumentType;this.sitAmount=T.MathUtils.damp(this.sitAmount,sitting?1:0,12,dt);
   const pose=poseVillager({time,speed,sit:this.sitAmount,music:performing,musician:!!type,gesture,age:gestureAge},this.phase),sit=pose.sit;
   // Bend around the hips: the body pivots at the hip joint and the legs counter-rotate, so the feet stay put.
@@ -190,9 +192,23 @@ export class Avatar{
    this.aimAt(this.right,.45+Math.sin(u)*.32*play,1.18+(Math.abs(Math.sin(u*2))*.42-.12)*play,-.25-Math.cos(u)*.08*play);
    this.aimAt(this.left,-.45-Math.sin(u+.7)*.22*play,1.12+Math.sin(u*.5)*.3*play,-.22);
   }
-  // The candle stays in the right hand, including while that hand waves.
-  if(this.holdingCandle&&!type)this.aimAt(this.right,.1,.93,-.3);
+  // The left hand carries the candle; backward greetings and hush use the free right hand.
+  if(this.holdingCandle&&!type)this.aimAt(this.left,-.1,.93,-.3);
   if(pose.weight>0){if(pose.left)this.aimAt(this.left,...pose.left,pose.weight);if(pose.right)this.aimAt(this.right,...pose.right,pose.weight);}
+  if(gesture==='ovation'&&pose.weight>0&&!type){
+   // Wave just in front of the turned head's ear, clear of the eyes.
+   this.direction.set(.56+Math.sin(gestureAge*11)*.035,.10,-.12).applyQuaternion(this.head.quaternion).add(this.head.position);
+   this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);
+  }
+  if(gesture==='shh'&&pose.weight>0&&!type){
+   // Follow the turned mouth rather than a fixed point in front of the torso.
+   this.direction.set(0,-.14,faceSurfaceZ(0,-.14)-.012).applyQuaternion(this.head.quaternion).add(this.head.position);
+   this.direction.sub(new T.Vector3(...FINGER_OFFSET));
+   const reach=T.MathUtils.lerp(ARM_LENGTH,this.direction.distanceTo(this.rightArm.position),pose.weight);
+   this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);
+   this.rightHand.position.y=-reach;
+   if(sleeve){sleeve.scale.y=reach/ARM_LENGTH;sleeve.position.y=-(reach-.06)/2;}
+  }
   this.icon=pose.icon;this.iconAlpha=pose.iconAlpha;
   // The finger rises only once the hand has reached the chin.
   this.finger.scale.setScalar(gesture==='shh'?T.MathUtils.smoothstep(pose.weight,.6,1):0);

@@ -47,7 +47,7 @@ export class CarriedCandles{
   this.own=new T.PointLight(0xffb35a,0,3.2,1.6);scene.add(this.own);
  }
  private hand=new T.Vector3();private m=new T.Matrix4();private q=new T.Quaternion();private one=new T.Vector3(1,1,1);
- /** Each carrier's right hand, and whether its candle is lit. Wax goes in the hand; lit flames are packed first. */
+ /** Each carrier's left hand, and whether its candle is lit. Wax goes in the hand; lit flames are packed first. */
  update(carriers:{hand:T.Object3D;lit:boolean;own?:boolean}[],time:number){
   let n=0,f=0;this.own.intensity=0;
   for(const c of carriers){if(n>=this.capacity)break;c.hand.getWorldPosition(this.hand);this.hand.y+=.06;
