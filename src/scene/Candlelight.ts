@@ -10,7 +10,7 @@ import {CONDUCTOR,ORCHESTRA_LAYOUT,STAGE,STAGE_FLOOR,stageRiseAt} from '../orche
  * and the hall's own lamps, recoloured and brought down to the candles, flicker for whole areas (no new lights).
  * Wax, flames, halos and pools are four draw calls in all.
  */
-function glowTexture(inner:number,outer:number){
+export function glowTexture(inner:number,outer:number){
  const size=128,canvas=document.createElement('canvas');canvas.width=canvas.height=size;const c=canvas.getContext('2d')!;
  const g=c.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
  g.addColorStop(0,`rgba(255,244,210,${inner})`);g.addColorStop(.25,`rgba(255,200,95,${outer})`);g.addColorStop(1,'rgba(255,170,50,0)');
@@ -22,7 +22,9 @@ export function buildCandlelight(scene:T.Scene){
  const root=new T.Group();root.userData.landmark='candlelight';scene.add(root);
  // The hall's own lamps go down so the candles carry the room.
  scene.traverse(o=>{const l=o as T.Light;if(!l.isLight)return;
-  if((l as T.SpotLight).isSpotLight||(l as T.PointLight).isPointLight)l.intensity*=.12;else if((l as T.DirectionalLight).isDirectionalLight)l.intensity*=.15;else l.intensity*=.3;});
+  if((l as T.SpotLight).isSpotLight||(l as T.PointLight).isPointLight)l.intensity*=.12;else if((l as T.DirectionalLight).isDirectionalLight)l.intensity*=.15;else l.intensity*=.3;
+  // What little room light remains takes the candles' colour, so the whole hall feels warm rather than grey.
+  if((l as T.HemisphereLight).isHemisphereLight){l.color.set(0xffc58a);(l as T.HemisphereLight).groundColor.set(0x40261a);}else if(!(l as T.SpotLight).isSpotLight&&!(l as T.PointLight).isPointLight)l.color.set(0xffc27e);});
  let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
  const half=STAGE.width/2,floor=PARTERRE.floor,clusters:Cluster[]=[];
  const clearOfPlayers=(x:number,z:number)=>Math.hypot(x-CONDUCTOR.x,z-CONDUCTOR.z)>1.3&&ORCHESTRA_LAYOUT.every(p=>Math.hypot(x-p.x,z-p.z)>.95);

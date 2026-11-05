@@ -243,3 +243,9 @@ button.brand .brand-sub{font-size:12px;letter-spacing:1px;color:#f3e7cc;margin-t
 
 /* The complete live-render welcome screen is a tap target. */
 .entry-screen{pointer-events:auto;cursor:pointer}
+
+/* The candle appears in the action bar the moment one is picked up, with a short warm pop instead of a message. */
+.actionbar .candle-action{animation:candle-pop .7s ease-out}
+.actionbar .candle-action.lit svg{color:#ffd27a;filter:drop-shadow(0 0 6px rgba(255,190,90,.8))}
+@keyframes candle-pop{0%{transform:scale(.4);opacity:0}55%{transform:scale(1.25);opacity:1}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.actionbar .candle-action{animation:none}}

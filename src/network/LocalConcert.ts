@@ -1,6 +1,6 @@
 import {isOutfit,atCloakroom} from '../../shared/wardrobe';
 import {LOUNGE_SEATS} from '../../shared/loungeSeats';
-import {SEATS,SPAWN,PALETTE,distance,walkable,canSit,stairLink,isLook,type Visitor} from '../../shared/venue';
+import {SEATS,SPAWN,PALETTE,distance,walkable,stairLink,isLook,isCandleState,type Visitor} from '../../shared/venue';
 import type {ClientMessage,Snapshot} from '../../shared/protocol';
 import {isGesture} from '../../shared/gestures';
 
@@ -13,12 +13,13 @@ export class LocalConcert{
  send(msg:ClientMessage):boolean{
   const v=this.visitor;
   switch(msg.type){
-   case 'zone':this.release();Object.assign(v,{zone:msg.zone,...SPAWN[msg.zone],yaw:0});return true;
+   case 'zone':this.release();Object.assign(v,{zone:msg.zone,...SPAWN[msg.zone],yaw:0});delete v.candle;return true;
    case 'move':if(v.pose==='sit'||!walkable(v.zone,msg)||!Number.isFinite(msg.yaw)||distance(v,msg)>2.2&&!stairLink(v,msg))return false;Object.assign(v,{x:msg.x,y:msg.y??0,z:msg.z,yaw:msg.yaw,pose:msg.pose});return true;
    case 'reserve':if(v.zone!=='auditorium'||!SEATS.some(s=>s.id===msg.seatId))return false;this.release();this.reservationRequest=msg.requestId;v.seatId=msg.seatId;this.seats[msg.seatId]={visitorId:v.id,status:'reserved',expiresAt:null};return true;
    case 'seated':{const seat=SEATS.find(s=>s.id===msg.seatId);if(!seat||v.zone!=='auditorium'||v.seatId!==seat.id)return false;Object.assign(v,{x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw,pose:'sit'});this.seats[seat.id]={visitorId:v.id,status:'seated',expiresAt:null};return true;}
    case 'loungeSit':{const seat=LOUNGE_SEATS.find(s=>s.id===msg.seatId);if(!seat||v.zone!=='lobby'||distance(v,seat.approach)>.45)return false;this.release();Object.assign(v,{x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw,pose:'sit',loungeSeatId:seat.id});return true;}
    case 'release':if(msg.requestId&&msg.requestId!==this.reservationRequest)return false;this.release();return true;
+   case 'candle':if(!isCandleState(msg.state)||v.zone!=='auditorium')return false;v.candle=msg.state;return true;
    case 'outfit':if(!isOutfit(msg.outfit)||!atCloakroom(v))return false;v.outfit=msg.outfit;return true;
    case 'look':if(!isLook(msg.look))return false;v.look=msg.look;return true;
    case 'gesture':if(!isGesture(msg.gesture))return false;v.gesture=msg.gesture;v.gestureAt=Date.now();return true;

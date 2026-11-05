@@ -25,6 +25,7 @@ import {buildStairArrows,type StairArrows} from './StairArrows';
 import {buildHallTimberFloor} from './HallTimberFloor';
 import {buildSunlight,type Sunlight} from './Sunlight';
 import {buildCandlelight} from './Candlelight';
+import {buildCandleTable} from './CandleCarry';
 import {buildGoldenHallSteps,timberDoor} from './GoldenHall';
 import {woodMaterial,applyWoodSurface,hallImage,hallImageMaterial} from './HallTextures';
 import {batchArchitectureSteps,batchCharactersSteps} from './batching';
@@ -255,7 +256,7 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  // Sun shafts use their own shaders, so they join after batching.
  const sunlight=zone==='lobby'?buildSunlight(scene,[23.1,33.1,38.1].map(z=>new T.Vector3(14.5,16.5,z)),{color:0xffdfb0,strength:.18,pool:.035,fill:.08,spread:.6}):buildSunlight(scene,undefined,{color:0xffd09a,strength:.07,pool:.015,fill:.035,spread:.85});
  // Candlelight concert: candles fill the stage and the hall's own lights go down (after batching, which they must not join).
- if(zone==='auditorium')buildCandlelight(scene);
+ if(zone==='auditorium'){buildCandlelight(scene);walkTargets.push(buildCandleTable(scene).hit);}
  const treeStar=zone==='lobby'?buildFloatingTreeStar(scene,LOBBY_CHRISTMAS_TREE.x,LOBBY_CHRISTMAS_TREE.z):null;
  const stairArrows=zone==='lobby'?buildTicketGuide(scene):buildStairArrows(scene);
  return {treeStar,cat,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};

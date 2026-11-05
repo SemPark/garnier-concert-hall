@@ -1,5 +1,5 @@
 import {DurableObject} from 'cloudflare:workers';
-import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,surfaceHeight,distance,stairLink,isLook,type Visitor} from '../shared/venue';
+import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,surfaceHeight,distance,stairLink,isLook,isCandleState,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shared/protocol';
 import {isGesture} from '../shared/gestures';
 import {isOutfit,atCloakroom} from '../shared/wardrobe';
@@ -100,7 +100,7 @@ export class VenueRoom extends DurableObject<Env>{
    if(!['lobby','auditorium'].includes(msg.zone)||msg.zone===v.zone)return;
    const point=freeVisitorPosition(msg.zone,SPAWN[msg.zone],this.active().map(({a})=>a.visitor),v.id);
    if(!point){this.send(ws,{type:'error',message:'입구가 붐벼요. 잠시 후 다시 들어와 주세요.'});return;}
-   this.release(v.id);Object.assign(v,{zone:msg.zone,...point,seatId:null,loungeSeatId:null,pose:'idle'});
+   this.release(v.id);Object.assign(v,{zone:msg.zone,...point,seatId:null,loungeSeatId:null,pose:'idle'});delete v.candle;
   }else if(msg.type==='reserve'){
    if(typeof msg.requestId!=='string'||msg.requestId.length>80||typeof msg.seatId!=='string')return;
    const seat=SEATS.find(s=>s.id===msg.seatId),claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE seatId=?',msg.seatId).toArray()[0];
@@ -127,6 +127,8 @@ export class VenueRoom extends DurableObject<Env>{
    this.release(v.id);v.seatId=null;v.loungeSeatId=null;v.pose='idle';
   }else if(msg.type==='renew'){
    this.ctx.storage.sql.exec("UPDATE claims SET expiresAt=? WHERE seatId=? AND visitorId=? AND status='reserved'",now+RESERVE_MS,msg.seatId,v.id);
+  }else if(msg.type==='candle'){
+   if(!isCandleState(msg.state)||v.zone!=='auditorium')return;v.candle=msg.state;
   }else if(msg.type==='outfit'){
    if(!isOutfit(msg.outfit)||!atCloakroom(v))return;v.outfit=msg.outfit;
   }else if(msg.type==='look'){

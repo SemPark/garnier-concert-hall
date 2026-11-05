@@ -16,7 +16,7 @@ export const isLook=(v:unknown):v is Look=>v==='man'||v==='woman';
 function appearanceSeed(id:string){let hash=2166136261;for(const ch of id)hash=Math.imul(hash^ch.charCodeAt(0),16777619);return hash>>>0;}
 /** Independent skin, look and hair choices, stable for the same visitor on every screen. */
 export function visitorVariant(v:{id:string;look?:Look}){const seed=appearanceSeed(v.id),look=v.look??(seed&4?'woman':'man');return (seed&3)+(look==='woman'?4:0)+((seed>>>8)&7)*8;}
-export type Visitor={id:string;name:string;color:number;look?:Look;outfit?:Outfit;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
+export type Visitor={id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
 export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
 // Adapt the official three-block stalls to the app's existing 352 seats.
@@ -53,6 +53,11 @@ export function seatLabel(s:Seat){if(s.id.startsWith('box-'))return `1층 ${s.x<
 /** The parterre runs right up to the stage lip (stage front is z -9.5). */
 export const STAGE_APRON_Z=-9.2;
 export const BOUNDS={lobby:{minX:-ATRIUM.halfWidth+.5,maxX:ATRIUM.halfWidth-.5,minZ:ATRIUM.front+.5,maxZ:ATRIUM.back-.5},auditorium:{minX:-15.65,maxX:15.65,minZ:-26.5,maxZ:50.3}};
+/** A candle carried in the hall: lit or blown out. Picked up at the candle table just ahead and to the right of where
+ * visitors come into the hall, marked by a glowing candle sign on the floor. */
+export type CandleState='on'|'off';
+export const isCandleState=(v:unknown):v is CandleState=>v==='on'||v==='off';
+export const CANDLE_TABLE={x:2.8,z:44.6,approach:{x:2.8,y:0,z:45.6}} as const;
 export const SPAWN={lobby:{x:0,y:0,z:24},auditorium:{x:0,y:0,z:47}};
 export const PALETTE=[0xc9564d,0xd98a4f,0xd9b04f,0x5fa860,0x3f9c8f,0x4f7fd0,0x7462c9,0xd7769f,0xc25283,0x5aa9c9,0x95b856,0xd86662];
 export function visitorColor(v:{id:string;outfit?:Outfit}){return OUTFITS.find(o=>o.id===v.outfit)?.color??PALETTE[(appearanceSeed(v.id)>>>16)%PALETTE.length];}
