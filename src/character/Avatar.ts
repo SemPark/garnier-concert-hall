@@ -197,11 +197,16 @@ export class Avatar{
  }
 }
 
+// The tube is tapered after construction, so both LODs must apply the same vertex shaping.
+const santaProfile=new T.CatmullRomCurve3([new T.Vector3(0,0,0),new T.Vector3(.015,.19,0),new T.Vector3(.12,.35,0),new T.Vector3(.26,.29,0)]);
+function santaHatGeometry(segments:number,radial:number){
+ const geometry=new T.TubeGeometry(santaProfile,segments,1,radial,false),positions=geometry.getAttribute('position');
+ for(let i=0;i<positions.count;i++){const t=Math.floor(i/(radial+1))/segments,center=santaProfile.getPointAt(t),r=.31*(1-t)+.016;positions.setXYZ(i,center.x+(positions.getX(i)-center.x)*r,center.y+(positions.getY(i)-center.y)*r,center.z+(positions.getZ(i)-center.z)*r);}
+ geometry.computeVertexNormals();return geometry;
+}
+const santaHatNear=santaHatGeometry(14,16),santaHatFar=santaHatGeometry(8,8);
 function santaHat(head:T.Group){
  const hat=new T.Group();hat.position.set(0,.4,.045);hat.userData.costume='santa-hat';head.add(hat);
- const profile=new T.CatmullRomCurve3([new T.Vector3(0,0,0),new T.Vector3(.015,.19,0),new T.Vector3(.12,.35,0),new T.Vector3(.26,.29,0)]);
- const geometry=new T.TubeGeometry(profile,14,1,16,false),positions=geometry.getAttribute('position');
- for(let i=0;i<positions.count;i++){const t=Math.floor(i/17)/14,center=profile.getPointAt(t),r=.31*(1-t)+.016;positions.setXYZ(i,center.x+(positions.getX(i)-center.x)*r,center.y+(positions.getY(i)-center.y)*r,center.z+(positions.getZ(i)-center.z)*r);}
- geometry.computeVertexNormals();hat.add(new T.Mesh(geometry,material(0xa91e2d)));
+ const cone=new T.Mesh(santaHatNear,material(0xa91e2d));cone.userData.lowDetail=santaHatFar;hat.add(cone);
  const brim=new T.Mesh(new T.TorusGeometry(.30,.055,8,32),material(0xfff4e3));brim.rotation.x=Math.PI/2;hat.add(brim);sphere(hat,.085,[.26,.29,0],0xfff4e3);
 }
