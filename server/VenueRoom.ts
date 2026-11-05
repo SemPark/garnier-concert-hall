@@ -4,7 +4,7 @@ import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shar
 import {isGesture} from '../shared/gestures';
 import {isOutfit,atCloakroom} from '../shared/wardrobe';
 import {LOUNGE_SEATS} from '../shared/loungeSeats';
-import {visitorBlocksStep,freeVisitorPosition} from '../shared/visitorCollision';
+import {freeVisitorPosition} from '../shared/visitorCollision';
 
 type Attachment={visitor:Visitor;token:string;generation:string;lastMessage:number;windowAt:number;messageCount:number;reservationRequest?:string;roomId:string};
 type ClaimRow={seatId:string;visitorId:string;status:'reserved'|'seated';expiresAt:number|null};
@@ -94,7 +94,6 @@ export class VenueRoom extends DurableObject<Env>{
    // A generous per-packet allowance accommodates interpolation and mobile pauses.
    if(distance(v,msg)>Math.max(2.2,(now-a.lastMessage)/1000*6)&&a.lastMessage&&!stairLink(v,msg))return;
    if(v.pose==='sit')return;
-   if(this.active().some(({a})=>a.visitor.id!==v.id&&a.visitor.zone===v.zone&&visitorBlocksStep(v,msg,a.visitor))){this.send(ws,{type:'moveBlocked',x:v.x,y:v.y??0,z:v.z});return;}
    Object.assign(v,{x:round(msg.x),y:round(msg.y??0),z:round(msg.z),yaw:round(msg.yaw),pose:msg.pose});
   }else if(msg.type==='zone'){
    if(!['lobby','auditorium'].includes(msg.zone)||msg.zone===v.zone)return;

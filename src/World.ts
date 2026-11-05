@@ -1,6 +1,6 @@
 import {CarriedCandles} from './scene/CandleCarry';
 import {reportLoading} from './loading';
-import {visitorBlocksStep,freeVisitorPosition,VISITOR_GAP} from '../shared/visitorCollision';
+import {visitorBlocksStep,freeVisitorPosition} from '../shared/visitorCollision';
 import {CLOAKROOM_APPROACH,atCloakroom,isOutfit,type Outfit} from '../shared/wardrobe';
 import {LOUNGE_SEATS} from '../shared/loungeSeats';
 import * as T from 'three';
@@ -42,6 +42,7 @@ export class World{
  onChange:()=>void=()=>{};onToast:(message:string)=>void=()=>{};onSeatMap:()=>void=()=>{};onWardrobe:()=>void=()=>{};private wardrobeNear=false;private visitingWardrobe=false;private pendingSeat:string|null=null;private loungeTarget:string|null=null;private visitingCat=false;private petUntil=0;private visitingBoxOffice=false;private seatWalkAt=0;private boardAt=0;
  private lightingPass:LobbyLightPass|null=null;private environment:T.WebGLRenderTarget;private poseFrustum=new T.Frustum();private poseProjection=new T.Matrix4();private poseSphere=new T.Sphere();private poseCenter=new T.Vector3();private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private route:Point[]=[];private avatarVariant=-1;private climb:{points:Point[];up:boolean}|null=null;private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
  private collisionPauseUntil=0;private seatedTarget:T.Vector3|null=null;private cameraSeatAmount=0;private petFocus=new T.Vector3();
+ private spawnIdleAt=0;private spawnIdleOrigin=new T.Vector3();
  private ray=new T.Raycaster();private ndc=new T.Vector2();private frame=0;private last=performance.now();private sentAt=0;private lastPose='';private renewAt=0;private lastUI=0;private look=new T.Vector3();private gesture:Gesture|null=null;private headTop=new T.Vector3();private gestureAt=0;
  private disposed=false;private lodAt=0;private orchestraAt=0;quality:RenderQuality='balanced';readonly mobile=matchMedia('(pointer: coarse)').matches||/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);private renderedAt=0;
  private releaseLoadingCallbacks=()=>{};
@@ -121,7 +122,7 @@ export class World{
     if(self.pose==='sit'&&!initial&&!changedZone)this.seatedTarget=new T.Vector3(self.x,self.y??SEATS.find(s=>s.id===self.seatId)?.y??0,self.z);
     else{this.position.set(self.x,self.y??(self.pose==='sit'?(SEATS.find(s=>s.id===self.seatId)?.y??0):0),self.z);this.seatedTarget=null;}
     this.yaw=self.yaw;this.pose=self.pose;
-    if(initial||changedZone){this.cameraSeatAmount=self.pose==='sit'?1:0;this.zone=self.zone;
+    if(initial||changedZone){if(this.entered&&self.pose!=='sit'){this.spawnIdleAt=performance.now();this.spawnIdleOrigin.copy(this.position);}this.cameraSeatAmount=self.pose==='sit'?1:0;this.zone=self.zone;
      // Entering the hall: take in the whole room first, then settle behind your own character.
      // A ticket journey waits for the overview and the settled character camera before walking.
      if(self.zone==='auditorium'){this.concertView=true;this.hallOverview=true;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.introUntil=performance.now()+3500;this.seatWalkAt=this.pendingSeat?this.introUntil:0;}else{this.introUntil=0;this.seatWalkAt=0;}
@@ -142,7 +143,7 @@ export class World{
   // Before the welcome snapshot arrives, use exactly the same spawn/orbit as the server.
   // The old temporary z=10 / yaw=0 put the camera outside the lobby for a frame.
   if(!this.self){this.position.set(SPAWN.lobby.x,SPAWN.lobby.y,SPAWN.lobby.z);this.cameraYaw=Math.PI;}
-  this.entered=true;this.snapCamera();this.renderer.domElement.focus();this.onChange();
+  this.entered=true;this.spawnIdleAt=performance.now();this.spawnIdleOrigin.copy(this.position);this.snapCamera();this.renderer.domElement.focus();this.onChange();
  }
  async changeZone(fromDoor=false){if(!this.entered||this.climb||this.changingZone)return;if(this.net.status!=='connected'){this.onToast('음악당에 연결한 뒤 입장할 수 있어요.');return;}this.cancelSeat(fromDoor);this.route=[];this.onToast(this.zone==='lobby'?'공연장으로 들어가는 중이에요…':'로비로 나가는 중이에요…');const destination=this.zone==='lobby'?'auditorium':'lobby';this.changingZone=true;try{if(destination==='auditorium'){await this.prepareHall();await this.warmHall();}if(!this.disposed)this.net.send({type:'zone',zone:destination});}catch{if(!this.disposed)this.onToast('공연장을 준비하지 못했어요. 다시 입장해 주세요.');}finally{this.changingZone=false;}}
  /** A ticket tap is a walking destination; the map opens only at the counter. */
@@ -276,11 +277,8 @@ export class World{
   if(this.zone==='auditorium'&&Math.abs(point.y??0)<.4&&point.z<STAGE_APRON_Z&&point.z>STAGE_APRON_Z-3)point.z=STAGE_APRON_Z+.3;
   const path=findPath(this.zone,{x:this.position.x,y:this.position.y,z:this.position.z},point);if(!path){this.onToast('통로나 빈 바닥을 선택해 주세요.');return;}this.cancelSeat();this.route=path;this.marker.position.set(point.x,(point.y??0)+.035,point.z);this.marker.visible=true;
  }
- /** Respect both authoritative and displayed positions while other visitors interpolate. */
+ /** Visitors can pass through each other; the lobby cat still has its own clearance. */
  private visitorStepClear(target:Point){
-  for(const remote of this.remotes.values())if(remote.visitor.zone===this.zone){
-   if(visitorBlocksStep(this.position,target,remote.visitor,VISITOR_GAP+.08)||visitorBlocksStep(this.position,target,remote.avatar.root.position,VISITOR_GAP+.08))return false;
-  }
   const cat=this.zone==='lobby'?this.venue.cat:null;
   if(cat&&visitorBlocksStep(this.position,target,cat.root.position,CAT_VISITOR_GAP))return false;
   return true;
@@ -336,12 +334,22 @@ export class World{
   if(this.diagnosticActive&&this.diagnosticMode==='audio-only'){this.frameCost={at:now,cpu:0,submit:0};if(now-this.lastUI>500){this.lastUI=now;this.onChange();}return;}
   let speed=0;const keys=this.input.keys;let kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+this.input.touchMove.x;let kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+this.input.touchMove.z;
   if(this.entered&&this.net.status==='connected'){
+   if(this.spawnIdleAt){
+    if(kx||kz||this.route.length||this.pose==='sit'||this.climb||this.position.distanceTo(this.spawnIdleOrigin)>.12)this.spawnIdleAt=0;
+    else if(now-this.spawnIdleAt>=10000&&!this.uiObscured){
+     this.spawnIdleAt=0;
+     for(const side of [this.net.selfId.charCodeAt(0)%2?1:-1,this.net.selfId.charCodeAt(0)%2?-1:1]){
+      const target={x:this.position.x+side*1.8,y:this.position.y,z:this.position.z};
+      if(walkable(this.zone,target)&&segmentClear(this.zone,this.position,target)){this.route=[target];break;}
+     }
+    }
+   }
    if(this.climb||now<this.collisionPauseUntil)kx=kz=0;
    if((kx||kz)&&this.pose==='sit')this.stand();
    const previous=this.position.clone();
    if(kx||kz){this.route=[];this.cancelSeat();const v=new T.Vector3(kx,0,kz).clampLength(0,1).applyAxisAngle(new T.Vector3(0,1,0),this.cameraYaw).multiplyScalar(4.2*dt),candidate=this.position.clone().add(v);
     const move=(x:number,z:number)=>{const y=surfaceHeight(this.zone,{x,z},this.position.y);if(y===null)return false;const target={x,y,z};if(!segmentClear(this.zone,this.position,target)||!this.visitorStepClear(target))return false;this.position.set(x,y,z);return true;};
-    // Slide along architecture, but never slide around a person or the cat.
+    // Slide along architecture while preserving the cat’s clearance.
     const candidateY=surfaceHeight(this.zone,candidate,this.position.y);
     if((candidateY===null||this.visitorStepClear({x:candidate.x,y:candidateY,z:candidate.z}))&&!move(candidate.x,candidate.z)){if(!move(candidate.x,this.position.z))move(this.position.x,candidate.z);}
    }else if(this.route.length&&this.pose!=='sit'){

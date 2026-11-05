@@ -10,6 +10,9 @@ export class Input{
   },opts);
   canvas.addEventListener('pointerup',e=>{const start=this.start;this.pointers.delete(e.pointerId);if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);if(start?.id===e.pointerId&&!start.dragged&&performance.now()-start.time<500)actions.click(e.clientX,e.clientY);this.start=null;this.span=0;},opts);
   for(const type of ['pointercancel','lostpointercapture'])canvas.addEventListener(type,()=>{this.pointers.clear();this.start=null;},opts);
+  // iOS embedded browsers can still scroll the page despite pointer-event touch-action.
+  // Limit the fallback to the scene and joystick so menus and seat maps remain scrollable.
+  document.addEventListener('touchmove',e=>{const target=e.target;if(e.cancelable&&target instanceof Element&&(target===canvas||target.closest('.mobile-joystick')))e.preventDefault();},{...opts,passive:false});
   canvas.addEventListener('wheel',e=>{e.preventDefault();actions.zoom(Math.exp(e.deltaY*.0012));},{...opts,passive:false});
   canvas.addEventListener('contextmenu',e=>e.preventDefault(),opts);
   window.addEventListener('keydown',e=>{if((e.target as HTMLElement)?.closest('input,textarea,select,dialog,[role="dialog"]'))return;if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){e.preventDefault();this.keys.add(e.code);}if(e.code==='Escape')actions.escape();},opts);
