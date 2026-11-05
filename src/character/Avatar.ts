@@ -1,4 +1,4 @@
-import {buildCoffeeCup} from './CoffeeCup';
+import {buildCoffeeCup,buildMacaron} from './CoffeeCup';
 import {faceGeometry,faceFarGeometry,faceSurfaceZ,paintFace} from './Face';
 import {skirtGeometry} from './Skirt';
 import type {Outfit} from '../../shared/wardrobe';
@@ -140,7 +140,7 @@ export class Avatar{
    if(cloth)prepareClothContact(o.geometry,cloth);
    o.material=frontLitMaterial(o.material,cloth?'cloth':'body');
   }});
-  if(!instrument){this.coffeeCup=buildCoffeeCup();this.rightHand.add(this.coffeeCup);}
+  if(!instrument){this.coffeeCup=buildCoffeeCup();this.rightHand.add(this.coffeeCup);this.macaron=buildMacaron();this.macaron.scale.setScalar(0);this.leftHand.add(this.macaron);}
   const shadow=new T.Mesh(shadowGeometry,shadowMaterial);shadow.rotation.x=-Math.PI/2;shadow.position.y=.012;this.root.add(shadow);
   if(instrument){buildInstrument(instrument,this.instrument,this.leftHand,this.rightHand);if(FLOOR_INSTRUMENTS.has(instrument)){this.root.add(this.instrument);this.instrument.userData.floorAnchored=true;if(instrument==='cello')this.instrument.position.y=.64;}if(instrument==='conductor')santaHat(this.head);}
  }
@@ -158,10 +158,11 @@ export class Avatar{
   this.aimAt(this.right,x,y+(reduced?0:Math.sin(time*9)*.025),z);
   this.rightHand.quaternion.copy(this.rightArm.quaternion).invert();
  }
- holdingCoffee=false;private coffeeCup?:T.Group;
+ holdingCoffee=false;private coffeeCup?:T.Group;holdingMacaron=false;private macaron?:T.Group;
  holdingCandle=false;
  update(time:number,speed:number,sitting:boolean,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60){
-  this.rightHand.position.set(0,-ARM_LENGTH,0);
+  this.rightHand.position.set(0,-ARM_LENGTH,0);this.leftHand.position.set(0,-ARM_LENGTH,0);
+  const leftSleeve=this.leftArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;if(leftSleeve){leftSleeve.scale.y=1;leftSleeve.position.y=-(ARM_LENGTH-.06)/2;}
   const sleeve=this.rightArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;if(sleeve){sleeve.scale.y=1;sleeve.position.y=-(ARM_LENGTH-.06)/2;}
   const t=time+this.phase,play=performing?1:0,type=this.instrumentType;this.sitAmount=T.MathUtils.damp(this.sitAmount,sitting?1:0,12,dt);
   const pose=poseVillager({time,speed,sit:this.sitAmount,music:performing,musician:!!type,gesture,age:gestureAge},this.phase),sit=pose.sit;
@@ -197,6 +198,8 @@ export class Avatar{
   }
   // The left hand carries the candle; backward greetings and hush use the free right hand.
   if(this.coffeeCup){this.coffeeCup.scale.setScalar(this.holdingCoffee?1:0);this.coffeeCup.rotation.x=gesture==='drink'&&this.holdingCoffee ? .35*pose.weight : 0;}
+  if(this.macaron)this.macaron.scale.setScalar(this.holdingMacaron?1:0);
+  if(this.holdingMacaron&&!type)this.aimAt(this.left,-.23,.96,-.3);
   if(this.holdingCoffee&&!type)this.aimAt(this.right,.20,.96,-.30);
   if(this.holdingCandle&&!type)this.aimAt(this.left,-.1,.93,-.3);
   if(pose.weight>0){if(pose.left)this.aimAt(this.left,...pose.left,pose.weight);if(pose.right)this.aimAt(this.right,...pose.right,pose.weight);}
@@ -211,6 +214,13 @@ export class Avatar{
    const reach=T.MathUtils.lerp(ARM_LENGTH,this.direction.distanceTo(this.rightArm.position),pose.weight);
    this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);this.rightHand.position.y=-reach;
    if(sleeve){sleeve.scale.y=reach/ARM_LENGTH;sleeve.position.y=-(reach-.06)/2;}
+  }
+  if(gesture==='eat'&&this.holdingMacaron&&this.macaron&&pose.weight>0&&!type){
+   this.direction.set(0,-.13,faceSurfaceZ(0,-.13)-.045).applyQuaternion(this.head.quaternion).add(this.head.position).sub(this.macaron.position);
+   const reach=T.MathUtils.lerp(ARM_LENGTH,this.direction.distanceTo(this.leftArm.position),pose.weight);
+   this.aimAt(this.left,this.direction.x,this.direction.y,this.direction.z,pose.weight);this.leftHand.position.y=-reach;
+   if(leftSleeve){leftSleeve.scale.y=reach/ARM_LENGTH;leftSleeve.position.y=-(reach-.06)/2;}
+   this.macaron.scale.setScalar(1-.8*T.MathUtils.smoothstep(gestureAge,1.3,2.8));
   }
   if(gesture==='shh'&&pose.weight>0&&!type){
    // Follow the turned mouth rather than a fixed point in front of the torso.

@@ -1,3 +1,4 @@
+import {buildMacaron} from '../character/CoffeeCup';
 import * as T from 'three';
 import {Avatar} from '../character/Avatar';
 import {LOUNGE_SEATS} from '../../shared/loungeSeats';
@@ -71,7 +72,9 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
   for(const z of [.42,.96])cylinder(g,.07,.1,[.45,1.28,z],marbleWhite);
   const caseGlass=new T.MeshLambertMaterial({color:0xc5d4ce,transparent:true,opacity:.25,depthWrite:false});
   const display=box(g,[.65,.52,1.75],[.15,1.46,2.8],marbleWhite);display.material=caseGlass;
-  for(const y of [1.22,1.51]){box(g,[.65,.04,1.75],[.15,y,2.8],brass);for(let i=0;i<4;i++){const pastry=sphere(g,.11,[.23,y+.1,2.2+i*.36],0xb78540);pastry.scale.y*=.55;}}
+  for(const y of [1.22,1.51]){box(g,[.65,.04,1.75],[.15,y,2.8],brass);for(let i=0;i<4;i++){const pastry=buildMacaron();pastry.position.set(.23,y+.065,2.2+i*.36);g.add(pastry);}}
+  const pastryHit=new T.Mesh(new T.BoxGeometry(.8,.65,1.85),hit);pastryHit.position.set(.6,1.45,2.8);pastryHit.userData.macaron=true;g.add(pastryHit);clickTargets.push(pastryHit);
+  const pastryLabel=text(g,'마카롱 • MACARON',1.55,[.66,1.93,2.8],'#f3dc9c');pastryLabel.rotation.y=Math.PI/2;
   box(g,[.1,.6,3.8],[1.9,6.1,0],brass);box(g,[.06,.45,3.6],[1.98,6.1,0],0x211a14);const name=text(g,'CAFÉ • pleee',3.2,[2.02,6.1,0],'#f3dc9c');name.rotation.y=Math.PI/2;
   const menu=box(g,[.08,1.2,2.8],[-.12,2.3,-1.1],0x211a14);
   for(const [label,y] of [['ESPRESSO',2.65],['CAPPUCCINO',2.35],['PÂTISSERIE',2.05]] as const){const t=text(g,label,2.3,[-.06,y,-1.1],'#f0d9a0');t.rotation.y=Math.PI/2;}

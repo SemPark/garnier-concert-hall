@@ -3,7 +3,7 @@ import {gestureSeconds,type Gesture} from '../../shared/gestures';
 /** Head-top icons, in atlas order. */
 export const ICONS=['heart','bang','sparkle','zz','dots','note'] as const;
 export type Icon=typeof ICONS[number];
-export const GESTURE_ICON:Record<Gesture,Icon|null>={wave:null,clap:'note',bravo:'bang',ovation:null,bow:null,moved:'heart',shh:'dots',doze:'zz',drink:null};
+export const GESTURE_ICON:Record<Gesture,Icon|null>={wave:null,clap:'note',bravo:'bang',ovation:null,bow:null,moved:'heart',shh:'dots',doze:'zz',drink:null,eat:null};
 
 type Vec=[number,number,number];
 export type PoseInput={time:number;speed:number;sit:number;music:boolean;musician:boolean;gesture:Gesture|null|undefined;age:number};
@@ -78,7 +78,7 @@ export function poseVillager(input:PoseInput,phase=0):VillagerPose{
    const [x,y,z]=pose.right;pose.right=[x*Math.cos(pose.headYaw)+z*Math.sin(pose.headYaw),y,-x*Math.sin(pose.headYaw)+z*Math.cos(pose.headYaw)];
   }
   pose.headPitch=mix(pose.headPitch,-.05);pose.headRoll=mix(pose.headRoll,.15);pose.sway=mix(pose.sway,0);break;
-  case 'drink':pose.headPitch=mix(pose.headPitch,.08);pose.sway=mix(pose.sway,0);break;
+  case 'eat':case 'drink':pose.headPitch=mix(pose.headPitch,.08);pose.sway=mix(pose.sway,0);break;
   case 'doze':pose.headPitch=mix(pose.headPitch,.38+Math.sin(age*2.2)*.06);pose.lean=.08*w;pose.blink=Math.min(pose.blink,1-.88*w);break;
  }
  return pose;

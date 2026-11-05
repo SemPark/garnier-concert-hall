@@ -22,7 +22,7 @@ import program from '../content/playlist.json';
 import {nextPiece,type Playlist} from '../shared/timeline';
 import {localCameraFrame} from './controls/localCamera';
 import {findPath,segmentClear} from './navigation/path';
-import {SPAWN,SEATS,CAPACITY,BOUNDS,seatLabel,walkable,distance,surfaceHeight,stairPoint,stairLink,STAGE_APRON_Z,visitorVariant,visitorColor,CAFE_APPROACH,atCafe,CANDLE_TABLES,type CandleTable,type Look,type Visitor,type Zone,type Point} from '../shared/venue';
+import {SPAWN,SEATS,CAPACITY,BOUNDS,seatLabel,walkable,distance,surfaceHeight,stairPoint,stairLink,STAGE_APRON_Z,visitorVariant,visitorColor,cafeApproach,atCafe,CANDLE_TABLES,type CandleTable,type Look,type Visitor,type Zone,type Point} from '../shared/venue';
 import type {Snapshot} from '../shared/protocol';
 import type {Presence} from './network/Presence';
 import type {ConcertAudio} from './audio/ConcertAudio';
@@ -269,17 +269,19 @@ export class World{
  /** This visitor's carried candle, if any: lit ('on') or blown out ('off'). */
  get candle(){return this.net.state?.visitors.find(v=>v.id===this.net.selfId)?.candle;}
  toggleCandle(){const c=this.candle;if(c)this.net.send({type:'candle',state:c==='on'?'off':'on'});}
- private visitingCafe=false;private coffeeAskAt=0;
+ private cafeItem:'coffee'|'macaron'='coffee';private visitingCafe=false;private coffeeAskAt=0;
+ get nearCafe(){return atCafe({zone:this.zone,...this.position});}
+ get macaron(){return this.net.state?.visitors.find(v=>v.id===this.net.selfId)?.macaron===true;}
  get coffee(){return this.net.state?.visitors.find(v=>v.id===this.net.selfId)?.coffee===true;}
- visitCafe(){
+ visitCafe(item:'coffee'|'macaron'='coffee'){
   if(this.zone!=='lobby'||!this.entered)return;if(this.pose==='sit')this.stand();
-  if(this.coffee){this.gestureAction('drink');return;}
-  const path=findPath(this.zone,this.position,CAFE_APPROACH);if(!path){this.onToast('카페로 가는 길을 찾지 못했어요.');return;}
-  this.cancelSeat();this.visitingCafe=true;this.route=path;this.marker.position.set(CAFE_APPROACH.x,.035,CAFE_APPROACH.z);this.marker.visible=true;this.onToast('카페에서 커피를 받아요.');
+  if(item==='coffee'?this.coffee:this.macaron){this.gestureAction(item==='coffee'?'drink':'eat');return;}
+  const target=cafeApproach(this.position.z),path=this.nearCafe?[]:findPath(this.zone,this.position,target);if(!path){this.onToast('카페로 가는 길을 찾지 못했어요.');return;}
+  this.cancelSeat();this.visitingCafe=true;this.cafeItem=item;this.coffeeAskAt=0;this.route=path;this.marker.position.set(target.x,.035,target.z);this.marker.visible=path.length>0;this.onToast(path.length?`카운터로 이동 중이에요. 도착하면 ${item==='coffee'?'커피':'마카롱'}을 받아요.`:`${item==='coffee'?'커피':'마카롱'}을 받는 중이에요…`);this.updateCoffee(performance.now());
  }
  private updateCoffee(now:number){
-  if(this.visitingCafe&&this.zone==='lobby'&&atCafe({zone:this.zone,...this.position})&&now-this.coffeeAskAt>1000){this.coffeeAskAt=now;this.net.send({type:'coffee'});}
-  if(this.visitingCafe&&this.coffee){this.visitingCafe=false;this.onToast('커피를 받았어요. 커피 마시기를 눌러 보세요.');}
+  if(this.visitingCafe&&this.zone==='lobby'&&atCafe({zone:this.zone,...this.position})&&now-this.coffeeAskAt>1000){this.coffeeAskAt=now;this.sendPosition(now,true);this.net.send({type:this.cafeItem});}
+  if(this.visitingCafe&&(this.cafeItem==='coffee'?this.coffee:this.macaron)){this.visitingCafe=false;this.onToast(this.cafeItem==='coffee'?'커피를 받았어요. 커피 마시기를 눌러 보세요.':'마카롱을 받았어요. 마카롱 먹기를 눌러 보세요.');this.onChange();}
  }
  private candleLayers=new WeakMap<T.Scene,CarriedCandles>();private candleAskAt=0;
  /** Walk to the candle table; arriving next to it picks up a lit candle. */
@@ -295,12 +297,13 @@ export class World{
   for(const r of this.remotes.values()){const c=r.visitor.zone===this.zone?r.visitor.candle:undefined;r.avatar.holdingCandle=!!c;if(c)carriers.push({hand:r.avatar.leftHand,lit:c==='on'});}
   layer.update(carriers,this.reduced?0:now/1000);
  }
- gestureAction(gesture:Gesture){if(gesture==='drink'){const me=this.net.state?.visitors.find(v=>v.id===this.net.selfId);if(!me?.coffee||(me.coffeeSips??0)>=3||this.gesture==='drink'&&this.net.now()-this.gestureAt<3200)return;}this.lobbyEnteredAt=performance.now();this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});if(CLAPS.includes(gesture))this.audio.clap();}
+ gestureAction(gesture:Gesture){if(gesture==='eat'){const me=this.net.state?.visitors.find(v=>v.id===this.net.selfId);if(!me?.macaron||me.macaronEmptyAt)return;}if(gesture==='drink'){const me=this.net.state?.visitors.find(v=>v.id===this.net.selfId);if(!me?.coffee||(me.coffeeSips??0)>=3||this.gesture==='drink'&&this.net.now()-this.gestureAt<3200)return;}this.lobbyEnteredAt=performance.now();this.gesture=gesture;this.gestureAt=this.net.now();this.net.send({type:'gesture',gesture});if(CLAPS.includes(gesture))this.audio.clap();}
  private click(x:number,y:number){if(!this.entered||this.climb)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
   const hits=this.ray.intersectObjects([...(this.venue.cat?.targets??[]),...(this.venue.stairArrows?.targets??[]),...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);if(!hits.length)return;const hit=hits[0];
   if(hit.object.userData.lobbyCat){this.visitCat();return;}
   if(hit.object.userData.loungeSeatId){this.sitInLobby(hit.object.userData.loungeSeatId);return;}
   if(hit.object.userData.cloakroom){this.visitWardrobe();return;}
+  if(hit.object.userData.macaron){this.visitCafe('macaron');return;}
   if(hit.object.userData.cafe){this.visitCafe();return;}
   if(hit.object.userData.candleTable){this.visitCandleTable(hit.object.userData.candleTable as CandleTable);return;}
   if(hit.object.userData.boxOffice){this.visitBoxOffice();return;}
@@ -420,12 +423,12 @@ export class World{
   // Dust and shimmer hold still for visitors who prefer reduced motion.
   this.venue.treeStar?.update(this.reduced?0:now/1000);this.venue.sunlight?.update(this.reduced?0:now/1000);this.venue.stairArrows?.update(this.reduced?0:now/1000);
   this.venue.cat?.update(now/1000,this.entered?this.position:new T.Vector3(Infinity,0,0),this.reduced,[...this.remotes.values()].filter(r=>r.visitor.zone===this.zone).flatMap(r=>[r.visitor,r.avatar.root.position]));
-  if(this.avatar){this.avatar.holdingCoffee=this.zone==='lobby'&&this.coffee;this.avatar.root.position.copy(this.position);this.avatar.root.rotation.y=this.yaw;this.avatar.update(this.net.now()/1000,speed,this.pose==='sit',music,this.gesture,(this.net.now()-this.gestureAt)/1000,dt);this.avatar.root.visible=this.entered;
+  if(this.avatar){this.avatar.holdingCoffee=this.zone==='lobby'&&this.coffee;this.avatar.holdingMacaron=this.zone==='lobby'&&this.macaron;this.avatar.root.position.copy(this.position);this.avatar.root.rotation.y=this.yaw;this.avatar.update(this.net.now()/1000,speed,this.pose==='sit',music,this.gesture,(this.net.now()-this.gestureAt)/1000,dt);this.avatar.root.visible=this.entered;
    if(now<this.petUntil&&this.venue.cat)this.avatar.pet(this.venue.cat.petPoint(this.petFocus),now/1000,this.reduced);
   }
   this.camera.updateMatrixWorld();this.poseFrustum.setFromProjectionMatrix(this.poseProjection.multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse));
   for(const r of this.remotes.values()){
-   const v=r.visitor;r.avatar.holdingCoffee=v.zone==='lobby'&&v.coffee===true;r.avatar.root.visible=v.zone===this.zone;if(!r.avatar.root.visible)continue;
+   const v=r.visitor;r.avatar.holdingCoffee=v.zone==='lobby'&&v.coffee===true;r.avatar.holdingMacaron=v.zone==='lobby'&&v.macaron===true;r.avatar.root.visible=v.zone===this.zone;if(!r.avatar.root.visible)continue;
    this.poseCenter.set(v.x,(v.y??0)+.8,v.z);const visible=this.poseFrustum.intersectsSphere(this.poseSphere.set(this.poseCenter,1.5));
    const distanceSq=this.camera.position.distanceToSquared(this.poseCenter),interval=!visible?250:distanceSq>400?100:1000/30;
    if(now-r.poseAt<interval)continue;const poseDt=Math.min(.25,(now-r.poseAt)/1000);r.poseAt=now;

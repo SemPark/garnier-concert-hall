@@ -16,7 +16,7 @@ export const isLook=(v:unknown):v is Look=>v==='man'||v==='woman';
 function appearanceSeed(id:string){let hash=2166136261;for(const ch of id)hash=Math.imul(hash^ch.charCodeAt(0),16777619);return hash>>>0;}
 /** Independent skin, look and hair choices, stable for the same visitor on every screen. */
 export function visitorVariant(v:{id:string;look?:Look}){const seed=appearanceSeed(v.id),look=v.look??(seed&4?'woman':'man');return (seed&3)+(look==='woman'?4:0)+((seed>>>8)&7)*8;}
-export type Visitor={id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
+export type Visitor={id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
 export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
 // Adapt the official three-block stalls to the app's existing 352 seats.
@@ -61,7 +61,8 @@ export const CANDLE_TABLE={x:2.8,z:44.6,approach:{x:2.8,y:0,z:45.6}} as const;
 export const CANDLE_TABLES=[CANDLE_TABLE,{x:-2.8,z:44.6,approach:{x:-2.8,y:0,z:45.6}}] as const;
 export type CandleTable=(typeof CANDLE_TABLES)[number];
 export const CAFE_APPROACH={x:F.cafeCounter.x+1.5,y:0,z:F.cafeCounter.z+.7};
-export const atCafe=(v:{zone:string;x:number;y?:number;z:number})=>v.zone==='lobby'&&Math.abs(v.y??0)<.5&&Math.hypot(v.x-CAFE_APPROACH.x,v.z-CAFE_APPROACH.z)<1.1;
+export const cafeApproach=(z:number)=>({...CAFE_APPROACH,z:Math.max(F.cafeCounter.z-F.cafeCounter.hz+.4,Math.min(F.cafeCounter.z+F.cafeCounter.hz-.4,z))});
+export const atCafe=(v:{zone:string;x:number;y?:number;z:number})=>v.zone==='lobby'&&Math.abs(v.y??0)<.5&&Math.abs(v.x-CAFE_APPROACH.x)<1.1&&Math.abs(v.z-F.cafeCounter.z)<F.cafeCounter.hz;
 export const SPAWN={lobby:{x:0,y:0,z:24},auditorium:{x:0,y:0,z:47}};
 export const PALETTE=[0xc9564d,0xd98a4f,0xd9b04f,0x5fa860,0x3f9c8f,0x4f7fd0,0x7462c9,0xd7769f,0xc25283,0x5aa9c9,0x95b856,0xd86662];
 export function visitorColor(v:{id:string;outfit?:Outfit}){return OUTFITS.find(o=>o.id===v.outfit)?.color??PALETTE[(appearanceSeed(v.id)>>>16)%PALETTE.length];}
