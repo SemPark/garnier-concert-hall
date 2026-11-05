@@ -1,5 +1,5 @@
 import {DurableObject} from 'cloudflare:workers';
-import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,surfaceHeight,distance,canSit,stairLink,isLook,type Visitor} from '../shared/venue';
+import {SEATS,SPAWN,CAPACITY,PALETTE,walkable,surfaceHeight,distance,stairLink,isLook,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shared/protocol';
 import {isGesture} from '../shared/gestures';
 import {isOutfit,atCloakroom} from '../shared/wardrobe';
@@ -92,7 +92,7 @@ export class VenueRoom extends DurableObject<Env>{
   if(msg.type==='move'){
    if(!walkable(v.zone,{x:msg.x,y:msg.y??0,z:msg.z})||!Number.isFinite(msg.yaw)||!['idle','walk'].includes(msg.pose))return;
    // A generous per-packet allowance accommodates interpolation and mobile pauses.
-   if(distance(v,msg)>Math.max(2.2,(now-a.lastMessage)/1000*4.5)&&a.lastMessage&&!stairLink(v,msg))return;
+   if(distance(v,msg)>Math.max(2.2,(now-a.lastMessage)/1000*6)&&a.lastMessage&&!stairLink(v,msg))return;
    if(v.pose==='sit')return;
    if(this.active().some(({a})=>a.visitor.id!==v.id&&a.visitor.zone===v.zone&&visitorBlocksStep(v,msg,a.visitor))){this.send(ws,{type:'moveBlocked',x:v.x,y:v.y??0,z:v.z});return;}
    Object.assign(v,{x:round(msg.x),y:round(msg.y??0),z:round(msg.z),yaw:round(msg.yaw),pose:msg.pose});
@@ -112,7 +112,8 @@ export class VenueRoom extends DurableObject<Env>{
    this.send(ws,{type:'seatResult',ok:true,seatId:seat.id,requestId:msg.requestId});
   }else if(msg.type==='seated'){
    const seat=SEATS.find(s=>s.id===msg.seatId),claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE seatId=? AND visitorId=?',msg.seatId,v.id).toArray()[0];
-   if(!seat||!claim||v.zone!=='auditorium'||!canSit(v,seat)){this.send(ws,{type:'error',message:'좌석 가까이로 이동해 주세요.'});return;}
+   // A seat the visitor holds may be taken straight away (the seat map seats without a walk).
+   if(!seat||!claim||claim.visitorId!==v.id||v.zone!=='auditorium'){this.send(ws,{type:'error',message:'좌석 가까이로 이동해 주세요.'});return;}
    this.ctx.storage.sql.exec("UPDATE claims SET status='seated',expiresAt=NULL WHERE seatId=?",seat.id);Object.assign(v,{x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw,pose:'sit',seatId:seat.id});
   }else if(msg.type==='loungeSit'){
    const seat=LOUNGE_SEATS.find(s=>s.id===msg.seatId);

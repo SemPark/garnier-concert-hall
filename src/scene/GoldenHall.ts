@@ -301,7 +301,7 @@ export function rearFacade(scene:T.Scene){
  for(const x of [-12,-8,-4,0,4,8,12]){box(g,[.2,17,.2],[x,18.1,.2],0x9a5646);box(g,[.065,17,.1],[x,18.1,.34],P.light);}
  for(const x of [-14,14]){
   const wing=new T.Group();wing.position.x=x;g.add(wing);archedWindow(wing,WALL_LEVELS.window,true);
-  timberDoor(wing,0,H.balconyHeight,2.15,5.25,.5);
+  openDoor(wing,0,H.balconyHeight,2.15,5.25,.5);// Open onto the corridor stair, as on the floor below.
   for(const side of [-1,1])box(wing,[.12,5.5,.2],[side*1.25,H.balconyHeight+2.75,.55],P.light);
  }
  // Fill the two rear blank fields with the same cream panels and red piers as the rear screens.
@@ -329,7 +329,7 @@ export function rearFacade(scene:T.Scene){
  // Gilded beam under the gallery front, and warm lamps in the shadowed standing area beneath.
  for(const [z,xs]of [[2.2,[-10.5,-5.25,0,5.25,10.5]],[WALL_DATUM.rear-46,[-5.25,0,5.25]]] as const)for(const x of xs)hallFlatCeilingLight(g,x,7.86,z);
  // The two side doors lead to the corridor stairs and stand open; the centre door is the foyer entrance.
- for(const x of [-doorX,doorX]){timberDoor(g,x,.15,3.8,6.4,.35);hallImage(g,'relief',3.8,.7,x,7.1,.65);}
+ for(const x of [-doorX,doorX]){openDoor(g,x,.15,3.8,6.4,.35);hallImage(g,'relief',3.8,.7,x,7.1,.65);}
  for(const x of [0]){
   const door=timberDoor(g,x,.15,3.8,6.4,.35);
   door.userData.rearMainDoor=true;door.traverse(o=>{o.userData.fullDetail=true;});

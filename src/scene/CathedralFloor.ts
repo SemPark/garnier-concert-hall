@@ -7,6 +7,8 @@ const sources={
  roughness:new URL('../assets/floor/roughness.webp',import.meta.url).href,
 };
 let shared:T.MeshStandardMaterial|undefined;
+/** The lobby's marble checkerboard, for other floors that should match it. */
+export function cathedralFloorMaterial(){return floorMaterial();}
 function floorMaterial(){
  if(shared)return shared;
  shared=new T.MeshStandardMaterial({color:0xe8d8be,roughness:1,metalness:0,envMapIntensity:1});shared.normalScale.set(.6,.6);

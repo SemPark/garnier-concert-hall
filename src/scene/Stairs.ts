@@ -3,6 +3,7 @@ import {GOLDEN_HALL as H} from '../../shared/goldenHall';
 import {GALLERY_FLOORS,GALLERY_RAIL_HEIGHT,STAIR_CORRIDOR as C,STAIR_DOORS,STAIR_OPENINGS,corridorStairHeight} from '../../shared/gallery';
 import {box,cylinder,line,sphere,wallWithOpenings,C as COLOR} from './primitives';
 import {hallImageMaterial} from './HallTextures';
+import {cathedralFloorMaterial} from './CathedralFloor';
 
 const CEILING=14,WALL=0xe3d3b2,DADO=0x8a5e3a;
 /**
@@ -13,7 +14,9 @@ function corridor(scene:T.Scene,side:number){
  const root=new T.Group();root.userData.landmark='rear-stair';scene.add(root);
  const X=(x:number)=>side*x,width=C.outerX-C.innerX,midX=X((C.innerX+C.outerX)/2),depth=C.back-C.front,midZ=(C.front+C.back)/2;
  // Shell: floor, ceiling, and walls facing inwards (the front wall also hides the corridor from the hall).
- box(root,[width,.1,depth],[midX,-.05,midZ],0x9a7148).material=hallImageMaterial('walnut');
+ // Ground floor in the lobby's marble checkerboard, tiles sized in metres like the lobby.
+ {const geometry=new T.PlaneGeometry(width,depth),uv=geometry.getAttribute('uv');for(let i=0;i<uv.count;i++)uv.setXY(i,(midX+(uv.getX(i)-.5)*width)/3,(midZ-(uv.getY(i)-.5)*depth)/3);
+  const floor=new T.Mesh(geometry,cathedralFloorMaterial());floor.rotation.x=-Math.PI/2;floor.position.set(midX,.004,midZ);floor.receiveShadow=true;root.add(floor);}
  box(root,[width,.12,depth],[midX,CEILING,midZ],WALL);
  // The front wall has the two real doorways back into the hall; the back wall is solid.
  const lo=Math.min(X(C.innerX),X(C.outerX)),hi=Math.max(X(C.innerX),X(C.outerX));

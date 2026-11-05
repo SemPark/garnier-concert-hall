@@ -16,7 +16,7 @@ export class LocalConcert{
    case 'zone':this.release();Object.assign(v,{zone:msg.zone,...SPAWN[msg.zone],yaw:0});return true;
    case 'move':if(v.pose==='sit'||!walkable(v.zone,msg)||!Number.isFinite(msg.yaw)||distance(v,msg)>2.2&&!stairLink(v,msg))return false;Object.assign(v,{x:msg.x,y:msg.y??0,z:msg.z,yaw:msg.yaw,pose:msg.pose});return true;
    case 'reserve':if(v.zone!=='auditorium'||!SEATS.some(s=>s.id===msg.seatId))return false;this.release();this.reservationRequest=msg.requestId;v.seatId=msg.seatId;this.seats[msg.seatId]={visitorId:v.id,status:'reserved',expiresAt:null};return true;
-   case 'seated':{const seat=SEATS.find(s=>s.id===msg.seatId);if(!seat||v.zone!=='auditorium'||v.seatId!==seat.id||!canSit(v,seat))return false;Object.assign(v,{x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw,pose:'sit'});this.seats[seat.id]={visitorId:v.id,status:'seated',expiresAt:null};return true;}
+   case 'seated':{const seat=SEATS.find(s=>s.id===msg.seatId);if(!seat||v.zone!=='auditorium'||v.seatId!==seat.id)return false;Object.assign(v,{x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw,pose:'sit'});this.seats[seat.id]={visitorId:v.id,status:'seated',expiresAt:null};return true;}
    case 'loungeSit':{const seat=LOUNGE_SEATS.find(s=>s.id===msg.seatId);if(!seat||v.zone!=='lobby'||distance(v,seat.approach)>.45)return false;this.release();Object.assign(v,{x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw,pose:'sit',loungeSeatId:seat.id});return true;}
    case 'release':if(msg.requestId&&msg.requestId!==this.reservationRequest)return false;this.release();return true;
    case 'outfit':if(!isOutfit(msg.outfit)||!atCloakroom(v))return false;v.outfit=msg.outfit;return true;

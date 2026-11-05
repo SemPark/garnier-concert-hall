@@ -49,7 +49,7 @@ function App(){
  // The icon menu stays listed from the start; ☰ hides or shows it.
  const [menu,setMenu]=useState(true);
  // Man/woman window shown in the lobby after entering; it closes once the visitor picks.
- const [lookPicker,setLookPicker]=useState(true);const [wardrobe,setWardrobe]=useState(false);
+ const [lookPicker,setLookPicker]=useState(false);const [wardrobe,setWardrobe]=useState(false);
  const [app,setApp]=useState<{world:World;net:Presence;audio:ConcertAudio}|null>(null),[,redraw]=useState(0),[entered,setEntered]=useState(false),[settings,setSettings]=useState(false),[seats,setSeats]=useState(false),[musicExpanded,setMusicExpanded]=useState(false),[reactions,setReactions]=useState(false),[toast,setToast]=useState(''),[error,setError]=useState('');
  const [probeProgress,setProbeProgress]=useState(''),[probeReport,setProbeReport]=useState(''),[probeMessage,setProbeMessage]=useState('');
  const entering=useRef(false);
@@ -66,7 +66,7 @@ function App(){
  const world=app?.world,net=app?.net,audio=app?.audio,p=audio?.playback,zone=world?.zone??'lobby',connected=net?.status==='connected',sitting=world?.pose==='sit';
  useEffect(()=>{if(zone!=='lobby')setWardrobe(false);},[zone]);
  const closeSeats=useCallback(()=>setSeats(false),[]);
- const chooseMappedSeat=useCallback((id:string)=>{if(!world)return;if(world.zone==='lobby')world.chooseSeatFromLobby(id);else void world.chooseSeat(id);},[world]);
+ const chooseMappedSeat=useCallback((id:string)=>{if(!world)return;if(world.zone==="lobby")world.chooseSeatFromLobby(id);else void world.chooseSeat(id,true);},[world]);
  useEffect(()=>{if(!world)return;world.uiObscured=(seats||settings||wardrobe)&&!probeProgress;if(world.uiObscured)world.input.keys.clear();return()=>{world.uiObscured=false;};},[world,seats,settings,wardrobe,probeProgress]);
  const enter=()=>{if(!app||!app.world.ready||entering.current)return;entering.current=true;setEntered(true);app.world.start();app.net.connect();void app.audio.unlock();};
  const diagnose=async()=>{if(!world||!audio)return;if(!audio.playback.playing||audio.playback.remaining<35){setProbeMessage('곡이 바뀌는 구간입니다. 다음 곡이 시작되면 진단해 주세요.');return;}setSettings(false);setProbeReport('');setProbeMessage('');try{const report=await runDeviceProbe(world,audio,setProbeProgress);setProbeReport(JSON.stringify(report));setProbeMessage('진단 완료 · 결과를 복사해 보내주세요. 결과는 자동 전송되지 않습니다.');}catch(e){setProbeMessage(e instanceof Error?e.message:'진단을 완료하지 못했어요.');}finally{setProbeProgress('');setSettings(true);}};
