@@ -28,6 +28,7 @@ export type ClientMessage=
  |{type:'gesture';gesture:Gesture}
  |{type:'look';look:Look}
  |{type:'outfit';outfit:Outfit}
+ |{type:'coffee'}
  |{type:'candle';state:CandleState}
  |{type:'activity'}
  |{type:'sync'}

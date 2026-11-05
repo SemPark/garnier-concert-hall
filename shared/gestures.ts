@@ -7,7 +7,8 @@ export const GESTURES=[
  {id:'bow',label:'목례',seconds:2.4},
  {id:'moved',label:'감동',seconds:3.2},
  {id:'shh',label:'쉿',seconds:2.4},
- {id:'doze',label:'졸기',seconds:4}
+ {id:'doze',label:'졸기',seconds:4},
+ {id:'drink',label:'커피 마시기',seconds:3.2}
 ] as const;
 export type Gesture=typeof GESTURES[number]['id'];
 const IDS=new Set<string>(GESTURES.map(g=>g.id));

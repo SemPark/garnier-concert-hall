@@ -58,6 +58,7 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
   const target=new T.Mesh(new T.BoxGeometry(w,3,1),hit);target.position.set(0,1.6,0);target.userData.cloakroom=true;g.add(target);clickTargets.push(target);}
  // Coffee bar: dark joinery, a backlit menu, espresso machine, cups and pastry case.
  {const f=F.cafeCounter,g=new T.Group();g.position.set(f.x,0,f.z);scene.add(g);
+  const cafeHit=new T.Mesh(new T.BoxGeometry(1.3,1.6,f.hz*2),hit);cafeHit.position.y=.8;cafeHit.userData.cafe=true;g.add(cafeHit);clickTargets.push(cafeHit);
   const counter=box(g,[1.05,1.1,f.hz*2],[0,.55,0],walnut);counter.material=woodMaterial('walnut');
   box(g,[1.2,.1,f.hz*2+.15],[.06,1.15,0],marbleWhite);
   for(let z=-3.7;z<4;z+=1.5){box(g,[.08,.78,1.27],[.55,.55,z],0x2b1d15);for(const y of [.18,.92])box(g,[.1,.045,1.3],[.59,y,z],brass);}

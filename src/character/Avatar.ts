@@ -1,3 +1,4 @@
+import {buildCoffeeCup} from './CoffeeCup';
 import {faceGeometry,faceFarGeometry,faceSurfaceZ,paintFace} from './Face';
 import {skirtGeometry} from './Skirt';
 import type {Outfit} from '../../shared/wardrobe';
@@ -139,6 +140,7 @@ export class Avatar{
    if(cloth)prepareClothContact(o.geometry,cloth);
    o.material=frontLitMaterial(o.material,cloth?'cloth':'body');
   }});
+  if(!instrument){this.coffeeCup=buildCoffeeCup();this.rightHand.add(this.coffeeCup);}
   const shadow=new T.Mesh(shadowGeometry,shadowMaterial);shadow.rotation.x=-Math.PI/2;shadow.position.y=.012;this.root.add(shadow);
   if(instrument){buildInstrument(instrument,this.instrument,this.leftHand,this.rightHand);if(FLOOR_INSTRUMENTS.has(instrument)){this.root.add(this.instrument);this.instrument.userData.floorAnchored=true;if(instrument==='cello')this.instrument.position.y=.64;}if(instrument==='conductor')santaHat(this.head);}
  }
@@ -156,6 +158,7 @@ export class Avatar{
   this.aimAt(this.right,x,y+(reduced?0:Math.sin(time*9)*.025),z);
   this.rightHand.quaternion.copy(this.rightArm.quaternion).invert();
  }
+ holdingCoffee=false;private coffeeCup?:T.Group;
  holdingCandle=false;
  update(time:number,speed:number,sitting:boolean,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60){
   this.rightHand.position.set(0,-ARM_LENGTH,0);
@@ -193,12 +196,21 @@ export class Avatar{
    this.aimAt(this.left,-.45-Math.sin(u+.7)*.22*play,1.12+Math.sin(u*.5)*.3*play,-.22);
   }
   // The left hand carries the candle; backward greetings and hush use the free right hand.
+  if(this.coffeeCup){this.coffeeCup.scale.setScalar(this.holdingCoffee?1:0);this.coffeeCup.rotation.x=gesture==='drink'&&this.holdingCoffee ? .35*pose.weight : 0;}
+  if(this.holdingCoffee&&!type)this.aimAt(this.right,.20,.96,-.30);
   if(this.holdingCandle&&!type)this.aimAt(this.left,-.1,.93,-.3);
   if(pose.weight>0){if(pose.left)this.aimAt(this.left,...pose.left,pose.weight);if(pose.right)this.aimAt(this.right,...pose.right,pose.weight);}
   if(gesture==='ovation'&&pose.weight>0&&!type){
    // Wave just in front of the turned head's ear, clear of the eyes.
    this.direction.set(.56+Math.sin(gestureAge*11)*.035,.10,-.12).applyQuaternion(this.head.quaternion).add(this.head.position);
    this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);
+  }
+  if(gesture==='drink'&&this.holdingCoffee&&this.coffeeCup&&pose.weight>0&&!type){
+   const rim=new T.Vector3(0,.14,0).applyQuaternion(this.coffeeCup.quaternion).add(this.coffeeCup.position);
+   this.direction.set(0,-.13,faceSurfaceZ(0,-.13)-.008).applyQuaternion(this.head.quaternion).add(this.head.position).sub(rim);
+   const reach=T.MathUtils.lerp(ARM_LENGTH,this.direction.distanceTo(this.rightArm.position),pose.weight);
+   this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);this.rightHand.position.y=-reach;
+   if(sleeve){sleeve.scale.y=reach/ARM_LENGTH;sleeve.position.y=-(reach-.06)/2;}
   }
   if(gesture==='shh'&&pose.weight>0&&!type){
    // Follow the turned mouth rather than a fixed point in front of the torso.
