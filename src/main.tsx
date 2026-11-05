@@ -14,7 +14,7 @@ import {runDeviceProbe} from './diagnostics/DeviceProbe';
 import {GESTURES,type Gesture} from '../shared/gestures';
 reportLoading(10,'시작 화면을 준비하고 있어요');
 const EMPTY_CLAIMS={};
-const GLYPH:Record<Gesture,string>={wave:'〜',clap:'♪',bravo:'!',ovation:'✦',bow:'⌒',moved:'♥',shh:'…',doze:'Zz'};
+const GLYPH:Record<Gesture,string>={wave:'〜',clap:'♪',bravo:'!',ovation:'↶',bow:'⌒',moved:'♥',shh:'…',doze:'Zz'};
 
 function Icon({name,size=20}:{name:string;size?:number}){
  const paths:Record<string,React.ReactNode>={
@@ -57,7 +57,7 @@ function App(){
  const toastTimer=useRef(0),dialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{let world:World|undefined;const net=new Presence(),audio=new ConcertAudio(net.now);
   try{world=new World(document.getElementById('world')!,net,audio);const active=world;const update=()=>redraw(n=>n+1);const notify=(message:string)=>{setToast(message);clearTimeout(toastTimer.current);toastTimer.current=window.setTimeout(()=>setToast(''),3500);};
-   world.onChange=update;world.onToast=notify;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{world!.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onMoveBlocked=point=>active.correctMove(point);net.onStatus=update;net.onError=notify;setApp({world,net,audio});
+   world.onChange=update;world.onToast=notify;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{world!.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onMoveBlocked=point=>active.correctMove(point);net.onStatus=()=>{if(net.status!=='connected')active.stopHallLoading();update();};net.onError=message=>{active.stopHallLoading();notify(message);};setApp({world,net,audio});
    if(import.meta.env.DEV)Object.assign(window,{__concert:{world,net,audio}});
   }catch(e){failLoading();setError(e instanceof Error?e.message:'3D 화면을 열지 못했어요.');}
   return ()=>{world?.destroy();net.destroy();audio.destroy();};
@@ -73,6 +73,8 @@ function App(){
  const diagnose=async()=>{if(!world||!audio)return;if(!audio.playback.playing||audio.playback.remaining<35){setProbeMessage('곡이 바뀌는 구간입니다. 다음 곡이 시작되면 진단해 주세요.');return;}setSettings(false);setProbeReport('');setProbeMessage('');try{const report=await runDeviceProbe(world,audio,setProbeProgress);setProbeReport(JSON.stringify(report));setProbeMessage('진단 완료 · 결과를 복사해 보내주세요. 결과는 자동 전송되지 않습니다.');}catch(e){setProbeMessage(e instanceof Error?e.message:'진단을 완료하지 못했어요.');}finally{setProbeProgress('');setSettings(true);}};
  return <>
   <div className="vignette"/>
+  {world?.hallLoading&&<div className="hall-loading" role="status" aria-live="polite" aria-busy="true"><div className="hall-loading-card"><span className="hall-loading-spinner" aria-hidden="true"/><h2>공연장으로 들어가고 있어요</h2><p>무대와 좌석을 준비하고 있어요. 잠시만 기다려 주세요.</p></div></div>}
+
   {entered&&<header className="topbar">
    <div className="brand"><span className="brand-mark"><Icon name="hall" size={25}/></span><div><span className="brand-name">pleee</span><span className="brand-sub">플리 · 음악으로 만나는 공간</span></div></div>
    {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LOBBY':'pleee hall'}</span><span>{zone==='lobby'?'로비':'공연장'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ')??'입장 중'}</span></div>}

@@ -3,7 +3,7 @@ export const GESTURES=[
  {id:'wave',label:'인사',seconds:2.6},
  {id:'clap',label:'박수',seconds:2.8},
  {id:'bravo',label:'브라보',seconds:2.6},
- {id:'ovation',label:'기립박수',seconds:3.6},
+ {id:'ovation',label:'뒤돌아 인사',seconds:3.6},
  {id:'bow',label:'목례',seconds:2.4},
  {id:'moved',label:'감동',seconds:3.2},
  {id:'shh',label:'쉿',seconds:2.4},

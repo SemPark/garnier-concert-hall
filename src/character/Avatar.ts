@@ -162,16 +162,16 @@ export class Avatar{
   const pose=poseVillager({time,speed,sit:this.sitAmount,music:performing,musician:!!type,gesture,age:gestureAge},this.phase),sit=pose.sit;
   // Bend around the hips: the body pivots at the hip joint and the legs counter-rotate, so the feet stay put.
   if(!type&&!gesture)pose.sway=0;
-  this.tilt.set(-pose.lean,0,pose.sway);this.hipOffset.copy(HIP).applyEuler(this.tilt);
-  // Rising for an ovation steps forward off the cushion instead of standing inside the chair.
+  this.tilt.set(-pose.lean,pose.turn,pose.sway);this.hipOffset.copy(HIP).applyEuler(this.tilt);
+  // Preserve the seated hip offset throughout the gesture.
   const rise=this.sitAmount-sit;
   // Leaning sideways rises onto the lower foot so neither foot sinks into the floor.
   this.body.position.set(-this.hipOffset.x,sit*.1+pose.lift+HIP.y-this.hipOffset.y+.115*Math.abs(Math.sin(pose.sway))*(1-sit),-sit*.12-rise*.5-this.hipOffset.z);this.body.rotation.copy(this.tilt);
-  if(this.skirt){this.skirt.morphTargetInfluences![0]=sit;this.skirt.rotation.set(0,0,(1-sit)*Math.sin(t*5)*Math.min(.035,speed*.012));}
-  this.head.rotation.set(-pose.headPitch,0,0);for(const eye of this.eyes.children){const mesh=eye as T.Mesh;if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[0]=1-pose.blink;}
+  if(this.skirt){this.skirt.morphTargetInfluences![0]=sit;this.skirt.rotation.set(0,-pose.turn,(1-sit)*Math.sin(t*5)*Math.min(.035,speed*.012));}
+  this.head.rotation.set(-pose.headPitch,pose.turn?pose.headYaw:0,pose.turn?pose.headRoll:0);for(const eye of this.eyes.children){const mesh=eye as T.Mesh;if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[0]=1-pose.blink;}
   // A seated cellist opens the knees around the instrument instead of kicking through it.
   const splay=type==='cello'?.75*sit:0;
-  for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const){hip.rotation.order='YXZ';hip.rotation.set(T.MathUtils.lerp(pose.swing*.5*sign,type||this.appearance==='man'?Math.PI/2:.9,sit)+pose.lean,splay*sign,-pose.sway);}
+  for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const){hip.position.set(-sign*.115*Math.cos(pose.turn),.55,-sign*.115*Math.sin(pose.turn));hip.rotation.order='YXZ';hip.rotation.set(T.MathUtils.lerp(pose.swing*.5*sign,type||this.appearance==='man'?Math.PI/2:.9,sit)+pose.lean,splay*sign-pose.turn,-pose.sway);}
   // Resting arms are held out on a diagonal (less when seated).
   const spread=T.MathUtils.lerp(.42,.16,sit);
   this.leftArm.rotation.set(-pose.swing*.34,0,-spread);this.rightArm.rotation.set(pose.swing*.34,0,spread);
