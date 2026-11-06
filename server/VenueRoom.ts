@@ -1,3 +1,4 @@
+import {zoneUpdate} from '../shared/zoneUpdates';
 import {DurableObject} from 'cloudflare:workers';
 import {SEATS,HALL_DESTINATIONS,DESTINATION_ZONE,isHallDestination,SPAWN,CAPACITY,PALETTE,atCafe,walkable,surfaceHeight,distance,isLook,isCandleState,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shared/protocol';
@@ -15,6 +16,7 @@ const round=(n:number)=>Math.round(n*1000)/1000;
 
 export class VenueRoom extends DurableObject<Env>{
  private revision=0;
+ private visibleVisitors=new WeakMap<WebSocket,Set<string>>();
  // What everyone was last sent, so each update carries only the changes.
  private sentVisitors=new Map<string,string>();private sentSeats=new Map<string,string>();private flushTimer:ReturnType<typeof setTimeout>|null=null;private flushedAt=0;
  constructor(ctx:DurableObjectState,env:Env){super(ctx,env);
@@ -26,7 +28,7 @@ export class VenueRoom extends DurableObject<Env>{
  private active(){return this.ctx.getWebSockets().flatMap(ws=>{const a=this.attachment(ws);return a?[{ws,a}]:[]});}
  private claims(){const seats:Record<string,SeatClaim>={};for(const r of this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims').toArray())seats[r.seatId]={visitorId:r.visitorId,status:r.status,expiresAt:r.expiresAt};return seats;}
  /** The whole hall, matching what everyone has been sent so far, so later deltas apply on top of it. */
- private snapshot(roomId:string):Snapshot{this.flush();return {revision:this.revision,visitors:this.active().map(({a})=>a.visitor),seats:this.claims(),serverNow:Date.now(),roomId};}
+ private snapshot(roomId:string,ws:WebSocket):Snapshot{this.flush();const zone=this.attachment(ws)!.visitor.zone,visitors=this.active().map(({a})=>a.visitor).filter(v=>v.zone===zone);this.visibleVisitors.set(ws,new Set(visitors.map(v=>v.id)));return {revision:this.revision,visitors,seats:this.claims(),serverNow:Date.now(),roomId};}
  private roomId(){return this.active()[0]?.a.roomId??'hall-1';}
  /** Changes are gathered and sent at most ten times a second, as one message built once for everybody. */
  private broadcast(){if(!this.flushTimer)this.flushTimer=setTimeout(()=>this.flush(),Math.max(0,this.flushedAt+FLUSH_MS-Date.now()));}
@@ -40,7 +42,10 @@ export class VenueRoom extends DurableObject<Env>{
   for(const id of this.sentSeats.keys())if(!claims[id]){this.sentSeats.delete(id);seats[id]=null;}
   if(!visitors.length&&!left.length&&!Object.keys(seats).length)return;
   const delta:Delta={revision:this.revision+1,base:this.revision,visitors,left,seats,serverNow:Date.now()};this.revision++;
-  const message=JSON.stringify({type:'delta',delta} satisfies ServerMessage);for(const {ws} of active){try{ws.send(message);}catch{/* A close event will release this connection. */}}
+  const all=active.map(({a})=>a.visitor);
+  for(const {ws,a} of active){const scope=zoneUpdate(all,visitors,this.visibleVisitors.get(ws)??new Set(this.sentVisitors.keys()),a.visitor.zone);this.visibleVisitors.set(ws,scope.ids);
+   this.send(ws,{type:'delta',delta:{...delta,visitors:scope.visitors,left:scope.left}});
+  }
  }
  private release(id:string){this.ctx.storage.sql.exec('DELETE FROM claims WHERE visitorId=?',id);}
  private async schedule(){
@@ -79,7 +84,7 @@ export class VenueRoom extends DurableObject<Env>{
   const pair=new WebSocketPair(),server=pair[1];this.ctx.acceptWebSocket(server);
   server.serializeAttachment({lastActivity:Date.now(),visitor,token:savedToken,generation:crypto.randomUUID(),lastMessage:0,windowAt:Date.now(),messageCount:0,roomId});
   // The snapshot first sends everyone (the newcomer ignores it) the delta that adds this visitor.
-  this.send(server,{type:'welcome',selfId:visitor.id,resumeToken:savedToken,state:this.snapshot(roomId)});await this.schedule();
+  this.send(server,{type:'welcome',selfId:visitor.id,resumeToken:savedToken,state:this.snapshot(roomId,server)});await this.schedule();
   return new Response(null,{status:101,webSocket:pair[0]});
  }
  async webSocketMessage(ws:WebSocket,raw:string|ArrayBuffer){
@@ -90,7 +95,7 @@ export class VenueRoom extends DurableObject<Env>{
   if(!msg||typeof msg!=='object'||typeof msg.type!=='string')return;
   this.expire();const v=a.visitor;
   if(msg.type==='clock'){if(Number.isFinite(msg.sentAt))this.send(ws,{type:'clock',sentAt:msg.sentAt,serverNow:now});return;}
-  if(msg.type==='sync'){this.send(ws,{type:'state',state:this.snapshot(this.roomId())});return;}
+  if(msg.type==='sync'){this.send(ws,{type:'state',state:this.snapshot(this.roomId(),ws)});return;}
   if(msg.type==='activity'){a.lastActivity=now;ws.serializeAttachment(a);await this.schedule();return;}
   if(msg.type==='move'){
    if(!walkable(v.zone,{x:msg.x,y:msg.y??0,z:msg.z})||!Number.isFinite(msg.yaw)||!['idle','walk'].includes(msg.pose))return;

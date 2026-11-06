@@ -64,9 +64,9 @@ function arch(parent:T.Object3D,width:number,height:number,position:number[],rot
  g.add(new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts),24,.09,6,false),material(C.goldLight,.3)));return g;
 }
 // Bentwood backs and folding timber pans, joined into continuous concert rows.
-function bentwoodBack(){
+function bentwoodBack(cols=16){
  // The back curves only across its width and runs straight from bottom to top, so one row describes it exactly.
- const positions:number[]=[],uv:number[]=[],indices:number[]=[],cols=16,rows=1,stride=cols+1,layer=stride*(rows+1);
+ const positions:number[]=[],uv:number[]=[],indices:number[]=[],rows=1,stride=cols+1,layer=stride*(rows+1);
  for(const face of [-1,1])for(let y=0;y<=rows;y++)for(let x=0;x<=cols;x++){
   const u=x/cols*2-1,v=y/rows,top=.24+.10*(1-u*u);
   positions.push(u*.49,-.28+v*(top+.28),-.08*(1-u*u)+face*.035);uv.push(x/cols,v);
@@ -79,7 +79,7 @@ function bentwoodBack(){
  for(let y=0;y<rows;y++)for(const x of [0,cols]){const a=y*stride+x;quad(a,a+stride,a+stride+layer,a+layer,x===0);}
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(indices);g.computeVertexNormals();return g;
 }
-const chairBack=bentwoodBack();
+const chairBack=bentwoodBack(),farChairBack=bentwoodBack(6);
 const seatFabric=new T.MeshStandardMaterial({color:0x632b32,roughness:.95});
 const cushionGeometry=new T.BoxGeometry(.85,.095,.61);
 const backCushionGeometry=chairBack.clone();
@@ -96,7 +96,7 @@ function seat(parent:T.Object3D,x:number,z:number,endArm=true){
   box(g,[.10,.065,.69],[side*.55,.80,-.025],0xcba378).material=woodMaterial('seat',true);
  }
  box(g,[1.1,.065,.055],[0,.29,.25],0x9b7354).material=woodMaterial('seat',true);
- g.traverse(o=>{if(o instanceof T.Mesh)o.userData.fullDetail=true;});return g;
+ g.traverse(o=>{if(o instanceof T.Mesh){o.userData.preserveSilhouette=true;if(o.geometry===chairBack||o.geometry===backCushionGeometry)o.userData.lowDetail=farChairBack;else o.userData.fullDetail=true;}});return g;
 }
 function ceilingPainting(parent:T.Object3D,x:number,z:number,w:number,h:number,y:number){
  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=256;const ctx=canvas.getContext('2d')!;

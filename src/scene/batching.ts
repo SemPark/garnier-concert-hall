@@ -1,3 +1,4 @@
+import {solidOcclusion} from './solidOcclusion';
 import * as T from 'three';
 import {keepFrontLight} from '../character/characterLight';
 import {prepareInstanceMorph} from './instanceMorph';
@@ -31,7 +32,7 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean){
   for(const item of items){if(dynamic){item.matrix.copy(item.mesh.matrixWorld);item.center.copy(geometry.boundingSphere!.center).applyMatrix4(item.matrix);item.radius=geometry.boundingSphere!.radius*item.matrix.getMaxScaleOnAxis();}
    const focus=scene.userData.cameraFocus as T.Vector3|undefined;let occluded=false;if(eye&&focus&&item.occluder){occlusionRay.origin.copy(eye);occlusionRay.direction.copy(focus).sub(eye);const length=occlusionRay.direction.length();occlusionRay.direction.normalize();const hit=occlusionRay.intersectBox(item.occluder,intersection);// Decoration right beside the camera, or between it and the visitor, steps aside so it never fills the view.
    occluded=item.occluder.distanceToPoint(eye)<1.1||!!hit&&eye.distanceTo(hit)<Math.min(5,length-.05);}
-   const distance=eye?item.center.distanceTo(eye):0,nearLimit=item.level===0?LOD_NEAR+1.5:LOD_NEAR-1.5,level=distance<nearLimit?0:1,shown=!occluded&&distance<=item.limit&&distance>=item.min&&(!camera||frustum.intersectsSphere(sphere.set(item.center,item.radius+.3)));
+   const distance=eye?item.center.distanceTo(eye):0,nearLimit=item.level===0?LOD_NEAR+1.5:LOD_NEAR-1.5,level=distance<nearLimit?0:1,shown=!occluded&&distance<=item.limit&&distance>=item.min&&(!camera||frustum.intersectsSphere(sphere.set(item.center,item.radius+.3)))&&(!eye||!scene.userData.solidOccluded?.(eye,item.center,item.radius+.05));
    if(level!==item.level||shown!==item.shown)changed=true;item.level=level;item.shown=shown;
   }
   if(!dynamic&&!changed)return;
@@ -71,6 +72,14 @@ export function batchArchitecture(scene:T.Scene,exclude:T.Object3D[]){return fin
 export function* batchArchitectureSteps(scene:T.Scene,exclude:T.Object3D[]){
  const protectedObjects=new Set<T.Object3D>();for(const root of exclude)root.traverse(o=>protectedObjects.add(o));
  scene.updateMatrixWorld(true);const groups=new Map<string,BatchGroup>();
+ const solids:T.Box3[]=[];
+ // Only the permanent shell: decorative bounds would wrongly seal doors and arches.
+ scene.traverse(o=>{if(!(o instanceof T.Mesh)||o.userData.landmark!=='hall-shell'||!(o.geometry instanceof T.BoxGeometry)||Array.isArray(o.material)||o.material.transparent||!o.material.visible)return;
+  const e=o.matrixWorld.elements,aligned=[0,4,8].every(i=>[e[i],e[i+1],e[i+2]].filter(v=>Math.abs(v)>1e-6).length===1);
+  if(aligned)solids.push(new T.Box3().setFromObject(o).expandByScalar(-.02));
+ });
+ scene.userData.solidOccluded=solidOcclusion(solids);
+
  // A group marked occluderGroup (a column with its flutes and capital) hides as one piece.
  scene.traverse(o=>{if(!o.userData.occluderGroup)return;const box=new T.Box3().setFromObject(o).expandByScalar(.12);o.traverse(m=>{m.userData.occluderBox=box;});});
  const bounds=new T.Box3(),size=new T.Vector3(),center=new T.Vector3();
