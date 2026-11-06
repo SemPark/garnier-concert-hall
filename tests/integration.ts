@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 import playlist from '../content/playlist.json';
 import {applyDelta,type ServerMessage,type Snapshot,type ClientMessage} from '../shared/protocol';
-import {CAPACITY,SEATS,BALCONY_SEATS,stairPoint,stairLink,distance,type Point} from '../shared/venue';import {findPath} from '../src/navigation/path';
+import {CAPACITY,SEATS,BALCONY_SEATS,HALL_DESTINATIONS,distance,type Point} from '../shared/venue';import {findPath} from '../src/navigation/path';
 const base=process.env.CONCERT_TEST_URL??'http://127.0.0.1:8787';
 const delay=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 async function until(check:()=>boolean,label:string,ms=7000){const end=Date.now()+ms;while(Date.now()<end){if(check())return;await delay(30);}throw new Error(`Timed out: ${label}`);}
@@ -11,7 +11,10 @@ class Client{
  async connect(token=''){const url=new URL('/api/presence',base);url.protocol=url.protocol==='https:'?'wss:':'ws:';url.searchParams.set('room','hall-99');if(token)url.searchParams.set('resume',token);
   this.socket=new WebSocket(url,{origin:new URL(base).origin});this.socket.on('message',raw=>{const msg=JSON.parse(raw.toString()) as ServerMessage;this.messages.push(msg);if(msg.type==='welcome'){this.id=msg.selfId;this.token=msg.resumeToken;this.state=msg.state;}if(msg.type==='state')this.state=msg.state;if(msg.type==='delta'&&this.state){const next=applyDelta(this.state,msg.delta);if(next)this.state=next;else this.send({type:'sync'});}});await until(()=>!!this.id,'welcome',15000);return this;}
  send(msg:ClientMessage){this.socket.send(JSON.stringify(msg));}
- async walk(end:Point){const v=this.state.visitors.find(v=>v.id===this.id)!;const path=findPath('auditorium',v,end);assert.ok(path);let p:Point={x:v.x,y:v.y??0,z:v.z};for(const target of path){if(stairLink(p,target,.01)){p={x:target.x,y:target.y??0,z:target.z};this.send({type:'move',...p,yaw:0,pose:'walk'});await delay(80);continue;}while(distance(p,target)>.02){const d=distance(p,target),step=Math.min(1.5,d);p={x:p.x+(target.x-p.x)/d*step,y:(p.y??0)+((target.y??0)-(p.y??0))/d*step,z:p.z+(target.z-p.z)/d*step};this.send({type:'move',...p,yaw:0,pose:'walk'});await delay(80);}}this.send({type:'move',...end,yaw:0,pose:'idle'});await delay(100);}
+ async walk(end:Point){let v=this.state.visitors.find(v=>v.id===this.id)!;let path=findPath('auditorium',v,end);
+  // No stairs: jump to the other floor first, then walk.
+  if(!path){const up=(end.y??0)>4;this.send({type:'hallMove',destination:up?'upper':'rear'});await until(()=>Math.abs((this.state.visitors.find(v=>v.id===this.id)!.y??0)-(up?8.3:0))<.1,'floor jump');v=this.state.visitors.find(v=>v.id===this.id)!;path=findPath('auditorium',v,end);}
+  assert.ok(path);let p:Point={x:v.x,y:v.y??0,z:v.z};for(const target of path){while(distance(p,target)>.02){const d=distance(p,target),step=Math.min(1.5,d);p={x:p.x+(target.x-p.x)/d*step,y:(p.y??0)+((target.y??0)-(p.y??0))/d*step,z:p.z+(target.z-p.z)/d*step};this.send({type:'move',...p,yaw:0,pose:'walk'});await delay(80);}}this.send({type:'move',...end,yaw:0,pose:'idle'});await delay(100);}
  close(){this.socket.close();}
 }
 const clients:Client[]=[];
@@ -39,7 +42,7 @@ try{
  const oldErrors=resumed.messages.filter(m=>m.type==='error').length;resumed.send({type:'seated',seatId:balcony.id});await until(()=>resumed.messages.filter(m=>m.type==='error').length>oldErrors,'reject balcony teleport');
  await resumed.walk(balcony.approach);resumed.send({type:'seated',seatId:balcony.id});await until(()=>resumed.state.visitors.find(v=>v.id===oldId)?.pose==='sit','balcony seated after stairs');assert.equal(resumed.state.visitors.find(v=>v.id===oldId)?.y,8.3);
  resumed.send({type:'release'});await until(()=>!resumed.state.seats[balcony.id],'balcony release');assert.equal(resumed.state.visitors.find(v=>v.id===oldId)?.y,8.3);
- await resumed.walk(stairPoint(1,false));assert.ok((resumed.state.visitors.find(v=>v.id===oldId)?.y??0)<.1);
+ await resumed.walk(HALL_DESTINATIONS.rear);assert.ok((resumed.state.visitors.find(v=>v.id===oldId)?.y??0)<.1);
  resumed.send({type:'clock',sentAt:123});await until(()=>resumed.messages.some(m=>m.type==='clock'&&m.sentAt===123),'clock response');
  const crowd=await Promise.all(Array.from({length:18},()=>new Client().connect()));clients.push(...crowd);await until(()=>observer.state.visitors.length===20,'20 simultaneous clients');
  // A full house: every seat's worth of visitors in one hall; the next one is turned away, and one person walking

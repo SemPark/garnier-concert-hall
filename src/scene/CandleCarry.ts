@@ -9,12 +9,15 @@ export function buildCandleTable(scene:T.Scene,table:CandleTable=CANDLE_TABLE){
  const top=new T.Mesh(new T.BoxGeometry(1.4,.06,.6),wood);top.position.y=.86;root.add(top);
  const drape=new T.Mesh(new T.BoxGeometry(1.42,.5,.62),cloth);drape.position.y=.6;root.add(drape);
  for(const x of [-.62,.62])for(const z of [-.24,.24]){const leg=new T.Mesh(new T.BoxGeometry(.05,.86,.05),wood);leg.position.set(x,.43,z);root.add(leg);}
- // Rows of unlit candles waiting to be taken, and a few lit ones so the table reads from across the hall.
- const wax=new T.MeshLambertMaterial({color:0xfff2d6,emissive:0xffb648,emissiveIntensity:.35}),candle=new T.CylinderGeometry(.04,.04,.18,8);
+ // Every candle is lit, with the same warm flame and halo as the concert candles.
+ const wax=new T.MeshLambertMaterial({color:0xfff2d6,emissive:0xffb648,emissiveIntensity:.85}),candle=new T.CylinderGeometry(.04,.04,.18,8);
  const flames:number[]=[];
- for(let i=0;i<5;i++)for(let j=0;j<3;j++){const x=-.5+i*.25,z=-.18+j*.18,c=new T.Mesh(candle,wax);c.position.set(x,.98,z);root.add(c);if((i+j)%4===0)flames.push(x,1.1,z);}
+ for(let i=0;i<5;i++)for(let j=0;j<3;j++){const x=-.5+i*.25,z=-.18+j*.18,c=new T.Mesh(candle,wax);c.position.set(x,.98,z);root.add(c);flames.push(x,1.1,z);}
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(flames,3));
- root.add(new T.Points(g,new T.PointsMaterial({map:glowTexture(1,.95),size:.18,transparent:true,depthWrite:false,blending:T.AdditiveBlending,color:0xfff3cc,fog:false})));
+ root.add(new T.Points(g,new T.PointsMaterial({map:glowTexture(1,.95),size:.14,transparent:true,depthWrite:false,blending:T.AdditiveBlending,color:0xfff3cc,fog:false})));
+ const haloGeometry=new T.BufferGeometry();haloGeometry.setAttribute('position',new T.Float32BufferAttribute([0,1.05,0],3));
+ root.add(new T.Points(haloGeometry,new T.PointsMaterial({map:glowTexture(.6,.3),size:1.45,transparent:true,depthWrite:false,blending:T.AdditiveBlending,color:0xffc463,opacity:.3,fog:false})));
+ const fill=new T.PointLight(0xffbf66,.9,3.5,2);fill.position.set(0,1.25,.2);root.add(fill);
  // A glowing candle sign on the floor in front of the table, so visitors see at once where to pick one up.
  const size=256,canvas=document.createElement('canvas');canvas.width=canvas.height=size;const c=canvas.getContext('2d')!;
  c.strokeStyle='rgba(255,214,140,.95)';c.lineWidth=10;c.beginPath();c.arc(128,128,112,0,Math.PI*2);c.stroke();

@@ -1,4 +1,4 @@
-import {buildMacaron} from '../character/CoffeeCup';
+import {buildLobbyCafe} from './LobbyCafe';
 import * as T from 'three';
 import {Avatar} from '../character/Avatar';
 import {LOUNGE_SEATS} from '../../shared/loungeSeats';
@@ -57,29 +57,8 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
   plaque(g,'VESTIAIRE');
   const sign=text(g,'의상 바꾸기',2.1,[0,4.1,.26],'#ffe5b3');sign.userData.fullDetail=true;
   const target=new T.Mesh(new T.BoxGeometry(w,3,1),hit);target.position.set(0,1.6,0);target.userData.cloakroom=true;g.add(target);clickTargets.push(target);}
- // Coffee bar: dark joinery, a backlit menu, espresso machine, cups and pastry case.
- {const f=F.cafeCounter,g=new T.Group();g.position.set(f.x,0,f.z);scene.add(g);
-  const cafeHit=new T.Mesh(new T.BoxGeometry(1.3,1.6,f.hz*2),hit);cafeHit.position.y=.8;cafeHit.userData.cafe=true;g.add(cafeHit);clickTargets.push(cafeHit);
-  const counter=box(g,[1.05,1.1,f.hz*2],[0,.55,0],walnut);counter.material=woodMaterial('walnut');
-  box(g,[1.2,.1,f.hz*2+.15],[.06,1.15,0],marbleWhite);
-  for(let z=-3.7;z<4;z+=1.5){box(g,[.08,.78,1.27],[.55,.55,z],0x2b1d15);for(const y of [.18,.92])box(g,[.1,.045,1.3],[.59,y,z],brass);}
-  const back=box(g,[.08,2.1,f.hz*2],[-.28,2.28,0],walnut);back.material=woodMaterial('walnut');back.userData.cameraWall=true;
-  for(const y of [1.65,2.55])for(const [z,length] of [[-3.45,1.7],[2.4,3.8]])box(g,[.45,.07,length],[-.05,y,z],brass);
-  // Cups and saucers, grouped away from the machine.
-  for(let i=0;i<5;i++){const z=-4+i*.3;for(const y of [1.77,2.67]){cylinder(g,.09,.12,[.08,y,z],marbleWhite);cylinder(g,.12,.025,[.08,y-.07,z],marbleWhite);}}
-  const machine=box(g,[.55,.55,1.15],[.15,1.49,.7],0x777a78);box(g,[.05,.28,.95],[.45,1.48,.7],0x252724);
-  for(const z of [.4,.95]){cylinder(g,.10,.26,[.15,1.9,z],0x37261c);line(g,new T.Vector3(.47,1.6,z),new T.Vector3(.65,1.6,z),.025,brass);}
-  for(const z of [.42,.96])cylinder(g,.07,.1,[.45,1.28,z],marbleWhite);
-  const caseGlass=new T.MeshLambertMaterial({color:0xc5d4ce,transparent:true,opacity:.25,depthWrite:false});
-  const display=box(g,[.65,.52,1.75],[.15,1.46,2.8],marbleWhite);display.material=caseGlass;
-  for(const y of [1.22,1.51]){box(g,[.65,.04,1.75],[.15,y,2.8],brass);for(let i=0;i<4;i++){const pastry=buildMacaron();pastry.position.set(.23,y+.065,2.2+i*.36);g.add(pastry);}}
-  const pastryHit=new T.Mesh(new T.BoxGeometry(.8,.65,1.85),hit);pastryHit.position.set(.6,1.45,2.8);pastryHit.userData.macaron=true;g.add(pastryHit);clickTargets.push(pastryHit);
-  const pastryLabel=text(g,'마카롱 • MACARON',1.55,[.66,1.93,2.8],'#f3dc9c');pastryLabel.rotation.y=Math.PI/2;
-  box(g,[.1,.6,3.8],[1.9,6.1,0],brass);box(g,[.06,.45,3.6],[1.98,6.1,0],0x211a14);const name=text(g,'CAFÉ • pleee',3.2,[2.02,6.1,0],'#f3dc9c');name.rotation.y=Math.PI/2;
-  const menu=box(g,[.08,1.2,2.8],[-.12,2.3,-1.1],0x211a14);
-  for(const [label,y] of [['ESPRESSO',2.65],['CAPPUCCINO',2.35],['PÂTISSERIE',2.05]] as const){const t=text(g,label,2.3,[-.06,y,-1.1],'#f0d9a0');t.rotation.y=Math.PI/2;}
-  for(const t of F.cafeTables){cylinder(scene,.32,.05,[t.x,.03,t.z],brass);cylinder(scene,.05,1.05,[t.x,.55,t.z],brass);cylinder(scene,.48,.05,[t.x,1.08,t.z],marbleWhite);cylinder(scene,.1,.025,[t.x,1.12,t.z],marbleWhite);cylinder(scene,.07,.13,[t.x,1.19,t.z],marbleWhite);}
- }
+ // One staffed café inside its own arcade bay.
+ buildLobbyCafe(scene,clickTargets);
  // Lounge: red velvet sofas against the wall and a round button ottoman, the Garnier "borne".
  for(const f of F.sofas){const g=new T.Group();g.position.set(f.x,0,f.z);scene.add(g);
   box(g,[.9,.42,2.5],[0,.32,0],velvet);box(g,[.25,.9,2.6],[.38,.75,0],velvet);for(const z of [-1.25,1.25])box(g,[.9,.62,.18],[0,.5,z],velvet);

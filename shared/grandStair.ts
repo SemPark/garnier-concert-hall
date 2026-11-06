@@ -19,7 +19,7 @@ export const BOX_OFFICE_APPROACH={x:-12.5,y:0,z:LOBBY_ARCADE.bays[0]} as const;
 export const LOBBY_FURNITURE={
  // Box office and cloakroom sit inside the first ground-tier arcade bay on each side, behind the arch.
  boxOffice:{x:-14.1,z:LOBBY_ARCADE.bays[0],hx:.95,hz:2.1},cloakroom:{x:14.1,z:LOBBY_ARCADE.bays[0],hx:.95,hz:2.1},
- cafeCounter:{x:-14.2,z:30.85,hx:.5,hz:4.45},
+ cafeCounter:{x:-13.15,z:LOBBY_ARCADE.bays[1],hx:.62,hz:2.08},
  cafeTables:[24,28,32,36].map(z=>({x:z===24?-8.1:-9.8,z:z===24?25.8:z,hx:.45,hz:.45})),
  ticketRails:[-1,1].map(side=>({x:-10.9,z:BOX_OFFICE_APPROACH.z+side*1.05,hx:1.6,hz:.08})),
  wardrobeRails:[-1,1].map(side=>({x:10.9,z:LOBBY_ARCADE.bays[0]+side*1.05,hx:1.6,hz:.08})),

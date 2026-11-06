@@ -12,7 +12,7 @@ import {GOLDEN_HALL as H} from '../../shared/goldenHall';
 import {STAGE,STAGE_FLOOR} from '../orchestra/layout';
 import {crystalChandelier,paintedCeiling,friezeMaterial} from './HallDetails';
 import {WALL_DATUM,WALL_LEVELS,buildPerimeterCornices,buildPerimeterFriezes} from './HallWallBands';
-import {GALLERY_BRIDGE,GALLERY_RAIL_HEIGHT,REAR_COLUMNS,REAR_SCREENS,STAIR_DOORS,STAIR_OPENINGS,galleryRailSpans} from '../../shared/gallery';
+import {GALLERY_BRIDGE,GALLERY_RAIL_HEIGHT,REAR_COLUMNS,REAR_SCREENS,STAIR_DOORS,galleryRailSpans} from '../../shared/gallery';
 import {ORGAN_LOFT_BACK,ORGAN_LOFT_CONTOUR,ORGAN_RAIL_JOIN_X,ORGAN_RAIL_JOIN_Z,ORGAN_RAIL_POST_HALF,organBalconyFront} from '../../shared/organLoft';
 import {buildGalleryFloors} from './GalleryFloors';
 import {hallImage,hallImageMaterial,woodMaterial,applyWoodSurface,entranceWoodMaterial} from './HallTextures';
@@ -199,7 +199,7 @@ export function buildHallShell(scene:T.Scene){
  for(const side of [-1,1])walls.push(box(scene,[.4,H.height,H.rear-H.front],[side*16,H.height/2,(H.rear+H.front)/2],P.ivory));
  walls.push(box(scene,[32,H.height,.4],[0,H.height/2,H.front],P.ivory));
  // The rear wall is open at the four stair doors, so the corridor stairs can be seen through them.
- walls.push(...wallWithOpenings(scene,-16,16,0,H.height,H.rear,.4,P.ivory,STAIR_OPENINGS));
+ walls.push(...wallWithOpenings(scene,-16,16,0,H.height,H.rear,.4,P.ivory,[]));// Stair doors are closed: the rear wall stays solid.
  for(const wall of walls){wall.userData.landmark='hall-shell';wall.userData.fullDetail=true;}
  return walls;
 }
@@ -279,7 +279,7 @@ export function upperDecoratedPanel(g:T.Object3D,y:number){
  }
  box(root,[spine,6.96,.10],[0,3.55,.61],P.gold);
  // The brass lamp keeps its circular body and its original depth.
- hallPanelSconce(root,0,3.65,.72);
+ hallPanelSconce(root,0,3.65,.72,width-.12);
  for(const [w,yy,depth]of [[width+.08,7.12,.26],[width+.18,7.28,.32],[width+.06,7.40,.23]])box(root,[w,.13,depth],[0,yy,.54],P.gold);
  const cameo=new T.Group();cameo.position.set(0,8.0,.56);cameo.userData.landmark='panel-portrait-medallion';root.add(cameo);
  for(const [radius,depth,color,z]of [[.43,.10,0x874537,0],[.37,.06,0xc69b49,.08],[.325,.045,0xd7c9aa,.13]]){const disc=cylinder(cameo,radius,depth,[0,0,z],color);disc.rotation.x=Math.PI/2;}
@@ -301,7 +301,7 @@ export function rearFacade(scene:T.Scene){
  for(const x of [-12,-8,-4,0,4,8,12]){box(g,[.2,17,.2],[x,18.1,.2],0x9a5646);box(g,[.065,17,.1],[x,18.1,.34],P.light);}
  for(const x of [-14,14]){
   const wing=new T.Group();wing.position.x=x;g.add(wing);archedWindow(wing,WALL_LEVELS.window,true);
-  openDoor(wing,0,H.balconyHeight,2.15,5.25,.5);// Open onto the corridor stair, as on the floor below.
+  timberDoor(wing,0,H.balconyHeight,2.15,5.25,.5,2);// Closed: the galleries are reached from the floor menu.
   for(const side of [-1,1])box(wing,[.12,5.5,.2],[side*1.25,H.balconyHeight+2.75,.55],P.light);
  }
  // Fill the two rear blank fields with the same cream panels and red piers as the rear screens.
@@ -328,8 +328,8 @@ export function rearFacade(scene:T.Scene){
  }
  // Gilded beam under the gallery front, and warm lamps in the shadowed standing area beneath.
  for(const [z,xs]of [[2.2,[-10.5,-5.25,0,5.25,10.5]],[WALL_DATUM.rear-46,[-5.25,0,5.25]]] as const)for(const x of xs)hallFlatCeilingLight(g,x,7.86,z);
- // The two side doors lead to the corridor stairs and stand open; the centre door is the foyer entrance.
- for(const x of [-doorX,doorX]){openDoor(g,x,.15,3.8,6.4,.35);hallImage(g,'relief',3.8,.7,x,7.1,.65);}
+ // The two side doors are closed; the centre door is the foyer entrance.
+ for(const x of [-doorX,doorX]){timberDoor(g,x,.15,3.8,6.4,.35);hallImage(g,'relief',3.8,.7,x,7.1,.65);}
  for(const x of [0]){
   const door=timberDoor(g,x,.15,3.8,6.4,.35);
   door.userData.rearMainDoor=true;door.traverse(o=>{o.userData.fullDetail=true;});

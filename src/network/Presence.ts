@@ -8,6 +8,7 @@ export class Presence{
  private preview:LocalConcert|null=null;
  selfId='';state:Snapshot|null=null;status:'connecting'|'connected'|'offline'='offline';
  onState:(state:Snapshot)=>void=()=>{};onStatus:()=>void=()=>{};onError:(message:string)=>void=()=>{};
+ onRelocated:(point:{x:number;y:number;z:number})=>void=()=>{};
  onMoveBlocked:(point:{x:number;y:number;z:number})=>void=()=>{};
  private socket:WebSocket|null=null;private syncing=false;private retry=0;private stopped=false;private timer=0;private heartbeat=0;
  private origin=Date.now()-performance.now();private offset=0;private bestRTT=Infinity;
@@ -31,7 +32,8 @@ export class Presence{
     const end=performance.now(),rtt=end-msg.sentAt;if(rtt<this.bestRTT){this.bestRTT=rtt;this.offset=msg.serverNow-(this.origin+(msg.sentAt+end)/2);}
    }else if(msg.type==='seatResult'){
     const q=this.requests.get(msg.requestId);if(q){clearTimeout(q.timer);q.resolve(msg.ok);this.requests.delete(msg.requestId);}if(!msg.ok)this.onError(msg.reason??'이 좌석을 선택할 수 없어요.');
-   }else if(msg.type==='moveBlocked')this.onMoveBlocked(msg);
+   }else if(msg.type==='relocated')this.onRelocated(msg);
+   else if(msg.type==='moveBlocked')this.onMoveBlocked(msg);
    else if(msg.type==='error')this.onError(msg.message);
   };
   socket.onclose=()=>{if(this.socket!==socket)return;this.status='offline';this.onStatus();clearInterval(this.heartbeat);for(const q of this.requests.values()){clearTimeout(q.timer);q.resolve(false);}this.requests.clear();
@@ -40,7 +42,7 @@ export class Presence{
  }
  private accept(state:Snapshot){this.state=state;this.onState(state);}
  private ping(){this.bestRTT=Infinity;for(let i=0;i<3;i++)window.setTimeout(()=>this.send({type:'clock',sentAt:performance.now()}),i*150);}
- send(msg:ClientMessage){if(this.preview){const ok=this.preview.send(msg);this.accept(this.preview.snapshot());return ok;}if(this.socket?.readyState===WebSocket.OPEN&&this.status==='connected'){this.socket.send(JSON.stringify(msg));return true;}return false;}
+ send(msg:ClientMessage){if(this.preview){const ok=this.preview.send(msg);this.accept(this.preview.snapshot());if(ok&&msg.type==='hallMove'){const v=this.preview.visitor;this.onRelocated({x:v.x,y:v.y??0,z:v.z});}return ok;}if(this.socket?.readyState===WebSocket.OPEN&&this.status==='connected'){this.socket.send(JSON.stringify(msg));return true;}return false;}
  reserve(seatId:string,requestId=crypto.randomUUID()){if(this.preview){const ok=this.preview.send({type:'reserve',seatId,requestId});this.accept(this.preview.snapshot());return Promise.resolve(ok);}if(this.status!=='connected')return Promise.resolve(false);return new Promise<boolean>(resolve=>{const timer=window.setTimeout(()=>{this.requests.delete(requestId);resolve(false);},6000);this.requests.set(requestId,{resolve,timer});this.send({type:'reserve',seatId,requestId});});}
  destroy(){this.stopped=true;clearTimeout(this.timer);clearInterval(this.heartbeat);for(const q of this.requests.values()){clearTimeout(q.timer);q.resolve(false);}this.requests.clear();this.socket?.close();}
 }

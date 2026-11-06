@@ -9,7 +9,7 @@ const vineGold=material(0xc69b49,.55);
 export function rearPanelDecoration(parent:T.Object3D,width:number,height=7.5,bottom=0,depth=.22){
  const motif=Math.min(2.7,width*.65);
  hallImage(parent,'relief',motif,motif*.35,0,bottom+height*.76,depth+.015);
- hallPanelSconce(parent,0,bottom+height*.45,depth);
+ hallPanelSconce(parent,0,bottom+height*.45,depth,width-.16,Math.min(6.4,height-.4));
  for(const side of [-1,1]){
   const vine=new T.Mesh(vineGeometry,vineGold);vine.position.set(side*.09,bottom+height*.18,depth+.035);vine.scale.x=side*Math.min(1.4,width*.32);parent.add(vine);
  }

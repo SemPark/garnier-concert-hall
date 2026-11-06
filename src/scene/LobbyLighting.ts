@@ -1,4 +1,4 @@
-import {ATRIUM,LOBBY_ARCADE} from '../../shared/grandStair';
+import {ATRIUM,LOBBY_ARCADE,LOBBY_FURNITURE} from '../../shared/grandStair';
 import * as T from 'three';
 import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
@@ -12,15 +12,16 @@ export function lobbyPracticalLights(scene:T.Scene){
  };
  spot(0xffbc7b,260,[0,15,27],[0,0,31],.68);
  spot(0xffc18a,115,[-12,7,24],[-11.8,1,24],.58);
+ spot(0xffbf66,65,[-11.8,5.5,LOBBY_FURNITURE.cafeCounter.z],[-14,1.3,LOBBY_FURNITURE.cafeCounter.z],1.1);
  for(const side of [-1,1]){const fill=new T.PointLight(0xffc88e,25,20,2);fill.position.set(side*12.7,4.1,34);scene.add(fill);}
  if(typeof document==='undefined')return;
  const haloCanvas=document.createElement('canvas');haloCanvas.width=haloCanvas.height=64;const ctx=haloCanvas.getContext('2d')!,gradient=ctx.createRadialGradient(32,32,0,32,32,32);
  gradient.addColorStop(0,'rgba(255,225,180,.65)');gradient.addColorStop(.15,'rgba(255,195,120,.24)');gradient.addColorStop(1,'rgba(255,180,100,0)');ctx.fillStyle=gradient;ctx.fillRect(0,0,64,64);
  const map=new T.CanvasTexture(haloCanvas);map.colorSpace=T.SRGBColorSpace;
- const glow=new T.SpriteMaterial({map,color:0xffd3a0,transparent:true,opacity:.45,depthWrite:false,blending:T.AdditiveBlending});
+ const glow=new T.SpriteMaterial({map,color:0xffc463,transparent:true,opacity:.45,depthWrite:false,blending:T.AdditiveBlending});
  // Brass wall lanterns share their meshes and baked wall wash; just two local fills light the side aisles.
  const brass=new T.MeshStandardMaterial({color:0xb98a47,metalness:.65,roughness:.35});
- const lamp=new T.MeshStandardMaterial({color:0xffe5bd,emissive:0xffb65e,emissiveIntensity:4,roughness:.5});
+ const lamp=new T.MeshStandardMaterial({color:0xffe1a1,emissive:0xffbf66,emissiveIntensity:1.8,roughness:.5});
  const back=new T.CylinderGeometry(.18,.18,.045,12);back.rotateX(Math.PI/2);
  const arm=new T.CylinderGeometry(.035,.035,.45,8);arm.rotateX(Math.PI/2);
  const bowl=new T.CylinderGeometry(.16,.09,.12,12),shade=new T.SphereGeometry(.15,12,10),cap=new T.ConeGeometry(.2,.16,12);
@@ -49,15 +50,16 @@ export function lobbyPracticalLights(scene:T.Scene){
  // One shared halo texture supplies the chandelier's warm bloom without a forest of point lights.
  const halo=new T.Sprite(glow);halo.position.set(0,16,24);halo.scale.set(5,4,1);scene.add(halo);
 }
-/** Small highlight bloom, half-resolution on every device. The UI is ordinary DOM and stays sharp. */
+/** Small highlight bloom, with a reduced blur budget on phones. The UI is ordinary DOM and stays sharp. */
 export class LobbyLightPass{
  private composer:EffectComposer;private scenePass:RenderPass;private bloom:UnrealBloomPass;
- constructor(private renderer:T.WebGLRenderer,scene:T.Scene,camera:T.Camera){
+ constructor(private renderer:T.WebGLRenderer,scene:T.Scene,camera:T.Camera,private bloomRatio=.5){
   this.composer=new EffectComposer(renderer);this.scenePass=new RenderPass(scene,camera);
   this.bloom=new UnrealBloomPass(new T.Vector2(256,256),.3,.7,1.2);
-  const resize=this.bloom.setSize.bind(this.bloom);this.bloom.setSize=(w,h)=>resize(Math.max(1,w/2|0),Math.max(1,h/2|0));
+  const resize=this.bloom.setSize.bind(this.bloom);this.bloom.setSize=(w,h)=>resize(Math.max(1,w*this.bloomRatio|0),Math.max(1,h*this.bloomRatio|0));
   this.composer.addPass(this.scenePass);this.composer.addPass(this.bloom);this.composer.addPass(new OutputPass());
  }
+ setBloomRatio(value:number){this.bloomRatio=value;}
  resize(width:number,height:number,ratio:number){this.composer.setPixelRatio(ratio);this.composer.setSize(width,height);}
  render(scene:T.Scene,camera:T.Camera){
   this.scenePass.scene=scene;this.scenePass.camera=camera;const auto=this.renderer.info.autoReset;this.renderer.info.reset();this.renderer.info.autoReset=false;

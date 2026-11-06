@@ -51,6 +51,11 @@ export function buildCandlelight(scene:T.Scene){
  // and small groups spaced along the foot of both side walls to draw the outline of the room.
  for(const x of [-2.7,2.7])clusters.push({x,y:0,z:50.7,n:8,r:.4});
  for(const side of [-1,1])for(let z=-6;z<41;z+=3.4){if(PARTERRE.sideStairZ.some(c=>Math.abs(z-c)<PARTERRE.sideStairWidth/2+.4))continue;const x=side*15.15;clusters.push({x,y:ground(x,z),z,n:3,r:.2});}
+ // Rear entrance and side returns: keep the centre doorway and both stair doors clear.
+ for(const side of [-1,1]){
+  for(const x of [4.6,6.7,9,11.6,14.5])clusters.push({x:side*x,y:0,z:50.5,n:5,r:.25});
+  for(const z of [44.8,47.4])clusters.push({x:side*15.15,y:0,z,n:5,r:.22});
+ }
  const candles:{x:number;y:number;z:number;h:number}[]=[];
  for(const c of clusters)for(let i=0;i<c.n;i++){const a=rnd()*Math.PI*2,d=Math.sqrt(rnd())*c.r;candles.push({x:c.x+Math.cos(a)*d,y:c.y,z:c.z+Math.sin(a)*d,h:.12+rnd()*.3});}
  // Wax bodies.

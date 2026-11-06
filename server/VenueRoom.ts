@@ -1,5 +1,5 @@
 import {DurableObject} from 'cloudflare:workers';
-import {SEATS,SPAWN,CAPACITY,PALETTE,atCafe,walkable,surfaceHeight,distance,stairLink,isLook,isCandleState,type Visitor} from '../shared/venue';
+import {SEATS,HALL_DESTINATIONS,DESTINATION_ZONE,isHallDestination,SPAWN,CAPACITY,PALETTE,atCafe,walkable,surfaceHeight,distance,isLook,isCandleState,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shared/protocol';
 import {isGesture,gestureSeconds} from '../shared/gestures';
 import {isOutfit,atCloakroom} from '../shared/wardrobe';
@@ -95,7 +95,7 @@ export class VenueRoom extends DurableObject<Env>{
   if(msg.type==='move'){
    if(!walkable(v.zone,{x:msg.x,y:msg.y??0,z:msg.z})||!Number.isFinite(msg.yaw)||!['idle','walk'].includes(msg.pose))return;
    // A generous per-packet allowance accommodates interpolation and mobile pauses.
-   if(distance(v,msg)>Math.max(2.2,(now-a.lastMessage)/1000*6)&&a.lastMessage&&!stairLink(v,msg))return;
+   if(distance(v,msg)>Math.max(2.2,(now-a.lastMessage)/1000*6)&&a.lastMessage)return;
    if(v.pose==='sit')return;
    if(distance(v,msg)>.02)a.lastActivity=now;
    Object.assign(v,{x:round(msg.x),y:round(msg.y??0),z:round(msg.z),yaw:round(msg.yaw),pose:msg.pose});
@@ -103,8 +103,15 @@ export class VenueRoom extends DurableObject<Env>{
    if(!['lobby','auditorium'].includes(msg.zone)||msg.zone===v.zone)return;
    const point=freeVisitorPosition(msg.zone,SPAWN[msg.zone],this.active().map(({a})=>a.visitor),v.id);
    if(!point){this.send(ws,{type:'error',message:'입구가 붐벼요. 잠시 후 다시 들어와 주세요.'});return;}
-   this.release(v.id);Object.assign(v,{zone:msg.zone,...point,seatId:null,loungeSeatId:null,pose:'idle'});delete v.candle;delete v.macaron;delete v.macaronEmptyAt;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;
+   this.release(v.id);Object.assign(v,{zone:msg.zone,...point,seatId:null,loungeSeatId:null,pose:'idle'});delete v.candle;delete v.macaron;delete v.macaronBites;delete v.macaronEmptyAt;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;
+  }else if(msg.type==='hallMove'){
+   if(!isHallDestination(msg.destination)||v.zone!==DESTINATION_ZONE[msg.destination])return;
+   const point=freeVisitorPosition(v.zone,HALL_DESTINATIONS[msg.destination],this.active().map(({a})=>a.visitor),v.id);
+   if(!point){this.send(ws,{type:'error',message:'이동할 곳이 붐벼요. 잠시 후 다시 시도해 주세요.'});return;}
+   this.release(v.id);Object.assign(v,{...point,yaw:0,pose:'idle',seatId:null,loungeSeatId:null});
+   this.send(ws,{type:'relocated',x:v.x,y:v.y??0,z:v.z});
   }else if(msg.type==='reserve'){
+
    if(typeof msg.requestId!=='string'||msg.requestId.length>80||typeof msg.seatId!=='string')return;
    const seat=SEATS.find(s=>s.id===msg.seatId),claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE seatId=?',msg.seatId).toArray()[0];
    if(v.zone!=='auditorium'||!seat||(claim&&claim.visitorId!==v.id)){this.send(ws,{type:'seatResult',ok:false,seatId:msg.seatId,requestId:msg.requestId,reason:'다른 관객이 선택한 좌석이에요.'});return;}
@@ -131,7 +138,7 @@ export class VenueRoom extends DurableObject<Env>{
   }else if(msg.type==='renew'){
    this.ctx.storage.sql.exec("UPDATE claims SET expiresAt=? WHERE seatId=? AND visitorId=? AND status='reserved'",now+RESERVE_MS,msg.seatId,v.id);
   }else if(msg.type==='macaron'){
-   if(!atCafe(v)||v.macaron)return;v.macaron=true;
+   if(!atCafe(v)||v.macaron)return;v.macaron=true;v.macaronBites=0;
   }else if(msg.type==='coffee'){
    if(!atCafe(v)||v.coffee)return;v.coffee=true;v.coffeeSips=0;
   }else if(msg.type==='candle'){
@@ -141,8 +148,8 @@ export class VenueRoom extends DurableObject<Env>{
   }else if(msg.type==='look'){
    if(!isLook(msg.look))return;v.look=msg.look;
   }else if(msg.type==='gesture'){
-   if(!isGesture(msg.gesture)||msg.gesture==='eat'&&(!v.macaron||!!v.macaronEmptyAt)||now-v.gestureAt<1200||msg.gesture==='drink'&&(!v.coffee||(v.coffeeSips??0)>=3||v.gesture==='drink'&&now-v.gestureAt<gestureSeconds('drink')*1000))return;
-   if(msg.gesture==='eat')v.macaronEmptyAt=now+gestureSeconds('eat')*1000;
+   if(!isGesture(msg.gesture)||(msg.gesture==='eat'||msg.gesture==='drink')&&(v.gesture==='eat'||v.gesture==='drink')&&now-v.gestureAt<3200||msg.gesture==='eat'&&(!v.macaron||(v.macaronBites??0)>=2||!!v.macaronEmptyAt)||now-v.gestureAt<1200||msg.gesture==='drink'&&(!v.coffee||(v.coffeeSips??0)>=3||v.gesture==='drink'&&now-v.gestureAt<gestureSeconds('drink')*1000))return;
+   if(msg.gesture==='eat'){v.macaronBites=(v.macaronBites??0)+1;if(v.macaronBites===2)v.macaronEmptyAt=now+gestureSeconds('eat')*1000;}
    if(msg.gesture==='drink'){v.coffeeSips=(v.coffeeSips??0)+1;if(v.coffeeSips===3)v.coffeeEmptyAt=now+gestureSeconds('drink')*1000;}
    v.gesture=msg.gesture;v.gestureAt=now;
   }else return;
@@ -157,10 +164,10 @@ export class VenueRoom extends DurableObject<Env>{
  }
  async alarm(){
   this.expire();const now=Date.now();
-  for(const {ws,a} of this.active())if(a.visitor.macaronEmptyAt&&now>=a.visitor.macaronEmptyAt){delete a.visitor.macaron;delete a.visitor.macaronEmptyAt;ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(a.visitor),a.visitor.id);}
+  for(const {ws,a} of this.active())if(a.visitor.macaronEmptyAt&&now>=a.visitor.macaronEmptyAt){delete a.visitor.macaron;delete a.visitor.macaronBites;delete a.visitor.macaronEmptyAt;ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(a.visitor),a.visitor.id);}
   for(const {ws,a} of this.active())if(a.visitor.coffeeEmptyAt&&now>=a.visitor.coffeeEmptyAt){const v=a.visitor;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(v),v.id);}
   for(const {ws,a} of this.active())if(a.visitor.zone==='lobby'&&a.lastActivity&&now-a.lastActivity>=30000){
-   const v=a.visitor;this.release(v.id);Object.assign(v,{zone:'auditorium',...SPAWN.auditorium,pose:'idle',seatId:null,loungeSeatId:null});delete v.candle;delete v.macaron;delete v.macaronEmptyAt;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;
+   const v=a.visitor;this.release(v.id);Object.assign(v,{zone:'auditorium',...SPAWN.auditorium,pose:'idle',seatId:null,loungeSeatId:null});delete v.candle;delete v.macaron;delete v.macaronBites;delete v.macaronEmptyAt;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;
    ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(v),v.id);
   }
   this.broadcast();await this.schedule();

@@ -16,15 +16,15 @@ function crystalMaterial(){
  // White crystal: a white self-glow keeps the shaded underside clean instead of grey.
  return crystalSkin=new T.MeshLambertMaterial({color:0xe4dbc8,map,alphaTest:.35,side:T.DoubleSide,emissive:0xffdfaa,emissiveIntensity:.28});
 }
-// The bulbs are plain white light.
-const bulbMaterial=new T.MeshLambertMaterial({color:0xffedc9,emissive:0xffd49a,emissiveIntensity:1.3});
+// Warm candle-coloured bulbs; crystals retain their own material.
+const bulbMaterial=new T.MeshLambertMaterial({color:0xffe1a1,emissive:0xffbf66,emissiveIntensity:1.3});
 let halo:T.SpriteMaterial|undefined;
 /** Soft warm halo drawn from a small radial texture (no canvas, so it also builds outside the browser). */
 function haloMaterial(){
  if(halo)return halo;const n=64,data=new Uint8Array(n*n*4);
  for(let y=0;y<n;y++)for(let x=0;x<n;x++){const d=Math.hypot(x-n/2+.5,y-n/2+.5)/(n/2),a=Math.max(0,1-d)**1.15,i=(y*n+x)*4;data[i]=255;data[i+1]=250;data[i+2]=240;data[i+3]=Math.round(a*255);}
  const map=new T.DataTexture(data,n,n);map.needsUpdate=true;map.colorSpace=T.SRGBColorSpace;
- return halo=new T.SpriteMaterial({map,transparent:true,depthWrite:false,blending:T.AdditiveBlending,opacity:.09});
+ return halo=new T.SpriteMaterial({map,transparent:true,depthWrite:false,blending:T.AdditiveBlending,color:0xffc463,opacity:.35});
 }
 export function crystalChandelier(scene:T.Scene,x:number,z:number){
  const g=new T.Group();g.position.set(x,17.5,z);g.userData.landmark='crystal-chandelier';scene.add(g);
@@ -38,7 +38,7 @@ export function crystalChandelier(scene:T.Scene,x:number,z:number){
  const bulb=sphere(g,.22,[0,1.15,0],0xfff4d9);bulb.material=bulbMaterial;
  for(let i=0;i<12;i++){const a=i/12*Math.PI*2;const candle=sphere(g,.1,[Math.cos(a)*1.25,1.2,Math.sin(a)*1.25],0xfff4d9);candle.material=bulbMaterial;candle.userData.chandelierBulb=true;}
  // Just a faint white bloom spreading past the crystals.
- const glow=new T.Sprite(haloMaterial());glow.scale.setScalar(6);glow.position.y=1.6;glow.renderOrder=7;glow.userData.landmark='chandelier-halo';g.add(glow);
+ const glow=new T.Sprite(haloMaterial());glow.scale.setScalar(4.5);glow.position.y=1.6;glow.renderOrder=7;glow.userData.landmark='chandelier-halo';g.add(glow);
 }
 /** Shared ornament images replace per-bay painted canvases and fine mesh decoration. */
 export function friezeMaterial(){return hallImageMaterial('scroll');}

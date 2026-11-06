@@ -13,6 +13,8 @@ export type HairStyle='short'|'long';
 type Arm={shoulder:T.Group;hand:T.Group};
 export const PERCUSSION:readonly Instrument[]=['bass-drum','snare','cymbals','sleigh-bells','triangle','chimes','gong','timpani','xylophone','marimba','vibraphone'];
 const ARM_LENGTH=.4,HIP=new T.Vector3(0,.55,0),DOWN=new T.Vector3(0,-1,0);
+/** Seconds into the eat gesture when the macaron reaches the mouth and half of it goes. */
+const MACARON_BITE_AT=1.5;
 const shadowGeometry=new T.CircleGeometry(.36,20),shadowMaterial=new T.MeshBasicMaterial({color:0x18100a,transparent:true,opacity:.2,depthWrite:false});
 // One shared bell-shaped body for every character, so batching keeps one instance group.
 // The top stays broad so the arms meet the body without shoulder pads.
@@ -158,7 +160,7 @@ export class Avatar{
   this.aimAt(this.right,x,y+(reduced?0:Math.sin(time*9)*.025),z);
   this.rightHand.quaternion.copy(this.rightArm.quaternion).invert();
  }
- holdingCoffee=false;private coffeeCup?:T.Group;holdingMacaron=false;private macaron?:T.Group;
+ holdingCoffee=false;private coffeeCup?:T.Group;holdingMacaron=false;macaronBites=0;private macaron?:T.Group;
  holdingCandle=false;
  update(time:number,speed:number,sitting:boolean,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60){
   this.rightHand.position.set(0,-ARM_LENGTH,0);this.leftHand.position.set(0,-ARM_LENGTH,0);
@@ -198,7 +200,12 @@ export class Avatar{
   }
   // The left hand carries the candle; backward greetings and hush use the free right hand.
   if(this.coffeeCup){this.coffeeCup.scale.setScalar(this.holdingCoffee?1:0);this.coffeeCup.rotation.x=gesture==='drink'&&this.holdingCoffee ? .35*pose.weight : 0;}
-  if(this.macaron)this.macaron.scale.setScalar(this.holdingMacaron?1:0);
+  if(this.macaron){
+   // Each bite takes a whole half away at once, the moment it reaches the mouth.
+   this.macaron.scale.setScalar(this.holdingMacaron?1:0);
+   const eaten=gesture==='eat'&&gestureAge<MACARON_BITE_AT?this.macaronBites-1:this.macaronBites;
+   const [first,second]=this.macaron.userData.halves as T.Object3D[];first.scale.setScalar(eaten>=1?0:1);second.scale.setScalar(eaten>=2?0:1);
+  }
   if(this.holdingMacaron&&!type)this.aimAt(this.left,-.23,.96,-.3);
   if(this.holdingCoffee&&!type)this.aimAt(this.right,.20,.96,-.30);
   if(this.holdingCandle&&!type)this.aimAt(this.left,-.1,.93,-.3);
@@ -216,11 +223,12 @@ export class Avatar{
    if(sleeve){sleeve.scale.y=reach/ARM_LENGTH;sleeve.position.y=-(reach-.06)/2;}
   }
   if(gesture==='eat'&&this.holdingMacaron&&this.macaron&&pose.weight>0&&!type){
+   // One quick nod as the bite is taken.
+   const chomp=Math.sin(Math.PI*T.MathUtils.clamp((gestureAge-MACARON_BITE_AT+.12)/.32,0,1));this.head.rotation.x+=chomp*.22;
    this.direction.set(0,-.13,faceSurfaceZ(0,-.13)-.045).applyQuaternion(this.head.quaternion).add(this.head.position).sub(this.macaron.position);
    const reach=T.MathUtils.lerp(ARM_LENGTH,this.direction.distanceTo(this.leftArm.position),pose.weight);
    this.aimAt(this.left,this.direction.x,this.direction.y,this.direction.z,pose.weight);this.leftHand.position.y=-reach;
    if(leftSleeve){leftSleeve.scale.y=reach/ARM_LENGTH;leftSleeve.position.y=-(reach-.06)/2;}
-   this.macaron.scale.setScalar(1-.8*T.MathUtils.smoothstep(gestureAge,1.3,2.8));
   }
   if(gesture==='shh'&&pose.weight>0&&!type){
    // Follow the turned mouth rather than a fixed point in front of the torso.

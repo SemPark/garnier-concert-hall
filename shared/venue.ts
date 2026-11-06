@@ -16,7 +16,7 @@ export const isLook=(v:unknown):v is Look=>v==='man'||v==='woman';
 function appearanceSeed(id:string){let hash=2166136261;for(const ch of id)hash=Math.imul(hash^ch.charCodeAt(0),16777619);return hash>>>0;}
 /** Independent skin, look and hair choices, stable for the same visitor on every screen. */
 export function visitorVariant(v:{id:string;look?:Look}){const seed=appearanceSeed(v.id),look=v.look??(seed&4?'woman':'man');return (seed&3)+(look==='woman'?4:0)+((seed>>>8)&7)*8;}
-export type Visitor={id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
+export type Visitor={id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronBites?:number;macaronEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
 export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
 // Adapt the official three-block stalls to the app's existing 352 seats.
@@ -52,6 +52,11 @@ export function seatGrade(s:Seat):SeatGrade{
 export function seatLabel(s:Seat){if(s.id.startsWith('box-'))return `1층 ${s.x<0?'왼쪽':'오른쪽'} 측면석 ${(s.row-1)*3+s.column}번`;return s.level==='parterre'?`1층 ${s.row}열 ${s.column}번`:`2층 ${s.x<0?'왼쪽':'오른쪽'} ${seatNumber(s)}번`;}
 /** The parterre runs right up to the stage lip (stage front is z -9.5). */
 export const STAGE_APRON_Z=-9.2;
+/** Jump points: stage front and rear of the hall, the middle of the rear gallery (2F), and the middle of the lobby floor. */
+export const HALL_DESTINATIONS={front:{x:0,y:PARTERRE.floor,z:-8.6},rear:{x:0,y:0,z:48.8},upper:{x:0,y:STAIR_DOORS.height,z:46},lobby:{x:0,y:0,z:25.5}} as const;
+export type HallDestination=keyof typeof HALL_DESTINATIONS;
+export const DESTINATION_ZONE:Record<HallDestination,'auditorium'|'lobby'>={front:'auditorium',rear:'auditorium',upper:'auditorium',lobby:'lobby'};
+export const isHallDestination=(v:unknown):v is HallDestination=>typeof v==='string'&&Object.hasOwn(HALL_DESTINATIONS,v);
 export const BOUNDS={lobby:{minX:-ATRIUM.halfWidth+.5,maxX:ATRIUM.halfWidth-.5,minZ:ATRIUM.front+.5,maxZ:ATRIUM.back-.5},auditorium:{minX:-15.65,maxX:15.65,minZ:-26.5,maxZ:50.3}};
 /** A candle carried in the hall: lit or blown out. Picked up at the candle table just ahead and to the right of where
  * visitors come into the hall, marked by a glowing candle sign on the floor. */
@@ -60,20 +65,12 @@ export const isCandleState=(v:unknown):v is CandleState=>v==='on'||v==='off';
 export const CANDLE_TABLE={x:2.8,z:44.6,approach:{x:2.8,y:0,z:45.6}} as const;
 export const CANDLE_TABLES=[CANDLE_TABLE,{x:-2.8,z:44.6,approach:{x:-2.8,y:0,z:45.6}}] as const;
 export type CandleTable=(typeof CANDLE_TABLES)[number];
-export const CAFE_APPROACH={x:F.cafeCounter.x+1.5,y:0,z:F.cafeCounter.z+.7};
+export const CAFE_APPROACH={x:F.cafeCounter.x+1.25,y:0,z:F.cafeCounter.z};
 export const cafeApproach=(z:number)=>({...CAFE_APPROACH,z:Math.max(F.cafeCounter.z-F.cafeCounter.hz+.4,Math.min(F.cafeCounter.z+F.cafeCounter.hz-.4,z))});
 export const atCafe=(v:{zone:string;x:number;y?:number;z:number})=>v.zone==='lobby'&&Math.abs(v.y??0)<.5&&Math.abs(v.x-CAFE_APPROACH.x)<1.1&&Math.abs(v.z-F.cafeCounter.z)<F.cafeCounter.hz;
 export const SPAWN={lobby:{x:0,y:0,z:24},auditorium:{x:0,y:0,z:47}};
 export const PALETTE=[0xc9564d,0xd98a4f,0xd9b04f,0x5fa860,0x3f9c8f,0x4f7fd0,0x7462c9,0xd7769f,0xc25283,0x5aa9c9,0x95b856,0xd86662];
 export function visitorColor(v:{id:string;outfit?:Outfit}){return OUTFITS.find(o=>o.id===v.outfit)?.color??PALETTE[(appearanceSeed(v.id)>>>16)%PALETTE.length];}
-/** The door on one level that leads to the hidden corridor stair on that side. */
-export function stairPoint(side:number,upper:boolean):Point{const d=upper?STAIR_DOORS.upper:STAIR_DOORS.lower;return {x:side*d.x,y:upper?STAIR_DOORS.height:0,z:d.z};}
-/** True when a step from a to b is a pass through the corridor stair: from one stair door to its partner on the same side. */
-export function stairLink(a:Point,b:Point,tolerance=1.6){
- for(const side of [-1,1]){const lo=stairPoint(side,false),hi=stairPoint(side,true);
-  if((distance(a,lo)<tolerance&&distance(b,hi)<tolerance)||(distance(a,hi)<tolerance&&distance(b,lo)<tolerance))return true;}
- return false;
-}
 export function inGallery(p:Point,padding=.27){const side=Math.abs(p.x)>=12.9+padding&&Math.abs(p.x)<=15.9-padding&&p.z>=-26.5+padding&&p.z<=50.3-padding;const rear=Math.abs(p.x)<=15.9-padding&&p.z>=GALLERY_BRIDGE.minZ+padding&&p.z<=GALLERY_BRIDGE.maxZ-padding;return (side||rear)&&hasGalleryFloor(p.x,p.z);}
 /** Pick the surface contiguous with the visitor, never jump to another floor. */
 export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
@@ -91,7 +88,7 @@ const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s
  ...[-1,1].flatMap(side=>[0,ATRIUM.balconyY].flatMap(y=>LOBBY_ARCADE.columns.map(z=>({x:side*LOBBY_ARCADE.x,z,hx:.33,hz:.33,y})))),
 
  {x:LOBBY_CHRISTMAS_TREE.x,z:LOBBY_CHRISTMAS_TREE.z,hx:LOBBY_CHRISTMAS_TREE.radius,hz:LOBBY_CHRISTMAS_TREE.radius,y:0},
- ...[F.boxOffice,F.cloakroom,F.cafeCounter,...F.cafeTables,...F.ticketRails,...F.wardrobeRails,...F.sofas,F.ottoman,...F.busts,...F.torchieres,F.programBoard].map(f=>({...f,y:0}))]};
+ ...[F.boxOffice,F.cloakroom,F.cafeCounter,...F.ticketRails,...F.wardrobeRails,...F.sofas,F.ottoman,...F.busts,...F.torchieres,F.programBoard].map(f=>({...f,y:0}))]};
 const CELLS:Record<Zone,Map<string,Obstacle[]>>={lobby:new Map(),auditorium:new Map()};
 for(const zone of ['lobby','auditorium'] as const)for(const o of OBSTACLES[zone])for(let x=Math.floor((o.x-o.hx-1)/2);x<=Math.floor((o.x+o.hx+1)/2);x++)for(let z=Math.floor((o.z-o.hz-1)/2);z<=Math.floor((o.z+o.hz+1)/2);z++){const key=`${x},${z}`,items=CELLS[zone].get(key)??[];items.push(o);CELLS[zone].set(key,items);}
 export function obstacles(zone:Zone):Obstacle[]{return OBSTACLES[zone];}

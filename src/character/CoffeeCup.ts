@@ -9,10 +9,21 @@ export function buildCoffeeCup(){
  const surface=new T.Mesh(coffee,drink);surface.rotation.x=-Math.PI/2;surface.position.y=.125;group.add(surface);group.scale.setScalar(0);return group;
 }
 
-const shell=new T.SphereGeometry(.085,12,6),filling=new T.CylinderGeometry(.079,.079,.028,12);
+// The macaron is two side halves (cut at x=0) so one bite can take a whole half away.
+const shellHalf=new T.SphereGeometry(.085,12,6,Math.PI/2,Math.PI),fillingHalf=new T.CylinderGeometry(.079,.079,.028,12,1,false,0,Math.PI);
+const shellCut=new T.CircleGeometry(.085,12),fillingCut=new T.PlaneGeometry(.158,.028);
 const pink=new T.MeshLambertMaterial({color:0xe6a0ac}),cream=new T.MeshLambertMaterial({color:0xffecd3});
+const pinkCut=new T.MeshLambertMaterial({color:0xe6a0ac,side:T.DoubleSide}),creamCut=new T.MeshLambertMaterial({color:0xffecd3,side:T.DoubleSide});
 export function buildMacaron(){
  const group=new T.Group();group.position.set(0,.075,-.04);
- for(const sign of [-1,1]){const half=new T.Mesh(shell,pink);half.scale.y=.42;half.position.y=sign*.027;group.add(half);}
- group.add(new T.Mesh(filling,cream));return group;
+ const halves=[1,-1].map(side=>{
+  const half=new T.Group();half.rotation.y=side>0?0:Math.PI;group.add(half);
+  for(const sign of [-1,1]){
+   const shell=new T.Mesh(shellHalf,pink);shell.scale.y=.42;shell.position.y=sign*.027;half.add(shell);
+   const cut=new T.Mesh(shellCut,pinkCut);cut.rotation.y=-Math.PI/2;cut.scale.y=.42;cut.position.y=sign*.027;half.add(cut);
+  }
+  half.add(new T.Mesh(fillingHalf,cream));const face=new T.Mesh(fillingCut,creamCut);face.rotation.y=-Math.PI/2;half.add(face);
+  return half;
+ });
+ group.userData.halves=halves;return group;
 }

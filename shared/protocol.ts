@@ -1,5 +1,5 @@
 import type {Outfit} from './wardrobe';
-import type {Visitor,Zone,Pose,Look,CandleState} from './venue';
+import type {Visitor,Zone,Pose,Look,CandleState,HallDestination} from './venue';
 import type {Gesture} from './gestures';
 export type SeatClaim={visitorId:string;status:'reserved'|'seated';expiresAt:number|null};
 export type Snapshot={revision:number;visitors:Visitor[];seats:Record<string,SeatClaim>;serverNow:number;roomId:string};
@@ -20,6 +20,7 @@ export function applyDelta(state:Snapshot,delta:Delta):Snapshot|null{
 export type ClientMessage=
  |{type:'move';x:number;y?:number;z:number;yaw:number;pose:Pose}
  |{type:'zone';zone:Zone}
+ |{type:'hallMove';destination:HallDestination}
  |{type:'reserve';seatId:string;requestId:string}
  |{type:'seated';seatId:string}
  |{type:'loungeSit';seatId:string}
@@ -35,6 +36,7 @@ export type ClientMessage=
  |{type:'sync'}
  |{type:'clock';sentAt:number};
 export type ServerMessage=
+ |{type:'relocated';x:number;y:number;z:number}
  |{type:'moveBlocked';x:number;y:number;z:number}
  |{type:'welcome';selfId:string;resumeToken:string;state:Snapshot}
  |{type:'state';state:Snapshot}

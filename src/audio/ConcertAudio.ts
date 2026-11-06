@@ -13,7 +13,7 @@ export class ConcertAudio{
 
  private lastMeow=-Infinity;
  // The lobby's own room sound: a soft, seamless murmur loop of a large hall, decoded once and looped gaplessly.
- private ambience:GainNode|null=null;private ambienceLoading=false;
+ private ambience:GainNode|null=null;private ambienceLoading=false;private ambienceTarget=-1;
  // How loud the room tone is: 1 to 10, 5 in the middle (the default). 5 (the default) gives 0.09 in both the lobby and the hall with the music at 100; 10 is twice that, and each step down takes off a tenth of that.
  roomLevel=(()=>{try{const raw=localStorage.getItem('garnier-room-level'),v=Number(raw);return raw!==null&&Number.isFinite(v)?Math.max(1,Math.min(10,Math.round(v))):5;}catch{return 5;}})();
  setRoomLevel(value:number){this.roomLevel=Math.max(1,Math.min(10,Math.round(value)));try{localStorage.setItem('garnier-room-level',String(this.roomLevel));}catch{/* kept for this visit only */}}
@@ -26,14 +26,14 @@ export class ConcertAudio{
  }
  private prepareFilter(){
   if(this.context)return this.context.resume();
-  const context=new AudioContext(),source=context.createMediaElementSource(this.media);
+  const context=new AudioContext({latencyHint:'playback'}),source=context.createMediaElementSource(this.media);
   this.context=context;let previous:AudioNode=source;
   // Two low-pass stages leave the bass audible through a closed door.
   for(let i=0;i<2;i++){const filter=context.createBiquadFilter();filter.type='lowpass';filter.Q.value=.707;filter.frequency.value=this.zone==='lobby'?450:22000;previous.connect(filter);previous=filter;this.filters.push(filter);}
   this.musicGain=context.createGain();this.musicGain.gain.value=0;previous.connect(this.musicGain);this.musicGain.connect(context.destination);
   void this.startAmbience(context);return context.resume();
  }
- constructor(private now:()=>number){this.media.preload='metadata';this.media.setAttribute('playsinline','');
+ constructor(private now:()=>number){this.media.preload='auto';this.media.setAttribute('playsinline','');
   const opts={signal:this.abort.signal};
   this.media.addEventListener('playing',()=>this.sync.playing(performance.now()),opts);
   for(const event of ['waiting','stalled'])this.media.addEventListener(event,()=>{this.state='음악을 불러오는 중';this.sync.buffering();},opts);
@@ -43,7 +43,7 @@ export class ConcertAudio{
   for(const type of ['pointerdown','keydown','touchend'])document.addEventListener(type,()=>{
    if(!this.enabled||this.unlocking||document.hidden)return;
    if(this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});
-   if(this.media.paused&&this.playback.playing)this.playMedia();
+   if(this.media.paused&&this.playback.playing&&!this.playback.track.stage)this.playMedia();
   },{...opts,capture:true});
   // Media playback does not depend on rendering frames arriving on time.
   this.timer=setInterval(()=>this.tick(.1),100);
@@ -56,11 +56,27 @@ export class ConcertAudio{
  /** Start the whole program again for this visitor only, from the hall murmur and tuning. */
  replayFromStart(){const program=list as Playlist,total=program.tracks.reduce((s,t)=>s+t.durationSeconds+t.gapAfterSeconds,0)*1000;
   const into=(((this.now()-program.epochMs)%total)+total)%total;this.shift=-into+50;this.lastId='';this.sync.request();}
- /** True during the quiet time after a piece, when the hall is silent unless visitors clap. */
- get clapTime(){const p=this.playback;return p.playing&&(p.track.stage==='quiet'||p.track.stage==='applause'||p.track.stage==='farewell');}
- /** A burst of applause for a visitor's clap; only heard in the quiet time between pieces. */
- clap(gain=1){if(!this.enabled||this.zone!=='auditorium'||!this.clapTime||document.hidden)return false;
-  const a=new Audio(this.mediaUrl('/api/audio/hall-clap.mp3'));a.volume=Math.max(0,Math.min(1,this.volume*gain));void a.play().catch(()=>{});return true;}
+ private clapBuffer:AudioBuffer|null=null;private clapRoom:AudioBuffer|null=null;
+ /** Short individual handclaps with a small hall reflection; only an explicit visitor gesture calls this. */
+ clap(gain=1){
+  const c=this.context;if(!this.enabled||this.volume<=0||document.hidden||!c)return false;
+  if(c.state!=='running')void c.resume().catch(()=>{});
+  if(!this.clapBuffer){
+   this.clapBuffer=c.createBuffer(1,Math.ceil(c.sampleRate*.085),c.sampleRate);const data=this.clapBuffer.getChannelData(0);
+   for(let i=0;i<data.length;i++){const t=i/c.sampleRate;data[i]=(Math.random()*2-1)*Math.min(1,t/.0008)*Math.exp(-t*72);}
+   this.clapRoom=c.createBuffer(2,Math.ceil(c.sampleRate*.65),c.sampleRate);
+   for(let channel=0;channel<2;channel++){const room=this.clapRoom.getChannelData(channel);for(let i=0;i<room.length;i++){const t=i/c.sampleRate;room[i]=t<.035?0:(Math.random()*2-1)*Math.exp(-t*9)*.055;}
+    for(const [delay,level] of [[.055,.25],[.095,.13],[.16,.07]])room[Math.floor((delay+channel*.007)*c.sampleRate)]+=level;
+   }
+  }
+  for(const offset of [0,.43,.86]){
+   const source=c.createBufferSource(),high=c.createBiquadFilter(),low=c.createBiquadFilter(),level=c.createGain(),room=c.createConvolver(),wet=c.createGain();
+   source.buffer=this.clapBuffer;high.type='highpass';high.frequency.value=650;low.type='lowpass';low.frequency.value=6500;level.gain.value=Math.min(1,this.volume*gain)*.85;room.buffer=this.clapRoom;room.normalize=false;wet.gain.value=this.zone==='auditorium'?.42:.24;
+   source.connect(high);high.connect(low);low.connect(level);level.connect(c.destination);level.connect(room);room.connect(wet);wet.connect(c.destination);
+   source.start(c.currentTime+offset);source.onended=()=>window.setTimeout(()=>{for(const node of [source,high,low,level,room,wet])node.disconnect();},700);
+  }
+  return true;
+ }
  /** A short, soft cartoon meow; generated locally, with no extra file or download. */
  meow(){
   const c=this.context;if(!this.enabled||this.volume<=0||document.hidden||!c||c.state!=='running'||c.currentTime-this.lastMeow<1.2)return false;
@@ -91,7 +107,7 @@ export class ConcertAudio{
   if(!this.context)return;const t=this.context.currentTime,entering=zone==='auditorium';
   // The level and the door muffle switch together on the audio clock, in this order: going in, the muffle stays on
   // until the music is switched on; going out, the music is switched down first and the muffle comes on just after.
-  if(changed&&this.musicGain){const p=this.playback,target=this.enabled&&!document.hidden&&p.playing?this.volume*(entering?1:this.doorLeak):0,g=this.musicGain.gain;
+  if(changed&&this.musicGain){const p=this.playback,target=this.enabled&&!document.hidden&&p.playing&&!p.track.stage?this.volume*(entering?1:this.doorLeak):0,g=this.musicGain.gain;
    g.cancelScheduledValues(t);g.setValueAtTime(target,t);this.outputTarget=target;}
   for(const filter of this.filters){filter.frequency.cancelScheduledValues(t);filter.frequency.setValueAtTime(entering?22000:450,entering?t:t+.02);}}
  /** Closed-door spill uses the existing concert stream, with no extra decoder or audio loop. */
@@ -106,17 +122,17 @@ export class ConcertAudio{
  tick(dt:number){
   // The room tone stays under everything, in the lobby and in the hall, about 20 dB below the music; at the lobby door it ducks so the music spilling through stays clear.
   if(this.ambience&&this.context){const on=this.enabled&&!document.hidden,duck=this.zone==='lobby'?1-.8*Math.min(1,this.doorLeak/.5):1;// the same level in the lobby and the hall; only near the hall door does it dip for the music
-   this.ambience.gain.setTargetAtTime(on?Math.min(1,this.volume*this.roomLevel*.018*duck):0,this.context.currentTime,.4);}
+   const target=on?Math.min(1,this.volume*this.roomLevel*.018*duck):0;if(Math.abs(target-this.ambienceTarget)>.00001){this.ambience.gain.setTargetAtTime(target,this.context.currentTime,.4);this.ambienceTarget=target;}}
   if(this.unlocking)return;
   const p=this.playback,level=this.zone==='auditorium'?1:this.doorLeak,active=this.enabled&&!document.hidden;
-  const target=active&&p.playing?this.volume*level:0;
+  const target=active&&p.playing&&!p.track.stage?this.volume*level:0;
   // Crossing the door is switched in setZone; here the level only follows smaller changes, smoothly.
   if(this.context&&this.musicGain&&Math.abs(target-this.outputTarget)>.0001){const g=this.musicGain.gain,t=this.context.currentTime;
    g.setTargetAtTime(target,t,.15);this.outputTarget=target;}
   // Keep the user-unlocked stream running silently in the lobby. Pausing it here can
   // make a later asynchronous hall entry fail mobile autoplay restrictions.
   if(!active){this.media.pause();this.state=this.enabled?'음악 일시 정지':'소리 꺼짐';return;}
-  if(!p.playing){this.state='잠시 쉬어가는 중';return;}
+  if(!p.playing||p.track.stage){this.media.pause();this.state='잠시 쉬어가는 중';return;}
   if(this.cycle!==p.cycle){this.cycle=p.cycle;this.sync.request();}
   if(this.lastId!==p.track.id){this.media.src=this.mediaUrl(p.track.url);this.lastId=p.track.id;this.sync.request();}
   if(this.media.readyState<1){this.state='음악을 불러오는 중';if(!this.media.src)this.media.src=this.mediaUrl(p.track.url);if(this.media.paused)this.playMedia();return;}

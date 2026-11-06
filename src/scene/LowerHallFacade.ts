@@ -67,7 +67,8 @@ export function buildLowerHallFacade(scene:T.Scene,side:number,door:DoorBuilder)
   const field=box(root,[w,7.5,.12],[mid,3.75,.10],IVORY);field.userData.smoothStone=true;field.userData.landmark='first-floor-cell-field';field.userData.interval=[a,b];
   for(const dx of [-w/2,w/2]){box(root,[.075,6.83,.08],[mid+dx,3.70,.20],RED);box(root,[.027,6.71,.04],[mid+dx+(dx<0?.06:-.06),3.70,.26],LIGHT);}
   for(const y of [.32,7.08]){box(root,[w,.075,.08],[mid,y,.20],RED);box(root,[w-.10,.027,.04],[mid,y+(y<1?.06:-.06),.26],LIGHT);}
-  if(w>1.3)hallPanelSconce(root,mid,5.10,.31);
+  // Same as the rear wall fields: lamp at 45% of the field height, its wall glow centred on it.
+  if(w>1.3)hallPanelSconce(root,mid,7.5*.45,.31,w-.16,Math.min(6.4,7.5-.4));
  }
  for(const z of LOWER_STATUES)foldedCaryatid(root,X(z));
  const entrance=door(root,X(L.doorZ),0,L.doorWidth,L.doorHeight,.40);entrance.userData.landmark='first-floor-centre-door';

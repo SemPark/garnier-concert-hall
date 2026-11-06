@@ -1,3 +1,4 @@
+import {buildHallLampHalos} from './HallLighting';
 import {CANDLE_TABLES} from '../../shared/venue';
 import {PARTERRE,parterreHeight} from '../../shared/parterre';
 import {archedTimberDoor} from './ArchedTimberDoor';
@@ -21,8 +22,8 @@ import type {Avatar} from '../character/Avatar';
 import {buildOrchestraSteps} from '../orchestra/buildOrchestra';
 import {finishBuild,buildOverFrames} from './buildBudget';
 import {GOLDEN_HALL} from '../../shared/goldenHall';
-import {buildStairs} from './Stairs';
-import {buildStairArrows,type StairArrows} from './StairArrows';
+/** Floor guides with tap targets (the lobby's service signs). */
+type StairArrows={targets:T.Object3D[];update(time:number):void};
 import {buildHallTimberFloor} from './HallTimberFloor';
 import {buildSunlight,type Sunlight} from './Sunlight';
 import {buildCandlelight} from './Candlelight';
@@ -64,7 +65,8 @@ function arch(parent:T.Object3D,width:number,height:number,position:number[],rot
 }
 // Bentwood backs and folding timber pans, joined into continuous concert rows.
 function bentwoodBack(){
- const positions:number[]=[],uv:number[]=[],indices:number[]=[],cols=16,rows=5,stride=cols+1,layer=stride*(rows+1);
+ // The back curves only across its width and runs straight from bottom to top, so one row describes it exactly.
+ const positions:number[]=[],uv:number[]=[],indices:number[]=[],cols=16,rows=1,stride=cols+1,layer=stride*(rows+1);
  for(const face of [-1,1])for(let y=0;y<=rows;y++)for(let x=0;x<=cols;x++){
   const u=x/cols*2-1,v=y/rows,top=.24+.10*(1-u*u);
   positions.push(u*.49,-.28+v*(top+.28),-.08*(1-u*u)+face*.035);uv.push(x/cols,v);
@@ -238,7 +240,7 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
   sun.position.set(21,28,22);sun.target.position.set(-3,0,32);scene.add(sun.target);
  }else{
   cameraWalls.push(...(yield* buildGoldenHallSteps(scene)).cameraWalls);
-  walkTargets.push(...buildStairs(scene).surfaces);scene.traverse(o=>{if(o instanceof T.Mesh&&o.userData.walkSurface)walkTargets.push(o);});
+  scene.traverse(o=>{if(o instanceof T.Mesh&&o.userData.walkSurface)walkTargets.push(o);});
   const hitGeometry=new T.BoxGeometry(1.08,1.5,1.05),hitMaterial=new T.MeshBasicMaterial({visible:false});
   for(const [i,s] of SEATS.entries()){const g=seat(scene,s.x,s.z,s.level==='balcony'||[4,12,16].includes(s.column));g.position.y=s.y;g.rotation.y=s.yaw;
    const target=new T.Mesh(hitGeometry,hitMaterial);target.position.set(s.x,s.y+.7,s.z);target.rotation.y=s.yaw;target.userData.seatId=s.id;scene.add(target);seatTargets.push(target);if(i%12===11)yield;
@@ -249,6 +251,7 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  const cat=zone==='lobby'?new LobbyCat(scene):null;
  cameraWalls.push(portal);
  for(const wall of cameraWalls)wall.traverse(o=>{o.userData.cameraWall=true;});
+ if(zone==='auditorium')buildHallLampHalos(scene);
  finishArchitecture(scene,[...(cat?[cat.root]:[]),...musicians.map(a=>a.root)]);
  const updateLOD=yield* batchArchitectureSteps(scene,[floor,portal,...(cat?[cat.root,...cat.targets]:[]),...walkTargets,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
  const updateMusicians=yield* batchCharactersSteps(scene,[...musicians.map(a=>a.root),...(cat?[cat.root]:[])]);updateMusicians();
@@ -259,6 +262,6 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  // Candlelight concert: candles fill the stage and the hall's own lights go down (after batching, which they must not join).
  if(zone==='auditorium'){buildCandlelight(scene);for(const table of CANDLE_TABLES)walkTargets.push(buildCandleTable(scene,table).hit);}
  const treeStar=zone==='lobby'?buildFloatingTreeStar(scene,LOBBY_CHRISTMAS_TREE.x,LOBBY_CHRISTMAS_TREE.z):null;
- const stairArrows=zone==='lobby'?buildTicketGuide(scene):buildStairArrows(scene);
+ const stairArrows=zone==='lobby'?buildTicketGuide(scene):null;
  return {treeStar,cat,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
 }

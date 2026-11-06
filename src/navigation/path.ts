@@ -1,5 +1,5 @@
 import {PARTERRE,parterreHeight} from '../../shared/parterre';
-import {BOUNDS,FLOOR_AISLES,FLOOR_CROSS_AISLE,walkable,distance,stairPoint,stairLink,type Point,type Zone} from '../../shared/venue';
+import {BOUNDS,FLOOR_AISLES,FLOOR_CROSS_AISLE,walkable,distance,type Point,type Zone} from '../../shared/venue';
 import {lobbyRouteNodes} from '../../shared/grandStair';
 const STEP=.35;
 export function segmentClear(zone:Zone,a:Point,b:Point){
@@ -38,21 +38,12 @@ function planarPath(zone:Zone,start:Point,end:Point):Point[]|null{
  const result:Point[]=[];let i=0;while(i<raw.length-1){let next=i+1;for(let j=i+2;j<raw.length;j++){if(segmentClear(zone,raw[i],raw[j]))next=j;else break;}result.push(raw[next]);i=next;}return result;
 }
 
-/** Connect the two walkable storeys only through the physical rear stair flights. */
+/** Walking stays on one storey; the galleries are reached from the floor menu, not on foot. */
 export function findPath(zone:Zone,start:Point,end:Point):Point[]|null{
  if(!walkable(zone,start)||!walkable(zone,end))return null;
  if(segmentClear(zone,start,end))return [end];
  if(zone==='lobby')return lobbyPath(start,end);
  if(Math.abs((start.y??0)-(end.y??0))<.1||zone==='auditorium'&&(start.y??0)<1&&(end.y??0)<1){const planar=planarPath(zone,start,end);if(planar)return planar;}
- const nodes=[start,end,stairPoint(-1,false),stairPoint(-1,true),stairPoint(1,false),stairPoint(1,true)],best=nodes.map(()=>Infinity),previous=new Map<number,{from:number;path:Point[]}>(),done=new Set<number>();best[0]=0;
- while(done.size<nodes.length){let current=-1;for(let i=0;i<nodes.length;i++)if(!done.has(i)&&(current<0||best[i]<best[current]))current=i;if(current<0||!Number.isFinite(best[current]))break;if(current===1){const parts:Point[][]=[];let at=1;while(at!==0){const edge=previous.get(at)!;parts.unshift(edge.path);at=edge.from;}return parts.flat();}done.add(current);
-  for(let i=1;i<nodes.length;i++){if(done.has(i)||i===current)continue;const a=nodes[current],b=nodes[i];let path:Point[]|null=null;
-   // Paired stair doors are joined by the corridor stair behind the wall: about a twelve-metre climb.
-   const climb=i>=2&&current>=2&&Math.floor((i-2)/2)===Math.floor((current-2)/2)&&stairLink(a,b,.01);
-   if(climb)path=[b];else if(segmentClear(zone,a,b))path=[b];else if(Math.abs((a.y??0)-(b.y??0))<.1||(a.y??0)<1&&(b.y??0)<1)path=planarPath(zone,a,b);
-   if(!path)continue;let cost=climb?12:0,p=a;if(!climb)for(const point of path){cost+=distance(p,point);p=point;}if(best[current]+cost<best[i]){best[i]=best[current]+cost;previous.set(i,{from:current,path});}
-  }
- }
  return null;
 }
 
