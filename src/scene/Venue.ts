@@ -96,7 +96,7 @@ function seat(parent:T.Object3D,x:number,z:number,endArm=true){
   box(g,[.10,.065,.69],[side*.55,.80,-.025],0xcba378).material=woodMaterial('seat',true);
  }
  box(g,[1.1,.065,.055],[0,.29,.25],0x9b7354).material=woodMaterial('seat',true);
- g.traverse(o=>{if(o instanceof T.Mesh){o.userData.preserveSilhouette=true;if(o.geometry===chairBack||o.geometry===backCushionGeometry)o.userData.lowDetail=farChairBack;else o.userData.fullDetail=true;}});return g;
+ g.traverse(o=>{if(o instanceof T.Mesh){o.userData.preserveSilhouette=true;o.userData.detailRadius=.85;if(o.geometry===chairBack||o.geometry===backCushionGeometry)o.userData.lowDetail=farChairBack;else o.userData.fullDetail=true;}});return g;
 }
 function ceilingPainting(parent:T.Object3D,x:number,z:number,w:number,h:number,y:number){
  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=256;const ctx=canvas.getContext('2d')!;
@@ -249,6 +249,7 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
   musicians.push(...(yield* buildOrchestraSteps(scene)));
  }
  const cat=zone==='lobby'?new LobbyCat(scene):null;
+ scene.traverse(o=>{if(o.userData.wallSurface)cameraWalls.push(o);});
  cameraWalls.push(portal);
  for(const wall of cameraWalls)wall.traverse(o=>{o.userData.cameraWall=true;});
  if(zone==='auditorium')buildHallLampHalos(scene);

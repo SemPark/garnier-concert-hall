@@ -46,5 +46,5 @@ export function* buildOrchestraSteps(scene:T.Scene){
  const firsts=musicians.filter(a=>a.root.userData.section==='first-violins'&&a.root.userData.row===0&&a.root.position.x<0);
  const concertmaster=firsts.sort((a,b)=>a.root.position.distanceTo(new T.Vector3(CONDUCTOR.x,a.root.position.y,CONDUCTOR.z))-b.root.position.distanceTo(new T.Vector3(CONDUCTOR.x,b.root.position.y,CONDUCTOR.z)))[0];
  if(concertmaster){concertmaster.root.userData.concertmaster=true;concertmaster.root.userData.animated=true;}
- const conductor=new Avatar(0x272b2b,'conductor');conductor.root.userData.animated=true;conductor.root.position.set(0,STAGE_FLOOR+podium,CONDUCTOR.z);conductor.root.scale.setScalar(MUSICIAN_SCALE);conductor.settlePose(false);scene.add(conductor.root);musicians.push(conductor);return musicians;
+ const conductor=new Avatar(0x272b2b,'conductor');conductor.root.userData.demoConductor=true;conductor.root.userData.animated=true;conductor.root.position.set(0,STAGE_FLOOR+podium,CONDUCTOR.z);conductor.root.scale.setScalar(MUSICIAN_SCALE);conductor.settlePose(false);scene.add(conductor.root);musicians.push(conductor);return musicians;
 }

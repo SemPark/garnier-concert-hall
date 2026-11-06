@@ -1,6 +1,7 @@
+import {attachedPanel} from './attachedPanel';
 import {rearWallPanel,rearWallInfill,rearPanelDecoration} from './RearWallPanels';
 import {HALL_CELL_WIDTH} from '../../shared/lowerHall';
-import {UPPER_CELLS,UPPER_DOOR_AXES,UPPER_PANEL_AXES,UPPER_WINDOW_AXES,UPPER_PILASTER_AXES} from '../../shared/upperHall';
+import {UPPER_FINISH_RECESS,UPPER_CELLS,UPPER_DOOR_AXES,UPPER_PANEL_AXES,UPPER_WINDOW_AXES,UPPER_PILASTER_AXES} from '../../shared/upperHall';
 import {buildLowerHallFacade} from './LowerHallFacade';
 import {PARTERRE} from '../../shared/parterre';
 import {buildParterreWell} from './ParterreWell';
@@ -171,7 +172,7 @@ function buildOrganConsole(parent:T.Group){
 
 function wallPanel(g:T.Object3D,x:number,y:number,w:number,h:number,relief=true){
  const frame=new T.Group();frame.userData.landmark='wall-panel';g.add(frame);
- box(frame,[w,h,.12],[x,y,.16],0x874537);box(frame,[w-.16,h-.16,.14],[x,y,.24],P.gold);box(frame,[w-.32,h-.32,.15],[x,y,.33],0xe8dfc8);
+ box(frame,[w,h,.30],[x,y,.07],0x874537).userData.wallSurface=true;box(frame,[w-.16,h-.16,.14],[x,y,.24],P.gold);box(frame,[w-.32,h-.32,.15],[x,y,.33],0xe8dfc8);
  for(const side of [-1,1]){box(frame,[.035,h-.55,.04],[x+side*(w/2-.24),y,.43],P.light);box(frame,[w-.48,.035,.04],[x,y+side*(h/2-.24),.43],P.light);}
  if(relief&&w>=2.5&&h>=4.5)hallImage(frame,'relief',Math.min(w-.8,2.7),Math.min((w-.8)/2,1.35),x,y+h*.3,.435);
  frame.traverse(o=>{if(o instanceof T.Mesh)o.userData.fullDetail=true;});
@@ -181,9 +182,9 @@ function buildUpperSideFacade(scene:T.Scene,side:number){
  const root=new T.Group();root.position.x=side*WALL_DATUM.halfWidth;root.rotation.y=side<0?Math.PI/2:-Math.PI/2;root.userData.landmark='upper-side-facade';scene.add(root);
  const bay=(z:number,kind:string)=>{const g=new T.Group();g.position.x=side*z;g.userData.landmark=kind;g.userData.axisZ=z;root.add(g);return g;};
  // The second storey has pale wall fields and fine mouldings, without the old dark ornamental pilasters.
- const plaster=box(root,[78.8,9.95,.10],[side*12.4,13.425,.09],0xe8dfc8);plaster.userData.smoothStone=true;
- for(const z of UPPER_DOOR_AXES)upperDoor(bay(z,'second-floor-door-axis'),WALL_LEVELS.vent);
- for(const z of UPPER_PANEL_AXES)upperDecoratedPanel(bay(z,'second-floor-wall-axis'),WALL_LEVELS.vent);
+ const plaster=box(root,[78.8,9.95,.22],[side*12.4,13.425,.03],0xe8dfc8);plaster.userData.wallSurface=true;plaster.userData.smoothStone=true;
+ for(const z of UPPER_DOOR_AXES){const g=bay(z,'second-floor-door-axis');g.position.z=-UPPER_FINISH_RECESS;upperDoor(g,WALL_LEVELS.vent);}
+ for(const z of UPPER_PANEL_AXES){const g=bay(z,'second-floor-wall-axis');g.position.z=-UPPER_FINISH_RECESS;upperDecoratedPanel(g,WALL_LEVELS.vent);}
  for(const z of UPPER_WINDOW_AXES)archedWindow(bay(z,'third-floor-window-axis'),WALL_LEVELS.window);
  for(const z of UPPER_PILASTER_AXES){
   const g=bay(z,'third-floor-single-pilaster');
@@ -191,7 +192,7 @@ function buildUpperSideFacade(scene:T.Scene,side:number){
   hallImage(g,'pilaster',.38,6.5,0,23.2,.405);
   for(const y of [19.82,26.58])box(g,[.58,.18,.36],[0,y,.3],P.gold);
  }
- root.traverse(o=>{if(o instanceof T.Mesh){o.userData.cameraOccluder=true;o.userData.fullDetail=true;}});
+ root.traverse(o=>{if(o instanceof T.Mesh){if(!o.userData.wallSurface)o.userData.cameraOccluder=true;o.userData.fullDetail=true;}});
 }
 /** The shell is always present. Only protruding decoration may be cut away near the camera. */
 export function buildHallShell(scene:T.Scene){
@@ -227,12 +228,14 @@ export function openDoor(g:T.Object3D,x:number,bottom:number,width:number,height
 }
 export function timberDoor(g:T.Object3D,x:number,bottom:number,width:number,height:number,z=.57,panels=3){
  const frame=new T.Group();frame.position.set(x,bottom,z);frame.userData.landmark='timber-door';frame.userData.doorBottom=bottom;g.add(frame);
- box(frame,[width+.36,height+.35,.18],[0,height/2,.02],P.ivory);
+ box(frame,[width+.36,height+.35,z+.19],[0,height/2,(.03-z)/2],P.ivory).userData.wallSurface=true;
  const leaf=box(frame,[width,height,.18],[0,height/2,.15],P.wood);leaf.material=entranceWoodMaterial();
  for(const side of [-1,1])for(const row of panels===2?[.25,.75]:[.18,.5,.82]){
   const px=side*width*.245,py=height*row,w=width*.39,h=height*(panels===2?.43:.25);
-  box(frame,[w,h,.06],[px,py,.27],0x32261d);
-  const inset=box(frame,[w-.12,h-.12,.045],[px,py,.32],P.wood);inset.material=entranceWoodMaterial();
+  // Back of the dark field meets the leaf at .24; inset meets its field at .30.
+  // Preserve the original exposed fronts (.30 and .3425), omitting both buried backs.
+  attachedPanel(frame,w,h,.24,.30,px,py,material(0x32261d));
+  attachedPanel(frame,w-.12,h-.12,.30,.3425,px,py,entranceWoodMaterial());
  }
  hallDoorHeaderLight(frame,height+.18);
  for(const side of [-1,1]){const handle=cylinder(frame,.032,.30,[side*.10,height*.43,.40],P.light);handle.userData.essentialDetail=true;handle.userData.fullDetail=true;handle.userData.landmark='door-handle';}
@@ -249,7 +252,7 @@ export function upperDoor(g:T.Object3D,y:number){
   [-1.80,.12,6.82,3.26,.66],[1.80,.12,6.82,3.26,.66],
   [0,3.65,.16,7.07,.67],[0,3.38,.12,6.83,.70],
   [-1.73,.30,.14,6.66,.69],[1.73,.30,.14,6.66,.69],
- ])box(root,[width,height,.12],[x,y+yy,z],P.ivory);
+ ]){const front=z+.06;box(root,[width,height,front-.14],[x,y+yy,(front+.14)/2],P.ivory);}
  box(root,[3.95,.40,.22],[0,y+UPPER_DOOR.header,.53],P.deep);
  hallImage(root,'scroll',3.74,.27,0,y+UPPER_DOOR.header,.66);
  cornice(root,4.15,y+7.56,.49);
@@ -271,13 +274,13 @@ export function upperDoor(g:T.Object3D,y:number){
 export function upperDecoratedPanel(g:T.Object3D,y:number){
  const root=new T.Group();root.position.y=y;root.userData.landmark='upper-decorated-panel';g.add(root);
  const width=2.10,edge=.12,spine=.12,fieldWidth=(width-2*edge-spine)/2;
- box(root,[width,7.1,.12],[0,3.55,.48],0x874537);
+ box(root,[width,7.1,.40],[0,3.55,.34],0x874537).userData.wallSurface=true;
  for(const side of [-1,1]){
-  const x=side*(spine+fieldWidth)/2,field=box(root,[fieldWidth,6.66,.06],[x,3.55,.58],0xe8dfc8);field.userData.landmark='ivory-panel-field';field.userData.smoothStone=true;
-  for(const xx of [x-fieldWidth/2+.035,x+fieldWidth/2-.035])box(root,[.025,6.60,.03],[xx,3.55,.64],P.gold);
-  for(const yy of [.25,6.85])box(root,[fieldWidth-.07,.025,.03],[x,yy,.64],P.gold);
+  const x=side*(spine+fieldWidth)/2,field=box(root,[fieldWidth,6.66,.07],[x,3.55,.575],0xe8dfc8);field.userData.landmark='ivory-panel-field';field.userData.smoothStone=true;
+  for(const xx of [x-fieldWidth/2+.035,x+fieldWidth/2-.035])box(root,[.025,6.60,.045],[xx,3.55,.6325],P.gold);
+  for(const yy of [.25,6.85])box(root,[fieldWidth-.07,.025,.045],[x,yy,.6325],P.gold);
  }
- box(root,[spine,6.96,.10],[0,3.55,.61],P.gold);
+ box(root,[spine,6.96,.12],[0,3.55,.60],P.gold);
  // The brass lamp keeps its circular body and its original depth.
  hallPanelSconce(root,0,3.65,.72,width-.12);
  for(const [w,yy,depth]of [[width+.08,7.12,.26],[width+.18,7.28,.32],[width+.06,7.40,.23]])box(root,[w,.13,depth],[0,yy,.54],P.gold);
@@ -337,7 +340,7 @@ export function rearFacade(scene:T.Scene){
  }
  const rail=new T.Group();rail.position.set(0,H.balconyHeight,GALLERY_BRIDGE.minZ+.4);rail.rotation.y=Math.PI;scene.add(rail);balustrade(rail,25);
  // Only near-camera decoration cuts away; the structural hall shell remains solid.
- g.traverse(o=>{if(o instanceof T.Mesh){if(!Array.isArray(o.material)&&(o.material.userData.woodTone&&o.material.userData.woodTone!=='door'||o.material instanceof T.MeshLambertMaterial&&[0x3a281c,0x7a5634,0x2c1f16,0x9a6a3f,0x3e3025].includes(o.material.color.getHex())))o.material=woodMaterial('wall-panel');o.userData.cameraOccluder=true;o.userData.fullDetail=true;}});return g;
+ g.traverse(o=>{if(o instanceof T.Mesh){if(!Array.isArray(o.material)&&(o.material.userData.woodTone&&o.material.userData.woodTone!=='door'||o.material instanceof T.MeshLambertMaterial&&[0x3a281c,0x7a5634,0x2c1f16,0x9a6a3f,0x3e3025].includes(o.material.color.getHex())))o.material=woodMaterial('wall-panel');if(!o.userData.wallSurface)o.userData.cameraOccluder=true;o.userData.fullDetail=true;}});return g;
 }
 /** The parterre-level bay of the side walls: panelled field between two caryatids, with a door or a low box front. */
 /** Short walls closing the outer rear bays, as in the original: pale panelled faces with a marble pilaster at the inner end. */

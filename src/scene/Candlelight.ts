@@ -82,6 +82,8 @@ export function buildCandlelight(scene:T.Scene){
  scene.traverse(o=>{const l=o as T.SpotLight;if(l.isSpotLight&&l.position.z===-20&&l.position.y===10.5){const side=Math.sign(l.position.x);l.position.set(side*7,15,-10);l.target.position.set(side*4,0,-19);l.color.set(0xffd08a);l.intensity=300;l.distance=32;l.angle=.95;l.penumbra=1;}});
  // The hall is frozen after building (no automatic matrix updates), so moved lights and targets must be updated by hand.
  scene.traverse(o=>{const l=o as T.SpotLight;if(!l.isLight)return;l.updateMatrix();l.updateMatrixWorld(true);if(l.target){l.target.updateMatrix();l.target.updateMatrixWorld(true);}});
+ // The centre fill is permanently disabled; omit it from GPU light loops entirely.
+ for(const light of lights)if(light.intensity===0)light.removeFromParent();
  const base=lights.map(l=>l.intensity);
  // Candle flicker: flames, halos and lights breathe together, each area a little out of step.
  flame.onBeforeRender=()=>{const t=performance.now()/1000;

@@ -1,5 +1,5 @@
 import * as T from 'three';
-import {LOWER_HALL as L,LOWER_STATUES,LOWER_CELLS} from '../../shared/lowerHall';
+import {LOWER_FINISH_RECESS,LOWER_HALL as L,LOWER_STATUES,LOWER_CELLS} from '../../shared/lowerHall';
 import {WALL_DATUM} from './HallWallBands';
 import {box,cylinder,sphere,line,material} from './primitives';
 import {hallImage} from './HallTextures';
@@ -55,7 +55,7 @@ function foldedCaryatid(parent:T.Object3D,x:number){
 type DoorBuilder=(parent:T.Object3D,x:number,bottom:number,width:number,height:number,z?:number,panels?:number)=>T.Group;
 /** A continuous first-floor elevation: one broad centre door, single figures, generous cream fields. */
 export function buildLowerHallFacade(scene:T.Scene,side:number,door:DoorBuilder){
- const root=new T.Group();root.position.x=side*WALL_DATUM.halfWidth;root.rotation.y=side<0?Math.PI/2:-Math.PI/2;root.userData.landmark='first-floor-side-composition';scene.add(root);
+ const root=new T.Group();root.position.x=side*(WALL_DATUM.halfWidth+LOWER_FINISH_RECESS);root.rotation.y=side<0?Math.PI/2:-Math.PI/2;root.userData.landmark='first-floor-side-composition';scene.add(root);
  const X=(z:number)=>side*z;
  // Each normal cell contains exactly two equal wall fields. The doorway cell stays intact.
  const fields=LOWER_CELLS.filter(c=>c.index!==0).flatMap(c=>[{a:c.start+.5,b:c.center-.5},{a:c.center+.5,b:c.end-.5}]);
@@ -64,7 +64,7 @@ export function buildLowerHallFacade(scene:T.Scene,side:number,door:DoorBuilder)
  fields.push({a:L.front,b:first.start-.5},{a:last.end+.5,b:L.rear});
  for(const {a,b}of fields){
   const mid=X((a+b)/2),w=b-a;if(w<.1)continue;
-  const field=box(root,[w,7.5,.12],[mid,3.75,.10],IVORY);field.userData.smoothStone=true;field.userData.landmark='first-floor-cell-field';field.userData.interval=[a,b];
+  const field=box(root,[w,7.5,.24],[mid,3.75,.04],IVORY);field.userData.wallSurface=true;field.userData.smoothStone=true;field.userData.landmark='first-floor-cell-field';field.userData.interval=[a,b];
   for(const dx of [-w/2,w/2]){box(root,[.075,6.83,.08],[mid+dx,3.70,.20],RED);box(root,[.027,6.71,.04],[mid+dx+(dx<0?.06:-.06),3.70,.26],LIGHT);}
   for(const y of [.32,7.08]){box(root,[w,.075,.08],[mid,y,.20],RED);box(root,[w-.10,.027,.04],[mid,y+(y<1?.06:-.06),.26],LIGHT);}
   // Same as the rear wall fields: lamp at 45% of the field height, its wall glow centred on it.

@@ -18,7 +18,7 @@ export function rearPanelDecoration(parent:T.Object3D,width:number,height=7.5,bo
 /** The rear screen's cream field, red piers and restrained gold mouldings, sized without stretching ornaments. */
 export function rearWallPanel(parent:T.Object3D,width:number){
  const root=new T.Group();root.userData.landmark='rear-cream-panel';parent.add(root);
- const field=box(root,[width,7.5,.12],[0,3.75,.10],0xeadfc4);field.userData.smoothStone=true;
+ const field=box(root,[width,7.5,.24],[0,3.75,.04],0xeadfc4);field.userData.wallSurface=true;field.userData.smoothStone=true;
  const pier=.50,inner=width-2*pier;
  for(const sign of [-1,1]){
   const x=sign*(width-pier)/2;
@@ -31,7 +31,7 @@ export function rearWallPanel(parent:T.Object3D,width:number){
  for(const y of [.5,6.3])box(root,[inner-.14,.045,.06],[0,y,.20],0xc69b49);
  box(root,[width,.16,.20],[0,.13,.19],0xe8d6ac);
  rearPanelDecoration(root,inner);
- root.traverse(o=>{o.userData.fullDetail=true;o.userData.cameraOccluder=true;});return root;
+ root.traverse(o=>{o.userData.fullDetail=true;if(!o.userData.wallSurface)o.userData.cameraOccluder=true;});return root;
 }
 /** Use a complete wide or narrow field; leave the remainder as plain stone. */
 export function rearWallInfill(parent:T.Object3D,available:number){

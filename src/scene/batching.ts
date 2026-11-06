@@ -1,3 +1,6 @@
+import {removeBuriedFaces} from './hiddenFaces';
+import {projectedHeight} from './projectedDetail';
+import {removeDuplicates} from './removeDuplicates';
 import {solidOcclusion} from './solidOcclusion';
 import * as T from 'three';
 import {keepFrontLight} from '../character/characterLight';
@@ -32,7 +35,7 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean){
   for(const item of items){if(dynamic){item.matrix.copy(item.mesh.matrixWorld);item.center.copy(geometry.boundingSphere!.center).applyMatrix4(item.matrix);item.radius=geometry.boundingSphere!.radius*item.matrix.getMaxScaleOnAxis();}
    const focus=scene.userData.cameraFocus as T.Vector3|undefined;let occluded=false;if(eye&&focus&&item.occluder){occlusionRay.origin.copy(eye);occlusionRay.direction.copy(focus).sub(eye);const length=occlusionRay.direction.length();occlusionRay.direction.normalize();const hit=occlusionRay.intersectBox(item.occluder,intersection);// Decoration right beside the camera, or between it and the visitor, steps aside so it never fills the view.
    occluded=item.occluder.distanceToPoint(eye)<1.1||!!hit&&eye.distanceTo(hit)<Math.min(5,length-.05);}
-   const distance=eye?item.center.distanceTo(eye):0,nearLimit=item.level===0?LOD_NEAR+1.5:LOD_NEAR-1.5,level=distance<nearLimit?0:1,shown=!occluded&&distance<=item.limit&&distance>=item.min&&(!camera||frustum.intersectsSphere(sphere.set(item.center,item.radius+.3)))&&(!eye||!scene.userData.solidOccluded?.(eye,item.center,item.radius+.05));
+   const distance=eye?item.center.distanceTo(eye):0,nearLimit=item.level===0?LOD_NEAR+1.5:LOD_NEAR-1.5,level=distance<nearLimit||(camera&&projectedHeight(item.mesh.userData.detailRadius??item.radius,distance,camera.projectionMatrix.elements[5])>(item.level===0?.07:.09))?0:1,shown=!(scene.userData.conducting&&item.mesh.userData.demoConductor)&&!occluded&&distance<=item.limit&&distance>=item.min&&(!camera||frustum.intersectsSphere(sphere.set(item.center,item.radius+.3)))&&(!eye||!scene.userData.solidOccluded?.(eye,item.center,item.radius+.05));
    if(level!==item.level||shown!==item.shown)changed=true;item.level=level;item.shown=shown;
   }
   if(!dynamic&&!changed)return;
@@ -71,7 +74,7 @@ function mergeStaticCells(groups:Map<string,BatchGroup>){
 export function batchArchitecture(scene:T.Scene,exclude:T.Object3D[]){return finishBuild(batchArchitectureSteps(scene,exclude));}
 export function* batchArchitectureSteps(scene:T.Scene,exclude:T.Object3D[]){
  const protectedObjects=new Set<T.Object3D>();for(const root of exclude)root.traverse(o=>protectedObjects.add(o));
- scene.updateMatrixWorld(true);const groups=new Map<string,BatchGroup>();
+ scene.updateMatrixWorld(true);scene.userData.removedDuplicateMeshes=removeDuplicates(scene,protectedObjects);const groups=new Map<string,BatchGroup>();
  const solids:T.Box3[]=[];
  // Only the permanent shell: decorative bounds would wrongly seal doors and arches.
  scene.traverse(o=>{if(!(o instanceof T.Mesh)||o.userData.landmark!=='hall-shell'||!(o.geometry instanceof T.BoxGeometry)||Array.isArray(o.material)||o.material.transparent||!o.material.visible)return;
@@ -82,6 +85,7 @@ export function* batchArchitectureSteps(scene:T.Scene,exclude:T.Object3D[]){
 
  // A group marked occluderGroup (a column with its flutes and capital) hides as one piece.
  scene.traverse(o=>{if(!o.userData.occluderGroup)return;const box=new T.Box3().setFromObject(o).expandByScalar(.12);o.traverse(m=>{m.userData.occluderBox=box;});});
+ scene.userData.removedBuriedTriangles=removeBuriedFaces(scene,protectedObjects);
  const bounds=new T.Box3(),size=new T.Vector3(),center=new T.Vector3();
  scene.traverse(o=>{if(!(o instanceof T.Mesh)||o instanceof T.InstancedMesh||protectedObjects.has(o))return;
   bounds.setFromObject(o).getSize(size);bounds.getCenter(center);
@@ -94,9 +98,11 @@ export function* batchArchitectureSteps(scene:T.Scene,exclude:T.Object3D[]){
  scene.traverse(o=>{if(!protectedObjects.has(o)){o.updateMatrix();o.matrixAutoUpdate=false;}});
  const eye=new T.Vector3(Infinity,Infinity,Infinity),rotation=new T.Quaternion(),projection=new T.Matrix4();
  scene.userData.showArchitectureForShadow=()=>{for(const update of updates)update();eye.set(Infinity,Infinity,Infinity);};
+ const previousFocus=new T.Vector3();let hadFocus=false;
  return (camera:T.Camera)=>{
-  if(eye.distanceToSquared(camera.position)<.0025&&rotation.angleTo(camera.quaternion)<.003&&projection.equals(camera.projectionMatrix))return;
-  for(const update of updates)update(camera);eye.copy(camera.position);rotation.copy(camera.quaternion);projection.copy(camera.projectionMatrix);
+  const focus=scene.userData.cameraFocus as T.Vector3|null|undefined,focusChanged=!!focus!==hadFocus||!!focus&&previousFocus.distanceToSquared(focus)>.0025;
+  if(!focusChanged&&eye.distanceToSquared(camera.position)<.0025&&rotation.angleTo(camera.quaternion)<.003&&projection.equals(camera.projectionMatrix))return;
+  for(const update of updates)update(camera);eye.copy(camera.position);rotation.copy(camera.quaternion);projection.copy(camera.projectionMatrix);hadFocus=!!focus;if(focus)previousFocus.copy(focus);
  };
 }
 /** Instruments, torsos and legs are static; only live head/arm subtrees upload each tick. Characters are never hidden
@@ -105,7 +111,7 @@ export function batchCharacters(scene:T.Scene,roots:T.Object3D[]){return finishB
 export function* batchCharactersSteps(scene:T.Scene,roots:T.Object3D[]){
  scene.updateMatrixWorld(true);const moving=new Map<string,BatchGroup>(),fixed=new Map<string,BatchGroup>();
  for(const root of roots){root.updateMatrixWorld(true);let marked=false;root.traverse(o=>{if(o.userData.animated)marked=true;});
-  const visit=(node:T.Object3D,animated:boolean)=>{animated=animated||!!node.userData.animated;if(node instanceof T.Mesh){node.userData.preserveSilhouette=true;if(!Array.isArray(node.material))node.material=detailedMaterial(node.material);if(node.geometry instanceof T.SphereGeometry&&node.geometry.parameters.widthSegments<16)node.geometry=restoredSphere;if(node.geometry instanceof T.SphereGeometry)node.userData.lowDetail??=farSphere;collect(animated?moving:fixed,node);}for(const child of node.children)visit(child,animated);};visit(root,!marked);
+  const visit=(node:T.Object3D,animated:boolean)=>{animated=animated||!!node.userData.animated;if(node instanceof T.Mesh){node.userData.demoConductor=!!root.userData.demoConductor;node.userData.preserveSilhouette=true;node.userData.detailRadius=1.4;if(!Array.isArray(node.material))node.material=detailedMaterial(node.material);if(node.geometry instanceof T.SphereGeometry&&node.geometry.parameters.widthSegments<16)node.geometry=restoredSphere;if(node.geometry instanceof T.SphereGeometry)node.userData.lowDetail??=farSphere;collect(animated?moving:fixed,node);}for(const child of node.children)visit(child,animated);};visit(root,!marked);
   if(marked){const freeze=(node:T.Object3D,animated:boolean)=>{animated=animated||!!node.userData.animated;node.updateMatrix();node.matrixAutoUpdate=animated;for(const child of node.children)freeze(child,animated);};freeze(root,false);}
   root.removeFromParent();yield;
  }
@@ -113,6 +119,7 @@ export function* batchCharactersSteps(scene:T.Scene,roots:T.Object3D[]){
  const prune=(root:T.Object3D)=>{for(const child of [...root.children]){prune(child);if(child instanceof T.Group&&!child.children.length&&!child.userData.animated)child.removeFromParent();}};for(const root of roots)prune(root);
  const movingUpdates:ReturnType<typeof createLOD>[]=[];for(const group of moving.values()){movingUpdates.push(createLOD(scene,group,true));yield;}
  const eye=new T.Vector3(Infinity,Infinity,Infinity),rotation=new T.Quaternion(),projection=new T.Matrix4();
+ let conducting=false;
  const poseFrustum=new T.Frustum(),poseProjection=new T.Matrix4(),poseCenter=new T.Vector3(),poseSphere=new T.Sphere();
- return (camera?:T.Camera)=>{if(camera)poseFrustum.setFromProjectionMatrix(poseProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));for(const root of roots){poseCenter.copy(root.position);poseCenter.y+=1;if(!camera||poseFrustum.intersectsSphere(poseSphere.set(poseCenter,2)))root.updateMatrixWorld(false);}for(const update of movingUpdates)update(camera);if(!camera||eye.distanceToSquared(camera.position)>.04||rotation.angleTo(camera.quaternion)>.015||!projection.equals(camera.projectionMatrix)){for(const update of fixedUpdates)update(camera);if(camera){eye.copy(camera.position);rotation.copy(camera.quaternion);projection.copy(camera.projectionMatrix);}}};
+ return (camera?:T.Camera)=>{if(camera)poseFrustum.setFromProjectionMatrix(poseProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));for(const root of roots){poseCenter.copy(root.position);poseCenter.y+=1;if(!camera||poseFrustum.intersectsSphere(poseSphere.set(poseCenter,2)))root.updateMatrixWorld(false);}for(const update of movingUpdates)update(camera);if(conducting!==!!scene.userData.conducting||!camera||eye.distanceToSquared(camera.position)>.04||rotation.angleTo(camera.quaternion)>.015||!projection.equals(camera.projectionMatrix)){for(const update of fixedUpdates)update(camera);conducting=!!scene.userData.conducting;if(camera){eye.copy(camera.position);rotation.copy(camera.quaternion);projection.copy(camera.projectionMatrix);}}};
 }

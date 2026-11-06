@@ -33,3 +33,7 @@ export function parapetModules(start:number,end:number):ParapetModule[]{
  }
  return result;
 }
+
+/** Move the complete ground-floor finish toward the shell without burying its shallow wall fields. */
+export const LOWER_FINISH_RECESS=.10;
+export const LOWER_WALL_INNER_X=15.66;

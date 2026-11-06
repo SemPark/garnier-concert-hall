@@ -11,8 +11,8 @@ export function buildCandleTable(scene:T.Scene,table:CandleTable=CANDLE_TABLE){
  for(const x of [-.62,.62])for(const z of [-.24,.24]){const leg=new T.Mesh(new T.BoxGeometry(.05,.86,.05),wood);leg.position.set(x,.43,z);root.add(leg);}
  // Every candle is lit, with the same warm flame and halo as the concert candles.
  const wax=new T.MeshLambertMaterial({color:0xfff2d6,emissive:0xffb648,emissiveIntensity:.85}),candle=new T.CylinderGeometry(.04,.04,.18,8);
- const flames:number[]=[];
- for(let i=0;i<5;i++)for(let j=0;j<3;j++){const x=-.5+i*.25,z=-.18+j*.18,c=new T.Mesh(candle,wax);c.position.set(x,.98,z);root.add(c);flames.push(x,1.1,z);}
+ const flames:number[]=[],bodies=new T.InstancedMesh(candle,wax,15),matrix=new T.Matrix4();let index=0;
+ for(let i=0;i<5;i++)for(let j=0;j<3;j++){const x=-.5+i*.25,z=-.18+j*.18;bodies.setMatrixAt(index++,matrix.makeTranslation(x,.98,z));flames.push(x,1.1,z);}root.add(bodies);
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(flames,3));
  root.add(new T.Points(g,new T.PointsMaterial({map:glowTexture(1,.95),size:.14,transparent:true,depthWrite:false,blending:T.AdditiveBlending,color:0xfff3cc,fog:false})));
  const haloGeometry=new T.BufferGeometry();haloGeometry.setAttribute('position',new T.Float32BufferAttribute([0,1.05,0],3));

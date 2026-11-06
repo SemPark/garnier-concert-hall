@@ -1,3 +1,5 @@
+import {LOWER_FINISH_RECESS,LOWER_WALL_INNER_X,LOWER_HALL} from './lowerHall';
+import {UPPER_WALK_LIMIT} from './upperHall';
 import {LOWER_STATUES} from './lowerHall';
 import {PARTERRE,parterreHeight} from './parterre';
 import {AMPHITHEATRE_DOOR} from './grandStair';
@@ -81,7 +83,7 @@ export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  if(fromY<1&&fromY>PARTERRE.floor-.4&&Math.abs(p.x)<=15.65&&p.z>=STAGE_APRON_Z&&p.z<=50.3)return parterreHeight(p.x,p.z);
  return null;
 }
-const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.54,hz:.45,y:s.y})),...[-1,1].flatMap(side=>LOWER_STATUES.map(z=>({x:side*15.3,z,hx:.45,hz:.48,y:0}))),...SIDE_BOX_SEATS.map(s=>({x:s.x,z:s.z,hx:.45,hz:.54,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...[-1,1].flatMap(side=>[PARTERRE.floor,0].map(y=>({x:side*(16+PARTERRE.stairHalfWidth)/2,z:(PARTERRE.stairFront+44.2)/2,hx:(16-PARTERRE.stairHalfWidth)/2,hz:(44.2-PARTERRE.stairFront)/2,y}))),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [PARTERRE.floor,0].map(y=>({x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y}));})],lobby:[
+const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.54,hz:.45,y:s.y})),...[-1,1].flatMap(side=>LOWER_STATUES.map(z=>({x:side*(15.3+LOWER_FINISH_RECESS),z,hx:.45,hz:.48,y:0}))),...SIDE_BOX_SEATS.map(s=>({x:s.x,z:s.z,hx:.45,hz:.54,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...[-1,1].flatMap(side=>[PARTERRE.floor,0].map(y=>({x:side*(16+PARTERRE.stairHalfWidth)/2,z:(PARTERRE.stairFront+44.2)/2,hx:(16-PARTERRE.stairHalfWidth)/2,hz:(44.2-PARTERRE.stairFront)/2,y}))),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [PARTERRE.floor,0].map(y=>({x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y}));})],lobby:[
  ...[-1,1].map(side=>({x:side*(GRAND_STAIR.flightHalf+.06),z:GRAND_STAIR.flightEnd,hx:.29,hz:.29,y:GRAND_STAIR.rise})),
  ...[-1,1].map(side=>({x:side*2.55,z:AMPHITHEATRE_DOOR.z-.75,hx:.52,hz:.46,y:GRAND_STAIR.rise})),
  ...LOBBY_ARCADE.endColumns.flatMap(x=>[ATRIUM.front+ATRIUM.balconyDepth,ATRIUM.back-ATRIUM.balconyDepth].map(z=>({x,z,hx:.33,hz:.33,y:ATRIUM.balconyY}))),
@@ -92,6 +94,6 @@ const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s
 const CELLS:Record<Zone,Map<string,Obstacle[]>>={lobby:new Map(),auditorium:new Map()};
 for(const zone of ['lobby','auditorium'] as const)for(const o of OBSTACLES[zone])for(let x=Math.floor((o.x-o.hx-1)/2);x<=Math.floor((o.x+o.hx+1)/2);x++)for(let z=Math.floor((o.z-o.hz-1)/2);z<=Math.floor((o.z+o.hz+1)/2);z++){const key=`${x},${z}`,items=CELLS[zone].get(key)??[];items.push(o);CELLS[zone].set(key,items);}
 export function obstacles(zone:Zone):Obstacle[]{return OBSTACLES[zone];}
-export function walkable(zone:Zone,p:Point,padding=.27){const b=BOUNDS[zone],h=surfaceHeight(zone,p,p.y??0),y=p.y??0;return h!==null&&Math.abs(h-y)<.32&&p.x>=b.minX&&p.x<=b.maxX&&p.z>=b.minZ&&p.z<=b.maxZ&&!(padding>1?OBSTACLES[zone]:CELLS[zone].get(`${Math.floor(p.x/2)},${Math.floor(p.z/2)}`)??[]).some(o=>Math.abs((o.y??0)-y)<.6&&Math.abs(p.x-o.x)<o.hx+padding&&Math.abs(p.z-o.z)<o.hz+padding);}
+export function walkable(zone:Zone,p:Point,padding=.27){const b=BOUNDS[zone],h=surfaceHeight(zone,p,p.y??0),y=p.y??0;return !(zone==='auditorium'&&y<1&&p.z>=LOWER_HALL.front&&p.z<=LOWER_HALL.rear&&Math.abs(p.x)>LOWER_WALL_INNER_X-padding)&&!(zone==='auditorium'&&Math.abs(y-H.balconyHeight)<.6&&Math.abs(p.x)>UPPER_WALK_LIMIT-padding)&&h!==null&&Math.abs(h-y)<.32&&p.x>=b.minX&&p.x<=b.maxX&&p.z>=b.minZ&&p.z<=b.maxZ&&!(padding>1?OBSTACLES[zone]:CELLS[zone].get(`${Math.floor(p.x/2)},${Math.floor(p.z/2)}`)??[]).some(o=>Math.abs((o.y??0)-y)<.6&&Math.abs(p.x-o.x)<o.hx+padding&&Math.abs(p.z-o.z)<o.hz+padding);}
 export function distance(a:Point,b:Point){return Math.hypot(a.x-b.x,a.z-b.z,(a.y??0)-(b.y??0));}
 export function canSit(p:Point,seat:Seat){return distance(p,seat.approach)<.4&&Math.abs((p.y??0)-seat.y)<.25;}
