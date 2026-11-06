@@ -38,8 +38,8 @@ MZ='볼프강 아마데우스 모차르트';
 CO='아르칸젤로 코렐리';SS='서울시립교향악단'
 program=[
  # Christmas concert, orchestra only: Corelli's Christmas Concerto, then orchestral carols (Seoul Philharmonic), then an encore.
- ('corelli-1','corelli-christmas-concerto-1','코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’ (1)','크리스마스 협주곡',None,4,None,CO),
- ('corelli-2','corelli-christmas-concerto-2','코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’ (2)','크리스마스 협주곡',None,0,None,CO),
+ ('corelli-1','corelli-christmas-concerto-1','코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’','크리스마스 협주곡',None,4,None,CO),
+ ('corelli-2','corelli-christmas-concerto-2','코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’','크리스마스 협주곡',None,0,None,CO),
  Q(1,520,10),
  ('xm-joy','christmas-joy-to-the-world','기쁘다 구주 오셨네 (Joy to the World)','기쁘다 구주 오셨네',None,0,None,SS),
  Q(2,540,10),

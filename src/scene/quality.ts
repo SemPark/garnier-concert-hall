@@ -7,8 +7,8 @@ export function renderRatio(width:number,height:number,dpr:number,quality:Render
  return Math.min(Math.max(1,dpr),cap,fit);
 }
 
-/** Bound sustained phone GPU work independently of ProMotion refresh rate. */
-export function frameRate(mobile:boolean,quality:RenderQuality){return quality==='low'?24:mobile||quality==='balanced'?30:60;}
+/** Bound sustained GPU work independently of ProMotion refresh rate; 'sharp' asks for 60 on every device, phones included. */
+export function frameRate(_mobile:boolean,quality:RenderQuality){return quality==='sharp'?60:30;}
 
 /** Keep the same halo strength; spend fewer pixels on the blur rather than removing the candlelight. */
 export function bloomResolution(mobile:boolean,quality:RenderQuality){return mobile?(quality==='low'?.25:.375):quality==='low'?.375:.5;}

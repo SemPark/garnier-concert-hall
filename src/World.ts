@@ -66,7 +66,8 @@ export class World{
    if(T.DefaultLoadingManager.onProgress===progressHandler)T.DefaultLoadingManager.onProgress=previousProgress;
    if(T.DefaultLoadingManager.onLoad===loadHandler)T.DefaultLoadingManager.onLoad=previousLoad;
   };
-  this.quality='balanced';
+  // Phones start on the cool-running setting; a saved choice still wins.
+  this.quality=this.mobile?'low':'balanced';
   try{const saved=localStorage.getItem('concert-quality');if(saved==='balanced'||saved==='sharp'||saved==='low')this.quality=saved;}catch{/* Storage can be unavailable in private browsing. */}
   this.renderer=new T.WebGLRenderer({antialias:true,powerPreference:'low-power'});this.renderer.setPixelRatio(renderRatio(innerWidth,innerHeight,devicePixelRatio,this.quality,this.mobile));this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1;this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFShadowMap;
   const canvas=this.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','캐릭터 뒤에서 둘러보는 플리 음악당. 바닥 클릭으로 이동하고 드래그로 둘러봅니다.');host.append(canvas);
@@ -405,8 +406,17 @@ export class World{
   for(const r of this.remotes.values())show(r.avatar,r.visitor.gestureAt);
   for(const v of Object.values(this.venues))v.emotes.commit();
  }
+ /** Frames per second to draw now. While the hall is being built (or pre-built in the lobby, or the connection is opening),
+  * fewer frames leave the phone's CPU for that work; otherwise the chosen quality decides (sharp: 60). */
+ private frameBudget(){
+  if(this.uiObscured)return 8;if(!this.entered&&this.ready)return 15;
+  const chosen=frameRate(this.mobile,this.quality);
+  if(this.hallLoading||this.changingZone)return Math.min(chosen,15);
+  if(this.zone==='lobby'&&!this.hallWarmed||this.net.status!=='connected')return Math.min(chosen,30);
+  return chosen;
+ }
  private animate=()=>{
-  this.frame=requestAnimationFrame(this.animate);const now=performance.now();if(document.hidden){this.last=now;this.renderedAt=0;return;}const rate=this.uiObscured?8:!this.entered&&this.ready?15:frameRate(this.mobile,this.quality),interval=1000/rate;if(now-this.renderedAt<interval)return;this.renderedAt=interval?now-((now-this.renderedAt)%interval):now;const elapsed=(now-this.last)/1000,dt=Math.min(.1,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
+  this.frame=requestAnimationFrame(this.animate);const now=performance.now();if(document.hidden){this.last=now;this.renderedAt=0;return;}const rate=this.frameBudget(),interval=1000/rate;if(now-this.renderedAt<interval)return;this.renderedAt=interval?now-((now-this.renderedAt)%interval):now;const elapsed=(now-this.last)/1000,dt=Math.min(.1,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
   const workStart=this.diagnosticActive?performance.now():0;
   if(this.diagnosticActive&&this.diagnosticMode==='audio-only'){this.frameCost={at:now,cpu:0,submit:0};if(now-this.lastUI>500){this.lastUI=now;this.onChange();}return;}
   let speed=0;const keys=this.input.keys;let kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+this.input.touchMove.x;let kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+this.input.touchMove.z;
