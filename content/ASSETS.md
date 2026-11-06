@@ -48,3 +48,9 @@
 
 - `public/lobby-preview.webp`: a 1600×1000 render of this application's lobby, generated from its current Three.js scene.
 - The render includes the Diego Delso ceiling photograph credited above; the preview is distributed under CC BY-SA 4.0 with the same source attribution in the settings panel.
+
+## 추가 음원
+
+- 오 거룩한 밤 (O Holy Night): 미국 공군 군악대 합창단과 교향악단, [Public domain](https://commons.wikimedia.org/wiki/File:O_Holy_Night_(with_Lord,_Guard_and_Guide)_-_Singing_Sergeants_and_Symphony_Orchestra_-_United_States_Air_Force_Band.mp3). MP3 변환 및 음량 조정.
+- 헨델 메시아 — 크게 기뻐하라: Advent Chamber Orchestra · Cristina Piccardi, [CC BY-SA 2.0](https://commons.wikimedia.org/wiki/File:Handel_-_Messiah_-_Rejoice_Greatly.ogg). MP3 변환 및 음량 조정.
+- 헨델 메시아 — 할렐루야: 국립합창단, [CC BY 3.0](https://commons.wikimedia.org/wiki/File:The_National_Chorus_of_Korea_-_Handel%27s_Messiah,_HWV_56_-_XLIV._Hallelujah.ogg). MP3 변환 및 음량 조정.

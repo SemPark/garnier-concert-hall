@@ -4,7 +4,7 @@
   "tracks": [
     {
       "id": "corelli-christmas-concerto-1",
-      "title": "코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’ (1)",
+      "title": "코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’",
       "composer": "아르칸젤로 코렐리",
       "url": "/api/audio/corelli-christmas-concerto-1.mp3",
       "durationSeconds": 202.907823,
@@ -19,7 +19,7 @@
     },
     {
       "id": "corelli-christmas-concerto-2",
-      "title": "코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’ (2)",
+      "title": "코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’",
       "composer": "아르칸젤로 코렐리",
       "url": "/api/audio/corelli-christmas-concerto-2.mp3",
       "durationSeconds": 411.67229,
@@ -286,6 +286,51 @@
         "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
       },
       "stage": "quiet"
+    },
+    {
+      "id": "holy-new",
+      "title": "오 거룩한 밤 (O Holy Night)",
+      "composer": "미국 공군 군악대 합창단과 교향악단",
+      "url": "/api/audio/holy-new.mp3",
+      "durationSeconds": 378.540417,
+      "gapAfterSeconds": 4,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:O_Holy_Night_(with_Lord,_Guard_and_Guide)_-_Singing_Sergeants_and_Symphony_Orchestra_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+      },
+      "work": "오 거룩한 밤 (O Holy Night)"
+    },
+    {
+      "id": "rejoice-new",
+      "title": "헨델 메시아 — 크게 기뻐하라",
+      "composer": "Advent Chamber Orchestra · Cristina Piccardi",
+      "url": "/api/audio/rejoice-new.mp3",
+      "durationSeconds": 271.412229,
+      "gapAfterSeconds": 4,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Handel_-_Messiah_-_Rejoice_Greatly.ogg",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/"
+      },
+      "work": "헨델 메시아 — 크게 기뻐하라"
+    },
+    {
+      "id": "hallelujah-new",
+      "title": "헨델 메시아 — 할렐루야",
+      "composer": "국립합창단",
+      "url": "/api/audio/hallelujah-new.mp3",
+      "durationSeconds": 210.762333,
+      "gapAfterSeconds": 4,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_National_Chorus_of_Korea_-_Handel%27s_Messiah,_HWV_56_-_XLIV._Hallelujah.ogg",
+        "licenseName": "CC BY 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/"
+      },
+      "work": "헨델 메시아 — 할렐루야"
     }
   ]
 }

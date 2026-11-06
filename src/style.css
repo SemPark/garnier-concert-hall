@@ -290,3 +290,15 @@ button.brand .brand-sub{font-family:'Gowun Batang',Georgia,serif;letter-spacing:
 .cafe-menu{min-width:0;padding:16px}.cafe-close{position:absolute;top:-11px;right:-11px;margin:0;width:26px;height:26px;padding:0;display:grid;place-items:center;border-radius:50%;background:#221c17;border:1px solid #dac08a40;color:#cbbfa6}.cafe-close:hover{background:#c6aa7022;color:#ffe7b3}.cafe-choices button{min-width:0;padding:10px}
 /* Bottom bar is icon-only: labels stay for screen readers but are not drawn. */
 .actionbar button>span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}.actionbar button,.actionbar .primary-action{position:relative;min-width:0;padding:10px 12px;gap:0}.actionbar{gap:4px;padding:6px 10px}
+
+/* Keep the current track in the former top-left brand position. */
+.now-playing,.compact-music{top:max(20px,env(safe-area-inset-top))!important}
+@media(max-width:900px){.now-playing,.compact-music{top:max(16px,env(safe-area-inset-top))!important}}
+
+.topbar .tools{margin-left:auto}
+
+/* Top row lines up with the right-hand tool pill: the music card shares its top edge, the place name its centre line. */
+.now-playing,.compact-music{top:28px!important}
+@media(max-width:900px){.now-playing,.compact-music{top:20px!important}}
+@media(max-width:540px){.now-playing,.compact-music{top:18px!important}}
+.topbar .location{top:50%;transform:translate(-50%,-50%)}
