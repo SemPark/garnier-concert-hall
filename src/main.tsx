@@ -25,7 +25,7 @@ function Icon({name,size=20}:{name:string;size?:number}){
   mute:<><path d="m11 4-6 5H2v6h3l6 5V4Zm5 5 5 6m0-6-5 6"/></>,
   people:<><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3m1-17a3 3 0 0 1 0 6m3 11v-3a6 6 0 0 0-3-5"/></>,
   stairs:<path d="M4 20h4v-4h4v-4h4V8h4V4"/>,
-  conductor:<><circle cx="11.5" cy="5" r="2.5"/><path d="M5 21v-3.5a6.5 6.5 0 0 1 13 0V21M7 12l-3-2-2 3M16 12l3-3V6m0 0 3-4"/></>,
+  conductor:<><circle cx="12" cy="4.8" r="3.1"/><path d="M8 10.2 6 11 4.6 8.2Q3.9 6.8 2.7 7.4 1.6 8 2.2 9.5L4.4 15Q4.8 16 5.8 15.6L8 14.8 7 22h10l-1-7.2 2.2.8q1 .4 1.4-.6l2.2-5.5q.6-1.5-.5-2.1-1.2-.6-1.9.8L18 11l-2-.8-4 3.4-4-3.4Z"/><path d="M21 7V1.5"/></>,
   candle:<><path d="M9.5 21h5V11h-5v10Z"/><path d="M12 11V9"/><path d="M12 2.5c1.6 1.8 2.2 3 2.2 4a2.2 2.2 0 0 1-4.4 0c0-1 .6-2.2 2.2-4Z"/></>,
   walk:<><circle cx="13" cy="4.5" r="2"/><path d="M12.5 8 11 14l-2.5 7M11 14l3 3v4M8 11.5l4.2-3 3.3 2.5"/></>,
   floor1:<text x="12" y="16.6" textAnchor="middle" fontSize="12.5" fontWeight="700" fill="currentColor" stroke="none">1F</text>,
@@ -60,6 +60,8 @@ function App(){
  const [lookPicker,setLookPicker]=useState(false);const [wardrobe,setWardrobe]=useState(false);
  const [app,setApp]=useState<{world:World;net:Presence;audio:ConcertAudio}|null>(null),[,redraw]=useState(0),[entered,setEntered]=useState(false),[settings,setSettings]=useState(false),[seats,setSeats]=useState(false),[musicExpanded,setMusicExpanded]=useState(false),[reactions,setReactions]=useState(false),[toast,setToast]=useState(''),[error,setError]=useState('');
  const [probeProgress,setProbeProgress]=useState(''),[probeReport,setProbeReport]=useState(''),[probeMessage,setProbeMessage]=useState('');
+ const [iphonePending,setIphonePending]=useState(false);
+ const iphoneBridge=import.meta.env.DEV&&import.meta.env.MODE==='iphone'&&['localhost','127.0.0.1'].includes(location.hostname);
  const entering=useRef(false),initialHallRequested=useRef(false);
  const [initialHallReady,setInitialHallReady]=useState(false);
  const toastTimer=useRef(0),dialog=useRef<HTMLDialogElement>(null);
@@ -81,14 +83,62 @@ function App(){
  useEffect(()=>{if(!app||!app.world.ready||entering.current)return;entering.current=true;app.world.start();setEntered(true);app.net.connect();},[app,world?.ready]);
  useEffect(()=>{if(!world||!connected||!world.self)return;if(world.zone==='auditorium'){initialHallRequested.current=true;setInitialHallReady(true);return;}if(!initialHallRequested.current){initialHallRequested.current=true;reportInitialHallLoading(70,'공연장으로 들어가고 있어요');void world.changeZone();}},[world,connected,zone]);
  // Browsers require a real user gesture for sound even when visual entry is automatic.
- useEffect(()=>{if(!audio)return;const unlock=(event:PointerEvent)=>{if((event.target as Element)?.closest?.('button[aria-label^="소리"]'))return;void audio.unlock();};window.addEventListener('pointerdown',unlock,{once:true});return()=>window.removeEventListener('pointerdown',unlock);},[audio]);
- const diagnose=async()=>{if(!world||!audio)return;if(!audio.playback.playing||audio.playback.remaining<35){setProbeMessage('곡이 바뀌는 구간입니다. 다음 곡이 시작되면 진단해 주세요.');return;}setSettings(false);setProbeReport('');setProbeMessage('');try{const report=await runDeviceProbe(world,audio,setProbeProgress);setProbeReport(JSON.stringify(report));setProbeMessage(report.userSummary);}catch(e){setProbeMessage(e instanceof Error?e.message:'진단을 완료하지 못했어요.');}finally{setProbeProgress('');setSettings(true);}};
+ useEffect(()=>{if(!audio)return;const unlock=(event:PointerEvent)=>{if((event.target as Element)?.closest?.('button[aria-label^="소리"], [data-device-probe]'))return;void audio.unlock();};window.addEventListener('pointerdown',unlock,{once:true});return()=>window.removeEventListener('pointerdown',unlock);},[audio]);
+ const measureIPhone=async()=>{
+  setIphonePending(true);
+  setProbeReport('');
+  setProbeMessage('연결된 아이폰에서 공연장을 열고 측정하고 있어요. 아이폰 화면을 켜 두세요.');
+  try{
+   const response=await fetch('/__iphone-probe',{method:'POST'});
+   const {report,error}=await response.json();
+   if(!response.ok)throw new Error(error);
+   setProbeReport(JSON.stringify(report));
+   setProbeMessage(report.userSummary);
+  }catch(e){
+   setProbeMessage(e instanceof Error?e.message:'아이폰 진단을 완료하지 못했어요.');
+  }finally{
+   setIphonePending(false);
+  }
+ };
+ const diagnose=useCallback(async(reopenSettings=true)=>{
+  if(!world||!audio||world.diagnosticActive)return {error:'지금은 진단을 시작할 수 없어요.'};
+  setSettings(false);
+  setProbeReport('');
+  setProbeMessage('');
+  try{
+   const report=await runDeviceProbe(world,audio,setProbeProgress);
+   setProbeReport(JSON.stringify(report));
+   setProbeMessage(report.userSummary);
+   return {report};
+  }catch(e){
+   const error=e instanceof Error?e.message:'진단을 완료하지 못했어요.';
+   setProbeMessage(error);
+   return {error};
+  }finally{
+   setProbeProgress('');
+   if(reopenSettings)setSettings(true);
+  }
+ },[world,audio]);
+ useEffect(()=>{
+  if(!import.meta.env.DEV||import.meta.env.MODE!=='iphone'||!initialHallReady||
+   !new URLSearchParams(location.search).has('diag'))return;
+  const probe={
+   result:null as Awaited<ReturnType<typeof diagnose>>|null,
+   start(){
+    void diagnose(false).then(result=>{probe.result=result;});
+   },
+  };
+  Object.assign(window,{__iphoneProbe:probe});
+  return ()=>{Reflect.deleteProperty(window,'__iphoneProbe');};
+ },[diagnose,initialHallReady]);
+
  return <>
   <div className="vignette"/>
   {(world?.hallLoading&&initialHallReady)&&<div className="hall-loading" role="status" aria-live="polite" aria-busy="true"><div className="hall-loading-card"><span className="hall-loading-spinner" aria-hidden="true"/><h2>공연장으로 들어가고 있어요</h2><p>무대와 좌석을 준비하고 있어요. 잠시만 기다려 주세요.</p></div></div>}
 
   {entered&&<header className="topbar">
    {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LOBBY':'pleee hall'}</span><span>{zone==='lobby'?'로비':'공연장'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ')??'입장 중'}</span></div>}
+   {zone==='auditorium'&&p&&<aside className={`now-playing ${(!world?.concertView||world?.pose==='walk'||window.innerWidth<700)&&!musicExpanded?'compact-music':''}`}><button className="music-summary" aria-label={musicExpanded?'음악 정보 접기':'음악 정보 펼치기'} aria-expanded={musicExpanded} onClick={()=>setMusicExpanded(v=>!v)}><Icon name="music" size={14}/><span>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</span><span>{musicExpanded?'−':'+'}</span></button><div className="music-details"><div className="now-label"><span className={`equalizer ${audio?.enabled&&p.playing?'active':''}`}><i/><i/><i/></span>{p.playing?(p.track.stage?'ON STAGE':'NOW PLAYING'):'잠시 후'}</div><h2>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</h2><p>{p.playing&&!p.track.stage?p.track.composer:`다음 곡: ${nextPiece(program as Playlist,p.index)?.title??''}`}{!p.playing&&` · ${Math.ceil(p.remaining)}초 후`}</p><div className="progress-track"><span style={{width:`${p.playing?p.offset/p.track.durationSeconds*100:0}%`}}/></div><div className="track-meta"><span>{audio?.state}</span><span>{format(p.offset)} / {format(p.track.durationSeconds)}</span></div></div></aside>}
    <nav className="tools" aria-label="음악당 설정">
     <span className="tools-brand">플리</span>
     {entered&&<span className="visitor-count" title={connected?'함께 있는 관객':'연결을 기다리고 있어요'}><span className={`connection ${connected?'online':''}`}/><Icon name="people" size={18}/>{net?.local?'혼자 감상':net?.state?.visitors.length??'—'}</span>}
@@ -119,16 +169,16 @@ function App(){
     </>}
     <button role="menuitem" className="icon-menu-item" aria-label="설정" title="설정" onClick={()=>{setSettings(true);}}><Icon name="settings" size={20}/></button>
    </nav></>}
-   {zone==='auditorium'&&p&&<aside className={`now-playing ${(!world?.concertView||world?.pose==='walk'||window.innerWidth<700)&&!musicExpanded?'compact-music':''}`}><button className="music-summary" aria-label={musicExpanded?'음악 정보 접기':'음악 정보 펼치기'} aria-expanded={musicExpanded} onClick={()=>setMusicExpanded(v=>!v)}><Icon name="music" size={14}/><span>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</span><span>{musicExpanded?'−':'+'}</span></button><div className="music-details"><div className="now-label"><span className={`equalizer ${audio?.enabled&&p.playing?'active':''}`}><i/><i/><i/></span>{p.playing?(p.track.stage?'ON STAGE':'NOW PLAYING'):'잠시 후'}</div><h2>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</h2><p>{p.playing&&!p.track.stage?p.track.composer:`다음 곡: ${nextPiece(program as Playlist,p.index)?.title??''}`}{!p.playing&&` · ${Math.ceil(p.remaining)}초 후`}</p><div className="progress-track"><span style={{width:`${p.playing?p.offset/p.track.durationSeconds*100:0}%`}}/></div><div className="track-meta"><span>{audio?.state}</span><span>{format(p.offset)} / {format(p.track.durationSeconds)}</span></div></div></aside>}
+
    {world?.cafeMenu&&<div className="cafe-menu" role="dialog" aria-label="카페"><button className="cafe-close" aria-label="닫기" onClick={()=>world.closeCafeMenu()}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div className="cafe-choices">{!world.coffee&&<button aria-label="커피 받기" onClick={()=>world.visitCafe('coffee')} disabled={!connected}><img src={coffeeIcon} alt="" aria-hidden="true"/></button>}{!world.macaron&&<button aria-label="마카롱 받기" onClick={()=>world.visitCafe('macaron')} disabled={!connected}><img src={macaronIcon} alt="" aria-hidden="true"/></button>}</div></div>}
    <div className="bottom-center">{reactions&&<div className="reaction-panel" role="group" aria-label="리액션">{GESTURES.filter(g=>(g.id!=='drink'||world?.coffee)&&(g.id!=='eat'||world?.macaron)).map((g,n)=><button key={g.id} onClick={()=>{world?.gestureAction(g.id);setReactions(false);}} disabled={!connected}><b>{g.id==='drink'||g.id==='eat'?<img className="food-icon" src={g.id==='drink'?coffeeIcon:macaronIcon} alt="" aria-hidden="true"/>:GLYPH[g.id]}</b><span>{g.label}</span><kbd>{n+1}</kbd></button>)}</div>}{toast&&<div className="toast" role="status">{toast}</div>}<div className="actionbar" aria-label="음악당에서 할 일"><button onClick={()=>world?.gestureAction('wave')} disabled={!connected}><Icon name="wave"/><span>인사</span></button><button onClick={()=>world?.gestureAction('clap')} disabled={!connected}><Icon name="clap"/><span>박수</span></button><span className="divider"/><button className="primary-action" onClick={()=>{if(sitting)world?.stand();else if(zone==='lobby')world?.changeZone();else{world?.input.keys.clear();setSeats(true);}}} disabled={!connected}><Icon name={sitting?'seat':zone==='lobby'?'enter':'ticket'}/><span>{sitting?'일어나기':zone==='lobby'?'공연장 입장':'자리 앉기'}</span></button>{zone==='lobby'&&<button onClick={()=>world?.goToHallPoint('lobby')} disabled={!connected} aria-label="로비 가운데로 바로 이동"><Icon name="center"/><span>가운데</span></button>}{zone==='lobby'&&world?.macaron&&<button onClick={()=>world.gestureAction('eat')} disabled={!connected} aria-label="마카롱 먹기"><img className="food-icon" src={macaronIcon} alt="" aria-hidden="true"/><span>마카롱 먹기</span></button>}{zone==='lobby'&&world?.coffee&&<button onClick={()=>world.gestureAction('drink')} disabled={!connected} aria-label="커피 마시기"><img className="food-icon" src={coffeeIcon} alt="" aria-hidden="true"/><span>커피 마시기</span></button>}{zone==='auditorium'&&world?.candle&&<button className={'candle-action'+(world.candle==='on'?' lit':'')} aria-pressed={world.candle==='on'} aria-label={world.candle==='on'?'촛불 끄기':'촛불 켜기'} onClick={()=>{world.toggleCandle();redraw(n=>n+1);}}><Icon name="candle"/><span>촛불</span></button>}{zone==='auditorium'&&<button onClick={()=>{setReactions(false);setConducting(true);}} disabled={!connected} aria-label="지휘자 체험"><Icon name="conductor"/><span>지휘자 체험</span></button>}<span className="divider"/><button className={reactions?'active':''} aria-expanded={reactions} onClick={()=>setReactions(v=>!v)} disabled={!connected}><Icon name="react"/><span>리액션</span></button></div></div>
   </>}
   {conducting&&world&&<ConductingExperience world={world} onClose={closeConducting}/>}
-  {probeProgress&&<div className="diagnostic-overlay" role="status"><p>{probeProgress}<br/><small>측정 중 화면이 잠시 멈춥니다. 음악의 끊김을 비교하고 있어요.</small></p></div>}
+  {probeProgress&&<div className="diagnostic-overlay" role="status"><p>{probeProgress}<br/><small>측정이 끝나면 이전 화면 설정으로 돌아갑니다.</small></p></div>}
   {toast&&!entered&&<div className="toast" role="status">{toast}</div>}
   {error&&<section className="fatal" role="alert"><h1>음악당을 열지 못했어요.</h1><p>WebGL을 지원하는 브라우저에서 다시 열어주세요.</p><small>{error}</small><button onClick={()=>location.reload()}>다시 열기</button></section>}
   {wardrobe&&world&&<Wardrobe look={world.visitorLook} selected={world.self?.outfit} onSelect={outfit=>world.setOutfit(outfit)} onClose={()=>setWardrobe(false)}/>}
-  <dialog ref={dialog} onCancel={()=>setSettings(false)} onClose={()=>setSettings(false)} className="settings-dialog"><div className="panel-heading"><div><span className="eyebrow">YOUR LITTLE CONCERT</span><h2>편안하게 감상하기</h2></div><button className="icon-button" aria-label="설정 닫기" onClick={()=>setSettings(false)}><Icon name="close"/></button></div><label className="setting-row"><span>음악 소리 <b>{Math.round((audio?.volume??1)*100)}</b><small>공연장에서 들리는 음량 (0~100)</small></span><input aria-label="음악 음량" type="range" min="0" max="100" value={Math.round((audio?.volume??1)*100)} onChange={e=>{if(audio)audio.volume=Number(e.target.value)/100;redraw(n=>n+1);}}/></label><label className="setting-row"><span>공간 소리 <b>{audio?.roomLevel??5}</b><small>로비와 공연장의 은은한 울림 (1~10, 5가 기본)</small></span><input aria-label="공간 소리" type="range" min="1" max="10" step="1" value={audio?.roomLevel??5} onChange={e=>{audio?.setRoomLevel(Number(e.target.value));redraw(n=>n+1);}}/></label><label className="setting-row"><span>내 캐릭터<small>다른 관객에게도 이렇게 보여요</small></span><select aria-label="내 캐릭터" value={world?.visitorLook??'man'} onChange={e=>{const look=e.target.value as 'man'|'woman';try{localStorage.setItem('garnier-look',look);}catch{}world?.setLook(look);redraw(n=>n+1);}}><option value="man">남자</option><option value="woman">여자</option></select></label><label className="setting-row"><span>화면 품질<small>{world?`${world.fps} FPS · ${world.renderer.domElement.width}×${world.renderer.domElement.height}`:'선명도를 선택할 수 있어요'}</small></span><select aria-label="화면 품질" value={world?.quality??"balanced"} onChange={e=>world?.setQuality(e.target.value)}><option value="balanced">균형 · {world?.mobile?'60':'30'}FPS</option><option value="sharp">선명하게 · 60FPS</option><option value="low">저발열 · {world?.mobile?'60':'30'}FPS</option></select></label><div className="settings-info"><Icon name="music" size={19}/><p>{p?.track.title}<br/>{p?.track.credit&&<><a href={p.track.credit.sourceUrl} target="_blank" rel="noreferrer">{p.track.credit.sourceName}</a> · <a href={p.track.credit.licenseUrl} target="_blank" rel="noreferrer">{p.track.credit.licenseName}</a></>}</p></div><p className="settings-info"><small>로비 천장 사진: <a href="https://commons.wikimedia.org/wiki/File:Ópera,_París,_Francia,_2022-10-31,_DD_54-56_HDR.jpg" target="_blank" rel="noreferrer">Diego Delso / Wikimedia Commons</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a> · 2048px·WebP 변환</small></p>{(import.meta.env.DEV&&['localhost','127.0.0.1','[::1]'].includes(location.hostname)||new URLSearchParams(location.search).has('diag'))&&<section className="device-diagnostic"><button disabled={!entered||zone!=='auditorium'||!audio?.enabled||!!probeProgress} onClick={()=>void diagnose()}>끊김 진단 · 30초</button><p>공연장에서 실행하세요. 화면·동작·음악을 나눠 측정한 후 원래대로 돌아옵니다.</p>{probeMessage&&<p role="status">{probeMessage}</p>}{probeReport&&<><button onClick={()=>{void Promise.resolve().then(()=>navigator.clipboard.writeText(probeReport)).then(()=>setProbeMessage('진단 결과를 복사했습니다. 채팅에 붙여넣어 주세요.')).catch(()=>setProbeMessage('아래 결과를 길게 눌러 복사해 주세요.'));}}>진단 결과 복사</button><details><summary>진단 결과 보기</summary><textarea aria-label="기기 진단 결과" readOnly value={probeReport}/></details></>}</section>}<div className="controls-copy">{net?.local&&<p>GitHub Pages 감상 버전 · 다른 관객과의 실시간 연결은 제공하지 않습니다.</p>}<p>바닥 클릭 / WASD / 방향키 — 이동</p><p>드래그 — 둘러보기 · 휠 / 두 손가락 — 거리 조절</p><p>좌석 클릭 — 앉기 · ESC — 일어나기</p></div></dialog>
+  <dialog ref={dialog} onCancel={()=>setSettings(false)} onClose={()=>setSettings(false)} className="settings-dialog"><div className="panel-heading"><div><span className="eyebrow">YOUR LITTLE CONCERT</span><h2>편안하게 감상하기</h2></div><button className="icon-button" aria-label="설정 닫기" onClick={()=>setSettings(false)}><Icon name="close"/></button></div><label className="setting-row"><span>음악 소리 <b>{Math.round((audio?.volume??1)*100)}</b><small>공연장에서 들리는 음량 (0~100)</small></span><input aria-label="음악 음량" type="range" min="0" max="100" value={Math.round((audio?.volume??1)*100)} onChange={e=>{if(audio)audio.volume=Number(e.target.value)/100;redraw(n=>n+1);}}/></label><label className="setting-row"><span>공간 소리 <b>{audio?.roomLevel??5}</b><small>로비와 공연장의 은은한 울림 (1~10, 5가 기본)</small></span><input aria-label="공간 소리" type="range" min="1" max="10" step="1" value={audio?.roomLevel??5} onChange={e=>{audio?.setRoomLevel(Number(e.target.value));redraw(n=>n+1);}}/></label><label className="setting-row"><span>내 캐릭터<small>다른 관객에게도 이렇게 보여요</small></span><select aria-label="내 캐릭터" value={world?.visitorLook??'man'} onChange={e=>{const look=e.target.value as 'man'|'woman';try{localStorage.setItem('garnier-look',look);}catch{}world?.setLook(look);redraw(n=>n+1);}}><option value="man">남자</option><option value="woman">여자</option></select></label><label className="setting-row"><span>화면 품질<small>{world?`${world.fps} FPS · ${world.renderer.domElement.width}×${world.renderer.domElement.height}`:'선명도를 선택할 수 있어요'}</small></span><select aria-label="화면 품질" value={world?.quality??"balanced"} onChange={e=>world?.setQuality(e.target.value)}><option value="balanced">균형 · {world?.mobile?'60':'30'}FPS</option><option value="sharp">선명하게 · 60FPS</option><option value="low">저발열 · {world?.mobile?'60':'30'}FPS</option></select></label><div className="settings-info"><Icon name="music" size={19}/><p>{p?.track.title}<br/>{p?.track.credit&&<><a href={p.track.credit.sourceUrl} target="_blank" rel="noreferrer">{p.track.credit.sourceName}</a> · <a href={p.track.credit.licenseUrl} target="_blank" rel="noreferrer">{p.track.credit.licenseName}</a></>}</p></div><p className="settings-info"><small>로비 천장 사진: <a href="https://commons.wikimedia.org/wiki/File:Ópera,_París,_Francia,_2022-10-31,_DD_54-56_HDR.jpg" target="_blank" rel="noreferrer">Diego Delso / Wikimedia Commons</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a> · 2048px·WebP 변환</small></p>{(import.meta.env.DEV&&(['localhost','127.0.0.1','[::1]'].includes(location.hostname)||new URLSearchParams(location.search).has('diag')))&&<section className="device-diagnostic">{iphoneBridge?<><button data-device-probe disabled={iphonePending} onClick={()=>void measureIPhone()}>연결된 아이폰 측정</button><p>USB로 연결된 아이폰에서 플리를 열고 FPS와 CPU·GPU 시간을 측정합니다.</p></>:<><button data-device-probe disabled={!entered||zone!=='auditorium'||!!probeProgress} onClick={()=>void diagnose()}>끊김 진단 · 최대 30초</button><p>{world?.mobile?'이 기기의 화면 설정으로 FPS와 CPU·GPU 시간을 측정합니다.':'iPhone 13 Pro 화면 조건에서 이 PC의 FPS와 CPU·GPU 시간을 측정합니다.'} 음악을 비교할 수 있을 때는 30초, 그 외에는 10초 동안 실행합니다.</p></>}{probeMessage&&<p role="status">{probeMessage}</p>}{probeReport&&<><button onClick={()=>{void Promise.resolve().then(()=>navigator.clipboard.writeText(probeReport)).then(()=>setProbeMessage('진단 결과를 복사했습니다. 채팅에 붙여넣어 주세요.')).catch(()=>setProbeMessage('아래 결과를 길게 눌러 복사해 주세요.'));}}>진단 결과 복사</button><details><summary>진단 결과 보기</summary><textarea aria-label="기기 진단 결과" readOnly value={probeReport}/></details></>}</section>}<div className="controls-copy">{net?.local&&<p>GitHub Pages 감상 버전 · 다른 관객과의 실시간 연결은 제공하지 않습니다.</p>}<p>바닥 클릭 / WASD / 방향키 — 이동</p><p>드래그 — 둘러보기 · 휠 / 두 손가락 — 거리 조절</p><p>좌석 클릭 — 앉기 · ESC — 일어나기</p></div></dialog>
  </>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);

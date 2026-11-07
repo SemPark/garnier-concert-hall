@@ -18,11 +18,16 @@ export const SeatMap=memo(function SeatMap({open,claims,selfId,connected,onClose
  const scale=fit*zoom,available=selected&&(!claims[selected.id]||claims[selected.id].visitorId===selfId);
  return <dialog ref={dialog} className="ticket-dialog" onCancel={e=>{e.preventDefault();onClose();}} aria-label="전체 좌석 선택">
   <div className="ticket-heading"><div><h2>나의 자리</h2><p>전체 {SEATS.length}석 · 1층 {FLOOR_SEATS.length}석 / 2층 {BALCONY_SEATS.length}석</p></div><button autoFocus onClick={onClose} aria-label="좌석 선택 닫기">✕</button></div>
-  <div className="ticket-toolbar"><div className="ticket-legend">{SEAT_GRADES.map(g=><span key={g} className={`grade grade-${g}`}><i/>{g}석</span>)}<span className="selected">● 선택</span><span className="mine">● 내 자리</span><span className="occupied">● 이용 중</span></div><button className="ticket-fit" onClick={()=>{setZoom(1);viewport.current?.scrollTo(0,0);}}>전체 보기</button></div>
+  <div className="ticket-toolbar"><div className="ticket-legend">{SEAT_GRADES.map(g=><span key={g} className={`grade grade-${g}`}><i/>{g}석</span>)}<span className="selected">● 선택</span><span className="mine">● 내 자리</span><span className="occupied">● 이용 중</span></div></div>
   <div className="ticket-map-area">
-   <button className="ticket-side-zoom out" aria-label="좌석 지도 축소" disabled={zoom<=1} onClick={()=>changeZoom(-.5)}><b>−</b><span>축소</span></button>
-   <button className="ticket-side-zoom in" aria-label="좌석 지도 확대" disabled={zoom>=4} onClick={()=>changeZoom(.5)}><b>＋</b><span>확대</span></button>
-   <span className="ticket-zoom-level" aria-live="polite">{Math.round(zoom*100)}%</span>
+   {/* Zoom stack in the bottom-right corner: zoom in / out together, the whole-map view below. */}
+   <div className="ticket-zoom-controls">
+    <div className="ticket-zoom-pair">
+     <button aria-label="좌석 지도 확대" disabled={zoom>=4} onClick={()=>changeZoom(.5)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+     <button aria-label="좌석 지도 축소" disabled={zoom<=1} onClick={()=>changeZoom(-.5)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+    </div>
+    <button className="ticket-zoom-fit" aria-label="전체 보기" disabled={zoom<=1} onClick={()=>{setZoom(1);viewport.current?.scrollTo(0,0);}}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg></button>
+   </div>
   <div className="ticket-viewport" ref={viewport}><div className="ticket-scroll" style={{width:SEAT_MAP_SIZE.width*scale,height:SEAT_MAP_SIZE.height*scale}}><div className="ticket-map" style={{width:SEAT_MAP_SIZE.width,height:SEAT_MAP_SIZE.height,transform:`scale(${scale})`}}>
    <div className="ticket-hall" style={M.hall}/><div className="ticket-rear-gallery" style={M.rearGallery}>2층 뒤쪽 연결 통로</div><div className="ticket-stage" style={M.stage}>무 대 <small>오케스트라</small></div><span className="ticket-floor-title" style={{top:M.floorTop+8}}>1층</span><span className="ticket-left-title" style={{left:M.hall.left-86,top:mapY(-20)-11}}>2층<br/>왼쪽</span><span className="ticket-right-title" style={{left:M.hall.left+M.hall.width+6,top:mapY(-20)-11}}>2층<br/>오른쪽</span>
    {[6.4].map(x=><span key={x} className="ticket-aisle" style={{left:mapX(x)-6,top:M.floorTop+40,height:M.floorBottom-M.floorTop-40}}>통로</span>)}

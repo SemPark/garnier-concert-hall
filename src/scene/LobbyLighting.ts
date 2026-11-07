@@ -4,6 +4,9 @@ import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+import type {Pass} from 'three/addons/postprocessing/Pass.js';
+
+export type RenderPassTimings={sceneRender:number;postProcessing:number};
 
 /** Warm practical lighting lives in small pools, with deeper amber shade in the upper galleries. */
 export function lobbyPracticalLights(scene:T.Scene){
@@ -53,17 +56,33 @@ export function lobbyPracticalLights(scene:T.Scene){
 /** Small highlight bloom, with a reduced blur budget on phones. The UI is ordinary DOM and stays sharp. */
 export class LobbyLightPass{
  private composer:EffectComposer;private scenePass:RenderPass;private bloom:UnrealBloomPass;
+ private timings?:RenderPassTimings;
  constructor(private renderer:T.WebGLRenderer,scene:T.Scene,camera:T.Camera,private bloomRatio=.5){
   this.composer=new EffectComposer(renderer);this.scenePass=new RenderPass(scene,camera);
   this.bloom=new UnrealBloomPass(new T.Vector2(256,256),.3,.7,1.2);
   const resize=this.bloom.setSize.bind(this.bloom);this.bloom.setSize=(w,h)=>resize(Math.max(1,w*this.bloomRatio|0),Math.max(1,h*this.bloomRatio|0));
-  this.composer.addPass(this.scenePass);this.composer.addPass(this.bloom);this.composer.addPass(new OutputPass());
+  const output=new OutputPass();
+  this.measurePass(this.scenePass,'sceneRender');
+  this.measurePass(this.bloom,'postProcessing');
+  this.measurePass(output,'postProcessing');
+  this.composer.addPass(this.scenePass);this.composer.addPass(this.bloom);this.composer.addPass(output);
+ }
+ private measurePass(pass:Pass,stage:keyof RenderPassTimings){
+  const render=pass.render.bind(pass);
+  pass.render=(...args)=>{
+   const timings=this.timings;
+   if(!timings){render(...args);return;}
+   const start=performance.now();
+   render(...args);
+   timings[stage]+=performance.now()-start;
+  };
  }
  setBloomRatio(value:number){this.bloomRatio=value;}
  resize(width:number,height:number,ratio:number){this.composer.setPixelRatio(ratio);this.composer.setSize(width,height);}
- render(scene:T.Scene,camera:T.Camera){
+ render(scene:T.Scene,camera:T.Camera,timings?:RenderPassTimings){
   this.scenePass.scene=scene;this.scenePass.camera=camera;const auto=this.renderer.info.autoReset;this.renderer.info.reset();this.renderer.info.autoReset=false;
-  try{this.composer.render();}finally{this.renderer.info.autoReset=auto;}
+  this.timings=timings;
+  try{this.composer.render();}finally{this.timings=undefined;this.renderer.info.autoReset=auto;}
  }
  dispose(){for(const pass of this.composer.passes)pass.dispose();this.composer.dispose();}
 }

@@ -1,3 +1,6 @@
+import {PROBE_PROFILE} from './diagnostics/ProbeProfile';
+import type {GpuFrameTimer} from './diagnostics/GpuFrameTimer';
+import {VisitorNames} from './character/VisitorNames';
 import {ConductTapEffect} from './scene/ConductTapEffect';
 import {buildInstrument} from './orchestra/instruments';
 import {faceYaw,rightStroke,conductorTurn,conductorShift} from './scene/conductPose';
@@ -13,7 +16,7 @@ import {characterFrontLight,FRONT_LIGHT} from './character/characterLight';
 import {constrainCamera} from './controls/cameraCollision';
 import {createVenue,createVenueAsync,type Venue} from './scene/Venue';
 import {Crowd} from './scene/Crowd';
-import {LobbyLightPass} from './scene/LobbyLighting';
+import {LobbyLightPass,type RenderPassTimings} from './scene/LobbyLighting';
 import {interiorEnvironment,bakeArchitectureShadows} from './scene/InteriorLight';
 import {Avatar,musicianSits} from './character/Avatar';
 import {CAT_VISITOR_GAP} from './character/LobbyCat';
@@ -37,6 +40,7 @@ import type {Gesture} from '../shared/gestures';
 
 function measuredVenue(zone:Zone){const start=performance.now(),venue=createVenue(zone);performance.measure(`aurea-${zone}-build`,{start,end:performance.now()});return venue;}
 type Remote={avatar:Avatar;visitor:Visitor;lastPosition:T.Vector3;zone:Zone;poseAt:number;};
+export type FrameTimings=RenderPassTimings&{musicianAnimation:number;musicianBatch:number;crowdBatch:number};
 /** The lobby is drawn a little darker than the hall's default exposure. */
 const LOBBY_EXPOSURE=.88;
 export class World{
@@ -55,6 +59,10 @@ export class World{
  private disposed=false;private lodAt=0;private orchestraAt=0;quality:RenderQuality='balanced';readonly mobile=matchMedia('(pointer: coarse)').matches||/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);private renderedAt=0;
  private releaseLoadingCallbacks=()=>{};
  diagnosticActive=false;diagnosticMode:'normal'|'no-draw'|'audio-only'='normal';drawCount=0;frameCost={at:0,cpu:0,submit:0};
+ diagnosticGpu:GpuFrameTimer|null=null;
+ onDiagnosticFrame:((timings:FrameTimings)=>void)|null=null;
+ private probeViewport:{width:number;height:number}|undefined;
+ private readonly visitorNames:VisitorNames;
  private marker:T.Mesh;private statsTime=0;private frames=0;private reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
  constructor(host:HTMLElement,private net:Presence,private audio:ConcertAudio){
   reportLoading(20,'음악당 공간을 만들고 있어요');
@@ -70,7 +78,7 @@ export class World{
   this.quality=this.mobile?'low':'balanced';
   try{const saved=localStorage.getItem('concert-quality');if(saved==='balanced'||saved==='sharp'||saved==='low')this.quality=saved;}catch{/* Storage can be unavailable in private browsing. */}
   this.renderer=new T.WebGLRenderer({antialias:true,powerPreference:'low-power'});this.renderer.setPixelRatio(renderRatio(innerWidth,innerHeight,devicePixelRatio,this.quality,this.mobile));this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1;this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFShadowMap;
-  const canvas=this.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','캐릭터 뒤에서 둘러보는 플리 음악당. 바닥 클릭으로 이동하고 드래그로 둘러봅니다.');host.append(canvas);
+  const canvas=this.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','캐릭터 뒤에서 둘러보는 플리 음악당. 바닥 클릭으로 이동하고 드래그로 둘러봅니다.');host.append(canvas);this.visitorNames=new VisitorNames(host);
   this.environment=interiorEnvironment(this.renderer);
   this.venues={lobby:measuredVenue('lobby')} as Record<Zone,Venue>;reportLoading(55,'음악당의 색과 빛을 준비하고 있어요');
   // Other visitors are drawn in shared batches per hall, so a full house stays cheap.
@@ -115,12 +123,38 @@ export class World{
   }}finally{target.dispose();warm.clear();}
   if(!this.disposed){bakeArchitectureShadows(this.renderer,venue.scene,camera);venue.updateLOD(camera);}
  }
- setQuality(quality:string){this.quality=quality==='low'?'low':quality==='sharp'?'sharp':'balanced';try{localStorage.setItem('concert-quality',this.quality);}catch{}this.renderer.setPixelRatio(renderRatio(innerWidth,innerHeight,devicePixelRatio,this.quality,this.mobile));this.lightingPass?.setBloomRatio(bloomResolution(this.mobile,this.quality));this.lightingPass?.resize(innerWidth,innerHeight,this.renderer.getPixelRatio());this.onChange();}
+ setQuality(quality:string){this.quality=quality==='low'?'low':quality==='sharp'?'sharp':'balanced';try{localStorage.setItem('concert-quality',this.quality);}catch{}this.resize();this.onChange();}
  get venue(){return this.zone==='auditorium'?this.ensureHall():this.venues.lobby;}
  private *remoteAvatars(){for(const r of this.remotes.values())yield r.avatar;}
  toggleFraming(){this.introUntil=0;this.hallOverview=!this.hallOverview;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.onChange();}
  toggleConcertView(){this.introUntil=0;this.concertView=!this.concertView;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.onChange();}
- private resize=()=>{const w=innerWidth,h=innerHeight;this.renderer.setPixelRatio(renderRatio(w,h,devicePixelRatio,this.quality,this.mobile));this.renderer.setSize(w,h);this.camera.aspect=w/h;this.camera.fov=w/h<.8?70:61;this.camera.updateProjectionMatrix();this.lightingPass?.resize(innerWidth,innerHeight,this.renderer.getPixelRatio());for(const v of Object.values(this.venues)){v.emotes.setViewport(this.renderer.domElement.height,this.camera.fov);v.sunlight?.setViewport(this.renderer.domElement.height,this.camera.fov);}};
+ setDiagnosticActive(active:boolean){
+  this.diagnosticActive=active;
+  this.resize();
+ }
+ private resize=()=>{
+  const probe=this.diagnosticActive&&!this.mobile?PROBE_PROFILE:null;
+  const w=probe?.width??innerWidth,h=probe?.height??innerHeight;
+  const mobile=!!probe||this.mobile,quality=probe?.quality??this.quality;
+  const ratio=renderRatio(w,h,probe?.dpr??devicePixelRatio,quality,mobile);
+  const canvas=this.renderer.domElement;
+  this.renderer.setDrawingBufferSize(w,h,ratio);
+  const fit=probe?Math.min(innerWidth/w,innerHeight/h):1;
+  canvas.style.width=w*fit+'px';
+  canvas.style.height=h*fit+'px';
+  canvas.style.margin=probe?'auto':'';
+  canvas.classList.toggle('probe-canvas',!!probe);
+  this.probeViewport=probe?{width:w*fit,height:h*fit}:undefined;
+  this.camera.aspect=w/h;this.camera.fov=w/h<.8?70:61;
+  this.camera.updateProjectionMatrix();
+  this.lightingPass?.setBloomRatio(bloomResolution(mobile,quality));
+  this.lightingPass?.resize(w,h,ratio);
+  for(const v of Object.values(this.venues)){
+   v.emotes.setViewport(canvas.height,this.camera.fov);
+   v.sunlight?.setViewport(canvas.height,this.camera.fov);
+  }
+ };
+
  apply(state:Snapshot){
   if(this.disposed)return;
   if(state.visitors.find(v=>v.id===this.net.selfId)?.zone==='auditorium'&&!this.hallWarmed){const waiting=!!this.deferredState;this.deferredState=state;if(!waiting){this.hallLoading=true;this.onChange();}if(!waiting)void new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))).then(()=>this.warmHall()).then(()=>{const latest=this.deferredState;this.deferredState=null;if(latest)this.apply(latest);}).catch(()=>{this.deferredState=null;this.stopHallLoading();if(!this.disposed)this.onToast('공연장을 준비하지 못했어요. 다시 입장해 주세요.');});return;}
@@ -410,6 +444,7 @@ export class World{
  /** Frames per second to draw now. While the hall is being built (or pre-built in the lobby, or the connection is opening),
   * fewer frames leave the phone's CPU for that work; otherwise the chosen quality decides (sharp: 60). */
  private frameBudget(){
+  if(this.diagnosticActive)return PROBE_PROFILE.fps;
   if(this.mobile)return frameRate(true,this.quality);
   if(this.uiObscured)return 8;if(!this.entered&&this.ready)return 15;
   const chosen=frameRate(this.mobile,this.quality);
@@ -421,6 +456,9 @@ export class World{
   this.frame=requestAnimationFrame(this.animate);const now=performance.now();if(document.hidden){this.last=now;this.renderedAt=0;return;}const rate=this.frameBudget(),interval=1000/rate;if(now-this.renderedAt<interval)return;this.renderedAt=interval?now-((now-this.renderedAt)%interval):now;const elapsed=(now-this.last)/1000,dt=Math.min(.1,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
   const workStart=this.diagnosticActive?performance.now():0;
   if(this.diagnosticActive&&this.diagnosticMode==='audio-only'){this.frameCost={at:now,cpu:0,submit:0};if(now-this.lastUI>500){this.lastUI=now;this.onChange();}return;}
+  const timings:FrameTimings|undefined=this.onDiagnosticFrame
+   ? {musicianAnimation:0,musicianBatch:0,crowdBatch:0,sceneRender:0,postProcessing:0}
+   : undefined;
   let speed=0;const keys=this.input.keys;let kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+this.input.touchMove.x;let kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+this.input.touchMove.z;
   if(this.entered&&this.net.status==='connected'){
    // Automatically enter only after 30 seconds without activity.
@@ -481,7 +519,9 @@ export class World{
   this.showEmotes();
   this.conducting.tick(now,dt);if(this.conducting.active){this.guestConductor?.update(now/1000,0,this.conductSeat,false,null,10,dt);this.input.keys.clear();const actor=this.demoAvatar,demo=this.conducting;if(actor){actor.update(now/1000,0,false,demo.playing&&!this.reduced,null,10,dt);actor.root.position.x=T.MathUtils.damp(actor.root.position.x,CONDUCTOR.x+conductorShift(demo.x),12,dt);actor.root.rotation.y=T.MathUtils.damp(actor.root.rotation.y,conductorTurn(demo.x),12,dt);actor.head.rotation.set(-.06,Math.atan(demo.x*.2),0);actor.leftArm.rotation.set(1.05+.38*Math.sin(now*.0026),0,-.38-.06*Math.abs(demo.x)+.43*Math.sin(now*.0024));actor.rightArm.rotation.copy(rightStroke(demo.x,demo.stroke));actor.root.updateMatrixWorld(true);this.conductEffect?.update(actor.rightHand,this.camera,demo.pulse);}}
   this.updateCandles(now);this.updateCoffee(now);
-  const playback=this.audio.playback;if(now-this.orchestraAt>=1000/30){const animationDt=Math.min(.15,(now-this.orchestraAt)/1000);this.orchestraAt=now-((now-this.orchestraAt)%(1000/30));const show=stageShow(playback),clock=this.reduced?0:this.net.now()/1000;
+  const playback=this.audio.playback;if(now-this.orchestraAt>=1000/30){
+   const animationStart=timings?performance.now():0;
+   const animationDt=Math.min(.15,(now-this.orchestraAt)/1000);this.orchestraAt=now-((now-this.orchestraAt)%(1000/30));const show=stageShow(playback),clock=this.reduced?0:this.net.now()/1000;
    for(const actor of this.venue.musicians){
     this.poseCenter.copy(actor.root.position);this.poseCenter.y+=1;const inView=this.poseFrustum.intersectsSphere(this.poseSphere.set(this.poseCenter,2));
     const conductor=actor.instrumentType==='conductor',poseAt=actor.root.userData.poseAt??0,actorDt=Math.min(.25,Math.max(animationDt,(now-poseAt)/1000));
@@ -499,17 +539,41 @@ export class World{
     if(actor.instrumentType==='conductor'){const c=show.conductor;actor.root.position.set(c.x,c.y,c.z);actor.root.rotation.y=c.yaw;actor.update(clock,c.walking?1.2:0,false,show.orchestraPlays&&!this.reduced,c.bowAge===null?null:'bow',c.bowAge??10,actorDt);continue;}
     if(actor.root.userData.concertmaster){actor.update(clock,0,!show.concertmasterStands,(show.concertmasterPlays||show.orchestraPlays)&&!this.reduced,null,10,actorDt);continue;}
     actor.update(clock,0,musicianSits(actor.instrumentType),show.orchestraPlays&&!this.reduced,null,10,actorDt);
-   }this.venue.updateMusicians(this.camera);}
+   }
+   const batchStart=timings?performance.now():0;
+   this.venue.updateMusicians(this.camera);
+   if(timings){
+    timings.musicianAnimation=batchStart-animationStart;
+    timings.musicianBatch=performance.now()-batchStart;
+   }
+  }
   if(this.introUntil&&now>this.introUntil){this.introUntil=0;if(this.zone==='auditorium'&&this.concertView&&this.pose!=='sit'){this.concertView=false;this.introEase=2.5;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.onChange();}}
   if(this.zone==='auditorium'&&this.pendingSeat&&this.seatWalkAt&&now>=this.seatWalkAt){const id=this.pendingSeat;this.pendingSeat=null;this.seatWalkAt=0;void this.chooseSeat(id,true);}
   // The walking camera stays locked to its orbit (no trailing glide); easing is kept only for big view changes.
   this.audio.setDoorDistance(this.entered&&this.zone==='lobby'?Math.hypot(this.position.x-HALL_INNER_DOOR.x,this.position.y-GRAND_STAIR.rise,this.position.z-HALL_INNER_DOOR.z):Infinity);
   this.updateBoard(now);
-  this.cameraSeatAmount=T.MathUtils.damp(this.cameraSeatAmount,this.pose==='sit'?1:0,8,dt);const f=this.cameraFrame(),snap=now-this.dragAt<150||!this.concertView&&this.introEase<=0&&this.camera.position.distanceTo(f.position)<1.5,smooth=snap?1:1-Math.exp(-dt*(this.introEase>0?1.6:7));if(this.introEase>0)this.introEase=Math.max(0,this.introEase-dt);this.camera.position.lerp(f.position,smooth);if(this.entered&&!this.concertView&&this.position.z<=GOLDEN_HALL.rear){const origin=localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin;this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));}this.venue.scene.userData.cameraFocus=this.entered?(this.concertView?f.look:localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin):null;this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(this.avatar&&this.entered&&(this.zone==='lobby'||!this.concertView)){const head=this.position.clone();head.y+=1.1;this.avatar.root.visible=this.camera.position.distanceTo(head)>1.65;}if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;if(this.conducting.active&&this.avatar)this.avatar.root.visible=false;const submitStart=this.diagnosticActive?performance.now():0;if(!this.diagnosticActive||this.diagnosticMode==='normal'){this.crowds[this.zone].update(this.remoteAvatars(),this.camera);characterFrontLight.value=this.venue===this.venues.lobby?FRONT_LIGHT.lobby:FRONT_LIGHT.auditorium;this.renderer.toneMappingExposure=this.venue===this.venues.lobby?LOBBY_EXPOSURE:1;if(this.lightingPass)this.lightingPass.render(this.venue.scene,this.camera);else this.renderer.render(this.venue.scene,this.camera);this.drawCount++;if(this.zone==='auditorium'&&this.hallWarmed)completeInitialLoading();
+  this.cameraSeatAmount=T.MathUtils.damp(this.cameraSeatAmount,this.pose==='sit'?1:0,8,dt);const f=this.cameraFrame(),snap=now-this.dragAt<150||!this.concertView&&this.introEase<=0&&this.camera.position.distanceTo(f.position)<1.5,smooth=snap?1:1-Math.exp(-dt*(this.introEase>0?1.6:7));if(this.introEase>0)this.introEase=Math.max(0,this.introEase-dt);this.camera.position.lerp(f.position,smooth);if(this.entered&&!this.concertView&&this.position.z<=GOLDEN_HALL.rear){const origin=localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin;this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));}this.venue.scene.userData.cameraFocus=this.entered?(this.concertView?f.look:localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin):null;this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(this.avatar&&this.entered&&(this.zone==='lobby'||!this.concertView)){const head=this.position.clone();head.y+=1.1;this.avatar.root.visible=this.camera.position.distanceTo(head)>1.65;}if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;if(this.conducting.active&&this.avatar)this.avatar.root.visible=false;const submitStart=this.diagnosticActive?performance.now():0;if(!this.diagnosticActive||this.diagnosticMode==='normal'){
+   const namedAvatar=this.demoAvatar??this.avatar;
+   const self=this.entered&&this.self&&namedAvatar?{avatar:namedAvatar,visitor:this.self}:null;
+   this.visitorNames.update(this.camera,self,this.remotes.values(),this.venue.scene.userData.solidOccluded,this.probeViewport);
+   const crowdStart=timings?performance.now():0;
+   this.crowds[this.zone].update(this.remoteAvatars(),this.camera);
+   if(timings)timings.crowdBatch=performance.now()-crowdStart;
+   characterFrontLight.value=this.venue===this.venues.lobby?FRONT_LIGHT.lobby:FRONT_LIGHT.auditorium;this.renderer.toneMappingExposure=this.venue===this.venues.lobby?LOBBY_EXPOSURE:1;this.diagnosticGpu?.begin(now);
+   try{
+    if(this.lightingPass)this.lightingPass.render(this.venue.scene,this.camera,timings);
+    else{
+     const renderStart=timings?performance.now():0;
+     this.renderer.render(this.venue.scene,this.camera);
+     if(timings)timings.sceneRender=performance.now()-renderStart;
+    }
+   }finally{this.diagnosticGpu?.end();}
+   this.drawCount++;if(this.zone==='auditorium'&&this.hallWarmed)completeInitialLoading();
    if(!this.ready&&this.texturesLoaded){this.ready=true;performance.measure('aurea-first-scene',{start:0,end:performance.now()});document.body.classList.add('scene-ready');reportLoading(100,'공연장 연결을 준비하고 있어요');this.onChange();
    }
   }if(this.diagnosticActive){const end=performance.now();this.frameCost={at:now,cpu:end-workStart,submit:end-submitStart};}
+  if(timings)this.onDiagnosticFrame?.(timings);
   if(now-this.lastUI>500){this.lastUI=now;this.onChange();}
  };
- destroy(){this.conductEffect?.dispose();this.activityEvents.abort();this.disposed=true;clearTimeout(this.hallLoadingTimeout);this.releaseLoadingCallbacks();cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.lightingPass?.dispose();this.environment.dispose();this.renderer.dispose();this.renderer.domElement.remove();}
+ destroy(){this.conductEffect?.dispose();this.activityEvents.abort();this.disposed=true;clearTimeout(this.hallLoadingTimeout);this.releaseLoadingCallbacks();cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.lightingPass?.dispose();this.environment.dispose();this.renderer.dispose();this.renderer.domElement.remove();this.visitorNames.dispose();}
 }

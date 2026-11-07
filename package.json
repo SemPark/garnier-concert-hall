@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "dev:iphone": "node scripts/dev.mjs --iphone",
     "build": "node scripts/audio-manifest.mjs && vite build",
     "typegen": "wrangler types",
     "check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",

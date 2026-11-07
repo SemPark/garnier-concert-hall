@@ -15,6 +15,24 @@ const farSphere=new T.SphereGeometry(1,9,6);
 type Lit=T.MeshStandardMaterial|T.MeshLambertMaterial;
 type Item={mesh:T.Mesh;matrix:T.Matrix4;center:T.Vector3;radius:number;limit:number;min:number;color:T.Color|null;level:number;shown:boolean;occluder?:T.Box3};
 type BatchGroup={material:T.Material;objects:T.Mesh[];colors:boolean};
+type Cell={items:Item[];shown:boolean;bounds?:T.Box3;center?:T.Vector3;extent?:T.Vector3};
+
+/** Index repeated architecture by location without creating extra draw calls. */
+function spatialCells(items:Item[]):Cell[]{
+ const cells=new Map<string,{items:Item[];bounds:T.Box3}>();
+ const min=new T.Vector3(),max=new T.Vector3();
+ for(const item of items){
+  const {x,y,z}=item.center,key=`${Math.floor(x/8)}/${Math.floor(y/6)}/${Math.floor(z/8)}`;
+  let cell=cells.get(key);
+  if(!cell){cell={items:[],bounds:new T.Box3()};cells.set(key,cell);}
+  cell.items.push(item);
+  const padding=item.radius+.3;
+  cell.bounds.expandByPoint(min.copy(item.center).addScalar(-padding));
+  cell.bounds.expandByPoint(max.copy(item.center).addScalar(padding));
+ }
+ return [...cells.values()].map(({items,bounds})=>({items,bounds,shown:true,
+  center:bounds.getCenter(new T.Vector3()),extent:bounds.getSize(new T.Vector3()).multiplyScalar(.5)}));
+}
 function isLit(mat:T.Material):mat is Lit{return mat instanceof T.MeshStandardMaterial||mat instanceof T.MeshLambertMaterial;}
 function collect(groups:Map<string,BatchGroup>,mesh:T.Mesh){
  if(Array.isArray(mesh.material))return;
@@ -22,25 +40,37 @@ function collect(groups:Map<string,BatchGroup>,mesh:T.Mesh){
  const key=mesh.geometry.uuid+'/'+(mesh.castShadow?'shadow/':'unshadowed/')+(mesh.userData.fullDetail?'full/':'adaptive/')+(mesh.userData.preserveSilhouette?'persistent/':'')+(lit?JSON.stringify([mat.type,mat instanceof T.MeshStandardMaterial?mat.roughness:0,mat instanceof T.MeshStandardMaterial?mat.metalness:0,mat.emissive.getHex(),mat.emissiveIntensity,mat.transparent,mat.opacity,mat.depthWrite,mat.side,mat.userData.characterLight??'']):mat.uuid);
  let group=groups.get(key);if(!group){const material=lit?mat.clone():mat;keepFrontLight(mat,material);if(lit)(material as Lit).color.setHex(0xffffff);group={material,objects:[],colors:lit};groups.set(key,group);}group.objects.push(mesh);
 }
-function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean){
+function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=false){
  const geometry=group.objects[0].geometry,fullDetail=!!group.objects[0].userData.fullDetail,lowGeometry=fullDetail?geometry:(group.objects[0].userData.lowDetail as T.BufferGeometry|undefined)??coarseGeometry(geometry);
  const make=(g:T.BufferGeometry)=>{const batch=new T.InstancedMesh(g,group.material,group.objects.length);batch.instanceMatrix.setUsage(dynamic?T.DynamicDrawUsage:T.StaticDrawUsage);batch.matrixAutoUpdate=false;batch.frustumCulled=false;batch.castShadow=!dynamic&&group.objects[0].castShadow;batch.receiveShadow=true;prepareInstanceMorph(batch);scene.add(batch);return batch;};
  const high=make(geometry),low=lowGeometry===geometry?high:make(lowGeometry);
  geometry.computeBoundingSphere();
  const items:Item[]=group.objects.map(mesh=>({mesh,matrix:mesh.matrixWorld.clone(),center:geometry.boundingSphere!.center.clone().applyMatrix4(mesh.matrixWorld),radius:geometry.boundingSphere!.radius*mesh.matrixWorld.getMaxScaleOnAxis(),limit:fullDetail||mesh.userData.preserveSilhouette?Infinity:detailDistance(mesh),min:mesh.userData.lodMin??0,color:group.colors?(mesh.material as Lit).color.clone():null,level:0,shown:false,occluder:mesh.userData.occluderBox??(mesh.userData.cameraOccluder?new T.Box3().setFromObject(mesh).expandByScalar(.12):undefined)}));
+ const cells:Cell[]=partition&&items.length>=16&&!group.material.transparent?spatialCells(items):[{items,shown:true}];
  const frustum=new T.Frustum(),projection=new T.Matrix4(),sphere=new T.Sphere(),occlusionRay=new T.Ray(),intersection=new T.Vector3();
  let initialized=false;
- const write=(camera?:T.Camera)=>{
-  let changed=!initialized;const eye=camera?.position;if(camera){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));}
-  for(const item of items){if(dynamic){item.matrix.copy(item.mesh.matrixWorld);item.center.copy(geometry.boundingSphere!.center).applyMatrix4(item.matrix);item.radius=geometry.boundingSphere!.radius*item.matrix.getMaxScaleOnAxis();}
-   const focus=scene.userData.cameraFocus as T.Vector3|undefined;let occluded=false;if(eye&&focus&&item.occluder){occlusionRay.origin.copy(eye);occlusionRay.direction.copy(focus).sub(eye);const length=occlusionRay.direction.length();occlusionRay.direction.normalize();const hit=occlusionRay.intersectBox(item.occluder,intersection);// Decoration right beside the camera, or between it and the visitor, steps aside so it never fills the view.
+ const write=(camera?:T.Camera,sharedFrustum?:T.Frustum,reuseVisibility=false)=>{
+  let changed=!initialized;const eye=camera?.position;if(camera&&!sharedFrustum){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));}
+  const viewFrustum=sharedFrustum??frustum;
+  const focus=scene.userData.cameraFocus as T.Vector3|undefined;
+  for(const cell of cells){
+   const shown=!camera||!cell.bounds||viewFrustum.intersectsBox(cell.bounds)&&!scene.userData.solidOccluded?.(eye,cell.center,cell.extent);
+   if(shown!==cell.shown){changed=true;cell.shown=shown;}
+   if(!shown)continue;
+   for(const item of cell.items){
+   if(dynamic&&reuseVisibility&&!item.occluder&&item.matrix.equals(item.mesh.matrixWorld))continue;
+   if(dynamic){item.matrix.copy(item.mesh.matrixWorld);item.center.copy(geometry.boundingSphere!.center).applyMatrix4(item.matrix);item.radius=geometry.boundingSphere!.radius*item.matrix.getMaxScaleOnAxis();}
+   let occluded=false;if(eye&&focus&&item.occluder){occlusionRay.origin.copy(eye);occlusionRay.direction.copy(focus).sub(eye);const length=occlusionRay.direction.length();occlusionRay.direction.normalize();const hit=occlusionRay.intersectBox(item.occluder,intersection);// Decoration right beside the camera, or between it and the visitor, steps aside so it never fills the view.
    occluded=item.occluder.distanceToPoint(eye)<1.1||!!hit&&eye.distanceTo(hit)<Math.min(5,length-.05);}
-   const distance=eye?item.center.distanceTo(eye):0,nearLimit=item.level===0?LOD_NEAR+1.5:LOD_NEAR-1.5,level=distance<nearLimit||(camera&&projectedHeight(item.mesh.userData.detailRadius??item.radius,distance,camera.projectionMatrix.elements[5])>(item.level===0?.07:.09))?0:1,shown=!(scene.userData.conducting&&item.mesh.userData.demoConductor)&&!occluded&&distance<=item.limit&&distance>=item.min&&(!camera||frustum.intersectsSphere(sphere.set(item.center,item.radius+.3)))&&(!eye||!scene.userData.solidOccluded?.(eye,item.center,item.radius+.05));
+   const distance=eye?item.center.distanceTo(eye):0,nearLimit=item.level===0?LOD_NEAR+1.5:LOD_NEAR-1.5,level=distance<nearLimit||(camera&&projectedHeight(item.mesh.userData.detailRadius??item.radius,distance,camera.projectionMatrix.elements[5])>(item.level===0?.07:.09))?0:1,shown=!(scene.userData.conducting&&item.mesh.userData.demoConductor)&&!occluded&&distance<=item.limit&&distance>=item.min&&(!camera||viewFrustum.intersectsSphere(sphere.set(item.center,item.radius+.3)))&&(!eye||!scene.userData.solidOccluded?.(eye,item.center,item.radius+.05));
    if(level!==item.level||shown!==item.shown)changed=true;item.level=level;item.shown=shown;
+   }
   }
   if(!dynamic&&!changed)return;
   let highCount=0,lowCount=0;
-  for(const item of items){if(!item.shown)continue;const batch=item.level===0?high:low,index=batch===high?highCount++:lowCount++;batch.setMatrixAt(index,item.matrix);if(item.mesh.morphTargetInfluences)batch.setMorphAt(index,item.mesh);if(item.color&&changed)batch.setColorAt(index,item.color);}
+  for(const cell of cells){if(!cell.shown)continue;
+   for(const item of cell.items){if(!item.shown)continue;const batch=item.level===0?high:low,index=batch===high?highCount++:lowCount++;batch.setMatrixAt(index,item.matrix);if(item.mesh.morphTargetInfluences)batch.setMorphAt(index,item.mesh);if(item.color&&changed)batch.setColorAt(index,item.color);}
+  }
   if(high.morphTexture)high.morphTexture.needsUpdate=true;if(low!==high&&low.morphTexture)low.morphTexture.needsUpdate=true;
   high.count=highCount;high.visible=highCount>0;high.instanceMatrix.needsUpdate=true;if(changed&&high.instanceColor)high.instanceColor.needsUpdate=true;
   if(low!==high){low.count=lowCount;low.visible=lowCount>0;low.instanceMatrix.needsUpdate=true;if(changed&&low.instanceColor)low.instanceColor.needsUpdate=true;}
@@ -94,7 +124,7 @@ export function* batchArchitectureSteps(scene:T.Scene,exclude:T.Object3D[]){
  });
  mergeStaticCells(groups);
  const updates:ReturnType<typeof createLOD>[]=[];
- for(const group of groups.values()){updates.push(createLOD(scene,group,false));for(const mesh of group.objects)mesh.removeFromParent();yield;}
+ for(const group of groups.values()){updates.push(createLOD(scene,group,false,true));for(const mesh of group.objects)mesh.removeFromParent();yield;}
  scene.traverse(o=>{if(!protectedObjects.has(o)){o.updateMatrix();o.matrixAutoUpdate=false;}});
  const eye=new T.Vector3(Infinity,Infinity,Infinity),rotation=new T.Quaternion(),projection=new T.Matrix4();
  scene.userData.showArchitectureForShadow=()=>{for(const update of updates)update();eye.set(Infinity,Infinity,Infinity);};
@@ -121,5 +151,22 @@ export function* batchCharactersSteps(scene:T.Scene,roots:T.Object3D[]){
  const eye=new T.Vector3(Infinity,Infinity,Infinity),rotation=new T.Quaternion(),projection=new T.Matrix4();
  let conducting=false;
  const poseFrustum=new T.Frustum(),poseProjection=new T.Matrix4(),poseCenter=new T.Vector3(),poseSphere=new T.Sphere();
- return (camera?:T.Camera)=>{if(camera)poseFrustum.setFromProjectionMatrix(poseProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));for(const root of roots){poseCenter.copy(root.position);poseCenter.y+=1;if(!camera||poseFrustum.intersectsSphere(poseSphere.set(poseCenter,2)))root.updateMatrixWorld(false);}for(const update of movingUpdates)update(camera);if(conducting!==!!scene.userData.conducting||!camera||eye.distanceToSquared(camera.position)>.04||rotation.angleTo(camera.quaternion)>.015||!projection.equals(camera.projectionMatrix)){for(const update of fixedUpdates)update(camera);conducting=!!scene.userData.conducting;if(camera){eye.copy(camera.position);rotation.copy(camera.quaternion);projection.copy(camera.projectionMatrix);}}};
+ const previousView=new T.Matrix4(),previousEye=new T.Vector3();
+ let previousConducting=false,hasPreviousView=false;
+ return (camera?:T.Camera)=>{
+  let reuseVisibility=false;
+  if(camera){
+   camera.updateMatrixWorld();
+   poseProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
+   poseFrustum.setFromProjectionMatrix(poseProjection);
+   reuseVisibility=hasPreviousView&&previousView.equals(poseProjection)&&previousEye.equals(camera.position)&&previousConducting===!!scene.userData.conducting;
+   previousView.copy(poseProjection);
+   previousEye.copy(camera.position);
+   previousConducting=!!scene.userData.conducting;
+   hasPreviousView=true;
+  }else hasPreviousView=false;
+  for(const root of roots){poseCenter.copy(root.position);poseCenter.y+=1;if(!camera||poseFrustum.intersectsSphere(poseSphere.set(poseCenter,2)))root.updateMatrixWorld(false);}
+  for(const update of movingUpdates)update(camera,poseFrustum,reuseVisibility);
+  if(conducting!==!!scene.userData.conducting||!camera||eye.distanceToSquared(camera.position)>.04||rotation.angleTo(camera.quaternion)>.015||!projection.equals(camera.projectionMatrix)){for(const update of fixedUpdates)update(camera,poseFrustum);conducting=!!scene.userData.conducting;if(camera){eye.copy(camera.position);rotation.copy(camera.quaternion);projection.copy(camera.projectionMatrix);}}
+ };
 }

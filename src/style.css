@@ -320,3 +320,44 @@ body:has(.conducting-experience) .mobile-joystick{visibility:hidden;pointer-even
 /* Plain wordmark beside the top-right controls. */
 .tools-brand{font-family:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:15px;font-weight:400;letter-spacing:0;padding:0 12px;color:var(--gold);white-space:nowrap}
 @media(max-width:540px){.tools-brand{font-size:13px;padding:0 8px}}
+
+/* Music and controls share one mobile header, with details opening below it. */
+.topbar .now-playing{top:0!important;left:0!important}
+@media(max-width:700px){
+ .topbar:has(.now-playing){gap:0;padding:4px 6px 4px 14px;border:1px solid #d0b98b38;border-radius:28px;background:#1f1b17c9;backdrop-filter:blur(12px)}
+ .topbar .now-playing,.topbar .compact-music{position:static;flex:1;min-width:0;width:auto;max-width:none;padding:0 12px 0 0;border:0;border-radius:0;background:none;backdrop-filter:none}
+ .topbar:has(.now-playing) .tools{flex:none;margin-left:0;padding:0 0 0 6px;gap:0;background:none;border:0;border-left:1px solid #d0b98b38;border-radius:0;backdrop-filter:none}
+ .topbar .music-summary,.topbar .now-playing:has(.music-summary[aria-expanded=true]) .music-summary{display:flex;align-items:center;min-height:36px;margin:0}
+ .topbar .music-summary svg{margin-top:0}
+ .topbar .music-summary span:first-of-type{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+ .topbar .music-details{position:absolute;top:calc(100% + 10px);left:0;right:0;padding:18px 20px;border:1px solid #d0b98b38;border-radius:18px;background:#201b16f2;backdrop-filter:blur(12px);pointer-events:auto}
+ .topbar .tools-brand{padding:0 7px;font-size:13px}
+ .topbar .visitor-count{padding:0 5px;gap:4px}
+ .topbar .icon-button{width:32px;height:36px}
+}
+
+@media(max-width:700px){
+ /* Leave a clear lane for the right-hand menu when music details are open. */
+ body:has(.icon-menu) .topbar .music-details{right:60px}
+ .topbar .music-details{max-height:calc(100dvh - 200px);overflow-y:auto;overflow-wrap:anywhere}
+ .topbar .track-meta{gap:12px;flex-wrap:wrap}
+}
+
+.visitor-names{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.visitor-names span{position:absolute;top:0;left:0;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 8px;border-radius:10px;background:#211b16cc;color:#fff0d5;font:500 12px/16px system-ui,sans-serif;text-shadow:0 1px 2px #0008}
+
+#world:has(.probe-canvas){background:#151310}
+/* Your own name tag: light pill with a "나" badge. */
+.visitor-names span.self{display:flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;border-radius:14px;background:#f3ebd9;color:#2a241d;text-shadow:none;font-weight:600}
+.visitor-names span.self b{display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;background:#6f7458;color:#fff;font:600 10px/1 system-ui,sans-serif}
+/* Seat map zoom: a stacked +/− card and a separate whole-map button in the bottom-right corner. */
+.ticket-side-zoom,.ticket-zoom-level{display:none!important}
+.ticket-viewport{padding:12px 12px 28px!important}
+.ticket-zoom-controls{position:absolute;right:16px;bottom:16px;z-index:5;display:flex;flex-direction:column;gap:10px}
+.ticket-zoom-pair{display:flex;flex-direction:column;background:#fff;border-radius:14px;box-shadow:0 4px 14px #0002;overflow:hidden}
+.ticket-zoom-pair button+button{border-top:1px solid #e8e3dc!important}
+.ticket-zoom-controls button{width:52px;height:52px;display:grid;place-items:center;padding:0;border:0!important;background:#fff;color:#2c2620!important;cursor:pointer}
+.ticket-zoom-controls .ticket-zoom-fit{border-radius:14px;background:#f1eee9;box-shadow:0 4px 14px #0002}
+.ticket-zoom-controls button:disabled{color:#b9b2a8!important;cursor:default}
+.ticket-zoom-controls svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:600px){.ticket-zoom-controls{right:12px;bottom:12px;gap:8px}.ticket-zoom-controls button{width:44px;height:44px}.ticket-zoom-controls svg{width:21px;height:21px}}
