@@ -10,4 +10,4 @@ test('mobile quality levels retain readable resolution and distinct budgets',()=
  assert.equal(renderRatio(390,844,1,'sharp',true),1);
 });
 
-test('phones cap rendering independently of display refresh rate',()=>{assert.equal(frameRate(true,'balanced'),30);assert.equal(frameRate(true,'low'),30);assert.equal(frameRate(true,'sharp'),60);assert.equal(frameRate(false,'balanced'),30);});
+test('phones cap rendering independently of display refresh rate',()=>{assert.equal(frameRate(true,'balanced'),60);assert.equal(frameRate(true,'low'),60);assert.equal(frameRate(true,'sharp'),60);assert.equal(frameRate(false,'balanced'),30);});
