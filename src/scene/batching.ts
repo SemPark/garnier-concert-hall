@@ -8,6 +8,7 @@ import {prepareInstanceMorph} from './instanceMorph';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {finishBuild} from './buildBudget';
 import {detailedMaterial} from './primitives';
+import {Avatar,musicianSits} from '../character/Avatar';
 import {coarseGeometry,detailDistance,LOD_NEAR} from './lodGeometry';
 const restoredSphere=new T.SphereGeometry(1,16,12);
 // Far musicians (beyond LOD_NEAR) use this lighter ball; at that distance a hand or nose is a few pixels wide.
@@ -169,4 +170,231 @@ export function* batchCharactersSteps(scene:T.Scene,roots:T.Object3D[]){
   for(const update of movingUpdates)update(camera,poseFrustum,reuseVisibility);
   if(conducting!==!!scene.userData.conducting||!camera||eye.distanceToSquared(camera.position)>.04||rotation.angleTo(camera.quaternion)>.015||!projection.equals(camera.projectionMatrix)){for(const update of fixedUpdates)update(camera,poseFrustum);conducting=!!scene.userData.conducting;if(camera){eye.copy(camera.position);rotation.copy(camera.quaternion);projection.copy(camera.projectionMatrix);}}
  };
+}
+
+
+/**
+ * Shared GPU orchestra poses.
+ *
+ * Instead of uploading every arm/head mesh's matrix every frame, each player's
+ * instance matrix permanently holds the rest-world position of its joint.
+ * Eight group leaders animate, and their six joint deltas are uploaded in a
+ * 4x48 RGBA32F texture (3 KiB per frame). The vertex shader composes the
+ * rest-world instance matrix with its group joint delta. This deliberately
+ * leaves conductor/concertmaster/cat in the existing individual-animation path.
+ */
+export const MUSIC_POSE_PARTS=['body','head','leftArm','rightArm','leftHand','rightHand'] as const;
+type PosePart=typeof MUSIC_POSE_PARTS[number];
+export function musicianPoseGroup(section:string){
+ return section==='harps'||section==='percussion'||section==='keyboards'?'rear-shared':section;
+}
+type SharedPoseItem={
+ mesh:T.Mesh;restMatrix:T.Matrix4;slot:number;color:T.Color|null;
+ center:T.Vector3;radius:number;limit:number;min:number;shown:boolean;level:number;
+};
+type SharedPoseBatch={
+ high:T.InstancedMesh;low:T.InstancedMesh;highSlots:T.InstancedBufferAttribute;lowSlots:T.InstancedBufferAttribute;
+ items:SharedPoseItem[];material:T.Material;lowSeparate:boolean;
+};
+function sharedPoseMaterial(source:T.Material,poses:T.DataTexture){
+ const material=source.clone();
+ // Clone drops the venue's custom character-front-light shader hooks. Chain
+ // them before injecting the joint transform so fabric/face lighting survives.
+ const originalCompile=source.onBeforeCompile;
+ material.onBeforeCompile=(shader,renderer)=>{
+  originalCompile.call(source,shader,renderer);
+  shader.uniforms.musicianPoseTexture={value:poses};
+  shader.vertexShader=shader.vertexShader
+   .replace('#include <common>',`#include <common>
+uniform highp sampler2D musicianPoseTexture;
+attribute float musicianPoseSlot;
+mat4 musicianJointPose(){
+ int row=int(musicianPoseSlot+.5);
+ return mat4(
+  texelFetch(musicianPoseTexture,ivec2(0,row),0),
+  texelFetch(musicianPoseTexture,ivec2(1,row),0),
+  texelFetch(musicianPoseTexture,ivec2(2,row),0),
+  texelFetch(musicianPoseTexture,ivec2(3,row),0));
+}`)
+   .replace('#include <beginnormal_vertex>',`#include <beginnormal_vertex>
+mat4 musicianJoint=musicianJointPose();`)
+   .replace('#include <defaultnormal_vertex>',`objectNormal=mat3(musicianJoint)*objectNormal;
+#ifdef USE_TANGENT
+ objectTangent=mat3(musicianJoint)*objectTangent;
+#endif
+#include <defaultnormal_vertex>`)
+   .replace('#include <displacementmap_vertex>',`#include <displacementmap_vertex>
+transformed=(musicianJoint*vec4(transformed,1.0)).xyz;`);
+ };
+ material.customProgramCacheKey=()=>source.customProgramCacheKey()+'|shared-musician-joints-v1';
+ return material;
+}
+function isWithin(node:T.Object3D,parent:T.Object3D){
+ for(let p:T.Object3D|null=node;p;p=p.parent)if(p===parent)return true;
+ return false;
+}
+function animatedPart(actor:Avatar,mesh:T.Mesh):PosePart|null{
+ // Stationary props and legs do not need continuous world-matrix uploads.
+ if(isWithin(mesh,actor.instrument)||isWithin(mesh,actor.leftLeg)||isWithin(mesh,actor.rightLeg))return null;
+ for(const name of ['leftHand','rightHand','head','leftArm','rightArm','body'] as const)
+  if(isWithin(mesh,actor[name]))return name;
+ return null;
+}
+function poseOffsetKey(m:T.Matrix4){
+ // Positions/rotations are immutable inside a joint. A rounded key retains
+ // instancing even if a few construction floats differ in the low digits.
+ return m.elements.map(n=>Math.round(n*10000)).join(',');
+}
+/** Groups the orchestra by *joint geometry* rather than by individual player. */
+export function* batchSharedMusiciansSteps(scene:T.Scene,players:Avatar[]){
+ const groups=new Map<string,{leader:Avatar;index:number;rest:T.Matrix4[]}>();
+ // All followers keep their own rest pose and instrument; only leaders animate.
+ for(const actor of players){
+  actor.phase=0;
+  actor.settlePose(musicianSits(actor.instrumentType));
+  actor.root.updateMatrixWorld(true);
+  const group=musicianPoseGroup(actor.root.userData.section as string);
+  actor.root.userData.sharedPoseGroup=group;
+  if(!groups.has(group)){
+   const rest=MUSIC_POSE_PARTS.map(part=>actor[part].matrixWorld.clone());
+   groups.set(group,{leader:actor,index:groups.size,rest});
+   actor.root.userData.sharedPoseLeader=true;
+  }
+ }
+ // A single float texture holds the group matrices; instance positions and
+ // joint assignments stay permanently on the GPU until the camera moves.
+ const pixels=new Float32Array(groups.size*MUSIC_POSE_PARTS.length*16);
+ const poses=new T.DataTexture(pixels,4,groups.size*MUSIC_POSE_PARTS.length,T.RGBAFormat,T.FloatType);
+ poses.magFilter=T.NearestFilter;poses.minFilter=T.NearestFilter;poses.generateMipmaps=false;poses.flipY=false;
+ const geometryGroups=new Map<string,{geometry:T.BufferGeometry;low:T.BufferGeometry;items:SharedPoseItem[];material:T.Material;colors:boolean}>();
+ const fixed=new Map<string,BatchGroup>();
+ const inv=new T.Matrix4(),offset=new T.Matrix4(),rootCenter=new T.Vector3();
+ for(const actor of players){
+  const group=groups.get(actor.root.userData.sharedPoseGroup as string)!;
+  actor.root.updateMatrixWorld(true);
+  actor.root.traverse(o=>{
+   if(!(o instanceof T.Mesh)||Array.isArray(o.material))return;
+   if(o.scale.x===0||o.scale.y===0||o.scale.z===0)return;
+   o.userData.preserveSilhouette=true;o.userData.detailRadius=1.4;
+   o.material=detailedMaterial(o.material);
+   if(o.geometry instanceof T.SphereGeometry&&o.geometry.parameters.widthSegments<16)o.geometry=restoredSphere;
+   if(o.geometry instanceof T.SphereGeometry)o.userData.lowDetail??=farSphere;
+   const part=animatedPart(actor,o);
+   if(!part){collect(fixed,o);return;}
+   const pi=MUSIC_POSE_PARTS.indexOf(part),restPivot=actor[part].matrixWorld;
+   // Bake the immutable mesh-within-joint transform into the geometry.
+   // GPU computes (rest joint world) * (shared joint delta) * baked mesh.
+   offset.multiplyMatrices(inv.copy(restPivot).invert(),o.matrixWorld);
+   const mat=o.material,lit=isLit(mat)&&!mat.map;
+   const key=[part,o.geometry.uuid,poseOffsetKey(offset),mat instanceof T.MeshStandardMaterial?'standard':mat.type,
+    lit?JSON.stringify([mat instanceof T.MeshStandardMaterial?mat.roughness:0,mat instanceof T.MeshStandardMaterial?mat.metalness:0,mat.emissive.getHex(),mat.emissiveIntensity,mat.transparent,mat.opacity,mat.depthWrite,mat.side,mat.userData.characterLight??'']):mat.uuid].join('/');
+   let bucket=geometryGroups.get(key);
+   if(!bucket){
+    const geo=o.geometry.clone().applyMatrix4(offset);
+    const lowSource=(o.userData.lowDetail as T.BufferGeometry|undefined)??coarseGeometry(o.geometry);
+    const low=lowSource===o.geometry?geo:lowSource.clone().applyMatrix4(offset);
+    bucket={geometry:geo,low,items:[],material:mat.clone(),colors:lit};
+    if(lit)(bucket.material as Lit).color.setHex(0xffffff);
+    keepFrontLight(mat,bucket.material);
+    geometryGroups.set(key,bucket);
+   }
+   // The actor's rest joint world transform is written ONCE, never per frame.
+   const restMatrix=restPivot.clone();
+   rootCenter.setFromMatrixPosition(o.matrixWorld);
+   const bounds=o.geometry.boundingSphere??(o.geometry.computeBoundingSphere(),o.geometry.boundingSphere!);
+   bucket.items.push({mesh:o,restMatrix,slot:group.index*MUSIC_POSE_PARTS.length+pi,
+    color:lit?(mat as Lit).color.clone():null,center:rootCenter.clone(),
+    radius:Math.max(.5,bounds.radius*o.matrixWorld.getMaxScaleOnAxis()+.65),
+    limit:Infinity,min:0,shown:false,level:0});
+  });
+  actor.root.removeFromParent();
+  yield;
+ }
+ const fixedUpdates:ReturnType<typeof createLOD>[]=[];
+ for(const group of fixed.values()){
+  fixedUpdates.push(createLOD(scene,group,false));
+  for(const mesh of group.objects)mesh.removeFromParent();
+  yield;
+ }
+ const batches:SharedPoseBatch[]=[];
+ scene.userData.sharedOrchestraStats={groups:groups.size,players:players.length,poseMatricesPerTick:groups.size*MUSIC_POSE_PARTS.length,instanceMatrixWrites:0,viewRebuilds:0,batches:geometryGroups.size};
+ for(const group of geometryGroups.values()){
+  const material=sharedPoseMaterial(group.material,poses),count=group.items.length;
+  const build=(geometry:T.BufferGeometry)=>{
+   const shape=geometry.clone();
+   const slots=new T.InstancedBufferAttribute(new Float32Array(count),1);
+   shape.setAttribute('musicianPoseSlot',slots);
+   const mesh=new T.InstancedMesh(shape,material,count);
+   mesh.frustumCulled=false;mesh.matrixAutoUpdate=false;mesh.receiveShadow=true;
+   mesh.instanceMatrix.setUsage(T.StaticDrawUsage);
+   prepareInstanceMorph(mesh);scene.add(mesh);
+   return {mesh,slots};
+  };
+  const high=build(group.geometry),separate=group.low!==group.geometry;
+  const low=separate?build(group.low):high;
+  // The rest pose fixes scale and spatial placement. Every instance receives
+  // the group pose solely through its immutable slot index.
+  batches.push({high:high.mesh,low:low.mesh,highSlots:high.slots,lowSlots:low.slots,
+   lowSeparate:separate,items:group.items,material});
+  group.geometry.dispose();if(separate)group.low.dispose();
+  yield;
+ }
+ const frustum=new T.Frustum(),projection=new T.Matrix4(),sphere=new T.Sphere();
+ const lastView=new T.Matrix4(),lastEye=new T.Vector3(),lastFocus=new T.Vector3();
+ let hasView=false,lastConducting=false,lastFocused=false;
+ const delta=new T.Matrix4(),inverseRest=new T.Matrix4();
+ const refresh=(camera?:T.Camera)=>{
+  // Eight poses x six joints, uploaded only as 3 KiB of float texture data.
+  for(const {leader,index,rest} of groups.values()){
+   leader.root.updateMatrixWorld(true);
+   for(let pi=0;pi<MUSIC_POSE_PARTS.length;pi++){
+    const joint=leader[MUSIC_POSE_PARTS[pi]];
+    delta.multiplyMatrices(inverseRest.copy(rest[pi]).invert(),joint.matrixWorld);
+    const start=(index*MUSIC_POSE_PARTS.length+pi)*16;
+    for(let n=0;n<16;n++)pixels[start+n]=delta.elements[n];
+   }
+  }
+  poses.needsUpdate=true;
+  if(camera){
+   camera.updateMatrixWorld();projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
+  }
+  const conducting=!!scene.userData.conducting,focus=scene.userData.cameraFocus as T.Vector3|null|undefined;
+  const focusChanged=!!focus!==lastFocused||!!focus&&lastFocus.distanceToSquared(focus)>.0025;
+  const viewChanged=!hasView||!camera||!lastView.equals(projection)||!lastEye.equals(camera.position)||conducting!==lastConducting||focusChanged;
+  if(!viewChanged)return;
+  if(camera){frustum.setFromProjectionMatrix(projection);lastView.copy(projection);lastEye.copy(camera.position);}
+  if(focus)lastFocus.copy(focus);lastFocused=!!focus;lastConducting=conducting;hasView=!!camera;
+  const stats=scene.userData.sharedOrchestraStats as {instanceMatrixWrites:number;viewRebuilds:number};
+  stats.viewRebuilds++;
+  for(const batch of batches){
+   let highCount=0,lowCount=0;
+   for(const item of batch.items){
+    const distance=camera?item.center.distanceTo(camera.position):0;
+    const near=distance<LOD_NEAR||(camera&&projectedHeight(1.4,distance,camera.projectionMatrix.elements[5])>.08);
+    if(camera&&!frustum.intersectsSphere(sphere.set(item.center,item.radius)))continue;
+    if(camera&&scene.userData.solidOccluded?.(camera.position,item.center,item.radius))continue;
+    const target=near||!batch.lowSeparate?batch.high:batch.low;
+    const slot=target===batch.high?highCount++:lowCount++;
+    target.setMatrixAt(slot,item.restMatrix);
+    stats.instanceMatrixWrites++;
+    const slots=target===batch.high?batch.highSlots:batch.lowSlots;
+    slots.setX(slot,item.slot);
+    if(item.mesh.morphTargetInfluences)target.setMorphAt(slot,item.mesh);
+    if(item.color)target.setColorAt(slot,item.color);
+   }
+   batch.high.count=highCount;batch.high.visible=highCount>0;
+   batch.high.instanceMatrix.needsUpdate=true;batch.highSlots.needsUpdate=true;
+   if(batch.high.instanceColor)batch.high.instanceColor.needsUpdate=true;
+   if(batch.high.morphTexture)batch.high.morphTexture.needsUpdate=true;
+   if(batch.lowSeparate){
+    batch.low.count=lowCount;batch.low.visible=lowCount>0;
+    batch.low.instanceMatrix.needsUpdate=true;batch.lowSlots.needsUpdate=true;
+    if(batch.low.instanceColor)batch.low.instanceColor.needsUpdate=true;
+    if(batch.low.morphTexture)batch.low.morphTexture.needsUpdate=true;
+   }
+  }
+  for(const update of fixedUpdates)update(camera);
+ };
+ refresh();
+ return refresh;
 }

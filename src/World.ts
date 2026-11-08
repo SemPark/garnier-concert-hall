@@ -523,13 +523,16 @@ export class World{
    const animationStart=timings?performance.now():0;
    const animationDt=Math.min(.15,(now-this.orchestraAt)/1000);this.orchestraAt=now-((now-this.orchestraAt)%(1000/30));const show=stageShow(playback),clock=this.reduced?0:this.net.now()/1000;
    for(const actor of this.venue.musicians){
+    // Followers never calculate their own pose. Their fixed joint placements
+    // combine with a shared group animation directly in the vertex shader.
+    if(actor.root.userData.sharedPoseGroup&&!actor.root.userData.sharedPoseLeader)continue;
     this.poseCenter.copy(actor.root.position);this.poseCenter.y+=1;const inView=this.poseFrustum.intersectsSphere(this.poseSphere.set(this.poseCenter,2));
     const conductor=actor.instrumentType==='conductor',poseAt=actor.root.userData.poseAt??0,actorDt=Math.min(.25,Math.max(animationDt,(now-poseAt)/1000));
     // The conductor also travels across the stage; keep his route live when the camera looks away.
-    if(!conductor&&!inView)continue;
+    if(!conductor&&!actor.root.userData.sharedPoseLeader&&!inView)continue;
     const actorInterval=musicianInterval(projectedHeight(1.4,this.camera.position.distanceTo(this.poseCenter),this.camera.projectionMatrix.elements[5]));
     // Keep readable players at 30Hz, including zoomed views; only tiny figures use 20Hz.
-    if(!conductor&&now-poseAt<actorInterval)continue;actor.root.userData.poseAt=now;
+    if(!conductor&&!actor.root.userData.sharedPoseLeader&&now-poseAt<actorInterval)continue;actor.root.userData.poseAt=now;
     if(this.conducting.active){if(conductor)continue;const demo=this.conducting,moving=demo.playing;
      actor.update(demo.clock,0,musicianSits(actor.instrumentType),moving&&!this.reduced,null,10,actorDt);
      if(conductor){actor.root.position.set(CONDUCTOR.x,STAGE_FLOOR+.25,CONDUCTOR.z);actor.root.rotation.y=faceYaw(0,-1);actor.head.rotation.set(0,0,0);actor.leftArm.rotation.set(1.15+.25*Math.sin(now*.002),0,-.5+.12*Math.sin(now*.0015));actor.rightArm.rotation.copy(rightStroke(demo.x,demo.stroke));}
