@@ -44,7 +44,7 @@ export function buildCandlelight(scene:T.Scene){
  // The way in: small groups along both edges of the two parterre aisles, against the side walls,
  // at the ends of the rear steps and either side of the stair doors, leaving every walking line clear.
  const ground=(x:number,z:number)=>parterreHeight(x,z)??0;
- for(let z=FLOOR_ROWS[0]-.9;z<FLOOR_ROWS[FLOOR_ROWS.length-1]+1;z+=1.95)for(const x of [-6.4,-4.6,4.6,6.4,-11.9,11.9])clusters.push({x,y:ground(x,z),z,n:2+Math.floor(rnd()*2),r:.18});
+ for(let z=FLOOR_ROWS[0]-.9;z<FLOOR_ROWS[FLOOR_ROWS.length-1]+4.9;z+=1.95)for(const x of [-6.4,-4.6,4.6,6.4,-11.9,11.9])clusters.push({x,y:ground(x,z),z,n:2+Math.floor(rnd()*2),r:.18});
  for(let z=PARTERRE.stairFront+.3;z<PARTERRE.stairBack;z+=.6)for(const x of [-8.85,8.85])clusters.push({x,y:ground(x,z),z,n:2,r:.12});
  for(const side of [-1,1])for(const dx of [-2.3,2.3])clusters.push({x:side*STAIR_DOORS.lower.x+dx,y:0,z:STAIR_DOORS.lower.z-.7,n:6,r:.35});
  // Either side of the centre door from the lobby, so the candlelight greets visitors as they come in,

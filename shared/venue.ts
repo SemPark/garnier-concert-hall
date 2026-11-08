@@ -25,7 +25,7 @@ export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
 // Two inner aisles, two wall-side aisles and a cross aisle connect every row.
 export const SEAT_COLUMNS=[-10.45,-9.35,-8.25,-7.15,-3.85,-2.75,-1.65,-.55,.55,1.65,2.75,3.85,7.15,8.25,9.35,10.45];
 export const FLOOR_AISLES=[-12.9,-5.5,5.5,12.9];
-export const FLOOR_ROWS=Array.from({length:22},(_,row)=>-6.2+row*1.95+(row>=10?2:0));
+export const FLOOR_ROWS=Array.from({length:20},(_,row)=>-6.2+row*1.95+(row>=10?2:0));
 export const FLOOR_CROSS_AISLE=(FLOOR_ROWS[9]+FLOOR_ROWS[10])/2;
 export const FLOOR_SEATS:Seat[]=FLOOR_ROWS.flatMap((z,row)=>SEAT_COLUMNS.map((x,column)=>({id:`parterre-${row*16+column+1}`,x,z,approach:{x,y:PARTERRE.floor,z:z-1.05},row:row+1,column:column+1,level:'parterre' as const,y:PARTERRE.floor,yaw:0})));
 // Leave the four seats next to each organ-loft wing empty. Retain all other IDs.
