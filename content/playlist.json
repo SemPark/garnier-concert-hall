@@ -303,21 +303,6 @@
       "work": "오 거룩한 밤 (O Holy Night)"
     },
     {
-      "id": "rejoice-new",
-      "title": "헨델 메시아 — 크게 기뻐하라",
-      "composer": "Advent Chamber Orchestra · Cristina Piccardi",
-      "url": "/api/audio/rejoice-new.mp3",
-      "durationSeconds": 271.412229,
-      "gapAfterSeconds": 4,
-      "credit": {
-        "sourceName": "Wikimedia Commons",
-        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Handel_-_Messiah_-_Rejoice_Greatly.ogg",
-        "licenseName": "CC BY-SA 2.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/"
-      },
-      "work": "헨델 메시아 — 크게 기뻐하라"
-    },
-    {
       "id": "hallelujah-new",
       "title": "헨델 메시아 — 할렐루야",
       "composer": "국립합창단",

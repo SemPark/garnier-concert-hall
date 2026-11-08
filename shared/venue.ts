@@ -30,12 +30,12 @@ export const FLOOR_CROSS_AISLE=(FLOOR_ROWS[9]+FLOOR_ROWS[10])/2;
 export const FLOOR_SEATS:Seat[]=FLOOR_ROWS.flatMap((z,row)=>SEAT_COLUMNS.map((x,column)=>({id:`parterre-${row*16+column+1}`,x,z,approach:{x,y:PARTERRE.floor,z:z-1.05},row:row+1,column:column+1,level:'parterre' as const,y:PARTERRE.floor,yaw:0})));
 // Leave the four seats next to each organ-loft wing empty. Retain all other IDs.
 // Chairs stand near the balustrade so they show from the hall; the bay by the stair top stays empty.
-export const BALCONY_SEATS:Seat[]=[-1,1].flatMap(side=>H.bayCenters.flatMap((z,row)=>row===0||z>GALLERY_BRIDGE.minZ?[]:[-1.8,-.6,.6,1.8].map((offset,column)=>({id:`balcony-${side<0?'left':'right'}-${row*4+column+1}`,x:side*14.4,z:z-side*offset,approach:{x:side*13.4,y:H.balconyHeight,z:z-side*offset},row:row+1,column:column+1+(side>0?4:0),level:'balcony' as const,y:H.balconyHeight,yaw:side<0?-Math.PI/2:Math.PI/2}))));
+export const BALCONY_SEATS:Seat[]=[];
 /** Raised wall-side boxes face the orchestra across the room, with an aisle behind the front rail. */
 export const SIDE_BOX_SEATS:Seat[]=[];
 export const SEATS:Seat[]=[...FLOOR_SEATS,...SIDE_BOX_SEATS,...BALCONY_SEATS];
 /** The hall admits as many visitors as it has seats, including the raised side boxes. */
-export const CAPACITY=SEATS.length;
+export const CAPACITY=440;
 /** Gallery seats are numbered 1, 2, 3… along each side, from the stage end towards the back. */
 const BALCONY_NUMBER=new Map([-1,1].flatMap(side=>BALCONY_SEATS.filter(s=>Math.sign(s.x)===side).sort((a,b)=>a.z-b.z).map((s,i)=>[s.id,i+1] as const)));
 export function seatNumber(s:Seat){return s.level==='parterre'?s.column:BALCONY_NUMBER.get(s.id)!;}

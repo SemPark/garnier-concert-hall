@@ -59,6 +59,7 @@ export class VenueRoom extends DurableObject<Env>{
   const expired=this.ctx.storage.sql.exec<{id:string}>('SELECT id FROM sessions WHERE until IS NOT NULL AND until<=?',now).toArray();for(const {id} of expired)this.release(id);
   this.ctx.storage.sql.exec('DELETE FROM sessions WHERE until IS NOT NULL AND until<=?',now);
   this.ctx.storage.sql.exec('DELETE FROM claims WHERE expiresAt IS NOT NULL AND expiresAt<=?',now);
+  this.ctx.storage.sql.exec("DELETE FROM claims WHERE seatId LIKE 'balcony-%'");
   for(const {ws,a} of this.active())if(a.visitor.seatId&&!this.ctx.storage.sql.exec('SELECT seatId FROM claims WHERE visitorId=?',a.visitor.id).toArray().length){a.visitor.seatId=null;a.visitor.pose='idle';ws.serializeAttachment({...a,roomId:this.roomId()});}
  }
  async fetch(request:Request):Promise<Response>{
