@@ -16,7 +16,15 @@ import * as T from 'three';
 import {characterFrontLight,FRONT_LIGHT} from './character/characterLight';
 import {constrainCamera} from './controls/cameraCollision';
 import {createVenue,createVenueAsync,type Venue} from './scene/Venue';
-import {Crowd} from './scene/Crowd';
+import {Ghosts,type GhostSpot} from './scene/Ghosts';
+/** Three ghosts loop above the orchestra (stage runs from the apron at z −9 back to the organ). */
+const FLYERS=[{x:-5,z:-14,y:7.5,rx:3.5,rz:3.5,speed:.16},{x:0,z:-16,y:8.5,rx:5,rz:4,speed:.12},{x:5,z:-13,y:7,rx:3.5,rz:3.5,speed:.14}];
+const WALKER_PATHS=[{x1:-5.5,z1:-4,x2:-5.5,z2:38},{x1:5.5,z1:38,x2:5.5,z2:-4},{x1:-11,z1:FLOOR_CROSS_AISLE,x2:11,z2:FLOOR_CROSS_AISLE},{x1:-9,z1:43,x2:9,z2:43},{x1:-12.9,z1:2,x2:-12.9,z2:38},{x1:12.9,z1:38,x2:12.9,z2:2},{x1:-10,z1:-7.6,x2:10,z2:-7.6}];
+/** Most of the hall's ghosts walk the floor: two or three per aisle, spread out along it, each at its own pace. */
+const WALKERS=WALKER_PATHS.flatMap((w,i)=>[0,1,2].slice(0,i<2||i>3?3:2).map(k=>({...w,phase:k/(i<2||i>3?3:2),speed:.6+.08*((i+k)%4)})));
+const ghostSeatHash=(id:string)=>{let h=2166136261;for(let i=0;i<id.length;i++)h=Math.imul(h^id.charCodeAt(i),16777619);return h>>>0;};
+/** A handful of parterre seats hold a ghost while no visitor has taken them. */
+const NPC_SEATS=FLOOR_SEATS.filter(s=>ghostSeatHash(s.id)%6===0).filter((_,i)=>i%10===0).slice(0,5);
 import {LobbyLightPass,type RenderPassTimings} from './scene/LobbyLighting';
 import {interiorEnvironment,bakeArchitectureShadows} from './scene/InteriorLight';
 import {Avatar,musicianSits} from './character/Avatar';
@@ -30,7 +38,7 @@ import program from '../content/playlist.json';
 import {nextPiece,type Playlist} from '../shared/timeline';
 import {localCameraFrame} from './controls/localCamera';
 import {findPath,segmentClear} from './navigation/path';
-import {SPAWN,SEATS,CAPACITY,BOUNDS,seatLabel,walkable,distance,surfaceHeight,STAGE_APRON_Z,DESTINATION_ZONE,visitorVariant,visitorColor,cafeApproach,atCafe,CANDLE_TABLES,type CandleTable,type HallDestination,type Look,type Visitor,type Zone,type Point} from '../shared/venue';
+import {FLOOR_SEATS,FLOOR_CROSS_AISLE,SPAWN,SEATS,CAPACITY,BOUNDS,seatLabel,walkable,distance,surfaceHeight,STAGE_APRON_Z,DESTINATION_ZONE,visitorVariant,visitorColor,cafeApproach,atCafe,CANDLE_TABLES,type CandleTable,type HallDestination,type Look,type Visitor,type Zone,type Point} from '../shared/venue';
 import type {Snapshot} from '../shared/protocol';
 import type {Presence} from './network/Presence';
 import type {ConcertAudio} from './audio/ConcertAudio';
@@ -46,13 +54,13 @@ export type FrameTimings=RenderPassTimings&{musicianAnimation:number;musicianBat
 const LOBBY_EXPOSURE=.88;
 export class World{
  readonly renderer:T.WebGLRenderer;readonly camera=new T.PerspectiveCamera(61,1,.08,150);
- readonly venues:Record<Zone,Venue>;private readonly crowds:Record<Zone,Crowd>;readonly input:Input;zone:Zone='lobby';self:Visitor|null=null;
+ readonly venues:Record<Zone,Venue>;private readonly crowds:Record<Zone,Ghosts>;readonly input:Input;zone:Zone='lobby';self:Visitor|null=null;
  readonly conducting=new Conducting();private conductView=false;private demoAvatar:Avatar|null=null;private guestConductor:Avatar|null=null;private conductSeat=false;private conductEffect:ConductTapEffect|null=null;
  concertView=true;hallOverview=true;private introUntil=0;private dragAt=0;private hallZoom=1;private introEase=0;
  ready=false;private texturesLoaded=false;private hallBuild:Promise<Venue>|null=null;private hallWarm:Promise<void>|null=null;private hallWarmed=false;private deferredState:Snapshot|null=null;private changingZone=false;uiObscured=false;
  position=new T.Vector3(SPAWN.lobby.x,SPAWN.lobby.y,SPAWN.lobby.z);pose:'idle'|'walk'|'sit'='idle';yaw=0;cameraYaw=0;cameraPitch=.13;cameraDistance=4.8;private cameraLocked=false;private introGlide=false;fps=60;entered=false;
  onChange:()=>void=()=>{};onToast:(message:string)=>void=()=>{};onSeatMap:()=>void=()=>{};onWardrobe:()=>void=()=>{};private wardrobeNear=false;private visitingWardrobe=false;private pendingSeat:string|null=null;private loungeTarget:string|null=null;private visitingCat=false;private petUntil=0;private visitingBoxOffice=false;private seatWalkAt=0;private boardAt=0;
- private lightingPass:LobbyLightPass|null=null;private environment:T.WebGLRenderTarget;private poseFrustum=new T.Frustum();private poseProjection=new T.Matrix4();private poseSphere=new T.Sphere();private poseCenter=new T.Vector3();private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private route:Point[]=[];private avatarVariant=-1;private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
+ private lightingPass:LobbyLightPass|null=null;private environment:T.WebGLRenderTarget;private poseFrustum=new T.Frustum();private poseProjection=new T.Matrix4();private poseSphere=new T.Sphere();private poseCenter=new T.Vector3();private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private ghostBuffer:GhostSpot[]=[];private route:Point[]=[];private avatarVariant=-1;private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
  private collisionPauseUntil=0;private seatedTarget:T.Vector3|null=null;private cameraSeatAmount=0;private petFocus=new T.Vector3();
  hallLoading=false;private hallLoadingTimeout=0;
  private lobbyEnteredAt=0;private activityEvents=new AbortController();private activitySentAt=0;
@@ -84,7 +92,7 @@ export class World{
   this.venues={lobby:measuredVenue('lobby')} as Record<Zone,Venue>;reportLoading(55,'음악당의 색과 빛을 준비하고 있어요');
   // Other visitors are drawn in shared batches per hall, so a full house stays cheap.
   this.venues.lobby.scene.environment=this.environment.texture;this.venues.lobby.scene.environmentIntensity=.18;this.lightingPass=new LobbyLightPass(this.renderer,this.venues.lobby.scene,this.camera,bloomResolution(this.mobile,this.quality));
-  this.crowds={lobby:new Crowd(this.venues.lobby.scene)} as Record<Zone,Crowd>;
+  this.crowds={lobby:new Ghosts(this.venues.lobby.scene)} as Record<Zone,Ghosts>;
   this.marker=new T.Mesh(new T.RingGeometry(.16,.24,24),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.8,depthWrite:false}));this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.venues.lobby.scene.add(this.marker);
   this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>this.stand()});
   for(const event of ['pointerdown','pointermove','keydown','wheel'])window.addEventListener(event,()=>{const now=performance.now();this.lobbyEnteredAt=now;if(this.entered&&this.zone==='lobby'&&now-this.activitySentAt>2000){this.activitySentAt=now;this.net.send({type:'activity'});}},{passive:true,signal:this.activityEvents.signal});
@@ -95,7 +103,7 @@ export class World{
  }
  private prepareHall(){
   if(this.venues.auditorium)return Promise.resolve(this.venues.auditorium);
-  return this.hallBuild??=createVenueAsync('auditorium',()=>this.disposed).then(venue=>{venue.scene.environment=this.environment.texture;venue.scene.environmentIntensity=.03;/* Candlelight concert: the walls and organ fall back into the dark. */this.venues.auditorium=venue;this.crowds.auditorium=new Crowd(venue.scene);venue.emotes.setViewport(this.renderer.domElement.height,this.camera.fov);venue.sunlight?.setViewport(this.renderer.domElement.height,this.camera.fov);return venue;}).catch(error=>{this.hallBuild=null;throw error;});
+  return this.hallBuild??=createVenueAsync('auditorium',()=>this.disposed).then(venue=>{venue.scene.environment=this.environment.texture;venue.scene.environmentIntensity=.03;/* Candlelight concert: the walls and organ fall back into the dark. */this.venues.auditorium=venue;this.crowds.auditorium=new Ghosts(venue.scene);venue.emotes.setViewport(this.renderer.domElement.height,this.camera.fov);venue.sunlight?.setViewport(this.renderer.domElement.height,this.camera.fov);return venue;}).catch(error=>{this.hallBuild=null;throw error;});
  }
  private warmHall(){return this.hallWarm??=this.warmHallChunks().then(()=>{if(!this.disposed)this.hallWarmed=true;}).catch(error=>{this.hallWarm=null;throw error;});}
  private async warmHallChunks(){
@@ -127,6 +135,28 @@ export class World{
  setQuality(quality:string){this.quality=quality==='low'?'low':quality==='sharp'?'sharp':'balanced';try{localStorage.setItem('concert-quality',this.quality);}catch{}this.resize();this.onChange();}
  get venue(){return this.zone==='auditorium'?this.ensureHall():this.venues.lobby;}
  private *remoteAvatars(){for(const r of this.remotes.values())yield r.avatar;}
+ /** Everyone but the viewer is a ghost (ghosts face +z, people face -z, hence the half turn) (each viewer sees only themself as a person). */
+ private *ghostSpots():Generator<GhostSpot>{for(const r of this.remotes.values()){const a=r.avatar.root;if(a.visible)yield {x:a.position.x,y:a.position.y,z:a.position.z,yaw:a.rotation.y+Math.PI,id:r.visitor.id,sitting:r.visitor.pose==='sit'};}}
+ private *allGhosts(){yield*this.ghostSpots();yield*this.flyingGhosts();}
+ /** The hall's own ghosts: a few drifting overhead, some strolling the aisles, some cheering in empty seats.
+  * Everything follows the shared clock, so every visitor sees the same ghosts in the same places. */
+ private *flyingGhosts():Generator<GhostSpot>{
+  if(this.zone!=='auditorium')return;const t=this.net.now()/1000;
+  // Above the stage: left, middle and right.
+  FLYERS.forEach((f,i)=>{const a=t*f.speed+i*2.1,x=f.x+f.rx*Math.sin(a),z=f.z+f.rz*Math.sin(a*2)/2,y=f.y+.8*Math.sin(t*.4+i);
+   this.ghostBuffer.push({x,y,z,yaw:Math.atan2(f.rx*Math.cos(a),f.rz*Math.cos(a*2)),id:'npc-fly'+i,sitting:false,npc:true});});
+  // On the floor: back and forth along aisles at walking pace.
+  WALKERS.forEach((w,i)=>{const len=Math.hypot(w.x2-w.x1,w.z2-w.z1),d=(t*w.speed+w.phase*len*2)%(len*2),k=d<len?d/len:2-d/len,dir=d<len?1:-1;
+   const x=w.x1+(w.x2-w.x1)*k,z=w.z1+(w.z2-w.z1)*k;
+   this.ghostBuffer.push({x,y:surfaceHeight('auditorium',{x,z},0)??0,z,yaw:Math.atan2((w.x2-w.x1)*dir,(w.z2-w.z1)*dir),id:'npc-walk'+i,sitting:false,npc:true});});
+  // In seats nobody has claimed: clapping, waving, cheering and nodding in turns.
+  const claimed=this.net.state?.seats??{};
+  NPC_SEATS.forEach((seat,i)=>{if(claimed[seat.id])return;
+   // Every few seconds each seated ghost picks the next of the visitors' gestures (or rests), out of step with its neighbours.
+   const slot=Math.floor(t/4+i*.37),gesture=(slot*3+i)%6<5?((slot*3+i)%6)%5:0;
+   this.ghostBuffer.push({x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw+Math.PI,id:'npc-'+seat.id,sitting:true,npc:true,gesture});});
+  yield*this.ghostBuffer;this.ghostBuffer.length=0;
+ }
  toggleFraming(){this.introUntil=0;this.hallOverview=!this.hallOverview;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.onChange();}
  toggleConcertView(){this.introUntil=0;this.concertView=!this.concertView;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.onChange();}
  setDiagnosticActive(active:boolean){
@@ -518,7 +548,6 @@ export class World{
    if(!visible){r.avatar.root.position.set(v.x,v.y??0,v.z);continue;}
    this.poseCenter.y=v.y??0;r.avatar.root.position.lerp(this.poseCenter,1-Math.exp(-poseDt*12));
    const dy=T.MathUtils.euclideanModulo(v.yaw-r.avatar.root.rotation.y+Math.PI,Math.PI*2)-Math.PI;r.avatar.root.rotation.y+=dy*(1-Math.exp(-poseDt*12));
-   r.avatar.update(this.net.now()/1000,v.pose==='walk'?2.6:0,v.pose==='sit',music,v.gesture,(this.net.now()-v.gestureAt)/1000,poseDt);
   }
   this.showEmotes();
   this.conducting.tick(now,dt);if(this.conducting.active){this.guestConductor?.update(now/1000,0,this.conductSeat,false,null,10,dt);this.input.keys.clear();const actor=this.demoAvatar,demo=this.conducting;if(actor){actor.update(now/1000,0,false,demo.playing&&!this.reduced,null,10,dt);actor.root.position.x=T.MathUtils.damp(actor.root.position.x,CONDUCTOR.x+conductorShift(demo.x),12,dt);actor.root.rotation.y=T.MathUtils.damp(actor.root.rotation.y,conductorTurn(demo.x),12,dt);actor.head.rotation.set(-.06,Math.atan(demo.x*.2),0);actor.leftArm.rotation.set(1.05+.38*Math.sin(now*.0026),0,-.38-.06*Math.abs(demo.x)+.43*Math.sin(now*.0024));actor.rightArm.rotation.copy(rightStroke(demo.x,demo.stroke));actor.root.updateMatrixWorld(true);this.conductEffect?.update(actor.rightHand,this.camera,demo.pulse);}}
@@ -566,7 +595,7 @@ export class World{
    const self=this.entered&&this.self&&namedAvatar?{avatar:namedAvatar,visitor:this.self}:null;
    this.visitorNames.update(this.camera,self,this.remotes.values(),this.venue.scene.userData.solidOccluded,this.probeViewport);
    const crowdStart=timings?performance.now():0;
-   this.crowds[this.zone].update(this.remoteAvatars(),this.camera);
+   this.crowds[this.zone].update(this.allGhosts(),this.camera);
    if(timings)timings.crowdBatch=performance.now()-crowdStart;
    characterFrontLight.value=this.venue===this.venues.lobby?FRONT_LIGHT.lobby:FRONT_LIGHT.auditorium;this.renderer.toneMappingExposure=this.venue===this.venues.lobby?LOBBY_EXPOSURE:1;this.diagnosticGpu?.begin(now);
    try{
