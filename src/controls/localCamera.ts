@@ -8,6 +8,6 @@ export function localCameraFrame(point:{x:number;y:number;z:number},sitting:bool
  const position=new T.Vector3(origin.x+Math.sin(yaw)*Math.cos(p)*distance,origin.y+Math.sin(p)*distance,origin.z+Math.cos(yaw)*Math.cos(p)*distance);
  const look=origin.clone();
  // Continue tilting the gaze up once the orbit reaches the floor, without moving the camera underground.
- if(pitch<lowest){position.lerp(origin,Math.min(.8,(lowest-pitch)/1.3*.8));const view=origin.clone().sub(position),right=new T.Vector3().crossVectors(view,new T.Vector3(0,1,0)).normalize();view.applyAxisAngle(right,lowest-pitch);look.copy(position).add(view);}
+ if(pitch<lowest){const up=Math.min(lowest-pitch,.05);position.lerp(origin,up/1.3*.8);const view=origin.clone().sub(position),right=new T.Vector3().crossVectors(view,new T.Vector3(0,1,0)).normalize();view.applyAxisAngle(right,up);look.copy(position).add(view);}
  return {look,position,origin};
 }

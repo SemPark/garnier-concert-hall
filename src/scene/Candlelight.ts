@@ -25,6 +25,9 @@ export function buildCandlelight(scene:T.Scene){
   if((l as T.SpotLight).isSpotLight||(l as T.PointLight).isPointLight)l.intensity*=.12;else if((l as T.DirectionalLight).isDirectionalLight)l.intensity*=.15;else l.intensity*=.3;
   // What little room light remains takes the candles' colour, so the whole hall feels warm rather than grey.
   if((l as T.HemisphereLight).isHemisphereLight){l.color.set(0xffc58a);(l as T.HemisphereLight).groundColor.set(0x40261a);}else if(!(l as T.SpotLight).isSpotLight&&!(l as T.PointLight).isPointLight)l.color.set(0xffc27e);});
+ // Lift the shadows (walls, ceiling, galleries) without new lights: ambient costs nothing per light.
+ // Downward faces such as the ceiling take the hemisphere's ground colour, so that warms up too.
+ scene.traverse(o=>{const l=o as T.HemisphereLight;if(l.isHemisphereLight){l.intensity*=12;l.groundColor.set(0x9a6a44);}else if((o as T.AmbientLight).isAmbientLight)(o as T.AmbientLight).intensity*=12;});
  // Redirect the existing aisle-side washes onto the seating and floor. Their limited range keeps the stage lighting intact.
  scene.traverse(o=>{const light=o as T.SpotLight;if(!light.isSpotLight||light.position.y!==10.5||![6,32].includes(light.position.z))return;
   const side=Math.sign(light.position.x),z=light.position.z===6?10:27;light.position.set(side*7,7.5,z);light.target.position.set(side*3,0,z);
@@ -44,7 +47,7 @@ export function buildCandlelight(scene:T.Scene){
  // The way in: small groups along both edges of the two parterre aisles, against the side walls,
  // at the ends of the rear steps and either side of the stair doors, leaving every walking line clear.
  const ground=(x:number,z:number)=>parterreHeight(x,z)??0;
- for(let z=FLOOR_ROWS[0]-.9;z<FLOOR_ROWS[FLOOR_ROWS.length-1]+1;z+=1.95)for(const x of [-6.4,-4.6,4.6,6.4,-11.9,11.9])clusters.push({x,y:ground(x,z),z,n:2+Math.floor(rnd()*2),r:.18});
+ for(let z=FLOOR_ROWS[0]-.9;z<FLOOR_ROWS[FLOOR_ROWS.length-1]+4.9;z+=1.95)for(const x of [-6.4,-4.6,4.6,6.4,-11.9,11.9])clusters.push({x,y:ground(x,z),z,n:2+Math.floor(rnd()*2),r:.18});
  for(let z=PARTERRE.stairFront+.3;z<PARTERRE.stairBack;z+=.6)for(const x of [-8.85,8.85])clusters.push({x,y:ground(x,z),z,n:2,r:.12});
  for(const side of [-1,1])for(const dx of [-2.3,2.3])clusters.push({x:side*STAIR_DOORS.lower.x+dx,y:0,z:STAIR_DOORS.lower.z-.7,n:6,r:.35});
  // Either side of the centre door from the lobby, so the candlelight greets visitors as they come in,
@@ -80,6 +83,16 @@ export function buildCandlelight(scene:T.Scene){
  scene.traverse(o=>{const l=o as T.SpotLight;if(l.isSpotLight&&l.position.z===-15&&l.position.y===12){l.color.set(0xffc874);l.intensity=85;lights.push(l);}});
  // The two wall washes nearest the stage turn to light the players softly from above, so faces and instruments read.
  scene.traverse(o=>{const l=o as T.SpotLight;if(l.isSpotLight&&l.position.z===-20&&l.position.y===10.5){const side=Math.sign(l.position.x);l.position.set(side*7,15,-10);l.target.position.set(side*4,0,-19);l.color.set(0xffd08a);l.intensity=300;l.distance=32;l.angle=.95;l.penumbra=1;}});
+ // Every light costs each lit pixel, so overlapping ones merge: one seating wash per side, the stage key folds into
+ // the overhead player lights, and the dark ceiling lamp and the faint upper-wall washes go.
+ const drop:T.Light[]=[];
+ scene.traverse(o=>{const l=o as T.SpotLight;if(!l.isLight)return;
+  // Sunlight is already dimmed to almost nothing by candlelight, so the hall drops it (and its shadow pass).
+  if((l as unknown as T.DirectionalLight).isDirectionalLight||(l as unknown as T.PointLight).isPointLight&&l.intensity===0||l.isSpotLight&&(l.position.y===18||l.position.y===12&&l.position.z===-15||l.position.y===7.5&&l.position.z===27))drop.push(l);
+  else if(l.isSpotLight&&l.position.y===7.5){l.position.z=l.target.position.z=18.5;l.intensity=650;l.distance=34;l.angle=1.3;}
+  else if(l.isSpotLight&&l.position.y===15&&l.position.z===-10)l.intensity=380;
+ });
+ for(const l of drop){l.removeFromParent();(l as T.SpotLight).target?.removeFromParent();const i=lights.indexOf(l);if(i>=0)lights.splice(i,1);}
  // The hall is frozen after building (no automatic matrix updates), so moved lights and targets must be updated by hand.
  scene.traverse(o=>{const l=o as T.SpotLight;if(!l.isLight)return;l.updateMatrix();l.updateMatrixWorld(true);if(l.target){l.target.updateMatrix();l.target.updateMatrixWorld(true);}});
  // The centre fill is permanently disabled; omit it from GPU light loops entirely.

@@ -3,7 +3,7 @@ import {GOLDEN_HALL as H} from '../shared/goldenHall';
 import {STAGE} from './orchestra/layout';
 /** Seat positions use the hall scale; the stage is compressed for the ticket map. */
 export const SEAT_MAP_SCALE=19;
-const STAGE_HALF_WIDTH=9,STAGE_HEIGHT=120,TOP=20,SEAT={w:20,h:22};
+const STAGE_HALF_WIDTH=6,STAGE_HEIGHT=70,TOP=20,SEAT={w:20,h:22};
 export const mapX=(x:number)=>400+x*SEAT_MAP_SCALE;
 export const mapY=(z:number)=>TOP+Math.min(z-STAGE.back,STAGE.front-STAGE.back)*STAGE_HEIGHT/(STAGE.front-STAGE.back)+Math.max(0,z-STAGE.front)*SEAT_MAP_SCALE;
 export const SEAT_MAP_SIZE={width:800,height:Math.ceil(mapY(FLOOR_ROWS.at(-1)!)+SEAT.h/2)+30};
