@@ -115,7 +115,7 @@ export class Avatar{
   const skull=new T.Mesh(faceGeometry,material(skin));skull.position.y=.03;skull.scale.set(.37,.345,.35);skull.userData.lowDetail=faceFarGeometry;this.head.add(skull);// Blush and mouth sit on this surface, not in front of it.
   if(this.appearance==='man')for(const side of [-1,1])sphere(this.head,.07,[side*.345,-.03,0],skin);
   paintFace(this.head,this.eyes);
-  sphere(this.head,.04,[0,-.035,faceSurfaceZ(0,-.035)-.015],0xe8a77f).scale.set(.035,.025,.023);
+  const nose=sphere(this.head,.04,[0,-.052,faceSurfaceZ(0,-.052)-.015],0xe8a77f);nose.scale.set(.040,.027,.024);nose.userData.facePart='nose';nose.userData.lodMax=34;
   // Men wear one simple cap: it covers the crown and back but ends above the ears, with no fringe.
   // Women wear the long hair in one piece instead, so nothing overlaps.
   if(this.appearance==='man'){const cap=new T.Mesh(shortHairGeometry,material(hair));cap.userData.lowDetail=shortHairFar;cap.userData.hairPart='cap';this.head.add(cap);}
