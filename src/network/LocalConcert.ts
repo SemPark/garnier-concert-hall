@@ -1,3 +1,4 @@
+import {newId} from '../util/requestId';
 import {isOutfit,atCloakroom} from '../../shared/wardrobe';
 import {LOUNGE_SEATS} from '../../shared/loungeSeats';
 import {SEATS,HALL_DESTINATIONS,DESTINATION_ZONE,isHallDestination,SPAWN,PALETTE,atCafe,distance,walkable,isLook,isCandleState,type Visitor} from '../../shared/venue';
@@ -6,7 +7,7 @@ import {isGesture,gestureSeconds} from '../../shared/gestures';
 
 /** A single visitor session for static hosts that cannot run WebSocket servers. */
 export class LocalConcert{
- readonly visitor:Visitor={id:crypto.randomUUID(),name:'나',color:PALETTE[0],zone:'lobby',...SPAWN.lobby,yaw:0,pose:'idle',seatId:null,gesture:null,gestureAt:0};
+ readonly visitor:Visitor={id:newId(),name:'나',color:PALETTE[0],zone:'lobby',...SPAWN.lobby,yaw:0,pose:'idle',seatId:null,gesture:null,gestureAt:0};
  private seats:Snapshot['seats']={};private revision=0;private reservationRequest='';
  snapshot():Snapshot{if(this.visitor.macaronEmptyAt&&Date.now()>=this.visitor.macaronEmptyAt){delete this.visitor.macaron;delete this.visitor.macaronBites;delete this.visitor.macaronEmptyAt;}if(this.visitor.coffeeEmptyAt&&Date.now()>=this.visitor.coffeeEmptyAt){delete this.visitor.coffee;delete this.visitor.coffeeSips;delete this.visitor.coffeeEmptyAt;}return {revision:++this.revision,visitors:[{...this.visitor}],seats:structuredClone(this.seats),serverNow:Date.now(),roomId:'혼자 감상'};}
  private release(){const v=this.visitor,seat=v.loungeSeatId?LOUNGE_SEATS.find(s=>s.id===v.loungeSeatId):SEATS.find(s=>s.id===v.seatId);if(v.pose==='sit'&&seat)Object.assign(v,seat.approach);this.seats={};v.seatId=null;v.loungeSeatId=null;v.pose='idle';}

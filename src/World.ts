@@ -1,3 +1,4 @@
+import {newId} from './util/requestId';
 import {PROBE_PROFILE} from './diagnostics/ProbeProfile';
 import type {GpuFrameTimer} from './diagnostics/GpuFrameTimer';
 import {VisitorNames} from './character/VisitorNames';
@@ -261,7 +262,7 @@ export class World{
   if(!path&&!direct){const upper=seat.level==='balcony',here=this.position.y>GOLDEN_HALL.balconyHeight-1;
    if(upper!==here){this.floorSeat=id;this.goToHallPoint(upper?'upper':'rear');return;}
    this.onToast('이 좌석으로 가는 길을 찾지 못했어요.');return;}
-  this.cancelSeat();const version=++this.reserveVersion,requestId=crypto.randomUUID();const ok=await this.net.reserve(id,requestId);if(version!==this.reserveVersion){this.net.send({type:'release',requestId});return;}
+  this.cancelSeat();const version=++this.reserveVersion,requestId=newId();const ok=await this.net.reserve(id,requestId);if(version!==this.reserveVersion){this.net.send({type:'release',requestId});return;}
   if(!ok){this.net.send({type:'release',requestId});return;}this.reservedSeat=id;this.concertView=false;this.cameraYaw=0;this.seating=false;this.route=path??[seat.approach];this.renewAt=performance.now();this.marker.visible=true;this.marker.position.set(seat.approach.x,seat.y+.035,seat.approach.z);
   // Chosen on the seat map: appear in front of the seat and sit at once, no walk across the hall.
   if(direct&&!this.candle)this.net.send({type:'candle',state:'on'});
