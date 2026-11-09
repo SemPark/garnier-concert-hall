@@ -49,7 +49,7 @@ export class World{
  readonly conducting=new Conducting();private conductView=false;private demoAvatar:Avatar|null=null;private guestConductor:Avatar|null=null;private conductSeat=false;private conductEffect:ConductTapEffect|null=null;
  concertView=true;hallOverview=true;private introUntil=0;private dragAt=0;private hallZoom=1;private introEase=0;
  ready=false;private texturesLoaded=false;private hallBuild:Promise<Venue>|null=null;private hallWarm:Promise<void>|null=null;private hallWarmed=false;private deferredState:Snapshot|null=null;private changingZone=false;uiObscured=false;
- position=new T.Vector3(SPAWN.lobby.x,SPAWN.lobby.y,SPAWN.lobby.z);pose:'idle'|'walk'|'sit'='idle';yaw=0;cameraYaw=0;cameraPitch=.13;cameraDistance=4.8;fps=60;entered=false;
+ position=new T.Vector3(SPAWN.lobby.x,SPAWN.lobby.y,SPAWN.lobby.z);pose:'idle'|'walk'|'sit'='idle';yaw=0;cameraYaw=0;cameraPitch=.13;cameraDistance=4.8;private cameraLocked=false;private introGlide=false;fps=60;entered=false;
  onChange:()=>void=()=>{};onToast:(message:string)=>void=()=>{};onSeatMap:()=>void=()=>{};onWardrobe:()=>void=()=>{};private wardrobeNear=false;private visitingWardrobe=false;private pendingSeat:string|null=null;private loungeTarget:string|null=null;private visitingCat=false;private petUntil=0;private visitingBoxOffice=false;private seatWalkAt=0;private boardAt=0;
  private lightingPass:LobbyLightPass|null=null;private environment:T.WebGLRenderTarget;private poseFrustum=new T.Frustum();private poseProjection=new T.Matrix4();private poseSphere=new T.Sphere();private poseCenter=new T.Vector3();private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private route:Point[]=[];private avatarVariant=-1;private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
  private collisionPauseUntil=0;private seatedTarget:T.Vector3|null=null;private cameraSeatAmount=0;private petFocus=new T.Vector3();
@@ -420,6 +420,9 @@ export class World{
    return {look:position.clone().add(view),position};
   }
   const local=localCameraFrame(this.position,sitting,this.cameraYaw,this.cameraPitch,d),target=local.position;look.copy(local.look);
+  // Aim a fixed angle above the visitor, so they always stand on the lower third and the hall fills the view above.
+  {const view=look.clone().sub(target),right=new T.Vector3().crossVectors(view,T.Object3D.DEFAULT_UP).normalize();
+   view.applyAxisAngle(right,Math.atan(Math.tan(T.MathUtils.degToRad(this.camera.fov/2))/3));look.copy(target).add(view);}
   // In the hall the camera never slips through a stair door into the corridor: it just comes closer along its orbit.
   if(this.zone==='auditorium'&&target.z>GOLDEN_HALL.rear-.5&&target.z>local.origin.z){const t=Math.max(0,(GOLDEN_HALL.rear-.5-local.origin.z)/(target.z-local.origin.z));target.lerpVectors(local.origin,target,t);}
   // Stay under the ceiling, so zooming out never leaves the building.
@@ -446,7 +449,7 @@ export class World{
  private frameBudget(){
   if(this.diagnosticActive)return PROBE_PROFILE.fps;
   if(this.mobile)return frameRate(true,this.quality);
-  if(this.uiObscured)return 8;if(!this.entered&&this.ready)return 15;
+  if(!this.entered&&this.ready)return 15;
   const chosen=frameRate(this.mobile,this.quality);
   if(this.hallLoading||this.changingZone)return Math.min(chosen,15);
   if(this.zone==='lobby'&&!this.hallWarmed||this.net.status!=='connected')return Math.min(chosen,30);
@@ -547,12 +550,17 @@ export class World{
     timings.musicianBatch=performance.now()-batchStart;
    }
   }
-  if(this.introUntil&&now>this.introUntil){this.introUntil=0;if(this.zone==='auditorium'&&this.concertView&&this.pose!=='sit'){this.concertView=false;this.introEase=2.5;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.onChange();}}
+  if(this.introUntil&&now>this.introUntil){this.introUntil=0;if(this.zone==='auditorium'&&this.concertView&&this.pose!=='sit'){this.concertView=false;this.introEase=2.5;this.introGlide=true;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.onChange();}}
   if(this.zone==='auditorium'&&this.pendingSeat&&this.seatWalkAt&&now>=this.seatWalkAt){const id=this.pendingSeat;this.pendingSeat=null;this.seatWalkAt=0;void this.chooseSeat(id,true);}
   // The walking camera stays locked to its orbit (no trailing glide); easing is kept only for big view changes.
   this.audio.setDoorDistance(this.entered&&this.zone==='lobby'?Math.hypot(this.position.x-HALL_INNER_DOOR.x,this.position.y-GRAND_STAIR.rise,this.position.z-HALL_INNER_DOOR.z):Infinity);
   this.updateBoard(now);
-  this.cameraSeatAmount=T.MathUtils.damp(this.cameraSeatAmount,this.pose==='sit'?1:0,8,dt);const f=this.cameraFrame(),snap=now-this.dragAt<150||!this.concertView&&this.introEase<=0&&this.camera.position.distanceTo(f.position)<1.5,smooth=snap?1:1-Math.exp(-dt*(this.introEase>0?1.6:7));if(this.introEase>0)this.introEase=Math.max(0,this.introEase-dt);this.camera.position.lerp(f.position,smooth);if(this.entered&&!this.concertView&&this.position.z<=GOLDEN_HALL.rear){const origin=localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin;this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));}this.venue.scene.userData.cameraFocus=this.entered?(this.concertView?f.look:localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin):null;this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(this.avatar&&this.entered&&(this.zone==='lobby'||!this.concertView)){const head=this.position.clone();head.y+=1.1;this.avatar.root.visible=this.camera.position.distanceTo(head)>1.65;}if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;if(this.conducting.active&&this.avatar)this.avatar.root.visible=false;const submitStart=this.diagnosticActive?performance.now():0;if(!this.diagnosticActive||this.diagnosticMode==='normal'){
+  this.cameraSeatAmount=T.MathUtils.damp(this.cameraSeatAmount,this.pose==='sit'?1:0,8,dt);const f=this.cameraFrame(),gap=this.camera.position.distanceTo(f.position),follow=!this.concertView&&this.introEase<=0&&gap<1.5;
+  // Lock onto the orbit only once the glide has actually arrived, so the fly-in never ends in a jump.
+  this.cameraLocked=follow&&(this.cameraLocked||gap<.03);if(this.cameraLocked||this.concertView)this.introGlide=false;const snap=now-this.dragAt<150||this.cameraLocked,smooth=snap?1:1-Math.exp(-dt*(this.introEase>0||this.introGlide?1.6:7));if(this.introEase>0)this.introEase=Math.max(0,this.introEase-dt);// Keep the destination inside the walls and glide to it; clamping the moving camera itself made the fly-in jump.
+  const walled=this.entered&&!this.concertView&&this.position.z<=GOLDEN_HALL.rear,origin=walled?localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin:null;
+  if(origin)f.position.copy(constrainCamera(origin,f.position,this.venue.cameraWalls));
+  this.camera.position.lerp(f.position,smooth);if(origin&&this.cameraLocked){this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));}this.venue.scene.userData.cameraFocus=this.entered?(this.concertView?f.look:localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin):null;this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(this.avatar&&this.entered&&(this.zone==='lobby'||!this.concertView)){const head=this.position.clone();head.y+=1.1;this.avatar.root.visible=this.camera.position.distanceTo(head)>1.65;}if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;if(this.conducting.active&&this.avatar)this.avatar.root.visible=false;const submitStart=this.diagnosticActive?performance.now():0;if(!this.diagnosticActive||this.diagnosticMode==='normal'){
    const namedAvatar=this.demoAvatar??this.avatar;
    const self=this.entered&&this.self&&namedAvatar?{avatar:namedAvatar,visitor:this.self}:null;
    this.visitorNames.update(this.camera,self,this.remotes.values(),this.venue.scene.userData.solidOccluded,this.probeViewport);
