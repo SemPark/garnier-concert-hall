@@ -36,12 +36,12 @@ function ellipse(cx:number,cy:number,rx:number,ry:number,blink=false,blinkAnchor
 }
 function smile(){
  const p:number[]=[],index:number[]=[],steps=24;
- for(let i=0;i<=steps;i++){const t=i/steps,x=(t-.5)*.092,y=-.128-.024*Math.sin(t*Math.PI);for(const edge of [-1,1]){const yy=y+edge*.004; p.push(x,yy,faceSurfaceZ(x,yy)-.0018);}if(i<steps){const a=i*2;index.push(a,a+1,a+2,a+1,a+3,a+2);}}
+ for(let i=0;i<=steps;i++){const t=i/steps,x=(t-.5)*.104,y=-.088-.024*Math.sin(t*Math.PI);for(const edge of [-1,1]){const yy=y+edge*.006; p.push(x,yy,faceSurfaceZ(x,yy)-.0018);}if(i<steps){const a=i*2;index.push(a,a+1,a+2,a+1,a+3,a+2);}}
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setIndex(index);g.computeVertexNormals();return g;
 }
-const eyeShapes=[-1,1].map(side=>ellipse(side*.115,-.015,.043,.056,true));
-const highlights=[-1,1].map(side=>ellipse(side*.103,.008,.012,.014,true,-.015));
-const cheekShapes=[-1,1].map(side=>ellipse(side*.22,-.095,.065,.035));
+const eyeShapes=[-1,1].map(side=>ellipse(side*.12,.025,.043,.056,true));
+const highlights=[-1,1].map(side=>ellipse(side*.108,.048,.012,.014,true,.025));
+const cheekShapes=[-1,1].map(side=>ellipse(side*.22,-.055,.065,.035));
 const smileShape=smile();
 export function paintFace(head:T.Group,eyes:T.Group){
  const add=(parent:T.Group,geometry:T.BufferGeometry,material:T.Material,part:string)=>{const mesh=new T.Mesh(geometry,material);mesh.userData.facePart=part;mesh.userData.surfaceDecal=true;parent.add(mesh);return mesh;};
