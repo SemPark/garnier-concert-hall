@@ -365,3 +365,15 @@ body:has(.conducting-experience) .mobile-joystick{visibility:hidden;pointer-even
 .ticket-viewport{touch-action:none}.ticket-touch-hint{position:absolute;z-index:6;top:12px;left:50%;transform:translateX(-50%);padding:9px 14px;border-radius:18px;background:#30291fee;color:#f7e9cd;font-size:12px;white-space:nowrap;pointer-events:none}
 .ticket-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:0}
 .ticket-row{left:155px;width:30px}
+
+.ticket-table{position:absolute;box-sizing:border-box;border-radius:50%;background:#efe6d6;border:1px solid #bbaa8a;color:#9a886d;font:10px/1 system-ui;display:flex;align-items:center;justify-content:center;pointer-events:none}
+
+.dish-choices{display:grid;grid-template-columns:repeat(3,auto);gap:8px}.dish-choices button{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:64px}.dish-choices b{font-size:26px;line-height:1.1;font-weight:400}.dish-choices span{font-size:11px}
+
+/* The eat button glows and nudges while a dish waits, so it is the obvious thing to press. */
+.actionbar button.eat-ready{position:relative;color:#ffe2a3;animation:eat-pulse 1.6s ease-in-out infinite}.actionbar button.eat-ready::after{content:'';position:absolute;inset:2px;border-radius:12px;box-shadow:0 0 0 2px #e8b75a,0 0 14px 3px #e8b75a99;pointer-events:none;animation:eat-glow 1.6s ease-in-out infinite}@keyframes eat-pulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}@keyframes eat-glow{0%,100%{opacity:.55}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.actionbar button.eat-ready,.actionbar button.eat-ready::after{animation:none}}
+.dish-icon{display:inline-flex;align-items:center;justify-content:center;font-size:20px;line-height:1;font-weight:400;width:22px;height:22px}
+
+/* Throw the table's food and drink away: a small round bin above the action bar. */
+.dish-trash{pointer-events:auto;width:40px;height:40px;padding:0;display:grid;place-items:center;border-radius:50%;background:var(--panel);border:1px solid #dac08a40;color:#cbbfa6;backdrop-filter:blur(14px)}.dish-trash:hover{background:#c6aa7022;color:#ffe7b3}

@@ -1,7 +1,9 @@
 import {memo,useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {SEATS,SEAT_GRADES,seatGrade,seatLabel,seatNumber,type Seat} from '../shared/venue';
 import type {SeatClaim} from '../shared/protocol';
-import {seatMapPosition,seatMapRowY,SEAT_MAP_SIZE,SEAT_MAP_PARTS as M,mapX} from './seatMapLayout';
+import {seatMapPosition,SEAT_MAP_SIZE,SEAT_MAP_PARTS as M,mapX,mapY,SEAT_MAP_SCALE} from './seatMapLayout';
+import {DINNER_TABLES,TABLE_RADIUS} from '../shared/venue';
+const TABLE_PX=TABLE_RADIUS*SEAT_MAP_SCALE;
 export const SeatMap=memo(function SeatMap({open,claims,selfId,connected,onClose,onChoose}:{open:boolean;claims:Record<string,SeatClaim>;selfId:string;connected:boolean;onClose:()=>void;onChoose:(id:string)=>void}){
  const [prepared,setPrepared]=useState(0);
  const [showZoomHint,setShowZoomHint]=useState(false);
@@ -57,9 +59,7 @@ export const SeatMap=memo(function SeatMap({open,claims,selfId,connected,onClose
    </div>
   <div className="ticket-viewport" ref={viewport}><div className="ticket-scroll" style={{width:SEAT_MAP_SIZE.width*scale,height:SEAT_MAP_SIZE.height*scale}}><div className="ticket-map" style={{width:SEAT_MAP_SIZE.width,height:SEAT_MAP_SIZE.height,transform:`scale(${scale})`}}>
    <div className="ticket-hall" style={M.hall}/><div className="ticket-stage" style={M.stage}>무 대 <small>오케스트라</small></div>
-   <span className="ticket-aisle" style={{left:mapX(5.5)-6,top:seatMapRowY(1),height:M.floorBottom-seatMapRowY(1)}}>통로</span>
-   <span className="ticket-cross-aisle" style={{top:(seatMapRowY(10)+seatMapRowY(11))/2+5}}>가로 통로</span>
-   {Array.from({length:20},(_,i)=><span className="ticket-row" key={i} style={{top:seatMapRowY(i+1)}}>{i+1}열</span>)}
+   {DINNER_TABLES.map(t=><span className="ticket-table" key={t.id} style={{left:mapX(t.x)-TABLE_PX,top:mapY(t.z)-TABLE_PX,width:TABLE_PX*2,height:TABLE_PX*2}}>{t.id}</span>)}
    {SEATS.slice(0,prepared).map(s=>{const claim=claims[s.id],mine=!!claim&&claim.visitorId===selfId,occupied=!!claim&&!mine,pos=seatMapPosition(s);return <button key={s.id} className={`ticket-seat ${s.level} grade-${seatGrade(s)} ${selected?.id===s.id?'selected':mine?'mine':occupied?'occupied':''}`} style={{left:pos.x,top:pos.y}} disabled={!connected||occupied} aria-label={`${seatGrade(s)}석 ${seatLabel(s)}${occupied?' 이용 중':mine?' 내 자리':''}`} aria-pressed={selected?.id===s.id} title={`${seatGrade(s)}석 · ${seatLabel(s)}`} onClick={()=>setSelected(s)}>{seatNumber(s)}</button>;})}
   </div></div></div></div>
   <div className="ticket-footer"><div><strong>{selected?`${seatGrade(selected)}석 · ${seatLabel(selected)}`:'원하는 좌석을 선택하세요'}</strong><small>{selected?.level==='balcony'?'뒤쪽 문으로 나가 복도 계단을 올라 2층 좌석에 앉습니다.':'확대 후 지도를 밀어 좌석을 선택할 수 있어요.'}</small></div><button className="ticket-confirm" disabled={!available||!connected} onClick={()=>{if(selected){onChoose(selected.id);onClose();}}}>이 좌석으로 이동</button></div>

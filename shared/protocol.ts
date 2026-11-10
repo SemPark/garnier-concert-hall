@@ -1,3 +1,4 @@
+import type {Dish} from './dishes';
 import type {Outfit} from './wardrobe';
 import type {Visitor,Zone,Pose,Look,CandleState,HallDestination} from './venue';
 import type {Gesture} from './gestures';
@@ -31,6 +32,8 @@ export type ClientMessage=
  |{type:'outfit';outfit:Outfit}
  |{type:'coffee'}
  |{type:'macaron'}
+ |{type:'dish';dish:Dish}
+ |{type:'clearDish'}
  |{type:'candle';state:CandleState}
  |{type:'activity'}
  |{type:'sync'}

@@ -7,6 +7,7 @@ import {LOBBY_CHRISTMAS_TREE} from './grandStair';
 import {OUTFITS,type Outfit} from './wardrobe';
 import {GOLDEN_HALL as H} from './goldenHall';
 import type {Gesture} from './gestures';
+import type {Dish} from './dishes';
 import {STAIR_DOORS,GALLERY_BRIDGE,REAR_COLUMNS,REAR_SCREENS,hasGalleryFloor} from './gallery';
 import {ATRIUM,GRAND_STAIR,LOBBY_FURNITURE as F,LOBBY_ARCADE,lobbyHeight} from './grandStair';
 export {STAIR_DOORS} from './gallery';
@@ -18,16 +19,18 @@ export const isLook=(v:unknown):v is Look=>v==='man'||v==='woman';
 function appearanceSeed(id:string){let hash=2166136261;for(const ch of id)hash=Math.imul(hash^ch.charCodeAt(0),16777619);return hash>>>0;}
 /** Independent skin, look and hair choices, stable for the same visitor on every screen. */
 export function visitorVariant(v:{id:string;look?:Look}){const seed=appearanceSeed(v.id),look=v.look??(seed&4?'woman':'man');return (seed&3)+(look==='woman'?4:0)+((seed>>>8)&7)*8;}
-export type Visitor={id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronBites?:number;macaronEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
+export type Visitor={id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronBites?:number;macaronEmptyAt?:number;dish?:Dish;dishBites?:number;dishEmptyAt?:number;drink?:'coffee'|'wine';drinkSips?:number;drinkEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
 export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
-// Adapt the official three-block stalls to the app's existing 352 seats.
-// Two inner aisles, two wall-side aisles and a cross aisle connect every row.
-export const SEAT_COLUMNS=[-10.45,-9.35,-8.25,-7.15,-3.85,-2.75,-1.65,-.55,.55,1.65,2.75,3.85,7.15,8.25,9.35,10.45];
-export const FLOOR_AISLES=[-12.9,-5.5,5.5,12.9];
-export const FLOOR_ROWS=Array.from({length:20},(_,row)=>-6.2+row*1.95+(row>=10?2:0));
-export const FLOOR_CROSS_AISLE=(FLOOR_ROWS[9]+FLOOR_ROWS[10])/2;
-export const FLOOR_SEATS:Seat[]=FLOOR_ROWS.flatMap((z,row)=>SEAT_COLUMNS.map((x,column)=>({id:`parterre-${row*16+column+1}`,x,z,approach:{x,y:PARTERRE.floor,z:z-1.05},row:row+1,column:column+1,level:'parterre' as const,y:PARTERRE.floor,yaw:0})));
+// Dinner-show floor: round tables with chairs all around (the theatre rows are kept in theatreSeating.ts).
+export {DINNER_TABLES,TABLE_RADIUS} from './dinnerTables';
+import {DINNER_TABLES,DINNER_ROWS,DINNER_LANES_X,DINNER_CROSS_LANE,TABLE_RADIUS,DINNER_SIT_DROP,dinnerSeats} from './dinnerTables';
+/** Walking lanes between the table columns, and the wall-side aisles. */
+export const FLOOR_AISLES=[-12.9,...DINNER_LANES_X,12.9];
+/** Table rows (centre z), front to back. */
+export const FLOOR_ROWS=DINNER_ROWS;
+export const FLOOR_CROSS_AISLE=DINNER_CROSS_LANE;
+export const FLOOR_SEATS:Seat[]=dinnerSeats(PARTERRE.floor);
 // Leave the four seats next to each organ-loft wing empty. Retain all other IDs.
 // Chairs stand near the balustrade so they show from the hall; the bay by the stair top stays empty.
 export const BALCONY_SEATS:Seat[]=[];
@@ -51,7 +54,7 @@ export function seatGrade(s:Seat):SeatGrade{
  if(d<40)return 'S';
  return 'A';
 }
-export function seatLabel(s:Seat){if(s.id.startsWith('box-'))return `1층 ${s.x<0?'왼쪽':'오른쪽'} 측면석 ${(s.row-1)*3+s.column}번`;return s.level==='parterre'?`1층 ${s.row}열 ${s.column}번`:`2층 ${s.x<0?'왼쪽':'오른쪽'} ${seatNumber(s)}번`;}
+export function seatLabel(s:Seat){if(s.id.startsWith('box-'))return `1층 ${s.x<0?'왼쪽':'오른쪽'} 측면석 ${(s.row-1)*3+s.column}번`;return s.level==='parterre'?`${s.row}번 테이블 ${s.column}번 자리`:`2층 ${s.x<0?'왼쪽':'오른쪽'} ${seatNumber(s)}번`;}
 /** The parterre runs right up to the stage lip (stage front is z -9.5). */
 export const STAGE_APRON_Z=-9.2;
 /** Jump points: stage front and rear of the hall, the middle of the rear gallery (2F), and the middle of the lobby floor. */
@@ -83,7 +86,7 @@ export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  if(fromY<1&&fromY>PARTERRE.floor-.4&&Math.abs(p.x)<=15.65&&p.z>=STAGE_APRON_Z&&p.z<=50.3)return parterreHeight(p.x,p.z);
  return null;
 }
-const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.54,hz:.45,y:s.y})),...[-1,1].flatMap(side=>LOWER_STATUES.map(z=>({x:side*(15.3+LOWER_FINISH_RECESS),z,hx:.45,hz:.48,y:0}))),...SIDE_BOX_SEATS.map(s=>({x:s.x,z:s.z,hx:.45,hz:.54,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...[-1,1].flatMap(side=>[PARTERRE.floor,0].map(y=>({x:side*(16+PARTERRE.stairHalfWidth)/2,z:(PARTERRE.stairFront+44.2)/2,hx:(16-PARTERRE.stairHalfWidth)/2,hz:(44.2-PARTERRE.stairFront)/2,y}))),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [PARTERRE.floor,0].map(y=>({x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y}));})],lobby:[
+const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.38,hz:.38,y:s.y+DINNER_SIT_DROP})),...DINNER_TABLES.map(t=>({x:t.x,z:t.z,hx:TABLE_RADIUS+.1,hz:TABLE_RADIUS+.1,y:PARTERRE.floor})),...[-1,1].flatMap(side=>LOWER_STATUES.map(z=>({x:side*(15.3+LOWER_FINISH_RECESS),z,hx:.45,hz:.48,y:0}))),...SIDE_BOX_SEATS.map(s=>({x:s.x,z:s.z,hx:.45,hz:.54,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...[-1,1].flatMap(side=>[PARTERRE.floor,0].map(y=>({x:side*(16+PARTERRE.stairHalfWidth)/2,z:(PARTERRE.stairFront+44.2)/2,hx:(16-PARTERRE.stairHalfWidth)/2,hz:(44.2-PARTERRE.stairFront)/2,y}))),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [PARTERRE.floor,0].map(y=>({x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y}));})],lobby:[
  ...[-1,1].map(side=>({x:side*(GRAND_STAIR.flightHalf+.06),z:GRAND_STAIR.flightEnd,hx:.29,hz:.29,y:GRAND_STAIR.rise})),
  ...[-1,1].map(side=>({x:side*2.55,z:AMPHITHEATRE_DOOR.z-.75,hx:.52,hz:.46,y:GRAND_STAIR.rise})),
  ...LOBBY_ARCADE.endColumns.flatMap(x=>[ATRIUM.front+ATRIUM.balconyDepth,ATRIUM.back-ATRIUM.balconyDepth].map(z=>({x,z,hx:.33,hz:.33,y:ATRIUM.balconyY}))),

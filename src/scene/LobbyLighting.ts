@@ -57,11 +57,21 @@ export function lobbyPracticalLights(scene:T.Scene){
 export class LobbyLightPass{
  private composer:EffectComposer;private scenePass:RenderPass;private bloom:UnrealBloomPass;
  private timings?:RenderPassTimings;
- constructor(private renderer:T.WebGLRenderer,scene:T.Scene,camera:T.Camera,private bloomRatio=.5){
-  this.composer=new EffectComposer(renderer);this.scenePass=new RenderPass(scene,camera);
+ constructor(private renderer:T.WebGLRenderer,scene:T.Scene,camera:T.Camera,private bloomRatio=.5,samples=4){
+  // The scene is drawn into the composer's own buffers, where the canvas antialias setting does not reach, so they get
+  // multisampling for smooth thin chair legs, rails and table rims. Both buffers need it: the composer swaps them every
+  // frame, so with only one multisampled the scene alternated between smooth and jagged edges, which read as trembling.
+  const size=renderer.getDrawingBufferSize(new T.Vector2());
+  this.composer=new EffectComposer(renderer,new T.WebGLRenderTarget(Math.max(1,size.x),Math.max(1,size.y),{type:T.HalfFloatType,samples}));this.scenePass=new RenderPass(scene,camera);
   this.bloom=new UnrealBloomPass(new T.Vector2(256,256),.3,.7,1.2);
   const resize=this.bloom.setSize.bind(this.bloom);this.bloom.setSize=(w,h)=>resize(Math.max(1,w*this.bloomRatio|0),Math.max(1,h*this.bloomRatio|0));
   const output=new OutputPass();
+  // Colour grade folded into the final pass (no extra full-screen pass): a touch warmer, a little more contrast and
+  // saturation, so the gold and red velvet read richer and the candle shadows lose their grey haze.
+  const shader=output.material.fragmentShader,end=shader.lastIndexOf('}');
+  output.material.fragmentShader=shader.slice(0,end)+`
+  {vec3 c=clamp(gl_FragColor.rgb,0.,1.);c*=vec3(1.03,1.,.94);c=(c-.5)*1.08+.5;float l=dot(c,vec3(.299,.587,.114));c=mix(vec3(l),c,1.1);gl_FragColor.rgb=clamp(c,0.,1.);}
+`+shader.slice(end);
   this.measurePass(this.scenePass,'sceneRender');
   this.measurePass(this.bloom,'postProcessing');
   this.measurePass(output,'postProcessing');
@@ -79,6 +89,8 @@ export class LobbyLightPass{
  }
  setBloomRatio(value:number){this.bloomRatio=value;}
  resize(width:number,height:number,ratio:number){this.composer.setPixelRatio(ratio);this.composer.setSize(width,height);}
+ /** Change the scene buffer's multisampling (the buffer is rebuilt on the next frame). */
+ setSamples(samples:number){for(const target of [this.composer.renderTarget1,this.composer.renderTarget2]){if(target.samples===samples)continue;target.samples=samples;target.dispose();}}
  render(scene:T.Scene,camera:T.Camera,timings?:RenderPassTimings){
   this.scenePass.scene=scene;this.scenePass.camera=camera;const auto=this.renderer.info.autoReset;this.renderer.info.reset();this.renderer.info.autoReset=false;
   this.timings=timings;

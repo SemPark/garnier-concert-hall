@@ -23,12 +23,23 @@ function stand(parent:T.Object3D){
  box(parent,[.012,.01,.29],[0,.84,0],0x9c927f).rotation.x=.55;
  for(const angle of [0,2.094,4.189]){const leg=box(parent,[.035,.025,.29],[Math.sin(angle)*.11,.025,Math.cos(angle)*.11],0x302d28);leg.rotation.y=angle;}
 }
+/** Trial: the players are drawn as ghosts (World adds them); their instruments stay where the players hold them. */
+export const GHOST_ORCHESTRA=false;
+const EMPTY=new T.BufferGeometry();EMPTY.setAttribute('position',new T.Float32BufferAttribute([],3));
+/** Empty every body mesh but leave instruments and bows (held in the hands) in place; the pose tree is untouched. */
+function hideBody(actor:Avatar){
+ const keep=new Set<T.Object3D>();
+ const keepAll=(o:T.Object3D)=>o.traverse(c=>keep.add(c));keepAll(actor.instrument);
+ for(const hand of [actor.leftHand,actor.rightHand])for(const c of hand.children)if(c!==actor.finger)keepAll(c);
+ actor.root.traverse(o=>{if(o instanceof T.Mesh&&!keep.has(o)){o.geometry=EMPTY;o.userData.lowDetail=EMPTY;}});
+}
 export function buildOrchestra(scene:T.Scene){return finishBuild(buildOrchestraSteps(scene));}
 export function* buildOrchestraSteps(scene:T.Scene){
  terraces(scene);
  const musicians:Avatar[]=[],desks=new Map<string,{x:number;z:number;count:number}>();
  for(const [i,p] of ORCHESTRA_LAYOUT.entries()){
   const actor=new Avatar(0x2d3033,p.instrument,visitorVariant({id:`musician-${i}`}));actor.root.userData.section=p.section;actor.root.userData.placement=i;actor.root.userData.row=p.row;actor.phase=i*.43;actor.root.position.set(p.x,STAGE_FLOOR+p.rise,p.z);actor.root.rotation.y=p.yaw;actor.root.scale.setScalar(MUSICIAN_SCALE);actor.settlePose(musicianSits(p.instrument));actor.body.userData.animated=true;scene.add(actor.root);musicians.push(actor);
+  if(GHOST_ORCHESTRA)hideBody(actor);
   if(musicianSits(p.instrument)){const furniture=new T.Group();furniture.position.copy(actor.root.position);furniture.rotation.y=p.yaw;furniture.scale.setScalar(MUSICIAN_SCALE);furniture.userData.chairFor=i;scene.add(furniture);chair(furniture);}
   if(!PERCUSSION.includes(p.instrument)&&!['piano','celesta','harp'].includes(p.instrument)){
    const id=p.deskId??`player-${i}`,d=desks.get(id)??{x:0,z:0,count:0};d.x+=p.x;d.z+=p.z;d.count++;desks.set(id,d);

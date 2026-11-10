@@ -1,6 +1,7 @@
 import {PARTERRE,parterreHeight} from '../../shared/parterre';
 import {BOUNDS,FLOOR_AISLES,FLOOR_CROSS_AISLE,walkable,distance,type Point,type Zone} from '../../shared/venue';
 import {lobbyRouteNodes} from '../../shared/grandStair';
+import {DINNER_LANES_X,DINNER_LANES_Z,DINNER_FRONT_LANE,DINNER_REAR_LANE} from '../../shared/dinnerTables';
 const STEP=.35;
 export function segmentClear(zone:Zone,a:Point,b:Point){
  const n=Math.max(1,Math.ceil(distance(a,b)/.12)),ground=zone==='auditorium'&&(a.y??0)<1&&(b.y??0)<1;
@@ -14,6 +15,13 @@ function planarPath(zone:Zone,start:Point,end:Point):Point[]|null{
   const ground=(x:number,z:number)=>({x,z,y:parterreHeight(x,z)??PARTERRE.floor});
   const candidates:Point[][]=FLOOR_AISLES.map(x=>[ground(x,start.z),ground(x,end.z),end]);
   for(const a of FLOOR_AISLES)for(const b of FLOOR_AISLES)if(a!==b)candidates.push([ground(a,start.z),ground(a,FLOOR_CROSS_AISLE),ground(b,FLOOR_CROSS_AISLE),ground(b,end.z),end]);
+  // Dinner tables leave no straight lanes front to back: go along the rear (or front) lane to a side lane, down to the
+  // lane across the room beside the target table's row, then across to the seat.
+  for(const z of [...DINNER_LANES_Z,DINNER_FRONT_LANE,DINNER_REAR_LANE])for(const side of DINNER_LANES_X){
+   candidates.push([ground(start.x,z),ground(end.x,z),end]);
+   candidates.push([ground(side,start.z),ground(side,z),ground(end.x,z),end]);
+   for(const via of [DINNER_REAR_LANE,DINNER_FRONT_LANE])candidates.push([ground(start.x,via),ground(side,via),ground(side,z),ground(end.x,z),end]);
+  }
   let best:Point[]|null=null,cost=Infinity;
   for(const route of candidates){let p=start,total=0,clear=true;for(const q of route){if(!segmentClear(zone,p,q)){clear=false;break;}total+=distance(p,q);p=q;}if(clear&&total<cost){best=route;cost=total;}}
   if(best)return best;

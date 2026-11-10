@@ -1,3 +1,4 @@
+import {buildFork,buildWineGlass,WINE_SCALE} from '../scene/DinnerDishes';
 import {buildCoffeeCup,buildMacaron} from './CoffeeCup';
 import {faceGeometry,faceFarGeometry,faceSurfaceZ,paintFace} from './Face';
 import {skirtGeometry} from './Skirt';
@@ -96,7 +97,7 @@ export class Avatar{
  readonly appearance:'woman'|'man';readonly hair:HairStyle;
  readonly root=new T.Group();readonly body=new T.Group();readonly head=new T.Group();readonly eyes=new T.Group();
  readonly leftArm=new T.Group();readonly rightArm=new T.Group();readonly leftHand=new T.Group();readonly rightHand=new T.Group();
- readonly finger:T.Mesh;readonly leftLeg=new T.Group();readonly rightLeg=new T.Group();readonly instrument=new T.Group();phase=0;instrumentType?:Instrument;
+ readonly finger:T.Mesh;readonly leftLeg=new T.Group();readonly rightLeg=new T.Group();private readonly knees:T.Group[]=[];readonly instrument=new T.Group();phase=0;instrumentType?:Instrument;
  /** Head-top icon of the current gesture, for the emote layer. */
  icon:Icon|null=null;iconAlpha=0;
  private sitAmount=0;private left:Arm;private right:Arm;
@@ -134,7 +135,15 @@ export class Avatar{
   }
   // Hidden by zero scale (not visibility) so batched musicians never show it.
   this.finger=new T.Mesh(fingerGeometry,material(skin));this.finger.position.set(...FINGER_OFFSET);this.finger.scale.setScalar(0);this.rightHand.add(this.finger);
-  for(const [side,hip]of [[-1,this.leftLeg],[1,this.rightLeg]] as const){hip.position.set(side*.115,.55,0);const leg=cylinder(hip,wearsSkirt?.065:.085,.42,[0,-.21,0],wearsSkirt?skin:0x242329);leg.userData.garment=wearsSkirt?'stocking':'trousers';if(!wearsSkirt)leg.userData.clothContact='trousers';sphere(hip,.12,[0,-.49,-.045],0x2b2422).scale.set(.11,.075,.155);}
+  for(const [side,hip]of [[-1,this.leftLeg],[1,this.rightLeg]] as const){hip.position.set(side*.115,.55,0);
+   const dress=(leg:T.Mesh)=>{leg.userData.garment=wearsSkirt?'stocking':'trousers';if(!wearsSkirt)leg.userData.clothContact='trousers';};
+   // Visitors get a knee so they can sit at a dining chair with their shins down; musicians keep one straight leg.
+   if(instrument){dress(cylinder(hip,wearsSkirt?.065:.085,.42,[0,-.21,0],wearsSkirt?skin:0x242329));sphere(hip,.12,[0,-.49,-.045],0x2b2422).scale.set(.11,.075,.155);}
+   else{const r=wearsSkirt?.065:.085,colour=wearsSkirt?skin:0x242329,knee=new T.Group();
+    // Same overall length as the straight leg (foot at −0.49); a round knee like the shoulders hides the joint.
+    dress(cylinder(hip,r,.25,[0,-.125,0],colour));knee.position.set(0,-.25,0);hip.add(knee);this.knees.push(knee);
+    dress(sphere(knee,r,[0,0,0],colour));dress(cylinder(knee,r,.2,[0,-.1,0],colour));sphere(knee,.12,[0,-.24,-.045],0x2b2422).scale.set(.11,.075,.155);}
+  }
   // Existing materials share a broad character fill; cloth, skin and hair keep distinct responses.
   this.head.traverse(o=>{if(o instanceof T.Mesh&&!Array.isArray(o.material))o.material=frontLitMaterial(o.material,o.userData.hairPart?'hair':'head');});
   this.root.traverse(o=>{if(o instanceof T.Mesh&&!Array.isArray(o.material)){
@@ -142,7 +151,7 @@ export class Avatar{
    if(cloth)prepareClothContact(o.geometry,cloth);
    o.material=frontLitMaterial(o.material,cloth?'cloth':'body');
   }});
-  if(!instrument){this.coffeeCup=buildCoffeeCup();this.rightHand.add(this.coffeeCup);this.macaron=buildMacaron();this.macaron.scale.setScalar(0);this.leftHand.add(this.macaron);}
+  if(!instrument){this.fork=buildFork();this.fork.scale.setScalar(0);this.forkBite=new T.Mesh(new T.IcosahedronGeometry(.028,1),new T.MeshStandardMaterial({roughness:.6}));this.forkBite.position.set(0,.01,-.15);this.fork.add(this.forkBite);this.rightHand.add(this.fork);this.wineGlass=buildWineGlass();this.wineGlass.position.set(-.07,-.03,-.05);this.wineGlass.scale.setScalar(0);this.rightHand.add(this.wineGlass);this.coffeeCup=buildCoffeeCup();this.rightHand.add(this.coffeeCup);this.macaron=buildMacaron();this.macaron.scale.setScalar(0);this.leftHand.add(this.macaron);}
   const shadow=new T.Mesh(shadowGeometry,shadowMaterial);shadow.rotation.x=-Math.PI/2;shadow.position.y=.012;this.root.add(shadow);
   if(instrument){buildInstrument(instrument,this.instrument,this.leftHand,this.rightHand);if(FLOOR_INSTRUMENTS.has(instrument)){this.root.add(this.instrument);this.instrument.userData.floorAnchored=true;if(instrument==='cello')this.instrument.position.y=.64;}if(instrument==='conductor')santaHat(this.head);}
  }
@@ -162,6 +171,10 @@ export class Avatar{
  }
  holdingCoffee=false;private coffeeCup?:T.Group;holdingMacaron=false;macaronBites=0;private macaron?:T.Group;
  holdingCandle=false;
+ /** Colour of the forkful while this visitor eats a dinner dish (null: not dining). The fork is shown only while eating. */
+ diningBite:number|null=null;
+ /** Holding the dinner wine glass (only while sipping); it drinks exactly like the lobby coffee. */
+ holdingWine=false;private wineGlass?:T.Group;private faceFront?:number;private fork?:T.Group;private forkBite?:T.Mesh;
  update(time:number,speed:number,sitting:boolean,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60){
   this.rightHand.position.set(0,-ARM_LENGTH,0);this.leftHand.position.set(0,-ARM_LENGTH,0);
   const leftSleeve=this.leftArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;if(leftSleeve){leftSleeve.scale.y=1;leftSleeve.position.y=-(ARM_LENGTH-.06)/2;}
@@ -179,7 +192,9 @@ export class Avatar{
   this.head.rotation.set(-pose.headPitch,pose.turn?pose.headYaw:0,pose.turn?pose.headRoll:0);for(const eye of this.eyes.children){const mesh=eye as T.Mesh;if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[0]=1-pose.blink;}
   // A seated cellist opens the knees around the instrument instead of kicking through it.
   const splay=type==='cello'?.75*sit:0;
-  for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const){hip.position.set(-sign*.115*Math.cos(pose.turn),.55,-sign*.115*Math.sin(pose.turn));hip.rotation.order='YXZ';hip.rotation.set(T.MathUtils.lerp(pose.swing*.5*sign,type||this.appearance==='man'?Math.PI/2:.9,sit)+pose.lean,splay*sign-pose.turn,-pose.sway);}
+  for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const){hip.position.set(-sign*.115*Math.cos(pose.turn),.55,-sign*.115*Math.sin(pose.turn));hip.rotation.order='YXZ';hip.rotation.set(T.MathUtils.lerp(pose.swing*.5*sign,Math.PI/2,sit)+pose.lean,splay*sign-pose.turn,-pose.sway);}
+  // Seated, the knees bend so the shins hang straight down in front of the chair.
+  for(const knee of this.knees)knee.rotation.x=-Math.PI/2*sit;
   // Resting arms are held out on a diagonal (less when seated).
   const spread=T.MathUtils.lerp(.42,.16,sit);
   this.leftArm.rotation.set(-pose.swing*.34,0,-spread);this.rightArm.rotation.set(pose.swing*.34,0,spread);
@@ -199,6 +214,7 @@ export class Avatar{
    this.aimAt(this.left,-.45-Math.sin(u+.7)*.22*play,1.12+Math.sin(u*.5)*.3*play,-.22);
   }
   // The left hand carries the candle; backward greetings and hush use the free right hand.
+  if(this.wineGlass){this.wineGlass.scale.setScalar(this.holdingWine?WINE_SCALE:0);this.wineGlass.rotation.x=gesture==='drink'&&this.holdingWine?.35*pose.weight:0;}
   if(this.coffeeCup){this.coffeeCup.scale.setScalar(this.holdingCoffee?1:0);this.coffeeCup.rotation.x=gesture==='drink'&&this.holdingCoffee ? .35*pose.weight : 0;}
   if(this.macaron){
    // Each bite takes a whole half away at once, the moment it reaches the mouth.
@@ -215,8 +231,9 @@ export class Avatar{
    this.direction.set(.56+Math.sin(gestureAge*11)*.035,.10,-.12).applyQuaternion(this.head.quaternion).add(this.head.position);
    this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);
   }
-  if(gesture==='drink'&&this.holdingCoffee&&this.coffeeCup&&pose.weight>0&&!type){
-   const rim=new T.Vector3(0,.14,0).applyQuaternion(this.coffeeCup.quaternion).add(this.coffeeCup.position);
+  const vessel=this.holdingWine?this.wineGlass:this.holdingCoffee?this.coffeeCup:undefined;
+  if(gesture==='drink'&&vessel&&pose.weight>0&&!type){
+   const rim=new T.Vector3(0,this.holdingWine?.169*WINE_SCALE:.14,0).applyQuaternion(vessel.quaternion).add(vessel.position);
    this.direction.set(0,-.13,faceSurfaceZ(0,-.13)-.008).applyQuaternion(this.head.quaternion).add(this.head.position).sub(rim);
    const reach=T.MathUtils.lerp(ARM_LENGTH,this.direction.distanceTo(this.rightArm.position),pose.weight);
    this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);this.rightHand.position.y=-reach;
@@ -229,6 +246,34 @@ export class Avatar{
    const reach=T.MathUtils.lerp(ARM_LENGTH,this.direction.distanceTo(this.leftArm.position),pose.weight);
    this.aimAt(this.left,this.direction.x,this.direction.y,this.direction.z,pose.weight);this.leftHand.position.y=-reach;
    if(leftSleeve){leftSleeve.scale.y=reach/ARM_LENGTH;leftSleeve.position.y=-(reach-.06)/2;}
+  }
+  // Dinner: the right hand lifts the fork with one piece on it to the mouth; the piece goes at the bite, as the macaron does.
+  if(this.fork&&this.forkBite){
+   const dining=gesture==='eat'&&this.diningBite!==null&&!type&&pose.weight>0;this.fork.scale.setScalar(dining?1:0);
+   if(dining){
+    (this.forkBite.material as T.MeshStandardMaterial).color.setHex(this.diningBite!);this.forkBite.visible=gestureAge>.6&&gestureAge<MACARON_BITE_AT;
+    const chomp=Math.sin(Math.PI*T.MathUtils.clamp((gestureAge-MACARON_BITE_AT+.12)/.32,0,1));this.head.rotation.x+=chomp*.22;
+    // The hand stops a fork's length out in front of the mouth, a little to the right and barely lower, so the fork
+    // comes in level from the front (never up through the chin); its tines and the piece point straight at the lips.
+    // The lips sit on the real front of the face (measured once in head space from its meshes, hair excluded; the face
+    // looks along the head's −z), a
+    // little below centre; head.matrix carries its position, turn and enlarged scale into body space.
+    if(this.faceFront===undefined){this.root.updateMatrixWorld(true);const toHead=this.head.matrixWorld.clone().invert(),box=new T.Box3(),part=new T.Box3();
+     this.head.traverse(o=>{if(o instanceof T.Mesh&&!o.userData.hairPart){o.geometry.computeBoundingBox();box.union(part.copy(o.geometry.boundingBox!).applyMatrix4(toHead.clone().multiply(o.matrixWorld)));}});
+     this.faceFront=Number.isFinite(box.min.z)?box.min.z:-.3;}
+    const mouth=new T.Vector3(0,-.1,this.faceFront-.02).applyMatrix4(this.head.matrix);
+    // Out from the face along the way it looks (head centre → lips, level), a little to the side and lower.
+    const out=mouth.clone().sub(this.head.position);out.y=0;out.normalize();const across=new T.Vector3(-out.z,0,out.x);
+    this.direction.copy(mouth).addScaledVector(out,.12).addScaledVector(across,.21).add(new T.Vector3(0,-.12,0));
+    // First the fork dips to the plate to pick the piece up, then it rises to the mouth.
+    const lift=T.MathUtils.smoothstep(gestureAge,.75,1.3),plate=new T.Vector3(this.rightArm.position.x*.55,this.rightArm.position.y-.1,this.rightArm.position.z).addScaledVector(out,.46);
+    this.direction.lerpVectors(plate,this.direction,lift);
+    const reach=T.MathUtils.lerp(ARM_LENGTH,Math.max(.12,this.direction.distanceTo(this.rightArm.position)),pose.weight);
+    this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);this.rightHand.position.y=-reach;
+    if(sleeve){sleeve.scale.y=reach/ARM_LENGTH;sleeve.position.y=-(reach-.06)/2;}
+    this.root.updateMatrixWorld(true);const lips=this.body.localToWorld(mouth.clone().lerp(plate.clone().addScaledVector(out,.1).add(new T.Vector3(0,-.16,0)),1-lift)),at=this.fork.getWorldPosition(new T.Vector3());
+    this.fork.lookAt(at.multiplyScalar(2).sub(lips));
+   }
   }
   if(gesture==='shh'&&pose.weight>0&&!type){
    // Follow the turned mouth rather than a fixed point in front of the torso.
