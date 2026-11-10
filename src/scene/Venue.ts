@@ -10,6 +10,7 @@ import {buildCathedralFloor} from './CathedralFloor';
 import {lobbyPracticalLights} from './LobbyLighting';
 import {finishArchitecture,surfaceMaterial} from './SurfaceMaterials';
 import {LobbyCat} from '../character/LobbyCat';
+import {Usher,USHER} from '../character/Usher';
 import {buildTicketGuide} from './TicketGuide';
 import * as T from 'three';
 import {box,cylinder,sphere,line,text,material,wallWithOpenings,C} from './primitives';
@@ -18,7 +19,7 @@ import {buildGarnierCeiling} from './GarnierCeiling';
 import {buildLobbyEntrance} from './LobbyEntrance';
 import {buildLobbyDetails,lobbyWoodWall,LOBBY_PALETTE} from './LobbyDetails';
 import {buildLobbyAmenities,type ProgramBoard} from './LobbyAmenities';
-import {SEATS,BOUNDS,DINNER_TABLES,TABLE_RADIUS,type Zone} from '../../shared/venue';
+import {SEATS,BOUNDS,DINNER_TABLES,TABLE_RADIUS,surfaceHeight,type Zone} from '../../shared/venue';
 import {DINNER_SIT_BACK,DINNER_SIT_DROP} from '../../shared/dinnerTables';
 import type {Avatar} from '../character/Avatar';
 import {buildOrchestraSteps} from '../orchestra/buildOrchestra';
@@ -34,7 +35,7 @@ import {buildGoldenHallSteps,timberDoor} from './GoldenHall';
 import {woodMaterial,applyWoodSurface,hallImage,hallImageMaterial} from './HallTextures';
 import {batchArchitectureSteps,batchCharactersSteps} from './batching';
 import {EmoteLayer} from '../character/EmoteLayer';
-export type Venue={treeStar:ReturnType<typeof buildFloatingTreeStar>|null;cat:LobbyCat|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
+export type Venue={treeStar:ReturnType<typeof buildFloatingTreeStar>|null;cat:LobbyCat|null;usher:Usher|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
 
 function chandelier(parent:T.Object3D,x:number,y:number,z:number,r=1){
  const g=new T.Group();g.position.set(x,y,z);g.userData.landmark='lobby-chandelier';parent.add(g);
@@ -304,13 +305,13 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
   portal=box(scene,[6.75,6.4,.3],[0,3.2,GOLDEN_HALL.rear-.18],C.wood);(portal as T.Mesh).material=woodMaterial('walnut');portal.userData.portal=true;
   musicians.push(...(yield* buildOrchestraSteps(scene)));
  }
- const cat=zone==='lobby'?new LobbyCat(scene):null;
+ const cat=zone==='lobby'?new LobbyCat(scene):null;const usher=zone==='auditorium'?new Usher(scene,surfaceHeight('auditorium',USHER,0)??0):null;
  scene.traverse(o=>{if(o.userData.wallSurface)cameraWalls.push(o);});
  cameraWalls.push(portal);
  for(const wall of cameraWalls)wall.traverse(o=>{o.userData.cameraWall=true;});
  if(zone==='auditorium')buildHallLampHalos(scene);
- finishArchitecture(scene,[...(cat?[cat.root]:[]),...musicians.map(a=>a.root)]);
- const updateLOD=yield* batchArchitectureSteps(scene,[floor,portal,...(cat?[cat.root,...cat.targets]:[]),...walkTargets,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
+ finishArchitecture(scene,[...(usher?[usher.avatar.root]:[]),...(cat?[cat.root]:[]),...musicians.map(a=>a.root)]);
+ const updateLOD=yield* batchArchitectureSteps(scene,[floor,portal,...(cat?[cat.root,...cat.targets]:[]),...(usher?[usher.avatar.root]:[]),...walkTargets,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
  const updateMusicians=yield* batchCharactersSteps(scene,[...musicians.map(a=>a.root),...(cat?[cat.root]:[])]);updateMusicians();
  // Visitor reaction icons share one draw call per hall.
  const emotes=new EmoteLayer(64);scene.add(emotes.points);
@@ -320,5 +321,5 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  if(zone==='auditorium'){buildCandlelight(scene);for(const table of CANDLE_TABLES)walkTargets.push(buildCandleTable(scene,table).hit);}
  const treeStar=zone==='lobby'?buildFloatingTreeStar(scene,LOBBY_CHRISTMAS_TREE.x,LOBBY_CHRISTMAS_TREE.z):null;
  const stairArrows=zone==='lobby'?buildTicketGuide(scene):null;
- return {treeStar,cat,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
+ return {treeStar,cat,usher,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
 }

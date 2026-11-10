@@ -13,7 +13,7 @@ const restoredSphere=new T.SphereGeometry(1,16,12);
 // Far musicians (beyond LOD_NEAR) use this lighter ball; at that distance a hand or nose is a few pixels wide.
 const farSphere=new T.SphereGeometry(1,9,6);
 type Lit=T.MeshStandardMaterial|T.MeshLambertMaterial;
-type Item={mesh:T.Mesh;matrix:T.Matrix4;center:T.Vector3;radius:number;limit:number;min:number;color:T.Color|null;level:number;shown:boolean;occluder?:T.Box3};
+type Item={mesh:T.Mesh;matrix:T.Matrix4;center:T.Vector3;radius:number;limit:number;min:number;color:T.Color|null;level:number;shown:boolean;morph?:number[];occluder?:T.Box3};
 type BatchGroup={material:T.Material;objects:T.Mesh[];colors:boolean};
 type Cell={items:Item[];shown:boolean;bounds?:T.Box3;center?:T.Vector3;extent?:T.Vector3};
 // Character parts share one view test per character per update: on screen, detail level and wall occlusion were
@@ -63,7 +63,7 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=fals
  const frustum=new T.Frustum(),projection=new T.Matrix4(),sphere=new T.Sphere(),occlusionRay=new T.Ray(),intersection=new T.Vector3();
  let initialized=false;
  const write=(camera?:T.Camera,sharedFrustum?:T.Frustum,reuseVisibility=false)=>{
-  let changed=!initialized;const eye=camera?.position;if(camera&&!sharedFrustum){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));}
+  let changed=!initialized,poseChanged=!initialized;const eye=camera?.position;if(camera&&!sharedFrustum){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));}
   const viewFrustum=sharedFrustum??frustum;
   const focus=scene.userData.cameraFocus as T.Vector3|undefined;
   for(const cell of cells){
@@ -71,7 +71,14 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=fals
    if(shown!==cell.shown){changed=true;cell.shown=shown;}
    if(!shown)continue;
    for(const item of cell.items){
-   if(dynamic&&reuseVisibility&&!item.occluder&&item.matrix.equals(item.mesh.matrixWorld))continue;
+   const matrixChanged=dynamic&&!item.matrix.equals(item.mesh.matrixWorld);
+   // A blink can change even when the head matrix stays still.
+   if(dynamic){
+    const morph=item.mesh.morphTargetInfluences;
+    if(morph&&(!item.morph||morph.some((value,i)=>value!==item.morph![i]))){item.morph=[...morph];poseChanged=true;}
+    if(matrixChanged)poseChanged=true;
+   }
+   if(dynamic&&reuseVisibility&&!item.occluder&&!matrixChanged)continue;
    const actor=actorRoots.get(item.mesh);
    if(actor){
     if(dynamic)item.matrix.copy(item.mesh.matrixWorld);
@@ -85,7 +92,7 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=fals
    if(level!==item.level||shown!==item.shown)changed=true;item.level=level;item.shown=shown;
    }
   }
-  if(!dynamic&&!changed)return;
+  if(!changed&&(!dynamic||!poseChanged))return;
   let highCount=0,lowCount=0;
   for(const cell of cells){if(!cell.shown)continue;
    for(const item of cell.items){if(!item.shown)continue;const batch=item.level===0?high:low,index=batch===high?highCount++:lowCount++;batch.setMatrixAt(index,item.matrix);if(item.mesh.morphTargetInfluences)batch.setMorphAt(index,item.mesh);if(item.color&&changed)batch.setColorAt(index,item.color);}

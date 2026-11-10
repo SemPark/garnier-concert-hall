@@ -377,3 +377,9 @@ body:has(.conducting-experience) .mobile-joystick{visibility:hidden;pointer-even
 
 /* Throw the table's food and drink away: a small round bin above the action bar. */
 .dish-trash{pointer-events:auto;width:40px;height:40px;padding:0;display:grid;place-items:center;border-radius:50%;background:var(--panel);border:1px solid #dac08a40;color:#cbbfa6;backdrop-filter:blur(14px)}.dish-trash:hover{background:#c6aa7022;color:#ffe7b3}
+
+.usher-speech{position:fixed;z-index:3;box-sizing:border-box;width:min(240px,calc(100vw - 32px));padding:13px 16px;border:1px solid #caa969;border-radius:15px;background:#fff4dc;color:#44252a;box-shadow:0 4px 18px #0005;font:600 15px/1.65 system-ui,sans-serif;text-align:center;word-break:keep-all;pointer-events:none;transform:translate(-50%,-100%)}
+.usher-speech::after{content:"";position:absolute;left:calc(50% + var(--tail-offset,0px));bottom:-7px;width:12px;height:12px;background:#fff4dc;border-right:1px solid #caa969;border-bottom:1px solid #caa969;transform:translateX(-50%) rotate(45deg)}
+.usher-speech[hidden]{display:none}
+
+@media(max-width:600px){.usher-speech{width:max-content;max-width:min(180px,calc(100vw - 24px));padding:7px 10px;border-radius:11px;font-size:12px;line-height:1.45;box-shadow:0 2px 8px #0003}.usher-speech::after{width:8px;height:8px;bottom:-5px}}
