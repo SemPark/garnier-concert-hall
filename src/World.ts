@@ -17,6 +17,9 @@ import {characterFrontLight,FRONT_LIGHT} from './character/characterLight';
 import {constrainCamera} from './controls/cameraCollision';
 import {createVenue,createVenueAsync,type Venue} from './scene/Venue';
 import {Ghosts,type GhostSpot} from './scene/Ghosts';
+import {GESTURE_ICON,gestureWeight,type Icon} from './character/villager';
+import {ICON_SIZE,MAX_GROWTH} from './character/EmoteLayer';
+import {ghostTop} from './character/VisitorNames';
 /** Three ghosts loop above the orchestra (stage runs from the apron at z −9 back to the organ). */
 const FLYERS=[{x:-5,z:-14,y:7.5,rx:3.5,rz:3.5,speed:.16},{x:0,z:-16,y:8.5,rx:5,rz:4,speed:.12},{x:5,z:-13,y:7,rx:3.5,rz:3.5,speed:.14}];
 /** Lanes beside and between the dinner-table rows, the stage front, the rear and the side galleries. */
@@ -26,9 +29,9 @@ export const WALKERS=WALKER_PATHS.flatMap((w,i)=>[0,1].map(k=>({...w,phase:k/2+i
 /** Hall ghosts act like visitors: every four seconds each one picks one of the eight audience gestures at random (a
  * third of the time it just rests), out of step with the others. Seeded by id and time, so every viewer sees the same. */
 const GHOST_GESTURES=8;
-function ghostGesture(id:string,t:number){const slot=Math.floor(t/4+(ghostSeatHash(id)%97)/97);const h=ghostSeatHash(id+':'+slot)%12;return h<GHOST_GESTURES?h+1:0;}
-/** A visitor's own gesture, shown on their ghost while it lasts (coffee and macaron have no ghost version). */
-function visitorGhostGesture(v:Visitor,now:number){if(!v.gesture||now-v.gestureAt>gestureSeconds(v.gesture)*1000)return 0;const i=GESTURES.findIndex(g=>g.id===v.gesture);return i>=0&&i<GHOST_GESTURES?i+1:0;}
+function ghostGesture(id:string,t:number){const offset=(ghostSeatHash(id)%97)/97,slot=Math.floor(t/4+offset),h=ghostSeatHash(id+':'+slot)%12;return h<GHOST_GESTURES?{gesture:GESTURES[h].id as Gesture,age:t-(slot-offset)*4}:null;}
+/** A visitor's own gesture, shown on their ghost while it lasts (eating and drinking included). */
+function visitorGhostGesture(v:Visitor,now:number){if(!v.gesture)return null;const age=(now-v.gestureAt)/1000;return age<=gestureSeconds(v.gesture)?{gesture:v.gesture,age}:null;}
 const ghostSeatHash=(id:string)=>{let h=2166136261;for(let i=0;i<id.length;i++)h=Math.imul(h^id.charCodeAt(i),16777619);return h>>>0;};
 /** A handful of parterre seats hold a ghost while no visitor has taken them. */
 const NPC_SEATS=FLOOR_SEATS.filter((_,i)=>i%25===6).slice(0,5);
@@ -49,7 +52,7 @@ import {DINNER_LANES_Z} from '../shared/dinnerTables';
 import {GHOST_ORCHESTRA} from './orchestra/buildOrchestra';
 import {ORCHESTRA_LAYOUT,STAGE_FLOOR as ORCHESTRA_FLOOR} from './orchestra/layout';
 /** Trial ghost orchestra: one ghost at every player's place (people face −z, ghosts +z, hence the half turn). */
-const ORCHESTRA_GHOSTS:GhostSpot[]=ORCHESTRA_LAYOUT.map((p,i)=>({x:p.x,y:ORCHESTRA_FLOOR+p.rise,z:p.z,yaw:p.yaw+Math.PI,id:'player-'+i,sitting:musicianSits(p.instrument),npc:true,gesture:4}));
+const ORCHESTRA_GHOSTS:GhostSpot[]=ORCHESTRA_LAYOUT.map((p,i)=>({x:p.x,y:ORCHESTRA_FLOOR+p.rise,z:p.z,yaw:p.yaw+Math.PI,id:'player-'+i,sitting:musicianSits(p.instrument),npc:true}));
 import {FLOOR_SEATS,FLOOR_CROSS_AISLE,SPAWN,SEATS,CAPACITY,BOUNDS,seatLabel,walkable,distance,surfaceHeight,STAGE_APRON_Z,DESTINATION_ZONE,visitorVariant,visitorColor,cafeApproach,atCafe,CANDLE_TABLES,type CandleTable,type HallDestination,type Look,type Visitor,type Zone,type Point} from '../shared/venue';
 import type {Snapshot} from '../shared/protocol';
 import type {Presence} from './network/Presence';
@@ -150,7 +153,7 @@ export class World{
  get venue(){return this.zone==='auditorium'?this.ensureHall():this.venues.lobby;}
  private *remoteAvatars(){for(const r of this.remotes.values())yield r.avatar;}
  /** Everyone but the viewer is a ghost (ghosts face +z, people face -z, hence the half turn) (each viewer sees only themself as a person). */
- private *ghostSpots():Generator<GhostSpot>{for(const r of this.remotes.values()){const a=r.avatar.root;if(a.visible)yield {x:a.position.x,y:a.position.y,z:a.position.z,yaw:a.rotation.y+Math.PI,id:r.visitor.id,sitting:r.visitor.pose==='sit',gesture:visitorGhostGesture(r.visitor,this.net.now())};}}
+ private *ghostSpots():Generator<GhostSpot>{for(const r of this.remotes.values()){const a=r.avatar.root;if(a.visible)yield {x:a.position.x,y:a.position.y,z:a.position.z,yaw:a.rotation.y+Math.PI,id:r.visitor.id,sitting:r.visitor.pose==='sit',walking:a.position.distanceToSquared(this.poseCenter.set(r.visitor.x,r.visitor.y??0,r.visitor.z))>.0025,drink:r.visitor.drink,bite:r.visitor.dish?BITE_COLOUR[r.visitor.dish]:undefined,...visitorGhostGesture(r.visitor,this.net.now())};}}
  private *allGhosts(){yield*this.ghostSpots();yield*this.flyingGhosts();if(GHOST_ORCHESTRA&&this.zone==='auditorium')yield*ORCHESTRA_GHOSTS;}
  /** The hall's own ghosts: a few drifting overhead, some strolling the aisles, some cheering in empty seats.
   * Everything follows the shared clock, so every visitor sees the same ghosts in the same places. */
@@ -158,12 +161,12 @@ export class World{
   if(this.zone!=='auditorium')return;const t=this.net.now()/1000;
   // Above the stage: left, middle and right.
   FLYERS.forEach((f,i)=>{const a=t*f.speed+i*2.1,x=f.x+f.rx*Math.sin(a),z=f.z+f.rz*Math.sin(a*2)/2,y=f.y+.8*Math.sin(t*.4+i);
-   this.ghostBuffer.push({x,y,z,yaw:Math.atan2(f.rx*Math.cos(a),f.rz*Math.cos(a*2)),id:'npc-fly'+i,sitting:false,npc:true,gesture:ghostGesture('npc-fly'+i,t)});});
+   this.ghostBuffer.push({x,y,z,yaw:Math.atan2(f.rx*Math.cos(a),f.rz*Math.cos(a*2)),id:'npc-fly'+i,sitting:false,npc:true,angel:true});});
   // (Walking ghosts are switched off for now: WALKER_PATHS is kept to bring them back.)
   // In seats nobody has claimed: clapping, waving, cheering and nodding in turns.
   const claimed=this.net.state?.seats??{};
   NPC_SEATS.forEach((seat,i)=>{if(claimed[seat.id])return;
-   this.ghostBuffer.push({x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw+Math.PI,id:'npc-'+seat.id,sitting:true,npc:true,gesture:ghostGesture('npc-'+seat.id,t)});});
+   this.ghostBuffer.push({x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw+Math.PI,id:'npc-'+seat.id,sitting:true,npc:true,...ghostGesture('npc-'+seat.id,t)});});
   yield*this.ghostBuffer;this.ghostBuffer.length=0;
  }
  toggleFraming(){this.introUntil=0;this.hallOverview=!this.hallOverview;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.onChange();}
@@ -492,14 +495,21 @@ export class World{
  /** Reaction icons float above every visible visitor's head, with a short pop when they appear. */
  private showEmotes(){
   for(const v of Object.values(this.venues))v.emotes.clear();
-  const layer=this.venue.emotes,now=this.net.now();let slot=0;
-  const show=(avatar:Avatar|null,gestureAt:number)=>{
-   if(!avatar?.root.visible||!avatar.icon||avatar.iconAlpha<=0||slot>=layer.capacity)return;
-   const age=(now-gestureAt)/1000,pop=1+.3*Math.max(0,Math.sin(Math.min(age,.35)/.35*Math.PI));
-   avatar.head.getWorldPosition(this.headTop);this.headTop.y+=.78+Math.sin(age*3)*.04;layer.set(slot++,this.headTop,avatar.icon,avatar.iconAlpha*pop);
+  const layer=this.venue.emotes,now=this.net.now(),perPixel=this.renderer.getPixelRatio()/(layer.material.uniforms.scale.value as number);let slot=0;
+  // Every icon sits just above the name tag: the tag is a 24 px pill above the anchor, so the icon is lifted by that
+  // many pixels (whatever the distance) plus half its own height.
+  const put=(anchor:T.Vector3,icon:Icon|null,alpha:number,age:number,tagPx:number)=>{
+   if(!icon||alpha<=0||slot>=layer.capacity)return;
+   const d=Math.max(.5,anchor.distanceTo(this.camera.position)),pop=1+.3*Math.max(0,Math.sin(Math.min(age,.35)/.35*Math.PI));
+   anchor.y+=tagPx*d*perPixel+ICON_SIZE*T.MathUtils.clamp(d/8,1,MAX_GROWTH)/2+Math.sin(age*3)*.03;layer.set(slot++,anchor,icon,alpha*pop);
   };
-  if(this.entered)show(this.avatar,this.gestureAt);
-  for(const r of this.remotes.values())show(r.avatar,r.visitor.gestureAt);
+  const me=this.avatar;
+  if(this.entered&&me?.root.visible&&me.icon){me.head.getWorldPosition(this.headTop);this.headTop.y+=.48*me.root.scale.y;put(this.headTop,me.icon,me.iconAlpha,(now-this.gestureAt)/1000,26);}
+  // Other visitors are ghosts: same anchor as their name tag (see VisitorNames).
+  for(const r of this.remotes.values()){const v=r.visitor;if(!r.avatar.root.visible||!v.gesture)continue;const age=(now-v.gestureAt)/1000;
+   put(ghostTop(r.avatar.root,v.pose==='sit',this.headTop),GESTURE_ICON[v.gesture],gestureWeight(v.gesture,age),age,26);}
+  // The hall's own ghosts have no name: the icon floats right above the head.
+  for(const g of this.flyingGhosts())if(g.gesture)put(this.headTop.set(g.x,g.y+1.78,g.z),GESTURE_ICON[g.gesture],gestureWeight(g.gesture,g.age??0),g.age??0,0);
   for(const v of Object.values(this.venues))v.emotes.commit();
  }
  /** Frames per second to draw now. While the hall is being built (or pre-built in the lobby, or the connection is opening),

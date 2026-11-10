@@ -344,7 +344,7 @@ body:has(.conducting-experience) .mobile-joystick{visibility:hidden;pointer-even
 }
 
 .visitor-names{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-.visitor-names span{position:absolute;top:0;left:0;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 8px;border-radius:10px;background:#211b16cc;color:#fff0d5;font:500 12px/16px system-ui,sans-serif;text-shadow:0 1px 2px #0008}
+.visitor-names span{position:absolute;top:0;left:0;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 10px;border-radius:14px;background:#f3ebd9;color:#2a241d;font:600 12px/18px system-ui,sans-serif}
 
 #world:has(.probe-canvas){background:#151310}
 /* Your own name tag: light pill with a "나" badge. */

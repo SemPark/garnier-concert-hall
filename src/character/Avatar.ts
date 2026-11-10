@@ -181,6 +181,8 @@ export class Avatar{
   const sleeve=this.rightArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;if(sleeve){sleeve.scale.y=1;sleeve.position.y=-(ARM_LENGTH-.06)/2;}
   const t=time+this.phase,play=performing?1:0,type=this.instrumentType;this.sitAmount=T.MathUtils.damp(this.sitAmount,sitting?1:0,12,dt);
   const pose=poseVillager({time,speed,sit:this.sitAmount,music:performing,musician:!!type,gesture,age:gestureAge},this.phase),sit=pose.sit;
+  // At the dinner table the body leans in to reach the middle of the plate, then sits back up as the fork rises.
+  if(gesture==='eat'&&this.diningBite!=null)pose.lean=.24*pose.weight*(1-T.MathUtils.smoothstep(gestureAge,.75,1.3));
   // Bend around the hips: the body pivots at the hip joint and the legs counter-rotate, so the feet stay put.
   if(!type&&!gesture)pose.sway=0;
   this.tilt.set(-pose.lean,pose.turn,pose.sway);this.hipOffset.copy(HIP).applyEuler(this.tilt);
@@ -192,7 +194,7 @@ export class Avatar{
   this.head.rotation.set(-pose.headPitch,pose.turn?pose.headYaw:0,pose.turn?pose.headRoll:0);for(const eye of this.eyes.children){const mesh=eye as T.Mesh;if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[0]=1-pose.blink;}
   // A seated cellist opens the knees around the instrument instead of kicking through it.
   const splay=type==='cello'?.75*sit:0;
-  for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const){hip.position.set(-sign*.115*Math.cos(pose.turn),.55,-sign*.115*Math.sin(pose.turn));hip.rotation.order='YXZ';hip.rotation.set(T.MathUtils.lerp(pose.swing*.5*sign,Math.PI/2,sit)+pose.lean,splay*sign-pose.turn,-pose.sway);}
+  for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const){hip.position.set(-sign*.115*Math.cos(pose.turn),.55,-sign*.115*Math.sin(pose.turn));hip.rotation.order='YXZ';hip.rotation.set(T.MathUtils.lerp(pose.swing*.5*sign,Math.PI/2,sit)+pose.lean*(1-sit),splay*sign-pose.turn,-pose.sway);}
   // Seated, the knees bend so the shins hang straight down in front of the chair.
   for(const knee of this.knees)knee.rotation.x=-Math.PI/2*sit;
   // Resting arms are held out on a diagonal (less when seated).
@@ -266,12 +268,15 @@ export class Avatar{
     const out=mouth.clone().sub(this.head.position);out.y=0;out.normalize();const across=new T.Vector3(-out.z,0,out.x);
     this.direction.copy(mouth).addScaledVector(out,.12).addScaledVector(across,.21).add(new T.Vector3(0,-.12,0));
     // First the fork dips to the plate to pick the piece up, then it rises to the mouth.
-    const lift=T.MathUtils.smoothstep(gestureAge,.75,1.3),plate=new T.Vector3(this.rightArm.position.x*.55,this.rightArm.position.y-.1,this.rightArm.position.z).addScaledVector(out,.46);
+    // The plate's centre is 0.82 m in front of the seat and its food 0.96 m above the seat height (see DinnerDishes):
+    // the fork's tip lands there, the hand a little nearer and higher.
+    this.body.updateMatrix();const centre=new T.Vector3(0,.96,-.82).applyMatrix4(new T.Matrix4().copy(this.body.matrix).invert());
+    const lift=T.MathUtils.smoothstep(gestureAge,.75,1.3),plate=centre.clone().add(new T.Vector3(.07,.1,.1));
     this.direction.lerpVectors(plate,this.direction,lift);
-    const reach=T.MathUtils.lerp(ARM_LENGTH,Math.max(.12,this.direction.distanceTo(this.rightArm.position)),pose.weight);
+    const reach=T.MathUtils.lerp(ARM_LENGTH,T.MathUtils.clamp(this.direction.distanceTo(this.rightArm.position),.12,ARM_LENGTH*1.1),pose.weight);
     this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);this.rightHand.position.y=-reach;
     if(sleeve){sleeve.scale.y=reach/ARM_LENGTH;sleeve.position.y=-(reach-.06)/2;}
-    this.root.updateMatrixWorld(true);const lips=this.body.localToWorld(mouth.clone().lerp(plate.clone().addScaledVector(out,.1).add(new T.Vector3(0,-.16,0)),1-lift)),at=this.fork.getWorldPosition(new T.Vector3());
+    this.root.updateMatrixWorld(true);const lips=this.body.localToWorld(mouth.clone().lerp(centre,1-lift)),at=this.fork.getWorldPosition(new T.Vector3());
     this.fork.lookAt(at.multiplyScalar(2).sub(lips));
    }
   }

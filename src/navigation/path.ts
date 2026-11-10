@@ -11,6 +11,8 @@ function planarPath(zone:Zone,start:Point,end:Point):Point[]|null{
  if(!walkable(zone,end))return null;if(segmentClear(zone,start,end))return [end];
  // Follow the actual gaps between the three seating blocks. The cross aisle
  // also connects different blocks without sending visitors around the hall.
+ // The lane routes are only a fallback: the grid search below finds the direct way between the tables.
+ let best:Point[]|null=null,cost=Infinity;
  if(zone==='auditorium'&&(start.y??0)<1&&(end.y??0)<1){
   const ground=(x:number,z:number)=>({x,z,y:parterreHeight(x,z)??PARTERRE.floor});
   const candidates:Point[][]=FLOOR_AISLES.map(x=>[ground(x,start.z),ground(x,end.z),end]);
@@ -22,9 +24,7 @@ function planarPath(zone:Zone,start:Point,end:Point):Point[]|null{
    candidates.push([ground(side,start.z),ground(side,z),ground(end.x,z),end]);
    for(const via of [DINNER_REAR_LANE,DINNER_FRONT_LANE])candidates.push([ground(start.x,via),ground(side,via),ground(side,z),ground(end.x,z),end]);
   }
-  let best:Point[]|null=null,cost=Infinity;
   for(const route of candidates){let p=start,total=0,clear=true;for(const q of route){if(!segmentClear(zone,p,q)){clear=false;break;}total+=distance(p,q);p=q;}if(clear&&total<cost){best=route;cost=total;}}
-  if(best)return best;
  }
 
  const b=BOUNDS[zone];const toCell=(p:Point)=>({x:Math.round((p.x-b.minX)/STEP),z:Math.round((p.z-b.minZ)/STEP)});const point=(x:number,z:number)=>({x:b.minX+x*STEP,z:b.minZ+z*STEP,y:zone==='auditorium'&&(end.y??0)<1?(parterreHeight(b.minX+x*STEP,b.minZ+z*STEP)??100):end.y??0});const key=(x:number,z:number)=>`${x},${z}`;
@@ -34,16 +34,18 @@ function planarPath(zone:Zone,start:Point,end:Point):Point[]|null{
  for(let step=0;open.size&&step<16000;step++){
   let current:Node|undefined;for(const n of open.values())if(!current||n.f<current.f)current=n;if(!current)break;
   const ck=key(current.x,current.z);open.delete(ck);closed.add(ck);
-  if(current.x===goal.x&&current.z===goal.z){reached=ck;break;}
+  if(Math.abs(current.x-goal.x)<=1&&Math.abs(current.z-goal.z)<=1&&segmentClear(zone,point(current.x,current.z),end)){reached=ck;break;}
   for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]]){
    const x=current.x+dx,z=current.z+dz,k=key(x,z),p=point(x,z);if(closed.has(k)||!free(x,z)||!segmentClear(zone,point(current.x,current.z),p))continue;
    const g=current.g+Math.hypot(dx,dz)*STEP;if((nodes.get(k)?.g??Infinity)<=g)continue;
    const n={x,z,g,f:g+distance(p,end),parent:ck};nodes.set(k,n);open.set(k,n);
   }
  }
- if(!reached)return null;const raw:Point[]=[end];let k:string|undefined=reached;
+ if(!reached)return best;const raw:Point[]=[end];let k:string|undefined=reached;
  while(k){const n:Node=nodes.get(k)!;raw.unshift(point(n.x,n.z));k=n.parent;}raw.unshift(start);
- const result:Point[]=[];let i=0;while(i<raw.length-1){let next=i+1;for(let j=i+2;j<raw.length;j++){if(segmentClear(zone,raw[i],raw[j]))next=j;else break;}result.push(raw[next]);i=next;}return result;
+ const result:Point[]=[];let i=0;while(i<raw.length-1){let next=i+1;for(let j=i+2;j<raw.length;j++){if(segmentClear(zone,raw[i],raw[j]))next=j;else break;}result.push(raw[next]);i=next;}
+ let length=0,from=start;for(const q of result){length+=distance(from,q);from=q;}
+ return best&&cost<=length?best:result;
 }
 
 /** Walking stays on one storey; the galleries are reached from the floor menu, not on foot. */

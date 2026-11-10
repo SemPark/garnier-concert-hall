@@ -34,7 +34,7 @@ export function buildWineGlass(){
 }
 /** The very cup the diner lifts (the lobby coffee cup) on a saucer, handle on the diner's right. Its coffee surface
  * (userData.liquid) sinks and narrows with the cup's taper as it is drunk. */
-function buildTableCup(){
+export function buildTableCup(){
  const g=new T.Group(),china=new T.MeshStandardMaterial({color:0xf4ebda,roughness:.35});
  const saucer=new T.Mesh(new T.CylinderGeometry(.11,.085,.012,20),china);saucer.position.y=.006;g.add(saucer);
  const cup=buildCoffeeCup();cup.position.set(0,.012,0);cup.scale.setScalar(1);cup.rotation.y=Math.PI;g.add(cup);
