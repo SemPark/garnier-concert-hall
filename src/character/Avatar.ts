@@ -57,8 +57,14 @@ function fitHairToFace(geometry:T.BufferGeometry){
  }
  geometry.computeVertexNormals();return geometry;
 }
-const shortHairGeometry=fitHairToFace(new T.SphereGeometry(1,16,12).scale(.42,.31,.39).translate(0,.15,.045));
-const shortHairFar=fitHairToFace(new T.SphereGeometry(1,8,6).scale(.42,.31,.39).translate(0,.15,.045));
+// Men have no ears: the cap comes down over the sides and back of the head, while the front hairline stays put
+// (people face −z).
+function capGeometry(columns:number,rows:number){
+ const geometry=new T.SphereGeometry(1,columns,rows).scale(.42,.31,.39).translate(0,.15,.045),points=geometry.getAttribute('position');
+ for(let i=0;i<points.count;i++){const y=points.getY(i);if(y<.15)points.setY(i,.15+(y-.15)*(1+.4*T.MathUtils.smoothstep(points.getZ(i),-.2,.02)));}
+ return fitHairToFace(geometry);
+}
+const shortHairGeometry=capGeometry(16,12),shortHairFar=capGeometry(8,6);
 function buildLongHair(cols:number,dome:number,hang:number){
  const [,cy,cz]=LONG_HAIR_CENTER,[rx,ry,rz]=LONG_HAIR_RADIUS,fold=3,depth=.12;
  const {smoothstep,lerp}=T.MathUtils,positions:number[]=[],index:number[]=[];
@@ -114,10 +120,9 @@ export class Avatar{
   cylinder(this.body,.08,.02,[0,1.005,0],skin).userData.facePart='neck';
   this.head.position.y=1.318;// Lower the head into the neckline for both appearances.
   const skull=new T.Mesh(faceGeometry,material(skin));skull.position.y=.03;skull.scale.set(.37,.345,.35);skull.userData.lowDetail=faceFarGeometry;this.head.add(skull);// Blush and mouth sit on this surface, not in front of it.
-  if(this.appearance==='man')for(const side of [-1,1])sphere(this.head,.07,[side*.345,-.03,0],skin);
   paintFace(this.head,this.eyes);
   sphere(this.head,.04,[0,-.075,faceSurfaceZ(0,-.075)-.015],0xe8a77f).scale.set(.035,.025,.023);
-  // Men wear one simple cap: it covers the crown and back but ends above the ears, with no fringe.
+  // Men wear one simple cap: it covers the crown, sides and back, with no fringe (and no ears).
   // Women wear the long hair in one piece instead, so nothing overlaps.
   if(this.appearance==='man'){const cap=new T.Mesh(shortHairGeometry,material(hair));cap.userData.lowDetail=shortHairFar;cap.userData.hairPart='cap';this.head.add(cap);}
   else{const long=new T.Mesh(longHairGeometry,material(hair));long.userData.hairPart='long';long.userData.lowDetail=longHairFar;this.head.add(long);}

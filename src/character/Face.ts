@@ -14,7 +14,7 @@ function buildFaceGeometry(columns:number,rows:number){
  for(let i=0;i<points.count;i++){const y=points.getY(i);points.setX(i,points.getX(i)*(y<0?jawWidth(y):.96));if(y<0){points.setY(i,-jawHeight*Math.pow(-y,jawPower));if(points.getZ(i)<0)points.setZ(i,points.getZ(i)*chinDepth(y));}points.setZ(i,flattenFront(points.getZ(i)));}
  geometry.computeVertexNormals();return geometry;
 }
-export const faceGeometry=buildFaceGeometry(48,40),faceFarGeometry=buildFaceGeometry(16,12);
+export const faceGeometry=buildFaceGeometry(32,24),faceFarGeometry=buildFaceGeometry(16,12);
 
 /** Front surface of the same cheek/jaw used by the head, in head-local metres. */
 export function faceSurfaceZ(x:number,y:number){
@@ -25,9 +25,10 @@ export function faceSurfaceZ(x:number,y:number){
 const ink=new T.MeshBasicMaterial({color:0x211b19,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
 const white=new T.MeshBasicMaterial({color:0xfff8e9,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
 const blush=new T.MeshBasicMaterial({color:0xe77e7c,transparent:true,opacity:.48,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
-function ellipse(cx:number,cy:number,rx:number,ry:number,blink=false,blinkAnchor=cy){
- const p:number[]=[],index:number[]=[],closed:number[]=[],rings=4,segments=32;
- const put=(x:number,y:number)=>{p.push(x,y,faceSurfaceZ(x,y)-.0015);const yy=blinkAnchor+(y-blinkAnchor)*.1;closed.push(x,yy,faceSurfaceZ(x,yy)-.0015);};
+// Flat marks on the face: a few rings are enough to follow its curve.
+function ellipse(cx:number,cy:number,rx:number,ry:number,blink=false,blinkAnchor=cy,rings=2,segments=20,shut=.1){
+ const p:number[]=[],index:number[]=[],closed:number[]=[];
+ const put=(x:number,y:number)=>{p.push(x,y,faceSurfaceZ(x,y)-.0015);const yy=blinkAnchor+(y-blinkAnchor)*shut;closed.push(x,yy,faceSurfaceZ(x,yy)-.0015);};
  put(cx,cy);
  for(let r=1;r<=rings;r++)for(let i=0;i<segments;i++){const a=i/segments*Math.PI*2;put(cx+Math.cos(a)*rx*r/rings,cy+Math.sin(a)*ry*r/rings);}
  for(let i=0;i<segments;i++)index.push(0,1+(i+1)%segments,1+i);
@@ -35,12 +36,13 @@ function ellipse(cx:number,cy:number,rx:number,ry:number,blink=false,blinkAnchor
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setIndex(index);g.computeVertexNormals();if(blink)g.morphAttributes.position=[new T.Float32BufferAttribute(closed,3)];return g;
 }
 function smile(){
- const p:number[]=[],index:number[]=[],steps=24;
+ const p:number[]=[],index:number[]=[],steps=12;
  for(let i=0;i<=steps;i++){const t=i/steps,x=(t-.5)*.092,y=-.128-.024*Math.sin(t*Math.PI);for(const edge of [-1,1]){const yy=y+edge*.004; p.push(x,yy,faceSurfaceZ(x,yy)-.0018);}if(i<steps){const a=i*2;index.push(a,a+1,a+2,a+1,a+3,a+2);}}
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setIndex(index);g.computeVertexNormals();return g;
 }
 const eyeShapes=[-1,1].map(side=>ellipse(side*.115,-.015,.043,.056,true));
-const highlights=[-1,1].map(side=>ellipse(side*.103,.008,.012,.014,true,-.015));
+// The catch-light stays where it is and is wiped away from the top as the lid comes down: no white in a shut eye.
+const highlights=[-1,1].map(side=>ellipse(side*.103,.008,.012,.014,true,-.006,1,10,0));
 const cheekShapes=[-1,1].map(side=>ellipse(side*.22,-.095,.065,.035));
 const smileShape=smile();
 export function paintFace(head:T.Group,eyes:T.Group){
