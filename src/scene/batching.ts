@@ -90,9 +90,10 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=fals
   for(const cell of cells){if(!cell.shown)continue;
    for(const item of cell.items){if(!item.shown)continue;const batch=item.level===0?high:low,index=batch===high?highCount++:lowCount++;batch.setMatrixAt(index,item.matrix);if(item.mesh.morphTargetInfluences)batch.setMorphAt(index,item.mesh);if(item.color&&changed)batch.setColorAt(index,item.color);}
   }
-  if(high.morphTexture)high.morphTexture.needsUpdate=true;if(low!==high&&low.morphTexture)low.morphTexture.needsUpdate=true;
-  high.count=highCount;high.visible=highCount>0;high.instanceMatrix.needsUpdate=true;if(changed&&high.instanceColor)high.instanceColor.needsUpdate=true;
-  if(low!==high){low.count=lowCount;low.visible=lowCount>0;low.instanceMatrix.needsUpdate=true;if(changed&&low.instanceColor)low.instanceColor.needsUpdate=true;}
+  // Upload only what is drawn: an empty batch sends nothing, a partly filled one sends just its used range.
+  const upload=(mesh:T.InstancedMesh,count:number)=>{mesh.count=count;mesh.visible=count>0;if(!count)return;if(mesh.morphTexture)mesh.morphTexture.needsUpdate=true;
+   mesh.instanceMatrix.clearUpdateRanges();mesh.instanceMatrix.addUpdateRange(0,count*16);mesh.instanceMatrix.needsUpdate=true;if(changed&&mesh.instanceColor)mesh.instanceColor.needsUpdate=true;};
+  upload(high,highCount);if(low!==high)upload(low,lowCount);
   initialized=true;
  };
  write();return write;
