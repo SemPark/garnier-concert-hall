@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as T from 'three';
 import {Avatar,musicianSits} from '../src/character/Avatar';
 import {REFERENCE_INSTRUMENT_COUNTS} from '../src/orchestra/referencePlan';
-import {ROW_RADII,ORCHESTRA_LAYOUT,REFERENCE_COUNTS,STAGE,CONDUCTOR,STAGE_TERRACES,stageRiseAt,MUSICIAN_SCALE} from '../src/orchestra/layout';
+import {ROW_RADII,FULL_ORCHESTRA_LAYOUT as ORCHESTRA_LAYOUT,REFERENCE_COUNTS,STAGE,CONDUCTOR,STAGE_TERRACES,stageRiseAt,MUSICIAN_SCALE} from '../src/orchestra/layout';
 function bodyHand(a:Avatar,side:'left'|'right'){a.root.updateMatrixWorld(true);return a.body.worldToLocal((side==='left'?a.leftHand:a.rightHand).getWorldPosition(new T.Vector3()));}
 test('all 102 musicians match every counted instrument symbol in the supplied diagram',()=>{
  const counts=Object.fromEntries(Object.keys(REFERENCE_COUNTS).map(section=>[section,ORCHESTRA_LAYOUT.filter(p=>p.section===section).length]));

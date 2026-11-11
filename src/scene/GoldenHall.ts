@@ -332,7 +332,17 @@ export function rearFacade(scene:T.Scene){
  // Gilded beam under the gallery front, and warm lamps in the shadowed standing area beneath.
  for(const [z,xs]of [[2.2,[-10.5,-5.25,0,5.25,10.5]],[WALL_DATUM.rear-46,[-5.25,0,5.25]]] as const)for(const x of xs)hallFlatCeilingLight(g,x,7.86,z);
  // The two side doors are closed; the centre door is the foyer entrance.
- for(const x of [-doorX,doorX]){timberDoor(g,x,.15,3.8,6.4,.35);hallImage(g,'relief',3.8,.7,x,7.1,.65);}
+ for (const x of [-doorX,doorX]) {
+  const door = timberDoor(g,x,.15,3.8,6.4,.35);
+  hallImage(g,'relief',3.8,.7,x,7.1,.65);
+  // The positive world-X door is beside the mirror on the rear landing.
+  if (x !== -doorX) continue;
+  const target = new T.Mesh(new T.PlaneGeometry(3.8,6.4),new T.MeshBasicMaterial({visible:false}));
+  target.position.set(0,3.2,.46);
+  target.userData.walkSurface = true;
+  target.userData.galleryEntrance = true;
+  door.add(target);
+ }
  for(const x of [0]){
   const door=timberDoor(g,x,.15,3.8,6.4,.35);
   door.userData.rearMainDoor=true;door.traverse(o=>{o.userData.fullDetail=true;});

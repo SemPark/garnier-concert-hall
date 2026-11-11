@@ -4,7 +4,7 @@ import {box,cylinder,sphere,text} from '../scene/primitives';
 
 /** Entrance usher: a ghost who keeps a human shape and greets everyone like an old friend. */
 export const USHER={x:-1.1,z:44.5,faceZ:47};
-export const USHER_LINES={welcome:'어서 오세요. 다시 오셨군요.',ask:'이 공연이 언제 끝나냐고요? 글쎄요, 아직 끝난 적이 없어서요.'};
+export const USHER_LINES={welcome:'어서 오세요. 또 처음 뵙네요.',ask:'저도 이 공연이 끝나는 건\n본 적이 없네요.'};
 export class Usher{
  readonly avatar=new Avatar(0x5e1624,undefined,0);
  readonly targets:T.Object3D[]=[];
@@ -52,7 +52,7 @@ export class Usher{
  greet(time:number,line:string=USHER_LINES.welcome){
   this.greetAt=time;
   this.speech.textContent=line;
-  this.speechUntil=time+(line===USHER_LINES.welcome?7:10);
+  this.speechUntil=time+7;
  }
  updateSpeech(camera:T.Camera,canvas:HTMLCanvasElement,visible:boolean,time:number){
   this.speech.hidden=true;

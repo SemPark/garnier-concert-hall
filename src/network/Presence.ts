@@ -1,6 +1,9 @@
 import {newId} from '../util/requestId';
 import {LocalConcert} from './LocalConcert';
 import {applyDelta,type ClientMessage,type ServerMessage,type Snapshot} from '../../shared/protocol';
+import {JAZZ_HALL} from '../../shared/hallKind';
+// Each hall keeps its own place on the server, so switching halls never resumes into the other one.
+const RESUME_KEY=JAZZ_HALL?'garnier-resume-jazz':'garnier-resume',ROOM_KEY=JAZZ_HALL?'garnier-room-jazz':'garnier-room';
 
 export class Presence{
  // The Pages build talks to the Cloudflare server when one is set; without it, it plays solo.
@@ -19,11 +22,12 @@ export class Presence{
   if(this.local){this.preview=new LocalConcert();this.selfId=this.preview.visitor.id;this.status='connected';this.accept(this.preview.snapshot());this.onStatus();return;}
   this.stopped=false;this.status='connecting';this.onStatus();
   const url=new URL('/api/presence',this.server||location.href);url.protocol=url.protocol==='https:'?'wss:':'ws:';
-  const token=sessionStorage.getItem('garnier-resume'),room=sessionStorage.getItem('garnier-room');if(token&&room){url.searchParams.set('resume',token);url.searchParams.set('room',room);}
+  if(JAZZ_HALL)url.searchParams.set('kind','jazz');
+  const token=sessionStorage.getItem(RESUME_KEY),room=sessionStorage.getItem(ROOM_KEY);if(token&&room){url.searchParams.set('resume',token);url.searchParams.set('room',room);}
   const socket=new WebSocket(url);this.socket=socket;
   socket.onmessage=e=>{if(this.socket!==socket)return;let msg:ServerMessage;try{msg=JSON.parse(e.data) as ServerMessage;}catch{return;}
    if(msg.type==='welcome'){
-    this.selfId=msg.selfId;sessionStorage.setItem('garnier-resume',msg.resumeToken);sessionStorage.setItem('garnier-room',msg.state.roomId);
+    this.selfId=msg.selfId;sessionStorage.setItem(RESUME_KEY,msg.resumeToken);sessionStorage.setItem(ROOM_KEY,msg.state.roomId);
     this.offset=msg.state.serverNow-(this.origin+performance.now());this.bestRTT=Infinity;this.retry=0;this.status='connected';this.accept(msg.state);this.onStatus();this.ping();
     window.clearInterval(this.heartbeat);this.heartbeat=window.setInterval(()=>this.ping(),30000);
    }else if(msg.type==='state'){this.syncing=false;this.accept(msg.state);}

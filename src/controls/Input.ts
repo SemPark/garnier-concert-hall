@@ -1,6 +1,7 @@
 type Touch={x:number;y:number};
 export class Input{
  readonly touchMove={x:0,z:0};
+ get pointerHeld(){return this.pointers.size>0;}
  readonly keys=new Set<string>();private pointers=new Map<number,Touch>();private start:Touch&{id:number;time:number;dragged:boolean}|null=null;private span=0;private abort=new AbortController();
  constructor(canvas:HTMLCanvasElement,actions:{click:(x:number,y:number)=>void;rotate:(dx:number,dy:number)=>void;zoom:(factor:number)=>void;escape:()=>void}){
   const opts={signal:this.abort.signal};

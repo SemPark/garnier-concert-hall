@@ -1,4 +1,5 @@
 import {buildFork,buildWineGlass,WINE_SCALE} from '../scene/DinnerDishes';
+import {JAZZ_HALL} from '../../shared/hallKind';
 import {buildCoffeeCup,buildMacaron} from './CoffeeCup';
 import {faceGeometry,faceFarGeometry,faceSurfaceZ,paintFace} from './Face';
 import {skirtGeometry} from './Skirt';
@@ -7,9 +8,9 @@ import * as T from 'three';
 import {box,cylinder,sphere,material} from '../scene/primitives';
 import {frontLitMaterial,prepareClothContact,type ClothContact} from './characterLight';
 import {buildInstrument} from '../orchestra/instruments';
-import {poseVillager,type Icon} from './villager';
+import {poseVillager,type CameraFacing,type Icon} from './villager';
 import type {Gesture} from '../../shared/gestures';
-export type Instrument='violin'|'viola'|'cello'|'bass'|'harp'|'piano'|'celesta'|'flute'|'piccolo'|'oboe'|'english-horn'|'clarinet'|'bass-clarinet'|'bassoon'|'contrabassoon'|'horn'|'trumpet'|'trombone'|'tuba'|'bass-drum'|'snare'|'cymbals'|'sleigh-bells'|'triangle'|'chimes'|'gong'|'timpani'|'xylophone'|'marimba'|'vibraphone'|'conductor';
+export type Instrument='violin'|'viola'|'cello'|'bass'|'harp'|'piano'|'celesta'|'flute'|'piccolo'|'oboe'|'english-horn'|'clarinet'|'bass-clarinet'|'bassoon'|'contrabassoon'|'horn'|'trumpet'|'trombone'|'tuba'|'bass-drum'|'snare'|'cymbals'|'sleigh-bells'|'triangle'|'chimes'|'gong'|'timpani'|'xylophone'|'marimba'|'vibraphone'|'alto-sax'|'tenor-sax'|'bari-sax'|'guitar'|'drum-kit'|'conductor';
 export type HairStyle='short'|'long';
 type Arm={shoulder:T.Group;hand:T.Group};
 export const PERCUSSION:readonly Instrument[]=['bass-drum','snare','cymbals','sleigh-bells','triangle','chimes','gong','timpani','xylophone','marimba','vibraphone'];
@@ -37,7 +38,7 @@ function garmentPatch(parent:T.Group,torso:T.Mesh,w:number,h:number,x:number,y:n
  const patch=new T.Mesh(geometry,cloth);parent.add(patch);return patch;
 }
 // Rounded arm ends tuck into the body instead of showing a flat cut or a ball joint.
-const FLOOR_INSTRUMENTS=new Set<Instrument>(['cello','bass','harp','piano','celesta','timpani','bass-drum','gong','snare','chimes','xylophone','marimba','vibraphone']);
+const FLOOR_INSTRUMENTS=new Set<Instrument>(['cello','bass','harp','piano','celesta','timpani','bass-drum','gong','snare','chimes','xylophone','marimba','vibraphone','drum-kit']);
 const armGeometry=new T.CapsuleGeometry(.066,ARM_LENGTH-.13,4,10);
 // A short, chubby index finger for the hush gesture.
 const fingerGeometry=new T.CapsuleGeometry(.024,.07,4,8);
@@ -98,7 +99,8 @@ function buildLongHair(cols:number,dome:number,hang:number){
 const longHairGeometry=buildLongHair(24,7,8),longHairFar=buildLongHair(12,4,4);
 /** Index finger seat on the right mitten: thumb side, toward the face, rising above the knuckles. */
 export const FINGER_OFFSET=[-.035,.105,-.045] as const;
-export function musicianSits(type:Instrument|undefined){return !!type&&type!=='bass'&&type!=='conductor'&&!PERCUSSION.includes(type);}
+/** In the jazz hall the trumpets stand on the back tier, as a big band's do. */
+export function musicianSits(type:Instrument|undefined){return !!type&&type!=='bass'&&type!=='conductor'&&!PERCUSSION.includes(type)&&!(JAZZ_HALL&&type==='trumpet');}
 export class Avatar{
  readonly appearance:'woman'|'man';readonly hair:HairStyle;
  readonly root=new T.Group();readonly body=new T.Group();readonly head=new T.Group();readonly eyes=new T.Group();
@@ -142,9 +144,8 @@ export class Avatar{
   this.finger=new T.Mesh(fingerGeometry,material(skin));this.finger.position.set(...FINGER_OFFSET);this.finger.scale.setScalar(0);this.rightHand.add(this.finger);
   for(const [side,hip]of [[-1,this.leftLeg],[1,this.rightLeg]] as const){hip.position.set(side*.115,.55,0);
    const dress=(leg:T.Mesh)=>{leg.userData.garment=wearsSkirt?'stocking':'trousers';if(!wearsSkirt)leg.userData.clothContact='trousers';};
-   // Visitors get a knee so they can sit at a dining chair with their shins down; musicians keep one straight leg.
-   if(instrument){dress(cylinder(hip,wearsSkirt?.065:.085,.42,[0,-.21,0],wearsSkirt?skin:0x242329));sphere(hip,.12,[0,-.49,-.045],0x2b2422).scale.set(.11,.075,.155);}
-   else{const r=wearsSkirt?.065:.085,colour=wearsSkirt?skin:0x242329,knee=new T.Group();
+   // Everyone has a knee, so visitors and musicians alike sit with their shins down in front of the chair.
+   {const r=wearsSkirt?.065:.085,colour=wearsSkirt?skin:0x242329,knee=new T.Group();
     // Same overall length as the straight leg (foot at −0.49); a round knee like the shoulders hides the joint.
     dress(cylinder(hip,r,.25,[0,-.125,0],colour));knee.position.set(0,-.25,0);hip.add(knee);this.knees.push(knee);
     dress(sphere(knee,r,[0,0,0],colour));dress(cylinder(knee,r,.2,[0,-.1,0],colour));sphere(knee,.12,[0,-.24,-.045],0x2b2422).scale.set(.11,.075,.155);}
@@ -158,7 +159,7 @@ export class Avatar{
   }});
   if(!instrument){this.fork=buildFork();this.fork.scale.setScalar(0);this.forkBite=new T.Mesh(new T.IcosahedronGeometry(.028,1),new T.MeshStandardMaterial({roughness:.6}));this.forkBite.position.set(0,.01,-.15);this.fork.add(this.forkBite);this.rightHand.add(this.fork);this.wineGlass=buildWineGlass();this.wineGlass.position.set(-.07,-.03,-.05);this.wineGlass.scale.setScalar(0);this.rightHand.add(this.wineGlass);this.coffeeCup=buildCoffeeCup();this.rightHand.add(this.coffeeCup);this.macaron=buildMacaron();this.macaron.scale.setScalar(0);this.leftHand.add(this.macaron);}
   const shadow=new T.Mesh(shadowGeometry,shadowMaterial);shadow.rotation.x=-Math.PI/2;shadow.position.y=.012;this.root.add(shadow);
-  if(instrument){buildInstrument(instrument,this.instrument,this.leftHand,this.rightHand);if(FLOOR_INSTRUMENTS.has(instrument)){this.root.add(this.instrument);this.instrument.userData.floorAnchored=true;if(instrument==='cello')this.instrument.position.y=.64;}if(instrument==='conductor')santaHat(this.head);}
+  if(instrument){buildInstrument(instrument,this.instrument,this.leftHand,this.rightHand);if(FLOOR_INSTRUMENTS.has(instrument)){this.root.add(this.instrument);this.instrument.userData.floorAnchored=true;if(instrument==='cello')this.instrument.position.y=.64;}if(instrument==='conductor'||JAZZ_HALL&&instrument==='piano')santaHat(this.head);/* the big band's leader plays the piano */}
  }
  /** Orchestra bodies are settled once; only the head and rigid arms need live transforms. */
  settlePose(sitting:boolean){this.sitAmount=sitting?1:0;this.update(0,0,sitting,false,null,10,0);for(const group of [this.head,this.leftArm,this.rightArm])group.userData.animated=true;}
@@ -180,12 +181,12 @@ export class Avatar{
  diningBite:number|null=null;
  /** Holding the dinner wine glass (only while sipping); it drinks exactly like the lobby coffee. */
  holdingWine=false;private wineGlass?:T.Group;private faceFront?:number;private fork?:T.Group;private forkBite?:T.Mesh;
- update(time:number,speed:number,sitting:boolean,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60){
+ update(time:number,speed:number,sitting:boolean,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60,cameraFacing?:CameraFacing){
   this.rightHand.position.set(0,-ARM_LENGTH,0);this.leftHand.position.set(0,-ARM_LENGTH,0);
   const leftSleeve=this.leftArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;if(leftSleeve){leftSleeve.scale.y=1;leftSleeve.position.y=-(ARM_LENGTH-.06)/2;}
   const sleeve=this.rightArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;if(sleeve){sleeve.scale.y=1;sleeve.position.y=-(ARM_LENGTH-.06)/2;}
   const t=time+this.phase,play=performing?1:0,type=this.instrumentType;this.sitAmount=T.MathUtils.damp(this.sitAmount,sitting?1:0,12,dt);
-  const pose=poseVillager({time,speed,sit:this.sitAmount,music:performing,musician:!!type,gesture,age:gestureAge},this.phase),sit=pose.sit;
+  const pose=poseVillager({time,speed,sit:this.sitAmount,music:performing,musician:!!type,gesture,age:gestureAge,cameraFacing},this.phase),sit=pose.sit;
   // At the dinner table the body leans in to reach the middle of the plate, then sits back up as the fork rises.
   if(gesture==='eat'&&this.diningBite!=null)pose.lean=.24*pose.weight*(1-T.MathUtils.smoothstep(gestureAge,.75,1.3));
   // Bend around the hips: the body pivots at the hip joint and the legs counter-rotate, so the feet stay put.
@@ -210,10 +211,16 @@ export class Avatar{
   // Long bow strokes with a slight arc, and a vibrato in the left hand, so playing reads from far away.
   if(type==='violin'||type==='viola'){this.aimAt(this.left,-.41,1.08+Math.sin(t*9)*.008*play,-.46);this.aimAt(this.right,.10+Math.sin(t*2.8)*.08*play,1.04,-.38);}
   if(type==='cello'||type==='bass'){this.aimAt(this.left,-.11,1.02+Math.sin(t*8)*.015*play,-.35);this.aimAt(this.right,.2+Math.sin(t*2.6)*.16*play,.86+Math.cos(t*2.6)*.05*play,-.35);}
+  // Jazz bass is plucked: the left hand high on the neck, the right pulling the strings in a walking pulse.
+  if(type==='bass'&&JAZZ_HALL){const pluck=Math.max(0,Math.sin(t*6.2));this.aimAt(this.left,-.2,1.42+Math.sin(t*3.1)*.03*play,-.3);this.aimAt(this.right,-.04+pluck*.05*play,.9+pluck*.03*play,-.5);}
   if(type==='flute'||type==='piccolo'){this.aimAt(this.left,-.08,1.1,-.33);this.aimAt(this.right,.23,1.07,-.37);}
-  if(type&&['oboe','english-horn','clarinet','bass-clarinet','bassoon','contrabassoon','horn','trumpet','trombone','tuba'].includes(type)){this.aimAt(this.left,-.12,.99,-.36);this.aimAt(this.right,.14,.92,-.37);}
+  if(type&&['oboe','english-horn','clarinet','bass-clarinet','bassoon','contrabassoon','horn','trumpet','trombone','tuba','alto-sax','tenor-sax','bari-sax'].includes(type)){this.aimAt(this.left,-.12,.99,-.36);this.aimAt(this.right,.14,.92,-.37);}
+  if(type==='guitar'){this.aimAt(this.left,-.4,1.02+Math.sin(t*5)*.01*play,-.3);this.aimAt(this.right,.12+Math.sin(t*7)*.03*play,.8+Math.sin(t*7)*.05*play,-.34);}
+  // Jazz drumming: sticks held up, the right hand riding the cymbal in a swing pattern, the left dropping light snare accents.
+  if(type==='drum-kit'){const ride=Math.pow(Math.abs(Math.sin(t*5.2)),3),snare=Math.pow(Math.max(0,Math.sin(t*2.6+1)),6);this.aimAt(this.left,-.2,1.12-snare*.16*play,-.42);this.aimAt(this.right,.36,1.2-ride*.1*play,-.45);}
   if(type&&PERCUSSION.includes(type)){this.aimAt(this.left,-.24,.92+Math.max(0,Math.sin(t*4))*.22*play,-.37);this.aimAt(this.right,.24,.92+Math.max(0,Math.sin(t*4+Math.PI))*.22*play,-.37);}
-  if(type==='harp'||type==='piano'||type==='celesta'){this.aimAt(this.left,-.2+Math.sin(t*1.6)*.06*play,.9+Math.sin(t*3.2)*.06*play,-.38);this.aimAt(this.right,.2+Math.cos(t*1.6)*.06*play,.9+Math.cos(t*3.2)*.06*play,-.38);}
+  if(type==='piano'){this.aimAt(this.left,-.2+Math.sin(t*1.6)*.06*play,.95+Math.sin(t*3.2)*.05*play,-.6);this.aimAt(this.right,.2+Math.cos(t*1.6)*.06*play,.95+Math.cos(t*3.2)*.05*play,-.6);}
+  if(type==='harp'||type==='celesta'){this.aimAt(this.left,-.2+Math.sin(t*1.6)*.06*play,.9+Math.sin(t*3.2)*.06*play,-.38);this.aimAt(this.right,.2+Math.cos(t*1.6)*.06*play,.9+Math.cos(t*3.2)*.06*play,-.38);}
   if(type==='conductor'){
    // A big, sweeping beat: the right hand draws the bar pattern high in front, the left shapes the phrase.
    const u=t*2.2;
@@ -221,8 +228,8 @@ export class Avatar{
    this.aimAt(this.left,-.45-Math.sin(u+.7)*.22*play,1.12+Math.sin(u*.5)*.3*play,-.22);
   }
   // The left hand carries the candle; backward greetings and hush use the free right hand.
-  if(this.wineGlass){this.wineGlass.scale.setScalar(this.holdingWine?WINE_SCALE:0);this.wineGlass.rotation.x=gesture==='drink'&&this.holdingWine?.35*pose.weight:0;}
-  if(this.coffeeCup){this.coffeeCup.scale.setScalar(this.holdingCoffee?1:0);this.coffeeCup.rotation.x=gesture==='drink'&&this.holdingCoffee ? .35*pose.weight : 0;}
+  if(this.wineGlass){this.wineGlass.scale.setScalar(this.holdingWine?WINE_SCALE:0);this.wineGlass.rotation.x=0;}
+  if(this.coffeeCup){this.coffeeCup.scale.setScalar(this.holdingCoffee?1:0);this.coffeeCup.rotation.x=0;}
   if(this.macaron){
    // Each bite takes a whole half away at once, the moment it reaches the mouth.
    this.macaron.scale.setScalar(this.holdingMacaron?1:0);
@@ -232,15 +239,26 @@ export class Avatar{
   if(this.holdingMacaron&&!type)this.aimAt(this.left,-.23,.96,-.3);
   if(this.holdingCoffee&&!type)this.aimAt(this.right,.20,.96,-.30);
   if(this.holdingCandle&&!type)this.aimAt(this.left,-.1,.93,-.3);
-  if(pose.weight>0){if(pose.left)this.aimAt(this.left,...pose.left,pose.weight);if(pose.right)this.aimAt(this.right,...pose.right,pose.weight);}
+  if(pose.weight>0&&(type||gesture!=='ovation'&&gesture!=='shh')){if(pose.left)this.aimAt(this.left,...pose.left,pose.weight);if(pose.right)this.aimAt(this.right,...pose.right,pose.weight);}
   if(gesture==='ovation'&&pose.weight>0&&!type){
-   // Wave just in front of the turned head's ear, clear of the eyes.
-   this.direction.set(.56+Math.sin(gestureAge*11)*.035,.10,-.12).applyQuaternion(this.head.quaternion).add(this.head.position);
-   this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);
+   // Use the arm on the side of the turn, and blend through the switch.
+   const left=T.MathUtils.smoothstep(cameraFacing?.turn??-1,.02,.24);
+   for(const [arm,side,weight] of [[this.left,-1,left],[this.right,1,1-left]] as const){
+    if(!weight)continue;
+    const wave=Math.sin(gestureAge*7)*.035;
+    this.direction.set(side*(.48+wave),1.22,-.16);
+    this.aimAt(arm,this.direction.x,this.direction.y,this.direction.z,pose.weight*weight);
+   }
   }
   const vessel=this.holdingWine?this.wineGlass:this.holdingCoffee?this.coffeeCup:undefined;
   if(gesture==='drink'&&vessel&&pose.weight>0&&!type){
-   const rim=new T.Vector3(0,this.holdingWine?.169*WINE_SCALE:.14,0).applyQuaternion(vessel.quaternion).add(vessel.position);
+   // Raise the drink first, tilt back for the sip, then straighten before lowering it.
+   const sip=T.MathUtils.smoothstep(gestureAge,.38,.9)*(1-T.MathUtils.smoothstep(gestureAge,1.6,2.3));
+   this.head.rotation.x+=.46*sip;
+   vessel.rotation.x=.28*pose.weight+.4*sip;
+   const rimHeight=this.holdingWine?.175*WINE_SCALE:.14;
+   const rimRadius=this.holdingWine?.036*WINE_SCALE:.078;
+   const rim=new T.Vector3(0,rimHeight,rimRadius).applyQuaternion(vessel.quaternion).add(vessel.position);
    this.direction.set(0,-.13,faceSurfaceZ(0,-.13)-.008).applyQuaternion(this.head.quaternion).add(this.head.position).sub(rim);
    const reach=T.MathUtils.lerp(ARM_LENGTH,this.direction.distanceTo(this.rightArm.position),pose.weight);
    this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);this.rightHand.position.y=-reach;
@@ -285,18 +303,34 @@ export class Avatar{
     this.fork.lookAt(at.multiplyScalar(2).sub(lips));
    }
   }
+  this.finger.scale.setScalar(0);
+  this.finger.quaternion.identity();
   if(gesture==='shh'&&pose.weight>0&&!type){
-   // Follow the turned mouth rather than a fixed point in front of the torso.
+   // Choose from the camera target before the head starts turning.
+   // The animated mouth position would raise the right hand first on every gesture.
    this.direction.set(0,-.14,faceSurfaceZ(0,-.14)-.012).applyQuaternion(this.head.quaternion).add(this.head.position);
-   this.direction.sub(new T.Vector3(...FINGER_OFFSET));
-   const reach=T.MathUtils.lerp(ARM_LENGTH,this.direction.distanceTo(this.rightArm.position),pose.weight);
-   this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);
-   this.rightHand.position.y=-reach;
-   if(sleeve){sleeve.scale.y=reach/ARM_LENGTH;sleeve.position.y=-(reach-.06)/2;}
+   const left=T.MathUtils.smoothstep(cameraFacing?.turn??0,.02,.24);
+   const mouthX=this.direction.x,mouthY=this.direction.y,mouthZ=this.direction.z;
+   for(const [arm,side,weight] of [[this.left,-1,left],[this.right,1,1-left]] as const){
+    if(!weight)continue;
+    this.direction.set(side*FINGER_OFFSET[0],FINGER_OFFSET[1],FINGER_OFFSET[2]).applyQuaternion(this.head.quaternion);
+    const fingerX=this.direction.x,fingerY=this.direction.y,fingerZ=this.direction.z;
+    this.direction.set(mouthX-fingerX,mouthY-fingerY,mouthZ-fingerZ);
+    const blend=pose.weight*weight;
+    const reach=T.MathUtils.lerp(ARM_LENGTH,T.MathUtils.clamp(this.direction.distanceTo(arm.shoulder.position),.28,ARM_LENGTH),blend);
+    this.aimAt(arm,this.direction.x,this.direction.y,this.direction.z,blend);
+    arm.hand.position.y=-reach;
+    const armSleeve=side<0?leftSleeve:sleeve;
+    if(armSleeve){armSleeve.scale.y=(reach-.06)/(ARM_LENGTH-.06);armSleeve.position.y=-(reach-.06)/2;}
+    if(weight>.5){
+     if(this.finger.parent!==arm.hand)arm.hand.add(this.finger);
+     this.finger.position.set(fingerX,fingerY,fingerZ);
+     this.finger.quaternion.copy(this.head.quaternion);
+     this.finger.scale.setScalar(T.MathUtils.smoothstep(pose.weight,.6,1)*T.MathUtils.smoothstep(weight,.5,1));
+    }
+   }
   }
   this.icon=pose.icon;this.iconAlpha=pose.iconAlpha;
-  // The finger rises only once the hand has reached the chin.
-  this.finger.scale.setScalar(gesture==='shh'?T.MathUtils.smoothstep(pose.weight,.6,1):0);
   // Mittens stay rounded and tools keep their body-space orientation.
   for(const arm of [this.left,this.right])arm.hand.quaternion.copy(arm.shoulder.quaternion).invert();
  }

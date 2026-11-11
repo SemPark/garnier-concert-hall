@@ -1,4 +1,25 @@
 import * as T from 'three';
+import type {Seat} from '../../shared/venue';
+
+/** A three-quarter view puts the seated visitor beside the table in the frame. */
+export function dinnerCameraFrame(point:T.Vector3,seat:Seat,table:{x:number;z:number},yaw:number,pitch:number,distance:number,aspect:number,fov:number){
+ const dx=table.x-seat.x,dz=table.z-seat.z;
+ const facing=Math.atan2(dx,dz),sideAngle=Math.PI*.37;
+ const left=facing-sideAngle,right=facing+sideAngle;
+ // At the outside tables, shoot towards the wall from the aisle instead of placing the camera against it.
+ const defaultYaw=Math.abs(table.x)>=6
+  ? (Math.sign(table.x)*Math.sin(left)<Math.sign(table.x)*Math.sin(right)?left:right)
+  : (Math.cos(left)>Math.cos(right)?left:right);
+ const angle=defaultYaw+yaw;
+ const tilt=T.MathUtils.clamp(pitch+.19,.04,1.18);
+ const portraitDistance=3.7/(2*aspect*Math.tan(T.MathUtils.degToRad(fov/2)));
+ const radius=distance*Math.max(1,portraitDistance/4.4);
+ const origin=point.clone().add(new T.Vector3(0,1.15,0));
+ const look=point.clone().add(new T.Vector3(dx*.62,.89,dz*.62));
+ const position=look.clone().add(new T.Vector3(Math.sin(angle)*Math.cos(tilt),Math.sin(tilt),Math.cos(angle)*Math.cos(tilt)).multiplyScalar(radius));
+ return {origin,look,position};
+}
+
 /** Walking/seated camera: a plain orbit around the visitor, always looking at them. */
 export function localCameraFrame(point:{x:number;y:number;z:number},sitting:boolean|number,yaw:number,pitch:number,distance:number){
  const seated=typeof sitting==='number'?T.MathUtils.clamp(sitting,0,1):Number(sitting);

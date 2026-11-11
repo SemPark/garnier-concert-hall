@@ -1,4 +1,4 @@
-import list from '../../content/playlist.json';
+import list from './playlist';
 import {playbackAt,type Playback,type Playlist} from '../../shared/timeline';
 import type {Zone} from '../../shared/venue';
 import {MediaSync} from './MediaSync';
@@ -9,6 +9,29 @@ export class ConcertAudio{
  private doorLeak=0;
  private context:AudioContext|null=null;private filters:BiquadFilterNode[]=[];
  private musicGain:GainNode|null=null;private outputTarget=-1;
+ private analyser:AnalyserNode|null=null;
+ private spectrumTime=-Infinity;
+ private readonly frequencyData=new Float32Array(512);
+ private readonly waveform=new Float32Array(1024);
+ private readonly spectrum={volume:0,bands:new Float32Array(16)};
+ /** Read original music before room filters and the user's volume gain, at 20 Hz. */
+ musicSpectrum(time:number){
+  if(time-this.spectrumTime<.05)return this.spectrum;this.spectrumTime=time;
+  const a=this.analyser;
+  if(!a||this.context?.state!=='running'||this.media.paused||this.media.ended){this.spectrum.volume=0;this.spectrum.bands.fill(0);return this.spectrum;}
+  a.getFloatTimeDomainData(this.waveform);a.getFloatFrequencyData(this.frequencyData);
+  let sum=0;for(const v of this.waveform)sum+=v*v;
+  this.spectrum.volume=Math.min(1,Math.sqrt(sum/this.waveform.length)*4);
+  const binHz=this.context.sampleRate/a.fftSize;
+  for(let i=0;i<16;i++){
+   const lo=Math.max(1,Math.floor(50*Math.pow(240,i/16)/binHz));
+   const hi=Math.min(this.frequencyData.length,Math.max(lo+1,Math.ceil(50*Math.pow(240,(i+1)/16)/binHz)));
+   let power=0;for(let b=lo;b<hi;b++)power+=Math.pow(10,this.frequencyData[b]/10);
+   const db=10*Math.log10(Math.max(1e-12,power/Math.max(1,hi-lo)));
+   this.spectrum.bands[i]=Math.max(0,Math.min(1,(db+78)/52));
+  }
+  return this.spectrum;
+ }
  // Crossing the hall door switches the sound at once: muffled outside, full inside, with no fade.
 
  private lastMeow=-Infinity;
@@ -27,7 +50,10 @@ export class ConcertAudio{
  private prepareFilter(){
   if(this.context)return this.context.resume();
   const context=new AudioContext({latencyHint:'playback'}),source=context.createMediaElementSource(this.media);
-  this.context=context;let previous:AudioNode=source;
+  this.context=context;
+  this.analyser=context.createAnalyser();this.analyser.fftSize=1024;this.analyser.smoothingTimeConstant=.35;
+  source.connect(this.analyser);
+  let previous:AudioNode=source;
   // Two low-pass stages leave the bass audible through a closed door.
   for(let i=0;i<2;i++){const filter=context.createBiquadFilter();filter.type='lowpass';filter.Q.value=.707;filter.frequency.value=this.zone==='lobby'?450:22000;previous.connect(filter);previous=filter;this.filters.push(filter);}
   this.musicGain=context.createGain();this.musicGain.gain.value=0;previous.connect(this.musicGain);this.musicGain.connect(context.destination);

@@ -1,3 +1,4 @@
+import {TRAIN_DECK,TRAIN_STEP} from './encoreTrain';
 import {LOWER_FINISH_RECESS,LOWER_WALL_INNER_X,LOWER_HALL} from './lowerHall';
 import {UPPER_WALK_LIMIT} from './upperHall';
 import {LOWER_STATUES} from './lowerHall';
@@ -19,7 +20,7 @@ export const isLook=(v:unknown):v is Look=>v==='man'||v==='woman';
 function appearanceSeed(id:string){let hash=2166136261;for(const ch of id)hash=Math.imul(hash^ch.charCodeAt(0),16777619);return hash>>>0;}
 /** Independent skin, look and hair choices, stable for the same visitor on every screen. */
 export function visitorVariant(v:{id:string;look?:Look}){const seed=appearanceSeed(v.id),look=v.look??(seed&4?'woman':'man');return (seed&3)+(look==='woman'?4:0)+((seed>>>8)&7)*8;}
-export type Visitor={id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronBites?:number;macaronEmptyAt?:number;dish?:Dish;dishBites?:number;dishEmptyAt?:number;drink?:'coffee'|'wine';drinkSips?:number;drinkEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
+export type Visitor={trainSeat?:number;id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronBites?:number;macaronEmptyAt?:number;dish?:Dish;dishBites?:number;dishEmptyAt?:number;drink?:'coffee'|'wine';drinkSips?:number;drinkEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
 export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
 // Dinner-show floor: round tables with chairs all around (the theatre rows are kept in theatreSeating.ts).
@@ -82,7 +83,13 @@ export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  if(!Number.isFinite(p.x)||!Number.isFinite(p.z)||!Number.isFinite(fromY))return null;
  // Select the connected lobby floor, stair flight or balcony at the current elevation.
  if(zone==='lobby')return lobbyHeight(p.x,p.z,fromY);
- if(fromY>H.balconyHeight-.45&&inGallery(p))return H.balconyHeight;
+ if(fromY>H.balconyHeight-.45&&inGallery(p)){
+  if(Math.abs(p.x)<=TRAIN_DECK.width/2){
+   if(Math.abs(p.z-TRAIN_DECK.z)<=TRAIN_DECK.depth/2)return H.balconyHeight+TRAIN_DECK.height;
+   if(Math.abs(p.z-TRAIN_STEP.z)<=TRAIN_STEP.depth/2)return H.balconyHeight+TRAIN_STEP.height;
+  }
+  return H.balconyHeight;
+ }
  if(fromY<1&&fromY>PARTERRE.floor-.4&&Math.abs(p.x)<=15.65&&p.z>=STAGE_APRON_Z&&p.z<=50.3)return parterreHeight(p.x,p.z);
  return null;
 }

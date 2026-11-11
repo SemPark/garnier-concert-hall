@@ -108,7 +108,8 @@ type Diner={id:string;seatId:string|null;dish?:Dish;dishBites?:number;drink?:'co
 
 /**
  * Dinner settings on the tables, in front of whoever ordered: a navy plate with three pieces of the dish, a fork on the
- * left and a knife on the right, and the drink (coffee or wine) to the right beyond the knife. Each bite takes one piece
+ * left and a knife on the right. A drink sits in front of the diner until a plate is served, then goes beside the knife.
+ * Each bite takes one piece
  * away; while the diner eats, the table fork is in their hand, and while they sip, the cup or glass is.
  * The viewer's own plate and drink can be tapped (their meshes carry userData.ownDish = 'eat' | 'drink').
  */
@@ -129,7 +130,7 @@ export class DinnerDishes{
      // Local +z points from the diner into the table: the diner's left is +x. Fork left, knife right, tips away.
      const root=new T.Group();root.position.set(table.x+dx/len*r,PARTERRE.floor+.77,table.z+dz/len*r);root.rotation.y=Math.atan2(dx,dz)+Math.PI;
      let meal:T.Group,fork:T.Object3D|undefined;
-     if(drink){meal=drinkVessel(d.drink!);meal.position.set(-.3,0,.2);root.add(meal);}
+     if(drink){meal=drinkVessel(d.drink!);root.add(meal);}
      else{
       const plate=new T.Mesh(plateGeometry,plateMaterial);plate.position.y=.012;root.add(plate);const rim=new T.Mesh(rimGeometry,gold);rim.position.y=.025;root.add(rim);
       meal=food(d.dish!);meal.position.y=.024;root.add(meal);
@@ -137,6 +138,10 @@ export class DinnerDishes{
      }
      this.scene.add(root);s={root,food:meal,fork,kind,seatId:d.seatId};this.served.set(key,s);
      if(d.own)root.traverse(o=>{if(o instanceof T.Mesh){o.userData.ownDish=drink?'drink':'eat';this.targets.push(o);}});
+    }
+    if(drink){
+     if(d.dish)s.food.position.set(-.3,0,.2);
+     else s.food.position.set(0,0,0);
     }
     const bites=Math.min(3,(drink?d.drinkSips:d.dishBites)??0);
     (s.food.userData.chunks as T.Object3D[]|undefined)?.forEach((c,i)=>{c.visible=i>=bites;});

@@ -317,8 +317,17 @@ body:has(.conducting-experience) .mobile-joystick{visibility:hidden;pointer-even
 
 .conducting-camera-area{position:absolute;inset:0;z-index:0;touch-action:none;cursor:grab}.conducting-camera-area:active{cursor:grabbing}.conducting-experience>header,.conducting-experience>.conducting-pad,.conducting-camera-help{position:relative;z-index:2}.conducting-camera-help{align-self:flex-end;display:flex;gap:12px;align-items:center;font-size:11px;background:#211b14c9;padding:8px 12px;border-radius:20px;max-width:90%}.conducting-camera-help span{pointer-events:none}.conducting-camera-help button{padding:7px 10px;font-size:12px}.conducting-instruction{position:relative;z-index:1;pointer-events:none}.conducting-pad{flex-shrink:0}@media(max-width:540px){.conducting-camera-help{align-self:center;max-width:100%;font-size:10px}.conducting-camera-help button{flex-shrink:0}}
 
-/* Plain wordmark beside the top-right controls. */
-.tools-brand{font-family:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:15px;font-weight:400;letter-spacing:0;padding:0 12px;color:var(--gold);white-space:nowrap}
+/* The top-right wordmark opens the hall selector. */
+.topbar .tools{position:relative}
+.topbar .tools:has(.tools-brand[aria-expanded=true]){z-index:21}
+.tools-brand{display:flex;align-items:center;gap:6px;min-height:35px;border-radius:18px;background:transparent;font-size:15px;padding:0 12px;color:var(--gold);white-space:nowrap}
+.tools-brand:hover,.tools-brand[aria-expanded=true]{background:#e8d4a61a}
+.hall-picker-caret{width:5px;height:5px;border-right:1px solid;border-bottom:1px solid;transform:translateY(-1px) rotate(45deg)}
+.hall-choices{position:absolute;top:calc(100% + 8px);right:0;width:164px;padding:5px;border:1px solid #d0b98b45;border-radius:15px;background:#211b16f5;box-shadow:0 8px 24px #0005;pointer-events:auto}
+.hall-choices a{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px;padding:0 11px;border-radius:10px;color:#f3e7cc;text-decoration:none;font-size:13px}
+.hall-choices a:hover,.hall-choices a:focus-visible,.hall-choices a[aria-current=page]{background:#e8d4a61a}
+.hall-choices a:focus-visible{outline:1px solid var(--gold);outline-offset:-1px}
+.hall-choices a span{color:var(--gold);font-size:10px}
 @media(max-width:540px){.tools-brand{font-size:13px;padding:0 8px}}
 
 /* Music and controls share one mobile header, with details opening below it. */
@@ -378,8 +387,74 @@ body:has(.conducting-experience) .mobile-joystick{visibility:hidden;pointer-even
 /* Throw the table's food and drink away: a small round bin above the action bar. */
 .dish-trash{pointer-events:auto;width:40px;height:40px;padding:0;display:grid;place-items:center;border-radius:50%;background:var(--panel);border:1px solid #dac08a40;color:#cbbfa6;backdrop-filter:blur(14px)}.dish-trash:hover{background:#c6aa7022;color:#ffe7b3}
 
-.usher-speech{position:fixed;z-index:3;box-sizing:border-box;width:min(240px,calc(100vw - 32px));padding:13px 16px;border:1px solid #caa969;border-radius:15px;background:#fff4dc;color:#44252a;box-shadow:0 4px 18px #0005;font:600 15px/1.65 system-ui,sans-serif;text-align:center;word-break:keep-all;pointer-events:none;transform:translate(-50%,-100%)}
-.usher-speech::after{content:"";position:absolute;left:calc(50% + var(--tail-offset,0px));bottom:-7px;width:12px;height:12px;background:#fff4dc;border-right:1px solid #caa969;border-bottom:1px solid #caa969;transform:translateX(-50%) rotate(45deg)}
-.usher-speech[hidden]{display:none}
+.usher-speech {
+  position: fixed;
+  z-index: 3;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(232px, calc(100vw - 24px));
+  padding: 8px 12px;
+  border: 1px solid #a2875a;
+  border-radius: 8px;
+  background: #261b29;
+  color: #fff0d5;
+  box-shadow: 0 3px 12px #160c19a0;
+  font: 600 14px/1.5 system-ui, sans-serif;
+  text-align: center;
+  white-space: pre-line;
+  word-break: keep-all;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+}
+.usher-speech::after {
+  content: "";
+  position: absolute;
+  left: calc(50% + var(--tail-offset, 0px));
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  background: #261b29;
+  border-right: 1px solid #a2875a;
+  border-bottom: 1px solid #a2875a;
+  transform: translateX(-50%) rotate(45deg);
+}
+.usher-speech[hidden] { display: none; }
 
-@media(max-width:600px){.usher-speech{width:max-content;max-width:min(180px,calc(100vw - 24px));padding:7px 10px;border-radius:11px;font-size:12px;line-height:1.45;box-shadow:0 2px 8px #0003}.usher-speech::after{width:8px;height:8px;bottom:-5px}}
+@media (max-width: 600px) {
+  .usher-speech { max-width: min(175px, calc(100vw - 24px)); padding: 6px 9px; font-size: 12px; }
+}
+
+/* Keep the viewfinder and the exported canvas free of the usual interface. */
+body.photo-active #root > :not(.photo-mode),
+body.photo-active #world > :not(canvas){display:none!important}
+.photo-mode{position:fixed;inset:0;z-index:100;pointer-events:none;color:#f3e6ca}
+.photo-mode button,.photo-mode a,.photo-mode input{pointer-events:auto}
+.photo-mode button,.photo-mode a{border:1px solid #dcc49355;background:#231c14e8;color:inherit;border-radius:24px;padding:12px 18px;font:inherit;text-decoration:none;cursor:pointer}
+.photo-mode button:focus-visible,.photo-mode a:focus-visible{outline:2px solid #f5d991;outline-offset:3px}
+.photo-mode .photo-close{position:absolute;right:max(20px,env(safe-area-inset-right));top:max(20px,env(safe-area-inset-top));width:46px;height:46px;padding:0;font-size:28px;z-index:2}
+.photo-controls{position:absolute;bottom:max(20px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(470px,calc(100% - 32px));text-align:center;border-radius:24px;background:#211a13dc;padding:14px 20px;box-sizing:border-box}
+.photo-controls p{font-size:12px;margin:0 0 12px;color:#e5d8be}
+.photo-actions{display:grid;grid-template-columns:1fr 76px 1fr;align-items:center;gap:8px;margin-top:13px}
+.photo-actions>button:first-child{font-size:12px;padding:9px}
+.photo-mode .photo-shutter{width:64px;height:64px;justify-self:center;border:2px solid #f9edd5;background:transparent;padding:5px;border-radius:50%}
+.photo-shutter span{display:block;width:100%;height:100%;border-radius:50%;background:#f9edd5}
+.photo-shutter:disabled{opacity:.5}
+.photo-status{font-size:12px}
+.photo-preview{position:absolute;inset:0;background:#15120ff5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:70px 16px 24px;box-sizing:border-box;pointer-events:auto}
+.photo-preview img{display:block;max-width:100%;max-height:calc(100dvh - 205px);object-fit:contain;user-select:auto;-webkit-touch-callout:default}
+/* The gold card design is drawn into the photo itself (PhotoMode.tsx); the preview only rounds its corners. */
+.photo-preview img{border-radius:18px;box-shadow:0 18px 50px #0009}
+.photo-preview-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
+.photo-preview p{font-size:12px;margin:0;text-align:center;color:#ddcdb2}
+
+.photo-presets{display:flex;justify-content:center;gap:8px}
+.photo-mode .photo-presets button{padding:8px 20px;font-size:13px;background:transparent;border-color:transparent}
+.photo-mode .photo-presets button[aria-pressed="true"]{background:#e7ce98;color:#2b2117}
+
+.photo-controls{display:flex;align-items:center;justify-content:center;gap:14px;width:max-content;max-width:calc(100% - 24px);padding:8px 14px}
+.photo-controls .photo-guide{position:absolute;bottom:100%;left:0;right:0;margin-bottom:8px;text-shadow:0 1px 4px #000}
+.photo-actions{display:contents}
+.photo-mode .photo-presets button{padding:8px 12px;white-space:nowrap}
+.photo-mode .photo-shutter{width:54px;height:54px;flex-shrink:0}
+.photo-status:empty{display:none}
+.photo-status:not(:empty){position:absolute;bottom:100%;margin-bottom:28px}

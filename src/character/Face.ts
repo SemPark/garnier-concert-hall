@@ -28,7 +28,16 @@ const blush=new T.MeshBasicMaterial({color:0xe77e7c,transparent:true,opacity:.48
 // Flat marks on the face: a few rings are enough to follow its curve.
 function ellipse(cx:number,cy:number,rx:number,ry:number,blink=false,blinkAnchor=cy,rings=2,segments=20,shut=.1){
  const p:number[]=[],index:number[]=[],closed:number[]=[];
- const put=(x:number,y:number)=>{p.push(x,y,faceSurfaceZ(x,y)-.0015);const yy=blinkAnchor+(y-blinkAnchor)*shut;closed.push(x,yy,faceSurfaceZ(x,yy)-.0015);};
+ const put=(x:number,y:number)=>{
+  p.push(x,y,faceSurfaceZ(x,y)-.0015);
+  if(!blink)return;
+  const u=(x-cx)/rx,v=(y-cy)/ry;
+  // Map the ellipse to a thin rectangular stroke that follows the face surface.
+  const toSquare=Math.hypot(u,v)/(Math.max(Math.abs(u),Math.abs(v))||1);
+  const xx=shut===0?cx:cx+(x-cx)*toSquare;
+  const yy=blinkAnchor+(y-cy)*toSquare*shut;
+  closed.push(xx,yy,faceSurfaceZ(xx,yy)-.0015);
+ };
  put(cx,cy);
  for(let r=1;r<=rings;r++)for(let i=0;i<segments;i++){const a=i/segments*Math.PI*2;put(cx+Math.cos(a)*rx*r/rings,cy+Math.sin(a)*ry*r/rings);}
  for(let i=0;i<segments;i++)index.push(0,1+(i+1)%segments,1+i);

@@ -1,3 +1,4 @@
+import {onTrainDeck,TRAIN_EXIT,TRAIN_PLATFORM,TRAIN_SEATS} from '../shared/encoreTrain';
 import {isDish,isDrink,DISH_BITES} from '../shared/dishes';
 import {zoneUpdate} from '../shared/zoneUpdates';
 import {DurableObject} from 'cloudflare:workers';
@@ -82,7 +83,7 @@ export class VenueRoom extends DurableObject<Env>{
   if(!claim){visitor.seatId=null;if(visitor.pose==='sit'&&!lounge){visitor.pose='idle';visitor.loungeSeatId=null;Object.assign(visitor,SPAWN[visitor.zone]);}}
   if(visitor.pose==='sit')visitor.y=SEATS.find(s=>s.id===visitor.seatId)?.y??0;else visitor.y=surfaceHeight(visitor.zone,visitor,visitor.y??0)??visitor.y??0;
   if(visitor.pose!=='sit'){
-   const point=freeVisitorPosition(visitor.zone,visitor,this.active().map(({a})=>a.visitor),visitor.id);
+   const point=freeVisitorPosition(visitor.zone,visitor);
    if(!point)return new Response('No clear entry space',{status:409});Object.assign(visitor,point);
   }
   if(active){active.ws.serializeAttachment(null);active.ws.close(4001,'Session resumed elsewhere');}
@@ -110,16 +111,31 @@ export class VenueRoom extends DurableObject<Env>{
    if(v.pose==='sit')return;
    if(distance(v,msg)>.02)a.lastActivity=now;
    Object.assign(v,{x:round(msg.x),y:round(msg.y??0),z:round(msg.z),yaw:round(msg.yaw),pose:msg.pose});
+  }else if(msg.type==='trainLeave'){
+   if(v.trainSeat===undefined)return;
+   delete v.trainSeat;this.release(v.id);Object.assign(v,TRAIN_EXIT,{pose:'idle',seatId:null,loungeSeatId:null,yaw:0});
+  }else if(msg.type==='trainBoard'){
+   if(v.zone!=='auditorium')return;
+   if(v.trainSeat!==undefined&&msg.seat===undefined)return;
+   if(v.trainSeat===undefined&&(msg.seat!==undefined||(msg.direct!==true&&msg.fromMenu!==true&&!onTrainDeck(v)))){
+    this.send(ws,{type:'error',message:'승강장에 올라간 뒤 탑승하기를 눌러 주세요.'});return;
+   }
+   if(msg.seat!==undefined&&(!Number.isInteger(msg.seat)||msg.seat<0||msg.seat>=TRAIN_SEATS))return;
+   const occupied=new Set(this.active().filter(({a})=>a.visitor.zone==='auditorium').map(({a})=>a.visitor.trainSeat));
+   if(msg.seat===v.trainSeat&&msg.seat!==undefined)return;
+   const slot=msg.seat!==undefined?(!occupied.has(msg.seat)?msg.seat:undefined):Array.from({length:TRAIN_SEATS},(_,i)=>(i+2)%TRAIN_SEATS).find(i=>!occupied.has(i));
+   if(slot===undefined){this.send(ws,{type:'error',message:'선택할 수 있는 빈자리가 없어요. 다른 좌석을 눌러 주세요.'});return;}
+   this.release(v.id);Object.assign(v,{...TRAIN_PLATFORM,trainSeat:slot,pose:'sit',seatId:null,loungeSeatId:null,gesture:null});
   }else if(msg.type==='zone'){
    if(!['lobby','auditorium'].includes(msg.zone)||msg.zone===v.zone)return;
-   const point=freeVisitorPosition(msg.zone,SPAWN[msg.zone],this.active().map(({a})=>a.visitor),v.id);
-   if(!point){this.send(ws,{type:'error',message:'입구가 붐벼요. 잠시 후 다시 들어와 주세요.'});return;}
-   this.release(v.id);Object.assign(v,{zone:msg.zone,...point,seatId:null,loungeSeatId:null,pose:'idle'});delete v.candle;delete v.macaron;delete v.macaronBites;delete v.macaronEmptyAt;delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;
+   const point=freeVisitorPosition(msg.zone,SPAWN[msg.zone]);
+   if(!point){this.send(ws,{type:'error',message:'입구 위치를 찾지 못했어요. 잠시 후 다시 들어와 주세요.'});return;}
+   delete v.trainSeat;this.release(v.id);Object.assign(v,{zone:msg.zone,...point,seatId:null,loungeSeatId:null,pose:'idle'});delete v.candle;delete v.macaron;delete v.macaronBites;delete v.macaronEmptyAt;delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;
   }else if(msg.type==='hallMove'){
    if(!isHallDestination(msg.destination)||v.zone!==DESTINATION_ZONE[msg.destination])return;
-   const point=freeVisitorPosition(v.zone,HALL_DESTINATIONS[msg.destination],this.active().map(({a})=>a.visitor),v.id);
-   if(!point){this.send(ws,{type:'error',message:'이동할 곳이 붐벼요. 잠시 후 다시 시도해 주세요.'});return;}
-   this.release(v.id);Object.assign(v,{...point,yaw:0,pose:'idle',seatId:null,loungeSeatId:null});
+   const point=freeVisitorPosition(v.zone,HALL_DESTINATIONS[msg.destination]);
+   if(!point){this.send(ws,{type:'error',message:'이동할 위치를 찾지 못했어요.'});return;}
+   delete v.trainSeat;this.release(v.id);Object.assign(v,{...point,yaw:0,pose:'idle',seatId:null,loungeSeatId:null});
    this.send(ws,{type:'relocated',x:v.x,y:v.y??0,z:v.z});
   }else if(msg.type==='reserve'){
 
@@ -127,7 +143,7 @@ export class VenueRoom extends DurableObject<Env>{
    const seat=SEATS.find(s=>s.id===msg.seatId),claim=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE seatId=?',msg.seatId).toArray()[0];
    if(v.zone!=='auditorium'||!seat||(claim&&claim.visitorId!==v.id)){this.send(ws,{type:'seatResult',ok:false,seatId:msg.seatId,requestId:msg.requestId,reason:'다른 관객이 선택한 좌석이에요.'});return;}
    if(a.reservationRequest===msg.requestId&&claim?.visitorId===v.id){this.send(ws,{type:'seatResult',ok:true,seatId:seat.id,requestId:msg.requestId});return;}
-   this.release(v.id);this.ctx.storage.sql.exec('INSERT INTO claims VALUES(?,?,?,?)',seat.id,v.id,'reserved',now+RESERVE_MS);v.seatId=seat.id;v.pose='idle';a.reservationRequest=msg.requestId;
+   delete v.trainSeat;this.release(v.id);this.ctx.storage.sql.exec('INSERT INTO claims VALUES(?,?,?,?)',seat.id,v.id,'reserved',now+RESERVE_MS);v.seatId=seat.id;v.pose='idle';a.reservationRequest=msg.requestId;
    // A claimed seat reaches everyone at once, before the reply, so no one picks it a moment later.
    ws.serializeAttachment({...a,roomId:this.roomId()});this.flush();
    this.send(ws,{type:'seatResult',ok:true,seatId:seat.id,requestId:msg.requestId});
@@ -144,7 +160,8 @@ export class VenueRoom extends DurableObject<Env>{
   }else if(msg.type==='release'){
    if(msg.requestId&&msg.requestId!==a.reservationRequest)return;
    const seat=v.loungeSeatId?LOUNGE_SEATS.find(s=>s.id===v.loungeSeatId):SEATS.find(s=>s.id===v.seatId);
-   if(v.pose==='sit'&&seat){const point=freeVisitorPosition(v.zone,seat.approach,this.active().map(({a})=>a.visitor),v.id);if(!point){this.send(ws,{type:'error',message:'의자 앞이 붐벼요. 잠시 기다려 주세요.'});return;}Object.assign(v,point);}
+   if(v.pose==='sit'&&seat){const point=freeVisitorPosition(v.zone,seat.approach);if(!point){this.send(ws,{type:'error',message:'일어설 위치를 찾지 못했어요.'});return;}Object.assign(v,point);}
+   if(v.trainSeat!==undefined){Object.assign(v,TRAIN_EXIT);delete v.trainSeat;}
    this.release(v.id);v.seatId=null;v.loungeSeatId=null;v.pose='idle';delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;
   }else if(msg.type==='renew'){
    this.ctx.storage.sql.exec("UPDATE claims SET expiresAt=? WHERE seatId=? AND visitorId=? AND status='reserved'",now+RESERVE_MS,msg.seatId,v.id);
@@ -187,7 +204,7 @@ export class VenueRoom extends DurableObject<Env>{
   for(const {ws,a} of this.active())if(a.visitor.dishEmptyAt&&now>=a.visitor.dishEmptyAt||a.visitor.drinkEmptyAt&&now>=a.visitor.drinkEmptyAt){const v=a.visitor;if(v.dishEmptyAt&&now>=v.dishEmptyAt){delete v.dish;delete v.dishBites;delete v.dishEmptyAt;}if(v.drinkEmptyAt&&now>=v.drinkEmptyAt){delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;}ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(v),v.id);}
   for(const {ws,a} of this.active())if(a.visitor.coffeeEmptyAt&&now>=a.visitor.coffeeEmptyAt){const v=a.visitor;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(v),v.id);}
   for(const {ws,a} of this.active())if(a.visitor.zone==='lobby'&&a.lastActivity&&now-a.lastActivity>=30000){
-   const v=a.visitor;this.release(v.id);Object.assign(v,{zone:'auditorium',...SPAWN.auditorium,pose:'idle',seatId:null,loungeSeatId:null});delete v.candle;delete v.macaron;delete v.macaronBites;delete v.macaronEmptyAt;delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;
+   const v=a.visitor;delete v.trainSeat;this.release(v.id);Object.assign(v,{zone:'auditorium',...SPAWN.auditorium,pose:'idle',seatId:null,loungeSeatId:null});delete v.candle;delete v.macaron;delete v.macaronBites;delete v.macaronEmptyAt;delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;
    ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(v),v.id);
   }
   this.broadcast();await this.schedule();

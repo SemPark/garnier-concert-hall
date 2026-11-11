@@ -1,9 +1,10 @@
 import * as T from 'three';
-import {ORGAN_LOFT_BACK} from '../../shared/organLoft';
 /** Strength of the even overhead light on the audience floor. */
-const AUDIENCE_FILL=1,STAGE_FRONT_FILL=.6;
+const AUDIENCE_FILL=1;
 import {PARTERRE,parterreHeight} from '../../shared/parterre';
 import {FLOOR_ROWS,STAIR_DOORS,DINNER_TABLES} from '../../shared/venue';
+import {hiddenByTree} from './ChristmasTrees';
+import {JAZZ_HALL} from '../../shared/hallKind';
 import {CONDUCTOR,ORCHESTRA_LAYOUT,STAGE,STAGE_FLOOR,stageRiseAt} from '../orchestra/layout';
 
 /**
@@ -50,14 +51,46 @@ export function buildCandlelight(scene:T.Scene){
  });
  let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
  const half=STAGE.width/2,floor=PARTERRE.floor,clusters:Cluster[]=[];
- const clearOfPlayers=(x:number,z:number)=>Math.hypot(x-CONDUCTOR.x,z-CONDUCTOR.z)>1.3&&ORCHESTRA_LAYOUT.every(p=>Math.hypot(x-p.x,z-p.z)>.95);
+ const clearOfPlayers=(x:number,z:number)=>Math.hypot(x-CONDUCTOR.x,z-CONDUCTOR.z)>1.3&&ORCHESTRA_LAYOUT.every(p=>Math.hypot(x-p.x,z-p.z)>.95)&&!hiddenByTree(x,z);
  // Stage floor and risers: clusters in every gap between the players, as in a candlelit church concert.
- for(let z=STAGE.front-.5;z>STAGE.back+.6;z-=.85)for(let x=-half+.5;x<half-.4;x+=.85){
+ // A 1.2 m grid: about a third fewer glow sprites than the old .85 m grid had with the full orchestra (they overdraw heavily).
+ for(let z=STAGE.front-.5;z>STAGE.back+.6;z-=1.2)for(let x=-half+.5;x<half-.4;x+=1.2){
   const cx=x+(rnd()-.5)*.6,cz=z+(rnd()-.5)*.6;if(!clearOfPlayers(cx,cz))continue;
+  if(JAZZ_HALL&&Math.abs(cx)<10.2&&cz>-19.8)continue;
   clusters.push({x:cx,y:STAGE_FLOOR+stageRiseAt(cx,cz),z:cz,n:5+Math.floor(rnd()*5),r:.36,stage:true});
  }
  // A dense band along the stage lip, and on the hall floor against the stage front.
  for(let x=-half+.4;x<half-.3;x+=.7)clusters.push({x,y:STAGE_FLOOR,z:STAGE.front-.25,n:5,r:.3,stage:true});
+ if(JAZZ_HALL){
+  // Scatter the original candle budget radially around individual players.
+  // A separate seed keeps the existing candle sizes and the hall's other clusters stable.
+  let placementSeed=431;
+  const randomPosition=()=>{placementSeed=placementSeed*16807%2147483647;return placementSeed/2147483647;};
+  const spots:{x:number;z:number;y:number}[]=[];
+  for(let attempt=0;attempt<12000&&spots.length<clusters.length;attempt++){
+   const player=ORCHESTRA_LAYOUT[Math.floor(randomPosition()*ORCHESTRA_LAYOUT.length)];
+   const angle=randomPosition()*Math.PI*2;
+   const distance=1.3+Math.sqrt(randomPosition())*9.2;
+   const x=player.x+Math.cos(angle)*distance,z=player.z+Math.sin(angle)*distance;
+   if(Math.abs(x)>half-.5||z<STAGE.back+.5||z>STAGE.front-.5)continue;
+   const clear=ORCHESTRA_LAYOUT.every(p=>Math.hypot(x-p.x,z-p.z)>(p.instrument==='piano'?2.1:p.instrument==='drum-kit'?1.35:1.05));
+   const rise=stageRiseAt(x,z);
+   const onTier=[[.45,0],[-.45,0],[0,.45],[0,-.45]].every(([dx,dz])=>stageRiseAt(x+dx,z+dz)===rise);
+   if(!clear||!onTier||hiddenByTree(x,z)||spots.some(p=>Math.hypot(x-p.x,z-p.z)<1.05))continue;
+   spots.push({x,z,y:STAGE_FLOOR+rise});
+  }
+  if(spots.length){
+   const candleCount=clusters.reduce((total,cluster)=>total+cluster.n,0);
+   const groupCount=Math.min(clusters.length,spots.length);
+   clusters.length=0;
+   for(let i=0;i<groupCount;i++){
+    const spot=spots[Math.floor(i*spots.length/groupCount)];
+    const count=Math.floor((i+1)*candleCount/groupCount)-Math.floor(i*candleCount/groupCount);
+    clusters.push({...spot,n:count,r:.36,stage:true});
+   }
+  }
+ }
+ // The lower front row stays on the hall floor, outside the stage redistribution.
  for(let x=-half+.5;x<half-.4;x+=.8)clusters.push({x,y:floor,z:STAGE.front+.35,n:7,r:.35,stage:true});
  // The way in: small groups along both edges of the two parterre aisles, against the side walls,
  // at the ends of the rear steps and either side of the stair doors, leaving every walking line clear.
@@ -96,7 +129,7 @@ export function buildCandlelight(scene:T.Scene){
  // No new lights (each one costs every lit surface in the hall): the hall's own lamps become candle light instead.
  // Reuse the ceiling lamps as broad fills above both sides of the orchestra.
  const lights:T.Light[]=[],targets=[[0,floor+1.2,STAGE.front+1.2],[-6,7,-17],[6,7,-20]];
- scene.traverse(o=>{const l=o as T.PointLight;if(l.isPointLight&&l.position.y>14&&lights.length<3){const [x,y,z]=targets[lights.length];l.position.set(x,y,z);l.color.set(0xffbf66);l.intensity=lights.length===0?0:85;l.distance=25;l.decay=2;lights.push(l);}});
+ scene.traverse(o=>{const l=o as T.PointLight;if(l.isPointLight&&l.position.y>14&&lights.length<3){const [x,y,z]=targets[lights.length];l.position.set(x,y,z);l.color.set(0xffbf66);l.intensity=0;l.distance=25;l.decay=2;lights.push(l);}});
  scene.traverse(o=>{const l=o as T.SpotLight;if(l.isSpotLight&&l.position.z===-15&&l.position.y===12){l.color.set(0xffc874);l.intensity=85;lights.push(l);}});
  // The two wall washes nearest the stage turn to light the players softly from above, so faces and instruments read.
  scene.traverse(o=>{const l=o as T.SpotLight;if(l.isSpotLight&&l.position.z===-20&&l.position.y===10.5){const side=Math.sign(l.position.x);l.position.set(side*7,15,-10);l.target.position.set(side*4,0,-19);l.color.set(0xffd08a);l.intensity=300;l.distance=32;l.angle=.95;l.penumbra=1;}});
@@ -114,23 +147,33 @@ export function buildCandlelight(scene:T.Scene){
  // falloff, so no table bleaches. It slants in from high over the stage, as if from the stage candles, so each table
  // is lit on its stage side and shaded behind; kept soft so the table candles still pool. Cheap (no shadow).
  const floorFill=new T.DirectionalLight(0xffd9a8,AUDIENCE_FILL);floorFill.position.set(0,16,-14);floorFill.target.position.set(0,0,20);scene.add(floorFill,floorFill.target);floorFill.updateMatrixWorld(true);floorFill.target.updateMatrixWorld(true);
- // The same soft light the other way, from high over the audience onto the pipe organ only: the narrow beam covers the
- // organ case (23 m wide) and passes above the players; a spotlight so it stays on the stage, without falloff (decay 0) so it is as even as the floor light.
- const stageFront=new T.SpotLight(0xffd9a8,STAGE_FRONT_FILL,0,.27,.4,0);stageFront.position.set(0,14,14);stageFront.target.position.set(0,16,ORGAN_LOFT_BACK);scene.add(stageFront,stageFront.target);stageFront.updateMatrixWorld(true);stageFront.target.updateMatrixWorld(true);
+ // The player washes point down at the stage; the organ spotlight stays off.
  // The hall is frozen after building (no automatic matrix updates), so moved lights and targets must be updated by hand.
  scene.traverse(o=>{const l=o as T.SpotLight;if(!l.isLight)return;l.updateMatrix();l.updateMatrixWorld(true);if(l.target){l.target.updateMatrix();l.target.updateMatrixWorld(true);}});
  // The centre fill is permanently disabled; omit it from GPU light loops entirely.
  for(const light of lights)if(light.intensity===0)light.removeFromParent();
  // No flicker on lights, halos or flames: the bloom is computed at a fraction of the screen resolution, so any swing in
  // brightness, or a bright point moving quickly, makes blocky glow pop on and off along nearby gilded edges.
- // Floating candles, as in a school of magic: high over the stalls, between the galleries and the ceiling,
- // each drifting slowly up and down on its own rhythm. Above the gallery rails so they never hide the stage.
- const floating=Array.from({length:170},()=>({x:(rnd()-.5)*23,y:9.6+rnd()*5.4,z:-6+rnd()*46,h:.22+rnd()*.18,phase:rnd()*Math.PI*2,speed:.2+rnd()*.2}));
+ // One candle per cell prevents clusters. Jitter keeps the rows from looking rigid.
+ const columns=10,rows=17,floatAmplitude=1.25;
+ const floating=Array.from({length:columns*rows},(_,i)=>{
+  const x=((i%columns+.5+(rnd()-.5)*.56)/columns-.5)*24;
+  const heightRank=rnd();
+  const z=-6+(Math.floor(i/columns)+.5+(rnd()-.5)*.56)/rows*46;
+  // Keep more clearance towards the stage to preserve the sightline to the performers.
+  const distanceFromStage=T.MathUtils.smoothstep(z,-6,10);
+  const baseHeight=T.MathUtils.lerp(7.8,4.5,distanceFromStage);
+  // Keep the lower third in place and stretch the upper layers to the former peak.
+  const previousPeak=T.MathUtils.lerp(14.88,11.28,distanceFromStage);
+  const extraHeight=previousPeak-baseHeight-floatAmplitude-3.9;
+  const heightVariation=heightRank*3.9+T.MathUtils.smoothstep(heightRank,1/3,1)*extraHeight;
+  return {x,y:baseHeight+heightVariation,z,h:.22+rnd()*.18,phase:rnd()*Math.PI*2,speed:.24+rnd()*.22};
+ });
  const floatBody=new T.InstancedMesh(candleGeometry(true),body.material as T.Material,floating.length);floatBody.frustumCulled=false;
  const floatFlame=new Float32Array(floating.length*3),floatGeometry=new T.BufferGeometry();floatGeometry.setAttribute('position',new T.BufferAttribute(floatFlame,3));
  const floatPoints=new T.Points(floatGeometry,flame.material as T.PointsMaterial),floatHalo=new T.Points(floatGeometry,new T.PointsMaterial({map:glowTexture(.6,.3),size:1.3,transparent:true,depthWrite:false,blending:T.AdditiveBlending,color:0xffc463,opacity:.75,fog:false}));
  floatPoints.frustumCulled=floatHalo.frustumCulled=false;floatPoints.renderOrder=floatHalo.renderOrder=2;root.add(floatBody,floatHalo,floatPoints);
- const place=(t:number)=>{floating.forEach((c,i)=>{const y=c.y+Math.sin(t*c.speed+c.phase)*.12;m.compose(new T.Vector3(c.x,y+c.h/2,c.z),q,new T.Vector3(1,c.h,1));floatBody.setMatrixAt(i,m);floatFlame.set([c.x,y+c.h+.06,c.z],i*3);});
+ const place=(t:number)=>{floating.forEach((c,i)=>{const y=c.y+Math.sin(t*c.speed+c.phase)*floatAmplitude;m.compose(new T.Vector3(c.x,y+c.h/2,c.z),q,new T.Vector3(1,c.h,1));floatBody.setMatrixAt(i,m);floatFlame.set([c.x,y+c.h+.06,c.z],i*3);});
   floatBody.instanceMatrix.needsUpdate=true;floatGeometry.getAttribute('position').needsUpdate=true;};
  place(0);let placedAt=0;
  floatPoints.onBeforeRender=()=>{const t=performance.now()/1000;if(t-placedAt<1/30)return;placedAt=t;place(t);};// 30 updates a second are plenty for a slow drift

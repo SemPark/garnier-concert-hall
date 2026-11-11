@@ -10,7 +10,9 @@ export default {
    if(request.headers.get('Upgrade')?.toLowerCase()!=='websocket')return new Response('WebSocket required',{status:426});
    const origin=request.headers.get('Origin');if(origin&&new URL(origin).host!==url.host&&!['localhost','127.0.0.1','sempark.github.io'].includes(new URL(origin).hostname))return new Response('Origin rejected',{status:403});
    const preferred=url.searchParams.get('room');
-   const rooms=preferred&&/^hall-\d{1,2}$/.test(preferred)?[preferred]:Array.from({length:32},(_,i)=>`hall-${i+1}`);
+   // The jazz hall is the same building with its own set of rooms.
+   const prefix=url.searchParams.get('kind')==='jazz'?'jazz':'hall';
+   const rooms=preferred&&/^(hall|jazz)-\d{1,2}$/.test(preferred)?[preferred]:Array.from({length:32},(_,i)=>`${prefix}-${i+1}`);
    for(const roomId of rooms){const target=new URL(url);target.searchParams.set('room',roomId);const response=await env.VENUES.getByName(roomId).fetch(new Request(target,request));if(response.status!==409)return response;}
    return new Response('현재 음악당이 가득 찼습니다. 잠시 후 다시 찾아주세요.',{status:503});
   }

@@ -1,6 +1,7 @@
 import * as T from 'three';
 import {box,cylinder,sphere,line,material} from '../scene/primitives';
 import type {Instrument} from '../character/Avatar';
+import {JAZZ_HALL} from '../../shared/hallKind';
 const brass=0xdab45f,silver=0xc6ced0,ebony=0x252b30,wood=0xa45727;
 const geometries=new Map<string,T.BufferGeometry>();
 function geometry(key:string,create:()=>T.BufferGeometry){let g=geometries.get(key);if(!g){g=create();geometries.set(key,g);}return g;}
@@ -27,7 +28,9 @@ export function buildInstrument(type:Instrument,g:T.Group,leftHand:T.Group,right
  if(['violin','viola','cello','bass'].includes(type)){
   const small=type==='violin'||type==='viola',size=type==='violin'?.42:type==='viola'?.5:type==='cello'?.83:1.07;
   stringBody(g,size);g.position.set(small?-.12:type==='bass'?-.24:.025,small?1.05:type==='cello'?.51:.74,small?-.4:-.38);if(small){g.position.set(-.14,1.04,-.30);g.rotation.set(1.47,0,2.1);}else{g.rotation.x=-.07;g.rotation.z=.16;cylinder(g,.012,type==='cello'?.23:.15,[0,-size*.5-.1,0],silver);}
-  const bow=new T.Group();rightHand.add(bow);
+  const bow=new T.Group();if(!(JAZZ_HALL&&type==='bass'))rightHand.add(bow);// a jazz bass is plucked
+  // The jazz bass is turned so its strings face the player's right hand, which plucks in front of them.
+  if(JAZZ_HALL&&type==='bass'){g.position.set(-.16,.74,-.3);g.rotation.y=-.4;}
   if(small){line(bow,new T.Vector3(.015,.065,-.10),new T.Vector3(-.35,.065,.25),.010,0x61391f);line(bow,new T.Vector3(.015,.055,-.10),new T.Vector3(-.35,.055,.25),.004,0xe9d5a7);}
   else{line(bow,new T.Vector3(-.31,0,-.14),new T.Vector3(.31,0,-.14),.012,0x61391f);line(bow,new T.Vector3(-.3,.025,-.14),new T.Vector3(.3,.025,-.14),.005,0xe9d5a7);bow.rotation.z=.1;}
  }else if(type==='flute'||type==='piccolo'){
@@ -69,13 +72,38 @@ export function buildInstrument(type:Instrument,g:T.Group,leftHand:T.Group,right
    tube(h,[[0,0,-.13],[.13,0,-.22],[.13,-.14,-.49],[0,-.14,-.49],[0,-.14,-.18]],.031);
    for(let i=0;i<3;i++){cylinder(h,.024,.17,[.025,.025,-.24-i*.08],brass);sphere(h,.036,[.025,.125,-.24-i*.08],silver);}
   }
+ }else if(type==='alto-sax'||type==='tenor-sax'||type==='bari-sax'){
+  // A curved brass body hanging from the neck strap: neck crook, straight tube, U-bow and an upturned bell.
+  const L=type==='alto-sax'?.4:type==='tenor-sax'?.52:.7,r=type==='alto-sax'?.034:type==='tenor-sax'?.04:.05,s=new T.Group();g.add(s);s.position.set(.07,1.13,-.33);s.rotation.z=-.22;s.userData.instrumentFeature='saxophone';
+  tube(s,[[0,.07,.12],[0,.1,.03],[0,.03,-.03],[0,-L*.5,-.05],[0,-L,-.07],[.01,-L-.1,-.14],[.01,-L-.05,-.24],[.01,-L+.1,-.28]],r);
+  bell(s,r*2.6,.2,[.01,-L+.08,-.275],[-.25,0,0]);
+  line(s,new T.Vector3(0,.07,.12),new T.Vector3(0,.09,.2),.014,ebony);
+  for(let i=0;i<6;i++)sphere(s,.021,[r,-.06-i*L*.15,-.05-i*.004],silver);
+  if(type==='bari-sax')tube(s,[[0,.03,-.03],[0,.13,-.05],[.06,.13,-.05],[.06,.02,-.04]],r*.7);
+ }else if(type==='guitar'){
+  // Hollow-body jazz guitar held across the lap, neck up to the player's left.
+  const a=new T.Group();g.add(a);a.position.set(.1,.8,-.3);a.rotation.z=Math.PI-.42;a.userData.instrumentFeature='guitar';
+  for(const [x,rr]of [[0,.2],[.2,.15]]){const b=cylinder(a,rr,.09,[x,0,0],0xb5651d);b.rotation.x=Math.PI/2;const top=cylinder(a,rr*.92,.012,[x,0,-.05],0xd9933f);top.rotation.x=Math.PI/2;}
+  box(a,[.62,.045,.03],[.6,0,-.045],0x3b281e);box(a,[.14,.07,.025],[.96,0,-.04],0x2a1c15);box(a,[.09,.11,.012],[-.08,0,-.06],ebony);
+  for(const y of [-.012,0,.012])line(a,new T.Vector3(-.1,y,-.065),new T.Vector3(.95,y,-.065),.0025,0xf3e0b6);
+ }else if(type==='drum-kit'){
+  // Bass drum, snare, two toms, hi-hat and two cymbals, in Christmas-red shells.
+  const shell=0x8f1d2c,head=0xeee2c9;
+  const drum=(x:number,y:number,z:number,rr:number,h:number,tilt=0)=>{const d=cylinder(g,rr,h,[x,y,z],shell);d.rotation.x=tilt;const top=cylinder(g,rr*1.03,.02,[x,y+h/2*Math.cos(tilt),z+h/2*Math.sin(tilt)],head);top.rotation.x=tilt;return d;};
+  const kick=cylinder(g,.3,.4,[0,.31,-.98],shell);kick.rotation.x=Math.PI/2;const front=cylinder(g,.29,.02,[0,.31,-1.19],head);front.rotation.x=Math.PI/2;
+  drum(-.3,.62,-.55,.18,.14);cylinder(g,.02,.55,[-.3,.28,-.55],silver);
+  drum(-.2,.84,-.9,.15,.16,.35);drum(.22,.82,-.9,.17,.18,.35);drum(.5,.42,-.5,.21,.44);
+  for(const y of [.9,.93])cylinder(g,.17,.012,[-.62,y,-.6],brass);cylinder(g,.014,.92,[-.62,.46,-.6],silver);
+  const ride=cylinder(g,.27,.014,[.62,1.06,-.95],brass);ride.rotation.x=.25;cylinder(g,.014,1.06,[.62,.53,-.98],silver);
+  const crash=cylinder(g,.22,.014,[-.5,1.22,-1],brass);crash.rotation.x=.25;cylinder(g,.014,1.22,[-.5,.61,-1.03],silver);
  }else if(type==='harp'){
   const h=new T.Group();h.position.set(-.62,.04,-.55);g.add(h);box(h,[.85,.13,.5],[0,.06,0],brass);line(h,new T.Vector3(-.38,.1,0),new T.Vector3(-.31,1.72,0),.065,brass);line(h,new T.Vector3(.32,.1,0),new T.Vector3(.4,1.37,0),.105,wood);tube(h,[[-.31,1.72,0],[-.12,1.66,0],[.15,1.42,0],[.4,1.37,0]],.07);for(let i=0;i<16;i++)line(h,new T.Vector3(-.28+i*.043,1.65-i*.019,0),new T.Vector3(-.3+i*.04,.18,0),.004,0xf3db99);
  }else if(type==='piano'||type==='celesta'){
-  const grand=type==='piano',width=grand?1.65:1.2,depth=grand?1.9:.65,z=grand?-1.18:-.67;box(g,[width,.26,depth],[0,.85,z],ebony);
+  // The grand stands a little away from the bench so the player's head and knees are clear of the case and keys.
+  const grand=type==='piano',width=grand?1.65:1.2,depth=grand?1.9:.65,z=grand?-1.5:-.67,keys=grand?-.72:-.4;box(g,[width,.26,depth],[0,.85,z],ebony);
   for(const x of [-width/2+.1,width/2-.1])for(const zz of [z-depth/2+.1,z+depth/2-.1])cylinder(g,.045,.73,[x,.365,zz],ebony);
-  for(let i=0;i<21;i++){box(g,[width/22,.04,.27],[-width/2+.04+i*width/21,1.0,-.4],0xf0e6cf);if(i%7!==2&&i%7!==6)box(g,[width/35,.06,.16],[-width/2+.07+i*width/21,1.03,-.45],ebony);}
-  if(grand){const lid=box(g,[width,.05,depth],[0,1.1,-1.18],ebony);lid.rotation.z=-.2;line(g,new T.Vector3(-.6,.95,-1.7),new T.Vector3(-.6,1.23,-1.7),.018,brass);}else{box(g,[width,1,.16],[0,.65,-.95],0x6b3a25);for(const x of [-.45,.45])box(g,[.035,.7,.025],[x,.7,-.85],brass);}
+  for(let i=0;i<21;i++){box(g,[width/22,.04,.27],[-width/2+.04+i*width/21,1.0,keys],0xf0e6cf);if(i%7!==2&&i%7!==6)box(g,[width/35,.06,.16],[-width/2+.07+i*width/21,1.03,keys-.05],ebony);}
+  if(grand){const lid=box(g,[width,.05,depth-.5],[0,1.14,z-.25],ebony);lid.rotation.z=-.2;line(g,new T.Vector3(-.6,.95,z-.5),new T.Vector3(-.6,1.27,z-.5),.018,brass);}else{box(g,[width,1,.16],[0,.65,-.95],0x6b3a25);for(const x of [-.45,.45])box(g,[.035,.7,.025],[x,.7,-.85],brass);}
  }else if(type==='timpani'){
   for(const [x,z,r]of [[-.67,-.75,.36],[0,-.57,.33],[.64,-.8,.30]]){sphere(g,r,[x,.5,z],0xb07a3d).scale.y*=.9;cylinder(g,r,.035,[x,.72,z],0xe3d7b8);cylinder(g,r+.015,.04,[x,.69,z],brass);for(const xx of [-.18,.18])cylinder(g,.018,.4,[x+xx,.2,z],ebony);}
  }else if(type==='bass-drum'||type==='gong'){
@@ -104,5 +132,7 @@ export function buildInstrument(type:Instrument,g:T.Group,leftHand:T.Group,right
  }else if(type==='sleigh-bells'){
   g.position.x=-.22;box(g,[.07,.48,.06],[0,.93,-.42],wood);for(let i=0;i<5;i++)for(const x of [-.07,.07])sphere(g,.05,[x,.77+i*.08,-.42],brass);
  }else line(rightHand,new T.Vector3(),new T.Vector3(0,.03,-.36),.012,0xeee3c7);
+ // Drum-kit sticks: slim, tapered, held pointing up and forward (not mallets).
+ if(type==='drum-kit')for(const hand of [leftHand,rightHand]){line(hand,new T.Vector3(0,-.02,.06),new T.Vector3(0,.1,-.4),.008,0xe2c48c);sphere(hand,.013,[0,.1,-.4],0xe2c48c);}
  if(['timpani','xylophone','marimba','vibraphone','snare','bass-drum','gong','chimes','triangle'].includes(type))for(const hand of [leftHand,rightHand]){line(hand,new T.Vector3(),new T.Vector3(0,-.08,-.32),.012,0xd3b682);sphere(hand,.035,[0,-.08,-.32],0xe3d8c2);}
 }

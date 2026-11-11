@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
-import {STAGE,STAGE_FLOOR,STAGE_TERRACES,STAGE_PLAN_SCALE,CONDUCTOR,ORCHESTRA_LAYOUT,MUSICIAN_SCALE,stageRiseAt,terraceOutline} from '../src/orchestra/layout';
+import {STAGE,STAGE_FLOOR,STAGE_TERRACES,STAGE_PLAN_SCALE,CONDUCTOR,FULL_ORCHESTRA_LAYOUT as ORCHESTRA_LAYOUT,MUSICIAN_SCALE,stageRiseAt,terraceOutline} from '../src/orchestra/layout';
 import {buildOrchestra} from '../src/orchestra/buildOrchestra';
 import {REFERENCE_INSTRUMENT_COUNTS} from '../src/orchestra/referencePlan';
 import {musicianSits} from '../src/character/Avatar';

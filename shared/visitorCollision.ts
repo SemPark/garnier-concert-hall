@@ -1,4 +1,4 @@
-import {walkable,type Point,type Visitor,type Zone} from './venue';
+import {walkable,type Point,type Zone} from './venue';
 
 export const VISITOR_GAP=.88;
 /** Sweep the whole step, so a long network packet cannot jump through another visitor. */
@@ -12,10 +12,9 @@ export function visitorBlocksStep(from:Point,to:Point,other:Point,gap=VISITOR_GA
  return (x+t*dx)**2+(y+t*dy)**2+(z+t*dz)**2<radius-.000001;
 }
 
-/** Find clear space at entry and when standing up, rather than stacking avatars at one spawn. */
-export function freeVisitorPosition(zone:Zone,origin:Point,visitors:Visitor[],selfId:string):Point|null{
- const others=visitors.filter(v=>v.id!==selfId&&v.zone===zone);
- const free=(p:Point)=>walkable(zone,p)&&others.every(v=>Math.hypot(p.x-v.x,(p.y??0)-(v.y??0),p.z-v.z)>=VISITOR_GAP);
+/** Find a walkable landing point for entry, relocation, or standing up. */
+export function freeVisitorPosition(zone:Zone,origin:Point):Point|null{
+ const free=(p:Point)=>walkable(zone,p);
  if(free(origin))return {...origin};
  for(let ring=1;ring<=16;ring++){
   const radius=ring*.92,count=Math.ceil(Math.PI*2*ring);

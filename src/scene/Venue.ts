@@ -5,13 +5,16 @@ import {PARTERRE,parterreHeight} from '../../shared/parterre';
 import {archedTimberDoor} from './ArchedTimberDoor';
 import {classicalLamp} from './ClassicalLamp';
 import {LOBBY_CHRISTMAS_TREE} from '../../shared/grandStair';
-import {buildChristmasTree,buildFloatingTreeStar} from './ChristmasTree';
+import {buildChristmasTree,buildFloatingTreeStar,buildRotatingTreeSteps} from './ChristmasTree';
+import {TREE_SPOTS} from './ChristmasTrees';
+import {stageRiseAt} from '../orchestra/layout';
 import {buildCathedralFloor} from './CathedralFloor';
 import {lobbyPracticalLights} from './LobbyLighting';
 import {finishArchitecture,surfaceMaterial} from './SurfaceMaterials';
 import {LobbyCat} from '../character/LobbyCat';
 import {Usher,USHER} from '../character/Usher';
-import {buildTicketGuide} from './TicketGuide';
+import {HallMirror} from './HallMirror';
+import {buildGalleryGuide,buildTicketGuide} from './TicketGuide';
 import * as T from 'three';
 import {box,cylinder,sphere,line,text,material,wallWithOpenings,C} from './primitives';
 import {ATRIUM,GRAND_STAIR,LOBBY_BRANCH,LOBBY_ARCADE,HALL_INNER_DOOR} from '../../shared/grandStair';
@@ -35,7 +38,7 @@ import {buildGoldenHallSteps,timberDoor} from './GoldenHall';
 import {woodMaterial,applyWoodSurface,hallImage,hallImageMaterial} from './HallTextures';
 import {batchArchitectureSteps,batchCharactersSteps} from './batching';
 import {EmoteLayer} from '../character/EmoteLayer';
-export type Venue={treeStar:ReturnType<typeof buildFloatingTreeStar>|null;cat:LobbyCat|null;usher:Usher|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
+export type Venue={treeStar:ReturnType<typeof buildFloatingTreeStar>|null;cat:LobbyCat|null;usher:Usher|null;mirror:HallMirror|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
 
 function chandelier(parent:T.Object3D,x:number,y:number,z:number,r=1){
  const g=new T.Group();g.position.set(x,y,z);g.userData.landmark='lobby-chandelier';parent.add(g);
@@ -319,7 +322,25 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  const sunlight=zone==='lobby'?buildSunlight(scene,[23.1,33.1,38.1].map(z=>new T.Vector3(14.5,16.5,z)),{color:0xffdfb0,strength:.18,pool:.035,fill:.08,spread:.6}):null; // The hall has no window light: it washed over the dinner tables.
  // Candlelight concert: candles fill the stage and the hall's own lights go down (after batching, which they must not join).
  if(zone==='auditorium'){buildCandlelight(scene);for(const table of CANDLE_TABLES)walkTargets.push(buildCandleTable(scene,table).hit);}
- const treeStar=zone==='lobby'?buildFloatingTreeStar(scene,LOBBY_CHRISTMAS_TREE.x,LOBBY_CHRISTMAS_TREE.z):null;
- const stairArrows=zone==='lobby'?buildTicketGuide(scene):null;
- return {treeStar,cat,usher,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
+ const hallStars=zone==='auditorium'?TREE_SPOTS.map(t=>buildFloatingTreeStar(scene,t.x,t.z,{y:stageRiseAt(t.x,t.z),light:false})):[];
+ const stageTrees:T.Group[]=[];
+ if(zone==='auditorium'){
+  const tree=yield* buildRotatingTreeSteps();
+  for(const [i,spot] of TREE_SPOTS.entries()){
+   const instance=i===0?tree:tree.clone();
+   instance.position.set(spot.x,stageRiseAt(spot.x,spot.z),spot.z);
+   scene.add(instance);
+   stageTrees.push(instance);
+  }
+ }
+ const treeStar=zone==='lobby'
+  ?buildFloatingTreeStar(scene,LOBBY_CHRISTMAS_TREE.x,LOBBY_CHRISTMAS_TREE.z)
+  :{root:hallStars[0].root,update(time:number){
+   for(const star of hallStars)star.update(time);
+   const angle=(time%120)*Math.PI/60;
+   for(const [i,tree] of stageTrees.entries())tree.rotation.y=i===0?angle:-angle;
+  }};
+ const stairArrows=zone==='lobby'?buildTicketGuide(scene):buildGalleryGuide(scene);
+ const mirror=zone==='auditorium'?new HallMirror(scene):null;
+ return {treeStar,cat,usher,mirror,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
 }

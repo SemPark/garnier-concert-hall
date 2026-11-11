@@ -1,19 +1,20 @@
 {
-  "version": "christmas-1",
+  "version": "christmas-peak-minus1-v1",
   "epochMs": 1793327798000,
   "tracks": [
     {
       "id": "corelli-christmas-concerto-1",
       "title": "코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’",
       "composer": "아르칸젤로 코렐리",
-      "url": "/api/audio/corelli-christmas-concerto-1.mp3",
+      "url": "/api/audio/corelli-christmas-concerto-1.mp3?v=peak-minus1-v1",
       "durationSeconds": 202.907823,
       "gapAfterSeconds": 4,
       "credit": {
         "sourceName": "Wikimedia Commons",
         "sourceUrl": "https://commons.wikimedia.org/wiki/File:Corelli_-_Concerto_Grosso_in_G_minor_-_Christmas_Concerto_-_part_1.ogg",
         "licenseName": "CC BY-SA 2.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
       },
       "work": "크리스마스 협주곡"
     },
@@ -21,14 +22,15 @@
       "id": "corelli-christmas-concerto-2",
       "title": "코렐리 — 합주 협주곡 G단조 Op.6 No.8 ‘크리스마스 협주곡’",
       "composer": "아르칸젤로 코렐리",
-      "url": "/api/audio/corelli-christmas-concerto-2.mp3",
+      "url": "/api/audio/corelli-christmas-concerto-2.mp3?v=peak-minus1-v1",
       "durationSeconds": 411.67229,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
         "sourceUrl": "https://commons.wikimedia.org/wiki/File:Corelli_-_Concerto_Grosso_in_G_minor_-_Christmas_Concerto_-_part_2.ogg",
         "licenseName": "CC BY-SA 2.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
       },
       "work": "크리스마스 협주곡"
     },
@@ -51,14 +53,15 @@
       "id": "christmas-joy-to-the-world",
       "title": "기쁘다 구주 오셨네 (Joy to the World)",
       "composer": "서울시립교향악단",
-      "url": "/api/audio/christmas-joy-to-the-world.mp3",
+      "url": "/api/audio/christmas-joy-to-the-world.mp3?v=peak-minus1-v1",
       "durationSeconds": 103.251179,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
         "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_Joy_To_The_World.wav",
         "licenseName": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
       },
       "work": "기쁘다 구주 오셨네"
     },
@@ -81,14 +84,15 @@
       "id": "christmas-o-little-town-of-bethlehem",
       "title": "오 베들레헴 작은 골 (O Little Town of Bethlehem)",
       "composer": "서울시립교향악단",
-      "url": "/api/audio/christmas-o-little-town-of-bethlehem.mp3",
+      "url": "/api/audio/christmas-o-little-town-of-bethlehem.mp3?v=peak-minus1-v1",
       "durationSeconds": 127.520816,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
         "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_O_Little_Town_Of_Bethlehem.wav",
         "licenseName": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
       },
       "work": "오 베들레헴 작은 골"
     },
@@ -111,14 +115,15 @@
       "id": "christmas-angels-we-have-heard-on-high",
       "title": "천사들의 노래가 (Angels We Have Heard on High)",
       "composer": "서울시립교향악단",
-      "url": "/api/audio/christmas-angels-we-have-heard-on-high.mp3",
+      "url": "/api/audio/christmas-angels-we-have-heard-on-high.mp3?v=peak-minus1-v1",
       "durationSeconds": 232.56585,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
         "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_Angels_We_Have_Heard_on_High.wav",
         "licenseName": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
       },
       "work": "천사들의 노래가"
     },
@@ -141,14 +146,15 @@
       "id": "christmas-the-first-noel",
       "title": "저 들 밖에 한밤중에 (The First Noel)",
       "composer": "서울시립교향악단",
-      "url": "/api/audio/christmas-the-first-noel.mp3",
+      "url": "/api/audio/christmas-the-first-noel.mp3?v=peak-minus1-v1",
       "durationSeconds": 258.239841,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
         "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_The_First_Noel.wav",
         "licenseName": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
       },
       "work": "저 들 밖에 한밤중에"
     },
@@ -171,14 +177,15 @@
       "id": "christmas-jingle-bells",
       "title": "징글벨 (Jingle Bells)",
       "composer": "서울시립교향악단",
-      "url": "/api/audio/christmas-jingle-bells.mp3",
+      "url": "/api/audio/christmas-jingle-bells.mp3?v=peak-minus1-v1",
       "durationSeconds": 102.642925,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
         "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_Jingle_Bell.wav",
         "licenseName": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
       },
       "work": "징글벨"
     },
@@ -201,14 +208,15 @@
       "id": "christmas-silent-night",
       "title": "고요한 밤 거룩한 밤 (Silent Night)",
       "composer": "서울시립교향악단",
-      "url": "/api/audio/christmas-silent-night.mp3",
+      "url": "/api/audio/christmas-silent-night.mp3?v=peak-minus1-v1",
       "durationSeconds": 280.7339,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
         "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_Silent_Night.wav",
         "licenseName": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
       },
       "work": "고요한 밤 거룩한 밤"
     },
@@ -231,14 +239,15 @@
       "id": "christmas-o-holy-night",
       "title": "오 거룩한 밤 (O Holy Night)",
       "composer": "서울시립교향악단",
-      "url": "/api/audio/christmas-o-holy-night.mp3",
+      "url": "/api/audio/christmas-o-holy-night.mp3?v=peak-minus1-v1",
       "durationSeconds": 236.621315,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
         "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_Oh_Holy_Night.wav",
         "licenseName": "CC BY-SA 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
       },
       "work": "오 거룩한 밤"
     },
@@ -261,14 +270,15 @@
       "id": "christmas-we-wish-you-a-merry-christmas",
       "title": "앙코르 — 우리 모두 즐거운 성탄을 (We Wish You a Merry Christmas)",
       "composer": "서울시립교향악단",
-      "url": "/api/audio/christmas-we-wish-you-a-merry-christmas.mp3",
+      "url": "/api/audio/christmas-we-wish-you-a-merry-christmas.mp3?v=peak-minus1-v1",
       "durationSeconds": 187.838639,
       "gapAfterSeconds": 0,
       "credit": {
         "sourceName": "Wikimedia Commons",
         "sourceUrl": "https://commons.wikimedia.org/wiki/File:S%5EulPO2020_We_Wish_You_a_Merry_Christmas.wav",
         "licenseName": "CC BY-SA 4.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
       },
       "work": "우리 모두 즐거운 성탄을"
     },
@@ -291,14 +301,15 @@
       "id": "holy-new",
       "title": "오 거룩한 밤 (O Holy Night)",
       "composer": "미국 공군 군악대 합창단과 교향악단",
-      "url": "/api/audio/holy-new.mp3",
+      "url": "/api/audio/holy-new.mp3?v=peak-minus1-v1",
       "durationSeconds": 378.540417,
       "gapAfterSeconds": 4,
       "credit": {
         "sourceName": "Wikimedia Commons",
         "sourceUrl": "https://commons.wikimedia.org/wiki/File:O_Holy_Night_(with_Lord,_Guard_and_Guide)_-_Singing_Sergeants_and_Symphony_Orchestra_-_United_States_Air_Force_Band.mp3",
         "licenseName": "Public domain",
-        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/"
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
       },
       "work": "오 거룩한 밤 (O Holy Night)"
     },
@@ -306,14 +317,15 @@
       "id": "hallelujah-new",
       "title": "헨델 메시아 — 할렐루야",
       "composer": "국립합창단",
-      "url": "/api/audio/hallelujah-new.mp3",
+      "url": "/api/audio/hallelujah-new.mp3?v=peak-minus1-v1",
       "durationSeconds": 210.762333,
       "gapAfterSeconds": 4,
       "credit": {
         "sourceName": "Wikimedia Commons",
         "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_National_Chorus_of_Korea_-_Handel%27s_Messiah,_HWV_56_-_XLIV._Hallelujah.ogg",
         "licenseName": "CC BY 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/"
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
       },
       "work": "헨델 메시아 — 할렐루야"
     }

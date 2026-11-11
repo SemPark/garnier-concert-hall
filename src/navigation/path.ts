@@ -1,11 +1,21 @@
+import {GOLDEN_HALL} from '../../shared/goldenHall';
 import {PARTERRE,parterreHeight} from '../../shared/parterre';
-import {BOUNDS,FLOOR_AISLES,FLOOR_CROSS_AISLE,walkable,distance,type Point,type Zone} from '../../shared/venue';
+import {BOUNDS,FLOOR_AISLES,FLOOR_CROSS_AISLE,walkable,distance,surfaceHeight,type Point,type Zone} from '../../shared/venue';
 import {lobbyRouteNodes} from '../../shared/grandStair';
 import {DINNER_LANES_X,DINNER_LANES_Z,DINNER_FRONT_LANE,DINNER_REAR_LANE} from '../../shared/dinnerTables';
 const STEP=.35;
+const upperGallery=(zone:Zone,p:Point)=>zone==='auditorium'&&(p.y??0)>=GOLDEN_HALL.balconyHeight-.3;
 export function segmentClear(zone:Zone,a:Point,b:Point){
  const n=Math.max(1,Math.ceil(distance(a,b)/.12)),ground=zone==='auditorium'&&(a.y??0)<1&&(b.y??0)<1;
- let previousY:number|undefined;for(let i=0;i<=n;i++){const x=a.x+(b.x-a.x)*i/n,z=a.z+(b.z-a.z)*i/n,y=ground?parterreHeight(x,z):(a.y??0)+((b.y??0)-(a.y??0))*i/n;if(y===null||ground&&previousY!==undefined&&Math.abs(y-previousY)>.28||!walkable(zone,{x,z,y}))return false;previousY=y;}return true;
+ const gallery=upperGallery(zone,a)&&upperGallery(zone,b);
+ let previousY:number|undefined;
+ for(let i=0;i<=n;i++){
+  const x=a.x+(b.x-a.x)*i/n,z=a.z+(b.z-a.z)*i/n;
+  const y=ground?parterreHeight(x,z):gallery?surfaceHeight(zone,{x,z},GOLDEN_HALL.balconyHeight):(a.y??0)+((b.y??0)-(a.y??0))*i/n;
+  if(y===null||((ground||gallery)&&previousY!==undefined&&Math.abs(y-previousY)>.28)||!walkable(zone,{x,z,y}))return false;
+  previousY=y;
+ }
+ return true;
 }
 function planarPath(zone:Zone,start:Point,end:Point):Point[]|null{
  if(!walkable(zone,end))return null;if(segmentClear(zone,start,end))return [end];
@@ -27,7 +37,12 @@ function planarPath(zone:Zone,start:Point,end:Point):Point[]|null{
   for(const route of candidates){let p=start,total=0,clear=true;for(const q of route){if(!segmentClear(zone,p,q)){clear=false;break;}total+=distance(p,q);p=q;}if(clear&&total<cost){best=route;cost=total;}}
  }
 
- const b=BOUNDS[zone];const toCell=(p:Point)=>({x:Math.round((p.x-b.minX)/STEP),z:Math.round((p.z-b.minZ)/STEP)});const point=(x:number,z:number)=>({x:b.minX+x*STEP,z:b.minZ+z*STEP,y:zone==='auditorium'&&(end.y??0)<1?(parterreHeight(b.minX+x*STEP,b.minZ+z*STEP)??100):end.y??0});const key=(x:number,z:number)=>`${x},${z}`;
+ const b=BOUNDS[zone];const toCell=(p:Point)=>({x:Math.round((p.x-b.minX)/STEP),z:Math.round((p.z-b.minZ)/STEP)});const point=(cellX:number,cellZ:number)=>{
+  const x=b.minX+cellX*STEP,z=b.minZ+cellZ*STEP;
+  const y=upperGallery(zone,end)?surfaceHeight(zone,{x,z},GOLDEN_HALL.balconyHeight)??100:
+   zone==='auditorium'&&(end.y??0)<1?parterreHeight(x,z)??100:end.y??0;
+  return {x,y,z};
+ };const key=(x:number,z:number)=>`${x},${z}`;
  const a=toCell(start),goal=toCell(end);type Node={x:number;z:number;g:number;f:number;parent?:string};
  const freeCache=new Map<string,boolean>();const free=(x:number,z:number)=>{const k=key(x,z);let value=freeCache.get(k);if(value===undefined){value=walkable(zone,point(x,z));freeCache.set(k,value);}return value;};
  const first={...a,g:0,f:distance(start,end)},open=new Map<string,Node>([[key(a.x,a.z),first]]),nodes=new Map(open),closed=new Set<string>();let reached:string|undefined;
@@ -53,7 +68,7 @@ export function findPath(zone:Zone,start:Point,end:Point):Point[]|null{
  if(!walkable(zone,start)||!walkable(zone,end))return null;
  if(segmentClear(zone,start,end))return [end];
  if(zone==='lobby')return lobbyPath(start,end);
- if(Math.abs((start.y??0)-(end.y??0))<.1||zone==='auditorium'&&(start.y??0)<1&&(end.y??0)<1){const planar=planarPath(zone,start,end);if(planar)return planar;}
+ if((upperGallery(zone,start)&&upperGallery(zone,end))||Math.abs((start.y??0)-(end.y??0))<.1||zone==='auditorium'&&(start.y??0)<1&&(end.y??0)<1){const planar=planarPath(zone,start,end);if(planar)return planar;}
  return null;
 }
 

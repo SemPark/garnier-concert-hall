@@ -19,6 +19,8 @@ export function applyDelta(state:Snapshot,delta:Delta):Snapshot|null{
  return {revision:delta.revision,visitors,seats,serverNow:delta.serverNow,roomId:state.roomId};
 }
 export type ClientMessage=
+ |{type:'trainBoard';seat?:number;direct?:true;fromMenu?:true}
+ |{type:'trainLeave'}
  |{type:'move';x:number;y?:number;z:number;yaw:number;pose:Pose}
  |{type:'zone';zone:Zone}
  |{type:'hallMove';destination:HallDestination}
