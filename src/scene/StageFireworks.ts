@@ -57,11 +57,11 @@ interface Particle{
  x:number;y:number;z:number;px:number;py:number;pz:number;
  vx:number;vy:number;vz:number;life:number;fullLife:number;drag:number;
  seed:number;size:number;red:number;green:number;blue:number;trail:number;splitAt:number;sparkTimer:number;sparkFreq:number;
- pattern:LightPattern;breakStyle:BreakStyle|null;floor:number;history:Float32Array;slot:number;samples:number;
+ pattern:LightPattern;breakStyle:BreakStyle|null;gallery:boolean;floor:number;history:Float32Array;slot:number;samples:number;
 }
 function particle(trail:boolean):Particle{return{
  x:0,y:0,z:0,px:0,py:0,pz:0,vx:0,vy:0,vz:0,life:0,fullLife:0,drag:0,
- seed:0,size:0,red:1,green:0,blue:0,trail:HISTORY,splitAt:0,sparkTimer:0,sparkFreq:0,pattern:'steady',breakStyle:null,floor:FLOOR,
+ seed:0,size:0,red:1,green:0,blue:0,trail:HISTORY,splitAt:0,sparkTimer:0,sparkFreq:0,pattern:'steady',breakStyle:null,gallery:false,floor:FLOOR,
  history:new Float32Array(trail?HISTORY*3:0),slot:0,samples:0,
 };}
 const rand=(lo:number,hi:number)=>lo+Math.random()*(hi-lo);
@@ -78,7 +78,7 @@ export class StageFireworks{
  private readonly lines:T.LineSegments<T.BufferGeometry,T.LineBasicMaterial>;
  private readonly stars:Particle[];
  private readonly sparks:Particle[];
- private starCount=0;private sparkCount=0;
+ private starCount=0;private galleryCount=0;private sparkCount=0;
  private readonly rockets:Rocket[]=[];
  private readonly subBursts:Cue[]=[];
  private fountainTick=0;
@@ -129,7 +129,7 @@ export class StageFireworks{
 
  private init(p:Particle,x:number,y:number,z:number,vx:number,vy:number,vz:number,life:number){
   p.x=p.px=x;p.y=p.py=y;p.z=p.pz=z;p.vx=vx;p.vy=vy;p.vz=vz;
-  p.life=p.fullLife=life;p.splitAt=0;p.breakStyle=null;p.pattern='steady';p.floor=FLOOR;p.trail=HISTORY;p.seed=rand(0,Math.PI*2);p.slot=0;p.samples=1;
+  p.life=p.fullLife=life;p.splitAt=0;p.breakStyle=null;p.pattern='steady';p.gallery=false;p.floor=FLOOR;p.trail=HISTORY;p.seed=rand(0,Math.PI*2);p.slot=0;p.samples=1;
   if(p.history.length){p.history[0]=x;p.history[1]=y;p.history[2]=z;}
  }
 
@@ -264,13 +264,26 @@ export class StageFireworks{
   }
   const willow=style==='willow',brocade=style==='brocade',palm=style==='palm',kamuro=style==='kamuro';
   const breakStyle=Object.hasOwn(BREAK_DENSITY,style)?style as BreakStyle:null;
-  const remaining=this.stageStarLimit-this.starCount;
+  // A new shell must remain visible even while a long-lived willow is hanging.
+  // Reuse the oldest stage trails instead of increasing the mobile particle budget.
+  const minimum=this.low?24:32;
+  while(this.stageStarLimit-(this.starCount-this.galleryCount)<minimum){
+   let oldest=-1,age=-1;
+   for(let i=0;i<this.starCount;i++){
+    const p=this.stars[i],elapsed=p.fullLife-p.life;
+    if(!p.gallery&&elapsed>age){oldest=i;age=elapsed;}
+   }
+   if(oldest<0)break;
+   const retired=this.stars[oldest];this.starCount--;
+   this.stars[oldest]=this.stars[this.starCount];this.stars[this.starCount]=retired;
+  }
+  const remaining=this.stageStarLimit-(this.starCount-this.galleryCount);
   const density=remaining<this.stars.length*.35?.55:1;
   const count=Math.round((this.low?85:this.mobile?115:175)*Math.sqrt(cue.size)*density);
   const spread=(willow?3.8:brocade||kamuro?4.3:5)*cue.size;
   const depth=burstDepth(cue.x);
   const add=(vx:number,vy:number,vz:number,color:Color=cue.color,life=rand(willow?3.7:3.2,willow?4.6:4.1))=>{
-   if(this.starCount>=this.stageStarLimit)return;
+   if(this.starCount-this.galleryCount>=this.stageStarLimit||this.starCount>=this.stars.length)return;
    const p=this.stars[this.starCount++];
    this.init(p,cue.x,cue.y,depth,vx,vy,vz,life);
    p.drag=willow?.52:brocade||kamuro?.58:palm?.48:.78;
@@ -358,7 +371,7 @@ export class StageFireworks{
     if(spark)spark.size=.98;
     continue;
    }
-   if(this.starCount>=this.stageStarLimit)break;
+   if(this.starCount-this.galleryCount>=this.stageStarLimit||this.starCount>=this.stars.length)break;
    const p=this.stars[this.starCount++];
    const leaves=style==='fallingLeaves';
    this.init(p,parent.x,parent.y,parent.z,vx,vy,parent.vz*.3,leaves?rand(2.5,3.5):rand(1.05,1.8));
@@ -371,10 +384,10 @@ export class StageFireworks{
  // Keep space in the shared buffer for the gallery falls between stage bursts.
  private get stageStarLimit(){return this.stars.length-(this.low?104:this.mobile?144:190);}
  private gallerySpark(x:number,y:number,z:number,vx:number,vz:number,floor:number){
-  if(this.starCount>=this.stars.length)return;
+  if(this.galleryCount>=this.stars.length-this.stageStarLimit||this.starCount>=this.stars.length)return;
   const p=this.stars[this.starCount++];
   this.init(p,x,y,z,vx,rand(-.8,-.25),vz,rand(2.5,3.2));
-  p.floor=floor;p.drag=.18;p.size=.8;p.red=1;p.green=rand(.65,.83);p.blue=.27;
+  p.gallery=true;this.galleryCount++;p.floor=floor;p.drag=.18;p.size=.8;p.red=1;p.green=rand(.65,.83);p.blue=.27;
   p.pattern='twinkle';p.trail=30;p.sparkFreq=0;p.sparkTimer=0;
  }
  private galleryWaterfalls(){
@@ -386,7 +399,8 @@ export class StageFireworks{
    if(!base&&!swell)continue;
    for(const side of [-1,1]){
     const phase=this.clock+level.offset+(side===1?2.8:0);
-    for(const [index,doorZ] of level.axes.entries()){
+    for(let n=0;n<level.axes.length;n++){
+     const index=(n+Math.floor(this.fountainTick/3))%level.axes.length,doorZ=level.axes[index];
      const count=Number(base)+Number(swell&&(phase+index*3.1)%8<4.6);
      for(let i=0;i<count;i++)this.gallerySpark(side*level.x,level.y,doorZ+rand(-1.5,1.5),-side*rand(.45,1.05),rand(-.3,.3),level.floor);
     }
@@ -446,7 +460,7 @@ export class StageFireworks{
   this.launchEffects();
   for(let i=0;i<this.starCount;){
    const p=this.stars[i];p.life-=STEP;
-   if(p.life<=0||p.y<p.floor){this.starCount--;this.stars[i]=this.stars[this.starCount];this.stars[this.starCount]=p;continue;}
+   if(p.life<=0||p.y<p.floor){if(p.gallery)this.galleryCount--;this.starCount--;this.stars[i]=this.stars[this.starCount];this.stars[this.starCount]=p;continue;}
    this.move(p,GRAVITY,.08);
    if(p.breakStyle){
     p.splitAt-=STEP;
@@ -529,7 +543,7 @@ export class StageFireworks{
  update(now:number,enabled:boolean,low:boolean){
   if(!enabled){
    this.group.visible=false;this.last=null;this.clock=0;this.accumulator=0;this.nextMovement=0;this.cues.length=0;this.subBursts.length=0;this.fountainTick=0;this.movements=0;
-   this.starCount=0;this.sparkCount=0;this.rockets.length=0;return;
+   this.starCount=0;this.galleryCount=0;this.sparkCount=0;this.rockets.length=0;return;
   }
   this.low=low;this.group.visible=true;
   if(this.last===null){this.last=now;this.draw();return;}

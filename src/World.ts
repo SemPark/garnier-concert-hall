@@ -921,6 +921,7 @@ export class World{
     cameraFacing={turn,pitch};
     if(!seated)this.avatar.root.rotation.y+=turn*gestureTurnWeight(gesture,gestureAge);
    }else this.gestureCameraTurn=null;
+   this.avatar.trainPassenger=this.ridingTrain;
    this.avatar.update(clock/1000,speed,seated,music,gesture,gestureAge,dt,cameraFacing);
    this.avatar.root.visible=this.entered;
    if(now<this.petUntil&&this.venue.cat)this.avatar.pet(this.venue.cat.petPoint(this.petFocus),now/1000,this.reduced);

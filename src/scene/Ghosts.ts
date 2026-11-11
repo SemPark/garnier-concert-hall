@@ -139,7 +139,7 @@ function tableware(){
 function angelKit(){
  const kit=new T.Group(),wing=new T.Shape();
  wing.moveTo(0,-.2);wing.quadraticCurveTo(.02,.34,.42,.46);wing.quadraticCurveTo(.76,.54,.92,.3);wing.quadraticCurveTo(.84,.1,.66,.13);wing.quadraticCurveTo(.67,-.06,.47,-.03);wing.quadraticCurveTo(.45,-.2,.26,-.16);wing.quadraticCurveTo(.2,-.31,0,-.2);
- const wingGeometry=new T.ShapeGeometry(wing,6),wings=[-1,1].map(side=>{const m=new T.Mesh(wingGeometry,FEATHER);m.scale.x=side;m.position.set(side*.1,-.08,-.34);kit.add(m);return m;});
+ const wingGeometry=new T.ShapeGeometry(wing,6),wings=[-1,1].map(side=>{const m=new T.Mesh(wingGeometry,FEATHER);m.scale.set(side*.58,.68,1);m.position.set(side*.16,-.08,-.34);kit.add(m);return m;});
  const halo=new T.TorusGeometry(.2,.022,6,24);halo.rotateX(Math.PI/2);halo.rotateZ(.12);halo.translate(0,.53,0);
  // Harp in its own xy plane: pillar at the front, curved neck on top, sound box slanting back to the foot.
  const rod=(ax:number,ay:number,bx:number,by:number,r:number)=>{const a=new T.Vector3(ax,ay,0),b=new T.Vector3(bx,by,0),g=new T.CylinderGeometry(r,r,a.distanceTo(b),6);g.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),b.clone().sub(a).normalize()));g.translate((ax+bx)/2,(ay+by)/2,0);return g;};

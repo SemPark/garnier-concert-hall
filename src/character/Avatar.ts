@@ -177,6 +177,8 @@ export class Avatar{
  }
  holdingCoffee=false;private coffeeCup?:T.Group;holdingMacaron=false;macaronBites=0;private macaron?:T.Group;
  holdingCandle=false;
+ /** Train passengers wave with the opposite hand. */
+ trainPassenger=false;
  /** Colour of the forkful while this visitor eats a dinner dish (null: not dining). The fork is shown only while eating. */
  diningBite:number|null=null;
  /** Holding the dinner wine glass (only while sipping); it drinks exactly like the lobby coffee. */
@@ -187,6 +189,9 @@ export class Avatar{
   const sleeve=this.rightArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;if(sleeve){sleeve.scale.y=1;sleeve.position.y=-(ARM_LENGTH-.06)/2;}
   const t=time+this.phase,play=performing?1:0,type=this.instrumentType;this.sitAmount=T.MathUtils.damp(this.sitAmount,sitting?1:0,12,dt);
   const pose=poseVillager({time,speed,sit:this.sitAmount,music:performing,musician:!!type,gesture,age:gestureAge,cameraFacing},this.phase),sit=pose.sit;
+  if(this.trainPassenger&&gesture==='wave'&&pose.left){
+   const [x,y,z]=pose.left;pose.right=[-x,y,z];pose.left=null;pose.sway=-pose.sway;pose.headRoll=-pose.headRoll;
+  }
   // At the dinner table the body leans in to reach the middle of the plate, then sits back up as the fork rises.
   if(gesture==='eat'&&this.diningBite!=null)pose.lean=.24*pose.weight*(1-T.MathUtils.smoothstep(gestureAge,.75,1.3));
   // Bend around the hips: the body pivots at the hip joint and the legs counter-rotate, so the feet stay put.
@@ -242,7 +247,8 @@ export class Avatar{
   if(pose.weight>0&&(type||gesture!=='ovation'&&gesture!=='shh')){if(pose.left)this.aimAt(this.left,...pose.left,pose.weight);if(pose.right)this.aimAt(this.right,...pose.right,pose.weight);}
   if(gesture==='ovation'&&pose.weight>0&&!type){
    // Use the arm on the side of the turn, and blend through the switch.
-   const left=T.MathUtils.smoothstep(cameraFacing?.turn??-1,.02,.24);
+   const usualLeft=T.MathUtils.smoothstep(cameraFacing?.turn??-1,.02,.24);
+   const left=this.trainPassenger?1-usualLeft:usualLeft;
    for(const [arm,side,weight] of [[this.left,-1,left],[this.right,1,1-left]] as const){
     if(!weight)continue;
     const wave=Math.sin(gestureAge*7)*.035;

@@ -68,7 +68,9 @@ export class LobbyLightPass{
   const output=new OutputPass();
   // Colour grade folded into the final pass (no extra full-screen pass): a touch warmer, a little more contrast and
   // saturation, so the gold and red velvet read richer and the candle shadows lose their grey haze.
-  const shader=output.material.fragmentShader,end=shader.lastIndexOf('}');
+  // OutputPass is a RawShaderMaterial: Three does not inject sampler precision.
+  // iOS lowp samplers can lose HDR highlight channels, producing coloured specks.
+  const shader=output.material.fragmentShader.replace('uniform sampler2D tDiffuse;', 'uniform highp sampler2D tDiffuse;'),end=shader.lastIndexOf('}');
   output.material.fragmentShader=shader.slice(0,end)+`
   {vec3 c=clamp(gl_FragColor.rgb,0.,1.);c*=vec3(1.03,1.,.94);c=(c-.5)*1.08+.5;float l=dot(c,vec3(.299,.587,.114));c=mix(vec3(l),c,1.1);gl_FragColor.rgb=clamp(c,0.,1.);}
 `+shader.slice(end);
