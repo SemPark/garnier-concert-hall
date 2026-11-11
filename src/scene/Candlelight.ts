@@ -15,10 +15,22 @@ import {CONDUCTOR,ORCHESTRA_LAYOUT,STAGE,STAGE_FLOOR,stageRiseAt} from '../orche
  * Wax, flames, halos and pools are four draw calls in all.
  */
 export function glowTexture(inner:number,outer:number){
- const size=128,canvas=document.createElement('canvas');canvas.width=canvas.height=size;const c=canvas.getContext('2d')!;
- const g=c.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
- g.addColorStop(0,`rgba(255,244,210,${inner})`);g.addColorStop(.25,`rgba(255,200,95,${outer})`);g.addColorStop(1,'rgba(255,170,50,0)');
- c.fillStyle=g;c.fillRect(0,0,size,size);const t=new T.CanvasTexture(canvas);t.colorSpace=T.SRGBColorSpace;return t;
+ // Generate identical pixels on every device. A canvas upload can acquire colour
+ // noise on privacy-protected WebKit; magnified translucent halos expose it.
+ const size=128,pixels=new Uint8Array(size*size*4);
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+  const r=Math.min(1,Math.hypot(x+.5-size/2,y+.5-size/2)/(size/2));
+  const core=r<.25,t=core?r/.25:(r-.25)/.75;
+  const o=(y*size+x)*4;
+  pixels[o]=255;
+  pixels[o+1]=Math.round(T.MathUtils.lerp(core?244:200,core?200:170,t));
+  pixels[o+2]=Math.round(T.MathUtils.lerp(core?210:95,core?95:50,t));
+  pixels[o+3]=Math.round(255*T.MathUtils.clamp(T.MathUtils.lerp(core?inner:outer,core?outer:0,t),0,1));
+ }
+ const texture=new T.DataTexture(pixels,size,size,T.RGBAFormat);
+ texture.colorSpace=T.SRGBColorSpace;texture.magFilter=T.LinearFilter;
+ texture.minFilter=T.LinearMipmapLinearFilter;texture.generateMipmaps=true;texture.needsUpdate=true;
+ return texture;
 }
 /** A six-sided wax stick (reads as round at candle size): 18 triangles instead of 32. Standing candles drop the bottom
  * face, which rests on the floor; floating ones, seen from below, keep it. */
