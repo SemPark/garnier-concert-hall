@@ -4,6 +4,7 @@ import type {Zone} from '../../shared/venue';
 import {MediaSync} from './MediaSync';
 export class ConcertAudio{
  readonly media=new Audio();enabled=false;volume=1;zone:Zone='lobby';state='소리 꺼짐';
+ private wantsSound=true;
  private playingRequest=false;private unlocking=false;private lastId='';private cycle=-1;
  private sync=new MediaSync();private abort=new AbortController();private timer:ReturnType<typeof setInterval>;
  private doorLeak=0;
@@ -53,7 +54,8 @@ export class ConcertAudio{
   this.context=context;
   this.analyser=context.createAnalyser();this.analyser.fftSize=1024;this.analyser.smoothingTimeConstant=.35;
   source.connect(this.analyser);
-  let previous:AudioNode=source;
+  // Keep the analyser on the audible path so it stays processed across suspend/resume.
+  let previous:AudioNode=this.analyser;
   // Two low-pass stages leave the bass audible through a closed door.
   for(let i=0;i<2;i++){const filter=context.createBiquadFilter();filter.type='lowpass';filter.Q.value=.707;filter.frequency.value=this.zone==='lobby'?450:22000;previous.connect(filter);previous=filter;this.filters.push(filter);}
   this.musicGain=context.createGain();this.musicGain.gain.value=0;previous.connect(this.musicGain);this.musicGain.connect(context.destination);
@@ -66,9 +68,12 @@ export class ConcertAudio{
   this.media.addEventListener('error',()=>{this.state='음원을 불러오지 못했어요';},opts);
   document.addEventListener('visibilitychange',()=>{this.sync.request();if(document.hidden)this.media.pause();},opts);
   // If the browser left the audio graph suspended, the next tap or key wakes it (music, door spill and lobby room tone all pass through it).
-  for(const type of ['pointerdown','keydown','touchend'])document.addEventListener(type,()=>{
-   if(!this.enabled||this.unlocking||document.hidden)return;
+  for(const type of ['pointerdown','keydown','touchend'])document.addEventListener(type,event=>{
+   if((event.target as Element)?.closest?.('button[aria-label^="소리"], [data-device-probe]'))return;
+   if(!this.wantsSound||document.hidden)return;
    if(this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});
+   if(this.unlocking)return;
+   if(!this.enabled){void this.unlock();return;}
    if(this.media.paused&&this.playback.playing&&!this.playback.track.stage)this.playMedia();
   },{...opts,capture:true});
   // Media playback does not depend on rendering frames arriving on time.
@@ -123,13 +128,14 @@ export class ConcertAudio{
  }
  /** Return to the concert everyone else is hearing. */
  rejoin(){this.shift=0;this.lastId='';this.sync.request();}
- async unlock(){this.enabled=true;this.unlocking=true;this.media.src=this.mediaUrl(this.playback.track.url);this.lastId=this.playback.track.id;this.cycle=this.playback.cycle;this.media.volume=1;this.media.muted=false;this.sync.request();
+ async unlock(){if(this.unlocking)return false;this.wantsSound=true;this.enabled=true;this.unlocking=true;this.media.src=this.mediaUrl(this.playback.track.url);this.lastId=this.playback.track.id;this.cycle=this.playback.cycle;this.media.volume=1;this.media.muted=false;this.sync.request();
   // Start the audio graph and the media in the same tap: browsers only allow sound that begins inside the gesture.
-  try{const graph=this.prepareFilter(),playing=this.media.play();await graph;await playing;this.sync.request();this.state=this.zone==='lobby'?'공연장에서 음악이 시작돼요':'함께 감상 중';return true;}
+  try{const graph=this.prepareFilter(),playing=this.media.play();await Promise.all([graph,playing]);this.sync.request();this.state=this.zone==='lobby'?'공연장에서 음악이 시작돼요':'함께 감상 중';return true;}
   catch{this.enabled=false;this.state='소리를 켜주세요';return false;}finally{this.unlocking=false;}
  }
- toggle(){if(this.enabled){this.enabled=false;this.media.pause();this.state='소리 꺼짐';}else void this.unlock();}
- setZone(zone:Zone){const changed=zone!==this.zone;this.zone=zone;this.sync.request();
+ toggle(){if(this.enabled){this.wantsSound=false;this.enabled=false;this.media.pause();this.state='소리 꺼짐';}else void this.unlock();}
+ setZone(zone:Zone){const changed=zone!==this.zone;this.zone=zone;this.sync.request();this.spectrumTime=-Infinity;
+  if(this.enabled&&this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});
   if(!this.context)return;const t=this.context.currentTime,entering=zone==='auditorium';
   // The level and the door muffle switch together on the audio clock, in this order: going in, the muffle stays on
   // until the music is switched on; going out, the music is switched down first and the muffle comes on just after.

@@ -7,7 +7,9 @@ import {parterreHeight} from '../../shared/parterre';
 import {hallImageMaterial,woodMaterial} from './HallTextures';
 import {buildFloorGuide} from './TicketGuide';
 
-const DUST_COUNT=512,DUST_LIFE=3,DUST_RATE=20;
+const DUST_COUNT=512,DUST_LIFE=3,DUST_RATE=60;
+const CAR_SCALE=new T.Vector3(.64,.86,.72);
+const CHIMNEY_TOP=3.34,CHIMNEY_Z=1.06;
 const STATION_DWELL=3;
 const ARRIVAL_ASCENT_DURATION=1.8;
 const ARRIVAL_RIBBON_DELAY=.28;
@@ -179,13 +181,14 @@ export class EncoreTrain {
  private readonly geometries:T.BufferGeometry[]=[];
  private readonly textures:T.Texture[]=[];
  private readonly boardingGuide:ReturnType<typeof buildFloorGuide>;
- // Stardust wake streaming off the roofs: one additive point cloud, written as a ring buffer; the shader ages it.
+ // Stardust streams from the two engine chimneys into one world-space point cloud.
  private readonly dustPositions=new Float32Array(DUST_COUNT*3);
  private readonly dustData=new Float32Array(DUST_COUNT*2).fill(-1e3);
  private readonly dustGeometry=new T.BufferGeometry();
  private readonly dustUniforms={uTime:{value:0},uHeight:{value:800}};
- private readonly dustCarry=[0,0,0,0,0,0];
- private readonly dustPrevious=Array.from({length:6},()=>new T.Vector3());
+ private readonly dustCarry=[0,0];
+ private readonly dustPrevious=[new T.Vector3(),new T.Vector3()];
+ private readonly dustOrigin=new T.Vector3();
  private dustCursor=0;private dustStart:number|null=null;private dustTime=0;
  constructor(scene:T.Scene){
   this.root.name='앙코르 열차';scene.add(this.root);
@@ -223,25 +226,57 @@ export class EncoreTrain {
    const add=(g:T.BufferGeometry,m:T.Material,x:number,y:number,z:number)=>{g.translate(x,y,z);const list=parts.get(m)??[];list.push(g);parts.set(m,list);};
    const box=(w:number,h:number,d:number,m:T.Material,x:number,y:number,z:number,r=.06)=>add(new RoundedBoxGeometry(w,h,d,2,r),m,x,y,z);
    box(1.95,.36,2.9,wine,0,.24,0,.14);box(1.85,.18,2.75,gold,0,.48,0);
-   box(1.85,.42,2.7,ivory,0,.72,0,.12);
-   // Open panoramic windows; no transparent panes or real lights.
+   // Hollow cabin with waist-high coach panels and open windows above.
+   box(1.85,.08,2.7,ivory,0,.59,0,.03);
+   for(const x of [-.85,.85]){
+    box(.15,.70,2.7,ivory,x,.94,0,.05);
+    box(.17,.045,2.7,gold,x,1.29,0,.02);
+    box(.018,.055,2.5,wine,x+Math.sign(x)*.077,.78,0,.008);
+   }
+   // Close the rear below the window; keep the front bonnet unchanged.
+   box(1.55,.70,.14,ivory,0,.94,-1.28,.05);
+   box(1.7,.045,.16,gold,0,1.29,-1.28,.02);
+   if(c===0)box(1.55,.42,.14,ivory,0,.72,1.28,.05);
+   else{
+    box(1.55,.70,.14,ivory,0,.94,1.28,.05);
+    box(1.7,.045,.16,gold,0,1.29,1.28,.02);
+   }
+   // Open panoramic windows without transparent panes.
    for(const x of [-.87,.87]){
-    box(.13,1.45,.13,gold,x,1.52,-1.22);box(.13,1.45,.13,gold,x,1.52,1.22);
-    box(.1,.1,2.55,gold,x,1.03,0);box(.1,.08,2.55,gold,x,2.18,0);
+    box(.13,1.95,.13,gold,x,1.77,-1.22);box(.13,1.95,.13,gold,x,1.77,1.22);
+    box(.1,.08,2.55,gold,x,2.68,0);
     box(.025,.05,2.5,glow,x,.46,0);
    }
-   box(2.02,.22,2.95,wine,0,2.3,0,.1);box(2.04,.06,2.98,gold,0,2.18,0);
-   box(.6,.08,.8,gold,0,2.45,0);box(.42,.09,.58,glow,0,2.5,0);
+   box(2.02,.22,2.95,wine,0,2.8,0,.1);box(2.04,.06,2.98,gold,0,2.68,0);
+   // Brass ceiling fixture with a broad frosted lens facing the seats.
+   add(new T.CylinderGeometry(.26,.24,.08,16),gold,0,2.63,0);
+   add(new T.CylinderGeometry(.21,.17,.075,16),glow,0,2.56,0);
+   box(.6,.08,.8,gold,0,2.95,0);box(.42,.09,.58,glow,0,3.0,0);
    if(c===0){
     box(1.6,1.03,.7,ivory,0,1,1.25,.22);
+    add(new T.CylinderGeometry(.32,.38,.09,12),gold,0,2.95,CHIMNEY_Z);
+    add(new T.CylinderGeometry(.24,.30,.34,12),wine,0,CHIMNEY_TOP-.21,CHIMNEY_Z);
+    const rim=new T.LatheGeometry([
+     new T.Vector2(.24,-.09),new T.Vector2(.36,-.065),new T.Vector2(.36,-.015),
+     new T.Vector2(.32,0),new T.Vector2(.20,0),new T.Vector2(.20,-.06),
+    ],12);
+    add(rim,gold,0,CHIMNEY_TOP,CHIMNEY_Z);
     for(const x of [-.5,.5]){add(new T.SphereGeometry(.16,12,8),gold,x,1.15,1.64);add(new T.SphereGeometry(.11,12,8),glow,x,1.15,1.76);}
     for(let i=-2;i<=2;i++)box(.07,.26,.04,gold,i*.16,.74,1.63);
    }
    {
     // One forward-facing seat per carriage.
-    for(const x of [0]){box(.68,.13,.7,wine,x,.67,0);box(.68,.65,.14,wine,x,.94,-.36);box(.07,.5,.1,gold,x-.32,.72,-.38);box(.07,.5,.1,gold,x+.32,.72,-.38);}
+    box(.68,.13,.48,wine,0,.83,-.06);
+    box(.68,.65,.14,wine,0,1.10,-.36);
+    box(.48,.16,.32,gold,0,.70,-.06,.03);
    }
-   for(const [m,geos] of parts){const converted=geos.map(g=>g.index?g.toNonIndexed():g);const geometry=mergeGeometries(converted)!;geometry.scale(.64,.86,.72);for(const g of new Set([...geos,...converted]))g.dispose();this.geometries.push(geometry);const mesh=new T.Mesh(geometry,m);mesh.userData.encoreTrain=true;mesh.userData.trainSeat=c===0?2:c-1;car.add(mesh);this.targets.push(mesh);}
+   for(const [m,geos] of parts){const converted=geos.map(g=>g.index?g.toNonIndexed():g);const geometry=mergeGeometries(converted)!;geometry.scale(CAR_SCALE.x,CAR_SCALE.y,CAR_SCALE.z);for(const g of new Set([...geos,...converted]))g.dispose();this.geometries.push(geometry);const mesh=new T.Mesh(geometry,m);mesh.userData.encoreTrain=true;mesh.userData.trainSeat=c===0?2:c-1;car.add(mesh);this.targets.push(mesh);}
+   // One warm fill per train reaches all three open cabins, including the riders.
+   if(c===1){
+    const cabinLight=new T.PointLight(0xffd9a5,3.2,4.8,1);
+    cabinLight.position.y=2.48*CAR_SCALE.y;
+    car.add(cabinLight);
+   }
   }
   // Second train shares all geometry and materials, one side segment behind.
   for(let c=0;c<3;c++){const car=this.cars[c].clone();car.traverse(o=>{if(o instanceof T.Mesh){o.userData.trainSeat+=3;this.targets.push(o);}});this.cars.push(car);this.root.add(car);}
@@ -374,8 +409,10 @@ void main(){
  float age=(uTime-aData.x)/${DUST_LIFE.toFixed(1)},s=aData.y,w=s*6.283;
  float live=step(0.,age)*step(age,1.);
  vec3 p=position;
- p+=vec3(sin(w*7.+uTime*1.3),0.,cos(w*5.+uTime*1.1))*.24*age;
- p.y+=.9*age-.8*age*age;
+ float spread=(.65+.65*fract(s*19.7))*age;
+ p.xz+=vec2(cos(w),sin(w))*spread;
+ p+=vec3(sin(w*7.+uTime*1.3),0.,cos(w*5.+uTime*1.1))*.16*age;
+ p.y+=(1.1+.8*fract(s*23.1))*age-.45*age*age;
  vec4 mv=modelViewMatrix*vec4(p,1.);
  float twinkle=.5+.5*sin(uTime*(5.+s*9.)+w*13.);
  vAlpha=live*smoothstep(0.,.05,age)*(1.-age)*(.45+.55*twinkle);
@@ -461,18 +498,20 @@ void main(){
    this.curve.getTangentAt(distance,this.tangent);
    car.rotation.y=Math.atan2(this.tangent.x,this.tangent.z);
    car.updateMatrixWorld(true);
-   const previous=this.dustPrevious[i];
+   if(carriage!==0)return;
+   const engine=i/3;
+   const previous=this.dustPrevious[engine];
    if(emit){
     // Dust follows speed, so a train waiting at the platform only shimmers faintly.
     const speed=previous.distanceTo(car.position)/dt;
-    this.dustCarry[i]+=dt*DUST_RATE*T.MathUtils.clamp(speed/2,.12,1);
-    const sin=Math.sin(car.rotation.y),cos=Math.cos(car.rotation.y);
-    for(;this.dustCarry[i]>=1;this.dustCarry[i]--){
+    this.dustCarry[engine]+=dt*DUST_RATE*T.MathUtils.clamp(speed/2,.12,1);
+    this.dustOrigin.set(0,CHIMNEY_TOP+.03,CHIMNEY_Z).multiply(CAR_SCALE);
+    car.localToWorld(this.dustOrigin);
+    for(;this.dustCarry[engine]>=1;this.dustCarry[engine]--){
      const n=this.dustCursor;this.dustCursor=(n+1)%DUST_COUNT;
-     const x=(Math.random()-.5)*1.3,z=.9-Math.random()*2.2;
-     this.dustPositions[n*3]=car.position.x+x*cos+z*sin;
-     this.dustPositions[n*3+1]=car.position.y+1.95+Math.random()*.55;
-     this.dustPositions[n*3+2]=car.position.z-x*sin+z*cos;
+     this.dustPositions[n*3]=this.dustOrigin.x+(Math.random()-.5)*.16;
+     this.dustPositions[n*3+1]=this.dustOrigin.y;
+     this.dustPositions[n*3+2]=this.dustOrigin.z+(Math.random()-.5)*.16;
      this.dustData[n*2]=time;this.dustData[n*2+1]=Math.random();wrote=true;
     }
    }
@@ -480,7 +519,7 @@ void main(){
   });
   if(wrote){this.dustGeometry.attributes.position.needsUpdate=true;this.dustGeometry.attributes.aData.needsUpdate=true;}
  }
- seat(index:number,target:T.Vector3){const car=this.cars[Math.floor(index/3)*3+(index%3===2?0:1+index%3)];target.set(0,.12,0);car.localToWorld(target);// Avatars face local -Z, while the train nose points along +Z.
+ seat(index:number,target:T.Vector3){const car=this.cars[Math.floor(index/3)*3+(index%3===2?0:1+index%3)];target.set(0,.21,0);car.localToWorld(target);// Avatars face local -Z, while the train nose points along +Z.
  return car.rotation.y+Math.PI;}
  dispose(){this.root.removeFromParent();for(const g of this.geometries)g.dispose();for(const m of this.materials)m.dispose();for(const t of this.textures)t.dispose();}
 }

@@ -138,8 +138,27 @@ function tableware(){
 /** Wings, a halo and a little harp for a ghost that flies over the stage; set at the ghost's head centre, facing +z. */
 function angelKit(){
  const kit=new T.Group(),wing=new T.Shape();
- wing.moveTo(0,-.2);wing.quadraticCurveTo(.02,.34,.42,.46);wing.quadraticCurveTo(.76,.54,.92,.3);wing.quadraticCurveTo(.84,.1,.66,.13);wing.quadraticCurveTo(.67,-.06,.47,-.03);wing.quadraticCurveTo(.45,-.2,.26,-.16);wing.quadraticCurveTo(.2,-.31,0,-.2);
- const wingGeometry=new T.ShapeGeometry(wing,6),wings=[-1,1].map(side=>{const m=new T.Mesh(wingGeometry,FEATHER);m.scale.set(side*.44,.9,1);m.position.set(side*.16,-.08,-.34);kit.add(m);return m;});
+ // A compact upper wing with three rounded feather tips.
+ wing.moveTo(0,-.15);
+ wing.quadraticCurveTo(.07,.27,.42,.32);
+ wing.quadraticCurveTo(.77,.39,.89,.21);
+ wing.quadraticCurveTo(.96,-.13,.87,-.39);
+ wing.quadraticCurveTo(.81,-.51,.73,-.42);
+ wing.quadraticCurveTo(.67,-.34,.68,-.22);
+ wing.quadraticCurveTo(.67,-.39,.59,-.50);
+ wing.quadraticCurveTo(.51,-.61,.43,-.50);
+ wing.quadraticCurveTo(.36,-.42,.39,-.27);
+ wing.quadraticCurveTo(.31,-.42,.24,-.46);
+ wing.quadraticCurveTo(.14,-.53,.08,-.39);
+ wing.quadraticCurveTo(.01,-.31,0,-.15);
+ const wingGeometry=new T.ShapeGeometry(wing,6);
+ const wings=[-1,1].map(side=>{
+  const mesh=new T.Mesh(wingGeometry,FEATHER);
+  mesh.scale.set(side*.35,.9,1);
+  mesh.position.set(side*.16,-.08,-.34);
+  kit.add(mesh);
+  return mesh;
+ });
  const halo=new T.TorusGeometry(.2,.022,6,24);halo.rotateX(Math.PI/2);halo.rotateZ(.12);halo.translate(0,.53,0);
  // Harp in its own xy plane: pillar at the front, curved neck on top, sound box slanting back to the foot.
  const rod=(ax:number,ay:number,bx:number,by:number,r:number)=>{const a=new T.Vector3(ax,ay,0),b=new T.Vector3(bx,by,0),g=new T.CylinderGeometry(r,r,a.distanceTo(b),6);g.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),b.clone().sub(a).normalize()));g.translate((ax+bx)/2,(ay+by)/2,0);return g;};

@@ -108,8 +108,7 @@ function App(){
  // Start automatically once WebGL is ready; route only the initial visit to the hall.
  useEffect(()=>{if(!app||!app.world.ready||entering.current)return;entering.current=true;app.world.start();setEntered(true);app.net.connect();},[app,world?.ready]);
  useEffect(()=>{if(!world||!connected||!world.self)return;if(world.zone==='auditorium'){initialHallRequested.current=true;setInitialHallReady(true);return;}if(!initialHallRequested.current){initialHallRequested.current=true;reportInitialHallLoading(70,'공연장으로 들어가고 있어요');void world.changeZone();}},[world,connected,zone]);
- // Browsers require a real user gesture for sound even when visual entry is automatic.
- useEffect(()=>{if(!audio)return;const unlock=(event:PointerEvent)=>{if((event.target as Element)?.closest?.('button[aria-label^="소리"], [data-device-probe]'))return;void audio.unlock();};window.addEventListener('pointerdown',unlock,{once:true});return()=>window.removeEventListener('pointerdown',unlock);},[audio]);
+ // ConcertAudio handles gesture unlock and retries after browser autoplay blocks.
  const measureIPhone=async()=>{
   setIphonePending(true);
   setProbeReport('');

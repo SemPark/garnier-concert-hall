@@ -28,6 +28,8 @@ const MIDDLE_GALLERY_DOOR=Math.floor(UPPER_DOOR_AXES.length/2);
 // Keep the three original bays and continue at the same spacing towards the rear.
 const GALLERY_WATERFALL_AXES=UPPER_DOOR_AXES.slice(MIDDLE_GALLERY_DOOR-1,MIDDLE_GALLERY_DOOR+4);
 const THIRD_FLOOR_WATERFALL_AXES=UPPER_DOOR_AXES.slice(0,MIDDLE_GALLERY_DOOR+4);
+// Original emission cadence sustains about 510 trails; leave room for its peaks.
+const GALLERY_STAR_LIMIT=600;
 const SECOND_FLOOR_FALL_Y=GOLDEN_HALL.balconyHeight+GALLERY_RAIL_HEIGHT-.08;
 const THIRD_FLOOR_FALL_Y=WALL_LEVELS.cornices[1]+.44;
 const FRONT_LOFT_WING_X=ORGAN_RAIL_JOIN_X-1.5;
@@ -79,6 +81,7 @@ export class StageFireworks{
  private readonly stars:Particle[];
  private readonly sparks:Particle[];
  private starCount=0;private galleryCount=0;private sparkCount=0;
+ private gallerySideCounts=[0,0];
  private readonly rockets:Rocket[]=[];
  private readonly subBursts:Cue[]=[];
  private fountainTick=0;
@@ -91,7 +94,8 @@ export class StageFireworks{
  private low=false;
 
  constructor(scene:T.Scene,private readonly mobile:boolean){
-  this.stars=Array.from({length:mobile?500:816},()=>particle(true));
+  // Separate capacity prevents the continuous falls from starving stage bursts.
+  this.stars=Array.from({length:(mobile?500:816)-104+GALLERY_STAR_LIMIT},()=>particle(true));
   this.sparks=Array.from({length:mobile?1100:2400},()=>particle(false));
   const pointCapacity=this.stars.length+this.sparks.length;
   const lineCapacity=this.stars.length*(HISTORY-1)*2+this.sparks.length*2;
@@ -278,7 +282,7 @@ export class StageFireworks{
    this.stars[oldest]=this.stars[this.starCount];this.stars[this.starCount]=retired;
   }
   const remaining=this.stageStarLimit-(this.starCount-this.galleryCount);
-  const density=remaining<this.stars.length*.35?.55:1;
+  const density=remaining<(this.mobile?500:816)*.35?.55:1;
   const count=Math.round((this.low?85:this.mobile?115:175)*Math.sqrt(cue.size)*density);
   const spread=(willow?3.8:brocade||kamuro?4.3:5)*cue.size;
   const depth=burstDepth(cue.x);
@@ -382,22 +386,25 @@ export class StageFireworks{
  }
 
  // Keep space in the shared buffer for the gallery falls between stage bursts.
- private get stageStarLimit(){return this.stars.length-(this.low?104:this.mobile?144:190);}
+ private get stageStarLimit(){return (this.mobile?500:816)-(this.low?104:this.mobile?144:190);}
  private gallerySpark(x:number,y:number,z:number,vx:number,vz:number,floor:number){
-  if(this.galleryCount>=this.stars.length-this.stageStarLimit||this.starCount>=this.stars.length)return;
+  const limit=GALLERY_STAR_LIMIT;
+  if(this.galleryCount>=limit||this.starCount>=this.stars.length)return;
   const p=this.stars[this.starCount++];
   this.init(p,x,y,z,vx,rand(-.8,-.25),vz,rand(2.5,3.2));
-  p.gallery=true;this.galleryCount++;p.floor=floor;p.drag=.18;p.size=.8;p.red=1;p.green=rand(.65,.83);p.blue=.27;
+  p.gallery=true;this.galleryCount++;this.gallerySideCounts[x<0?0:1]++;p.floor=floor;p.drag=.18;p.size=.8;p.red=1;p.green=rand(.65,.83);p.blue=.27;
   p.pattern='twinkle';p.trail=30;p.sparkFreq=0;p.sparkTimer=0;
  }
  private galleryWaterfalls(){
-  const baseInterval=this.low?15:this.mobile?12:10;
-  const swellInterval=this.low?11:this.mobile?8:6;
+  const baseInterval=10;
+  const swellInterval=6;
   for(const [tier,level] of GALLERY_WATERFALL_LEVELS.entries()){
    const tick=this.fountainTick+tier*5;
    const base=tick%baseInterval===0,swell=tick%swellInterval===0;
    if(!base&&!swell)continue;
-   for(const side of [-1,1]){
+   // Give the less populated side first access to the unchanged shared budget.
+   const sides=this.gallerySideCounts[0]<=this.gallerySideCounts[1]?[-1,1]:[1,-1];
+   for(const side of sides){
     const phase=this.clock+level.offset+(side===1?2.8:0);
     for(let n=0;n<level.axes.length;n++){
      const index=(n+Math.floor(this.fountainTick/3))%level.axes.length,doorZ=level.axes[index];
@@ -460,7 +467,7 @@ export class StageFireworks{
   this.launchEffects();
   for(let i=0;i<this.starCount;){
    const p=this.stars[i];p.life-=STEP;
-   if(p.life<=0||p.y<p.floor){if(p.gallery)this.galleryCount--;this.starCount--;this.stars[i]=this.stars[this.starCount];this.stars[this.starCount]=p;continue;}
+   if(p.life<=0||p.y<p.floor){if(p.gallery){this.galleryCount--;this.gallerySideCounts[p.x<0?0:1]--;}this.starCount--;this.stars[i]=this.stars[this.starCount];this.stars[this.starCount]=p;continue;}
    this.move(p,GRAVITY,.08);
    if(p.breakStyle){
     p.splitAt-=STEP;
@@ -514,7 +521,7 @@ export class StageFireworks{
    const bright=1.65*fade*flicker;this.point(p,bright);
    // Todd's history buffer extended into a curved 1.2 s trail. Individual dark
    // gaps and detached Miller embers prevent the silhouette becoming solid wires.
-   const stride=this.low?3:2;
+   const stride=p.gallery?2:this.low?3:2;
    const samples=Math.min(p.samples,p.trail);
    for(let j=0;j<samples-1;j+=stride){
     const older=Math.min(j+stride,samples-1);
@@ -543,7 +550,7 @@ export class StageFireworks{
  update(now:number,enabled:boolean,low:boolean){
   if(!enabled){
    this.group.visible=false;this.last=null;this.clock=0;this.accumulator=0;this.nextMovement=0;this.cues.length=0;this.subBursts.length=0;this.fountainTick=0;this.movements=0;
-   this.starCount=0;this.galleryCount=0;this.sparkCount=0;this.rockets.length=0;return;
+   this.starCount=0;this.galleryCount=0;this.gallerySideCounts.fill(0);this.sparkCount=0;this.rockets.length=0;return;
   }
   this.low=low;this.group.visible=true;
   if(this.last===null){this.last=now;this.draw();return;}

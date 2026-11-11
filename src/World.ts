@@ -897,7 +897,7 @@ export class World{
   if(this.avatar){
    const clock=this.net.now(),gestureAge=(clock-this.gestureAt)/1000;
    const sip=this.zone==='auditorium'&&this.gesture==='drink'&&gestureAge<gestureSeconds('drink');
-   const seated=this.pose==='sit';
+   const seated=this.ridingTrain||this.pose==='sit';
    this.avatar.holdingCoffee=this.zone==='lobby'&&this.coffee||sip&&this.drink==='coffee';
    this.avatar.holdingWine=sip&&this.drink==='wine';
    this.avatar.holdingMacaron=this.zone==='lobby'&&this.macaron;
