@@ -1,6 +1,6 @@
 import {GOLDEN_HALL} from '../../shared/goldenHall';
 import {PARTERRE,parterreHeight} from '../../shared/parterre';
-import {BOUNDS,FLOOR_AISLES,FLOOR_CROSS_AISLE,walkable,distance,surfaceHeight,type Point,type Zone} from '../../shared/venue';
+import {BOUNDS,FLOOR_AISLES,FLOOR_CROSS_AISLE,walkable,obstacles,distance,surfaceHeight,type Point,type Zone} from '../../shared/venue';
 import {lobbyRouteNodes} from '../../shared/grandStair';
 import {DINNER_LANES_X,DINNER_LANES_Z,DINNER_FRONT_LANE,DINNER_REAR_LANE} from '../../shared/dinnerTables';
 const STEP=.35;
@@ -8,6 +8,19 @@ const upperGallery=(zone:Zone,p:Point)=>zone==='auditorium'&&(p.y??0)>=GOLDEN_HA
 export function segmentClear(zone:Zone,a:Point,b:Point){
  const n=Math.max(1,Math.ceil(distance(a,b)/.12)),ground=zone==='auditorium'&&(a.y??0)<1&&(b.y??0)<1;
  const gallery=upperGallery(zone,a)&&upperGallery(zone,b);
+ // Sampled checks alone can miss a chair corner between two samples.
+ // Test the continuous horizontal segment against the same padded obstacles.
+ for(const o of obstacles(zone)){
+  let enter=0,leave=1;
+  for(const [start,delta,min,max] of [[a.x,b.x-a.x,o.x-o.hx-.27,o.x+o.hx+.27],[a.z,b.z-a.z,o.z-o.hz-.27,o.z+o.hz+.27]]){
+   if(Math.abs(delta)<1e-10){if(start<=min||start>=max){leave=-1;break;}}
+   else {const t1=(min-start)/delta,t2=(max-start)/delta;enter=Math.max(enter,Math.min(t1,t2));leave=Math.min(leave,Math.max(t1,t2));}
+  }
+  if(enter>=leave)continue;
+  const t=(enter+leave)/2,x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t;
+  const y=ground?parterreHeight(x,z):gallery?surfaceHeight(zone,{x,z},GOLDEN_HALL.balconyHeight):(a.y??0)+((b.y??0)-(a.y??0))*t;
+  if(y!==null&&Math.abs((o.y??0)-y)<.6)return false;
+ }
  let previousY:number|undefined;
  for(let i=0;i<=n;i++){
   const x=a.x+(b.x-a.x)*i/n,z=a.z+(b.z-a.z)*i/n;

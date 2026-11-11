@@ -12,7 +12,7 @@ test('a full house is drawn in a few dozen shared batches, not 25 pieces per vis
  camera.position.set(0,4,30);camera.lookAt(0,2,-10);camera.updateMatrixWorld();
  crowd.update(avatars,camera,0);
  const drawn=batches(scene);assert.ok(drawn.length<60,`${drawn.length} draw calls`);
- assert.ok(drawn.reduce((n,b)=>n+b.count,0)>2000,'most visitors are drawn');
+ assert.ok(drawn.reduce((n,b)=>n+b.count,0)>avatars.filter(a=>a.root.position.z<25).length*8,'visible visitors retain body parts');
  // Every slot that is drawn carries a real pose (no leftover identity matrices from an unused slot).
  const m=new T.Matrix4(),identity=new T.Matrix4();for(const b of drawn)for(let i=0;i<b.count;i++){b.getMatrixAt(i,m);assert.ok(!m.equals(identity),'a drawn slot was never posed');}
 });

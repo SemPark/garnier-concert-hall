@@ -29,6 +29,11 @@ export class Crowd{
    part={mesh:this.make(geometry,material,64),used:0,colors:lit};this.parts.set(key,part);}
   return part;
  }
+ private shown(mesh:T.Mesh){
+  for(let node:T.Object3D|null=mesh;node;node=node.parent)if(!node.visible)return false;
+  const m=mesh.matrixWorld.elements;
+  return Math.hypot(m[0],m[1],m[2])>1e-6&&Math.hypot(m[4],m[5],m[6])>1e-6&&Math.hypot(m[8],m[9],m[10])>1e-6;
+ }
  private piece(mesh:T.Mesh):Piece{
   const material=mesh.material as T.Material,low=(mesh.userData.lowDetail as T.BufferGeometry|undefined)??coarseGeometry(mesh.geometry);
   return {mesh,limit:detailDistance(mesh),near:this.partFor(mesh.geometry,material),far:this.partFor(low,material),color:isLit(material)?material.color:null};
@@ -58,7 +63,7 @@ export class Crowd{
    else if(distance<=19||(this.tick+this.ids.get(avatar)!)%3===0)avatar.root.updateMatrixWorld(true);
    const detail=distance>19?2:distance>12?1:0;layout+=this.ids.get(avatar)+(far?'f':'n')+detail+',';
    for(const piece of pieces){
-    const {mesh,limit}=piece;if(distance>limit)continue;
+    const {mesh,limit}=piece;if(distance>limit||!this.shown(mesh))continue;layout+=mesh.id+',';
     const part=far?piece.far:piece.near;this.reserve(part);
     part.mesh.setMatrixAt(part.used,mesh.matrixWorld);if(mesh.morphTargetInfluences)part.mesh.setMorphAt(part.used,mesh);part.used++;
    }
@@ -80,7 +85,7 @@ export class Crowd{
    this.center.copy(avatar.root.position);this.center.y+=.8;if(!this.frustum.intersectsSphere(this.bounds.set(this.center,1.1)))continue;
    const distance=this.center.distanceTo(camera.position),far=distance>LOD_NEAR;
    for(const piece of this.pieces.get(avatar)!){
-    if(distance>piece.limit)continue;
+    if(distance>piece.limit||!this.shown(piece.mesh))continue;
     const part=far?piece.far:piece.near;if(piece.color)part.mesh.setColorAt(part.used,piece.color);part.used++;
    }
   }

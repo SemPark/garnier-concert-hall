@@ -5,8 +5,9 @@ test('architecture batches different colors while retaining invisible seat picki
  const a=new T.Mesh(geometry,new T.MeshStandardMaterial({color:0xff0000})),b=new T.Mesh(geometry,new T.MeshStandardMaterial({color:0x00ff00}));b.position.x=2;scene.add(a,b);
  const proxy=new T.Mesh(geometry,new T.MeshBasicMaterial({visible:false}));proxy.userData.seatId='seat';scene.add(proxy);
  batchArchitecture(scene,[proxy]);scene.updateMatrixWorld(true);
- const batch=scene.children.find(o=>o instanceof T.InstancedMesh) as T.InstancedMesh;assert.equal(batch.count,2);
- const color=new T.Color();batch.getColorAt(0,color);assert.equal(color.getHex(),0xff0000);batch.getColorAt(1,color);assert.equal(color.getHex(),0x00ff00);
+ const batches=scene.children.filter((o):o is T.InstancedMesh=>o instanceof T.InstancedMesh);const colours=new Set<number>(),c=new T.Color();
+ for(const batch of batches){const vertices=batch.geometry.getAttribute('color');if(vertices)for(let i=0;i<vertices.count;i++)colours.add(c.fromBufferAttribute(vertices,i).getHex());else for(let i=0;i<batch.count;i++){batch.getColorAt(i,c);colours.add(c.getHex());}}
+ assert.deepEqual(colours,new Set([0xff0000,0x00ff00]));
  const ray=new T.Raycaster(new T.Vector3(0,0,3),new T.Vector3(0,0,-1));assert.ok(ray.intersectObject(proxy).length);
 });
 test('detached character rigs still update instance transforms after poses change',()=>{
@@ -35,17 +36,17 @@ test('fixed musician meshes keep their GPU buffers while head/arm transforms con
 
 test('instances outside the camera are omitted and restored after turning around',()=>{
  const scene=new T.Scene(),geometry=new T.BoxGeometry(1,1,1),material=new T.MeshLambertMaterial();
- const front=new T.Mesh(geometry,material),back=new T.Mesh(geometry,material);front.position.z=-6;back.position.z=6;scene.add(front,back);
+ const front=new T.Mesh(geometry,material),back=new T.Mesh(geometry,material);front.position.z=-6;back.position.z=6;scene.add(front,back);for(const source of [front,back]){const copy=source.clone();copy.position.x=2;scene.add(copy);}
  const update=batchArchitecture(scene,[]),camera=new T.PerspectiveCamera(60,1,.1,100);update(camera);
- const batch=scene.children.find(o=>o instanceof T.InstancedMesh) as T.InstancedMesh,matrix=new T.Matrix4();assert.equal(batch.count,1);batch.getMatrixAt(0,matrix);assert.equal(matrix.elements[14],-6);
- camera.rotation.y=Math.PI;update(camera);assert.equal(batch.count,1);batch.getMatrixAt(0,matrix);assert.equal(matrix.elements[14],6);
+ const visibleZ=()=>scene.children.filter((o):o is T.InstancedMesh=>o instanceof T.InstancedMesh&&o.visible).map(o=>{const m=new T.Matrix4();o.getMatrixAt(0,m);return m.elements[14];});
+ assert.deepEqual(visibleZ(),[-6]);camera.rotation.y=Math.PI;update(camera);assert.deepEqual(visibleZ(),[6]);
 });
 test('stationary musician camera rotations restore fixed meshes outside the old view',()=>{
- const scene=new T.Scene(),root=new T.Group(),head=new T.Group();head.userData.animated=true;root.add(head);const mesh=new T.Mesh(new T.BoxGeometry(1,1,1),new T.MeshLambertMaterial());mesh.position.z=6;root.add(mesh);scene.add(root);
+ const scene=new T.Scene(),root=new T.Group(),head=new T.Group();head.userData.animated=true;root.add(head);const mesh=new T.Mesh(new T.BoxGeometry(1,1,1),new T.MeshLambertMaterial());root.position.z=6;root.add(mesh);scene.add(root);
  const update=batchCharacters(scene,[root]),camera=new T.PerspectiveCamera(60,1,.1,100);update(camera);const batch=scene.children.find(o=>o instanceof T.InstancedMesh) as T.InstancedMesh;assert.equal(batch.count,0);camera.rotation.y=Math.PI;update(camera);assert.equal(batch.count,1);
 });
 test('widening the viewport restores musician instances without moving the camera',()=>{
- const scene=new T.Scene(),root=new T.Group(),head=new T.Group();head.userData.animated=true;root.add(head);const mesh=new T.Mesh(new T.BoxGeometry(.1,.1,.1),new T.MeshLambertMaterial());mesh.position.set(4,0,-6);root.add(mesh);scene.add(root);
+ const scene=new T.Scene(),root=new T.Group(),head=new T.Group();head.userData.animated=true;root.add(head);const mesh=new T.Mesh(new T.BoxGeometry(.1,.1,.1),new T.MeshLambertMaterial());root.position.set(7,0,-6);root.add(mesh);scene.add(root);
  const update=batchCharacters(scene,[root]),camera=new T.PerspectiveCamera(60,.5,.1,100);update(camera);const batch=scene.children.find(o=>o instanceof T.InstancedMesh) as T.InstancedMesh;assert.equal(batch.count,0);camera.aspect=2;camera.updateProjectionMatrix();update(camera);assert.equal(batch.count,1);
 });
 
@@ -55,7 +56,7 @@ test('musician eyes and instrument details retain their original geometry at aud
  const batches=scene.children.filter(o=>o instanceof T.InstancedMesh) as T.InstancedMesh[];
  assert.equal(batches.filter(b=>b.visible).reduce((n,b)=>n+b.count,0),2);
  const sphere=batches.find(b=>b.geometry instanceof T.SphereGeometry)!;assert.equal((sphere.geometry as T.SphereGeometry).parameters.widthSegments,16);
- assert.ok(batches.some(b=>b.geometry===string.geometry&&b.count===1));
+ const rod=batches.find(b=>b.visible&&b.geometry instanceof T.CylinderGeometry)!;assert.ok(rod&&rod.count===1);const m=new T.Matrix4();rod.getMatrixAt(0,m);assert.ok(Math.abs(m.elements[5]-.8)<1e-6,'instrument length is retained by LOD');
 });
 
 test('static geometry shares one cell without losing world transforms, and idle views do not upload it again',()=>{
@@ -69,9 +70,9 @@ test('static geometry shares one cell without losing world transforms, and idle 
 });
 test('static shadow preparation includes casters behind the camera and restores normal view culling afterward',()=>{
  const scene=new T.Scene(),geometry=new T.BoxGeometry(),mat=new T.MeshStandardMaterial();
- for(const z of [-6,6]){const mesh=new T.Mesh(geometry,mat);mesh.position.z=z;scene.add(mesh);}
+ for(const z of [-6,6])for(const x of [-1,1]){const mesh=new T.Mesh(geometry,mat);mesh.position.set(x,0,z);scene.add(mesh);}
  const update=batchArchitecture(scene,[]),camera=new T.PerspectiveCamera(60,1,.1,100);update(camera);
- const batch=scene.children.find(o=>o instanceof T.InstancedMesh) as T.InstancedMesh;assert.equal(batch.count,1);
- scene.userData.showArchitectureForShadow();assert.equal(batch.count,2);assert.equal(batch.castShadow,true);
- update(camera);assert.equal(batch.count,1);camera.rotation.y=Math.PI;update(camera);assert.equal(batch.count,1);
+ const count=()=>scene.children.filter((o):o is T.InstancedMesh=>o instanceof T.InstancedMesh&&o.visible).reduce((n,o)=>n+o.count,0);assert.equal(count(),2);
+ scene.userData.showArchitectureForShadow();assert.equal(count(),4);assert.ok(scene.children.filter(o=>o instanceof T.InstancedMesh&&o.visible).every(o=>o.castShadow));
+ update(camera);assert.equal(count(),2);camera.rotation.y=Math.PI;update(camera);assert.equal(count(),2);
 });

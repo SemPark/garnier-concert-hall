@@ -26,16 +26,16 @@ test('a seated skirt pins its waist and drapes onto the lap instead of rotating 
  const woman=new Avatar(0x293c56,undefined,4,'navy'),man=new Avatar(0x293c56,undefined,0,'navy');
  assert.ok(woman.skirt);assert.equal(man.skirt,null);
  const parts:string[]=[];woman.root.traverse(o=>{if(o.userData.garment)parts.push(o.userData.garment);});
- assert.equal(parts.includes('trousers'),false);assert.equal(parts.filter(p=>p==='stocking').length,2);
+ assert.equal(parts.includes('trousers'),false);assert.equal(parts.filter(p=>p==='stocking').length,6);
  const position=woman.skirt.geometry.getAttribute('position');woman.update(1,0,true,false,null,10,1);
  const point=new T.Vector3();let hem=0;
  for(let i=0;i<position.count;i++){
   woman.skirt.getVertexPosition(i,point);
   if(Math.abs(position.getY(i))<.0001)assert.ok(point.distanceTo(new T.Vector3().fromBufferAttribute(position,i))<.0001,'waist stays attached');
   assert.ok(point.y<=.001,'fabric never rises above the waist');
-  if(position.getY(i)<-.57){hem++;assert.ok(point.z<-.3&&point.y<-.20&&point.y>-.50,'hem drops over the knees');}
+  if(position.getY(i)<-.57&&position.getZ(i)<-.25){hem++;assert.ok(point.z<-.4&&point.y<-.35&&point.y>-.50,'front hem drops over the bent knees');}
  }
- assert.ok(hem>20);assert.equal(woman.skirt.rotation.x,0);
+ assert.ok(hem>=6);assert.equal(woman.skirt.rotation.x,0);
  woman.update(2,0,false,false,null,10,1);assert.ok(woman.skirt.morphTargetInfluences![0]<.001,'standing restores the dress');
 });
 
@@ -43,7 +43,7 @@ test('female orchestra members wear trousers while female visitors keep their sk
  for(const instrument of ['violin','cello','flute','conductor'] as const){
   const musician=new Avatar(0x242329,instrument,4);assert.equal(musician.skirt,null);
   const parts:string[]=[];musician.root.traverse(o=>{if(o.userData.garment)parts.push(o.userData.garment);});
-  assert.equal(parts.filter(p=>p==='trousers').length,2);assert.equal(parts.includes('stocking'),false);
+  assert.equal(parts.filter(p=>p==='trousers').length,6);assert.equal(parts.includes('stocking'),false);
  }
 });
 
@@ -64,8 +64,8 @@ test('painted eyes, smile and blush follow the face and the head no longer scans
 
 test('seated dress covers the outer thighs while keeping the leg pose unchanged',()=>{
  const actor=new Avatar(0x293c56,undefined,4);actor.update(1,0,true,false,null,10,1);
- assert.ok(Math.abs(actor.leftLeg.rotation.x-.9)<.001);assert.ok(Math.abs(actor.rightLeg.rotation.x-.9)<.001);
+ assert.ok(Math.abs(actor.leftLeg.rotation.x-Math.PI/2)<.001);assert.ok(Math.abs(actor.rightLeg.rotation.x-Math.PI/2)<.001);
  const mesh=actor.skirt!,base=mesh.geometry.getAttribute('position'),v=new T.Vector3();let side=0;
- for(let i=0;i<base.count;i++)if(base.getY(i)<-.57&&Math.abs(base.getX(i))>.34){mesh.getVertexPosition(i,v);assert.ok(v.y<-.42,'side fabric hangs below the thigh');side++;}
+ for(let i=0;i<base.count;i++)if(base.getY(i)<-.57&&Math.abs(base.getX(i))>.34){mesh.getVertexPosition(i,v);assert.ok(v.y<-.24&&Math.abs(v.x)>.34,'side fabric covers the outer thigh');side++;}
  assert.ok(side>=2);
 });

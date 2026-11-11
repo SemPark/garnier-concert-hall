@@ -20,11 +20,11 @@ test('men wear one simple cap and women one piece of long hair over the ears, wi
  for(const a of [man,woman])for(const p of skullPoints(a)){if(!((p.y>.12&&p.z>-.18)||(p.z>.12&&p.y>.06)))continue;
   const from=p.clone().sub(new T.Vector3(0,.03,0)).normalize().multiplyScalar(2).add(p).add(new T.Vector3(.003,0,.002));// off the crown vertex
   assert.ok(firstHit(a,from,p)?.userData.hairPart,`${a.hair}: skin shows through the hair at ${p.toArray().map(n=>n.toFixed(2))}`);}
- // The man's cap ends above the ears: every part of it lower than the bottom of the ears stays inside the head.
- const cap=man.head.children.find(o=>o.userData.hairPart==='cap') as T.Mesh,skull=man.head.children[0] as T.Mesh,earBottom=-.03-.07;
- for(let u=0;u<48;u++)for(let v=0;v<=24;v++){const th=u/48*Math.PI*2,ph=v/24*Math.PI;
-  const p=new T.Vector3(Math.sin(ph)*Math.cos(th)*cap.scale.x,Math.cos(ph)*cap.scale.y,Math.sin(ph)*Math.sin(th)*cap.scale.z).add(cap.position);if(p.y>=earBottom)continue;
-  const q=p.clone().sub(skull.position);assert.ok(Math.hypot(q.x/skull.scale.x,q.y/skull.scale.y,q.z/skull.scale.z)<1,`hair shows below the ears at ${p.toArray().map(n=>n.toFixed(2))}`);}
+ // The cap now covers the earless sides. Check the real sculpted vertices, not an imaginary unit sphere.
+ const cap=man.head.children.find(o=>o.userData.hairPart==='cap') as T.Mesh;
+ cap.geometry.computeBoundingBox();const bounds=cap.geometry.boundingBox!;
+ assert.ok(bounds.min.y<-.2&&bounds.max.y<.5);assert.ok(bounds.max.x<.45&&bounds.min.x>-.45);
+ for(const p of [[-.115,-.025,-.315],[.115,-.025,-.315],[0,-.165,-.322]])assert.ok(!firstHit(man,new T.Vector3(p[0],p[1],-2),new T.Vector3(...p))?.userData.hairPart,'cap leaves the face clear');
  // The woman's hair covers both ears, and the eyes, cheeks, nose and mouth stay clear from the front.
  for(const side of [-1,1])assert.equal(firstHit(woman,new T.Vector3(side*2,-.03,0),new T.Vector3(side*.345,-.03,0))?.userData.hairPart,'long','the hair covers the ears');
  for(const p of [[-.115,-.025,-.315],[.115,-.025,-.315],[-.2,-.105,-.29],[.2,-.105,-.29],[0,-.085,-.345],[0,-.165,-.322]])

@@ -1,3 +1,5 @@
+import {UPPER_CELLS} from '../shared/upperHall';
+import {HALL_CELL_WIDTH} from '../shared/lowerHall';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
@@ -12,7 +14,7 @@ test('organ and side guardrails share their top elevation and stop at one joint 
  const expected=new T.Box3().setFromObject(reference).max.y,rails=organ.children.filter(o=>o.userData.landmark==='organ-loft-rail'),posts=organ.children.filter(o=>o.userData.landmark==='organ-rail-join');assert.equal(posts.length,2);
  for(const rail of rails){const b=new T.Box3().setFromObject(rail);assert.ok(Math.abs(b.max.y-expected)<1e-6);assert.ok(b.min.x>=-ORGAN_RAIL_JOIN_X+.04&&b.max.x<=ORGAN_RAIL_JOIN_X-.04,'a curved rail must not continue through a side rail');}
  for(const post of posts)assert.ok(Math.abs(new T.Box3().setFromObject(post).max.y-expected)<1e-6);
- const spans=H.bayCenters.flatMap(galleryRailSpans);assert.ok(Math.abs(Math.min(...spans.map(s=>s.start))-(ORGAN_RAIL_JOIN_Z+ORGAN_RAIL_POST_HALF))<1e-8);
+ const spans=[...UPPER_CELLS.flatMap(c=>galleryRailSpans(c.center,HALL_CELL_WIDTH)),...galleryRailSpans((-27+UPPER_CELLS[0].start)/2,UPPER_CELLS[0].start+27)];assert.ok(Math.abs(Math.min(...spans.map(s=>s.start))-(ORGAN_RAIL_JOIN_Z+ORGAN_RAIL_POST_HALF))<1e-8);
 });
 
 test('the organ loft and side gallery draw only one top surface across their shared contour',()=>{

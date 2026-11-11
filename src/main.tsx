@@ -96,7 +96,14 @@ function App(){
    world.onChange=update;world.onToast=notify;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{world!.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onMoveBlocked=point=>active.correctMove(point);net.onRelocated=point=>active.finishHallMove(point);net.onStatus=()=>{if(net.status!=='connected')active.stopHallLoading();update();};net.onError=message=>{active.stopHallLoading();notify(message);};setApp({world,net,audio});
    if(import.meta.env.DEV)Object.assign(window,{__concert:{world,net,audio}});
   }catch(e){failLoading();setError(e instanceof Error?e.message:'3D 화면을 열지 못했어요.');}
-  return ()=>{world?.destroy();net.destroy();audio.destroy();};
+  // Full-document hall links do not unmount React. Release the old hall before
+  // Safari keeps the document in its back/forward cache alongside the next one.
+  let released=false;
+  const release=()=>{if(released)return;released=true;net.destroy();audio.destroy();world?.destroy();};
+  const restore=(event:PageTransitionEvent)=>{if(event.persisted&&released)location.reload();};
+  window.addEventListener('pagehide',release);
+  window.addEventListener('pageshow',restore);
+  return ()=>{window.removeEventListener('pagehide',release);window.removeEventListener('pageshow',restore);release();};
  },[]);
  useEffect(()=>{const key=(e:KeyboardEvent)=>{const i=Number(e.code.replace('Digit',''))-1;if(!app||!entered||settings||!(i>=0&&i<GESTURES.length)||app.net.status!=='connected'||(e.target as HTMLElement)?.closest('input,textarea,select,dialog'))return;e.preventDefault();app.world.gestureAction(GESTURES[i].id);};window.addEventListener('keydown',key);return ()=>window.removeEventListener('keydown',key);},[app,entered,settings]);
  useEffect(()=>{if(settings){dialog.current?.showModal();app?.world.input.keys.clear();}else dialog.current?.close();},[settings,app]);

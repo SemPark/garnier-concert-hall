@@ -38,9 +38,10 @@ function garmentPatch(parent:T.Group,torso:T.Mesh,w:number,h:number,x:number,y:n
  const patch=new T.Mesh(geometry,cloth);parent.add(patch);return patch;
 }
 // Rounded arm ends tuck into the body instead of showing a flat cut or a ball joint.
-const FLOOR_INSTRUMENTS=new Set<Instrument>(['cello','bass','harp','piano','celesta','timpani','bass-drum','gong','snare','chimes','xylophone','marimba','vibraphone','drum-kit']);
+export const FLOOR_INSTRUMENTS=new Set<Instrument>(['cello','bass','harp','piano','celesta','timpani','bass-drum','gong','snare','chimes','xylophone','marimba','vibraphone','drum-kit']);
 const armGeometry=new T.CapsuleGeometry(.066,ARM_LENGTH-.13,4,10);
 // A short, chubby index finger for the hush gesture.
+const forkBiteGeometry=new T.IcosahedronGeometry(.028,1);
 const fingerGeometry=new T.CapsuleGeometry(.024,.07,4,8);
 /**
  * Women's long hair, shared by every woman, as one smooth closed piece (no separate cap, so no seam or ledge).
@@ -98,7 +99,7 @@ function buildLongHair(cols:number,dome:number,hang:number){
 // Far-away listeners get a coarser copy of the same shape.
 const longHairGeometry=buildLongHair(24,7,8),longHairFar=buildLongHair(12,4,4);
 /** Index finger seat on the right mitten: thumb side, toward the face, rising above the knuckles. */
-export const FINGER_OFFSET=[-.035,.105,-.045] as const;
+export const FINGER_OFFSET=[-.035,.13,.075] as const;
 /** In the jazz hall the trumpets stand on the back tier, as a big band's do. */
 export function musicianSits(type:Instrument|undefined){return !!type&&type!=='bass'&&type!=='conductor'&&!PERCUSSION.includes(type)&&!(JAZZ_HALL&&type==='trumpet');}
 export class Avatar{
@@ -157,7 +158,7 @@ export class Avatar{
    if(cloth)prepareClothContact(o.geometry,cloth);
    o.material=frontLitMaterial(o.material,cloth?'cloth':'body');
   }});
-  if(!instrument){this.fork=buildFork();this.fork.scale.setScalar(0);this.forkBite=new T.Mesh(new T.IcosahedronGeometry(.028,1),new T.MeshStandardMaterial({roughness:.6}));this.forkBite.position.set(0,.01,-.15);this.fork.add(this.forkBite);this.rightHand.add(this.fork);this.wineGlass=buildWineGlass();this.wineGlass.position.set(-.07,-.03,-.05);this.wineGlass.scale.setScalar(0);this.rightHand.add(this.wineGlass);this.coffeeCup=buildCoffeeCup();this.rightHand.add(this.coffeeCup);this.macaron=buildMacaron();this.macaron.scale.setScalar(0);this.leftHand.add(this.macaron);}
+  if(!instrument){this.fork=buildFork();this.fork.scale.setScalar(0);this.forkBite=new T.Mesh(forkBiteGeometry,new T.MeshStandardMaterial({roughness:.6}));this.forkBite.position.set(0,.01,-.15);this.fork.add(this.forkBite);this.rightHand.add(this.fork);this.wineGlass=buildWineGlass();this.wineGlass.position.set(-.07,-.03,-.05);this.wineGlass.scale.setScalar(0);this.rightHand.add(this.wineGlass);this.coffeeCup=buildCoffeeCup();this.rightHand.add(this.coffeeCup);this.macaron=buildMacaron();this.macaron.scale.setScalar(0);this.leftHand.add(this.macaron);}
   const shadow=new T.Mesh(shadowGeometry,shadowMaterial);shadow.rotation.x=-Math.PI/2;shadow.position.y=.012;this.root.add(shadow);
   if(instrument){buildInstrument(instrument,this.instrument,this.leftHand,this.rightHand);if(FLOOR_INSTRUMENTS.has(instrument)){this.root.add(this.instrument);this.instrument.userData.floorAnchored=true;if(instrument==='cello')this.instrument.position.y=.64;}if(instrument==='conductor'||JAZZ_HALL&&instrument==='piano')santaHat(this.head);/* the big band's leader plays the piano */}
  }
@@ -192,6 +193,11 @@ export class Avatar{
   if(this.trainPassenger&&gesture==='wave'&&pose.left){
    const [x,y,z]=pose.left;pose.right=[-x,y,z];pose.left=null;pose.sway=-pose.sway;pose.headRoll=-pose.headRoll;
   }
+  // Keep raised sleeves in front of the collar and clear of the cheeks.
+  const raised=gesture==='wave'||gesture==='bravo'||gesture==='ovation'||gesture==='shh';
+  const shoulderShift=raised?pose.weight:0;
+  this.leftArm.position.set(-.16,.99-.13*shoulderShift,-.12*shoulderShift);
+  this.rightArm.position.set(.16,.99-.13*shoulderShift,-.12*shoulderShift);
   // At the dinner table the body leans in to reach the middle of the plate, then sits back up as the fork rises.
   if(gesture==='eat'&&this.diningBite!=null)pose.lean=.24*pose.weight*(1-T.MathUtils.smoothstep(gestureAge,.75,1.3));
   // Bend around the hips: the body pivots at the hip joint and the legs counter-rotate, so the feet stay put.
@@ -252,7 +258,7 @@ export class Avatar{
    for(const [arm,side,weight] of [[this.left,-1,left],[this.right,1,1-left]] as const){
     if(!weight)continue;
     const wave=Math.sin(gestureAge*7)*.035;
-    this.direction.set(side*(.48+wave),1.22,-.16);
+    this.direction.set(side*(.48+wave),1.30,-.46);
     this.aimAt(arm,this.direction.x,this.direction.y,this.direction.z,pose.weight*weight);
    }
   }

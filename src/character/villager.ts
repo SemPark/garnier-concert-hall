@@ -72,9 +72,9 @@ export function poseVillager(input:PoseInput,phase=0):VillagerPose{
  pose.headYaw=mix(pose.headYaw,0);
  switch(gesture){
   // The hand goes up high while the whole body leans away from it, so the arm clears the big head.
-  case 'wave':pose.left=[-.74-Math.sin(age*11)*.08,1.42+Math.cos(age*11)*.04,-.05];pose.sway=mix(pose.sway,-.26);pose.headRoll=mix(pose.headRoll,-.12-Math.sin(age*11)*.03);break;
-  case 'clap':{const d=.08+.18*(.5+.5*Math.cos(age*13.5));pose.left=[-d,.94,-.3];pose.right=[d,.94,-.3];pose.headPitch=mix(pose.headPitch,-.05);break;}
-  case 'bravo':{const pump=Math.sin(age*9)*.05;pose.left=[-.8,1.38+pump,-.1];pose.right=[.8,1.38+pump,-.1];pose.headPitch=mix(pose.headPitch,-.18);break;}
+  case 'wave':pose.left=[-1.06-Math.sin(age*11)*.06,1.61+Math.cos(age*11)*.035,-.31];pose.sway=mix(pose.sway,-.26);pose.headRoll=mix(pose.headRoll,-.12-Math.sin(age*11)*.03);break;
+  case 'clap':{const d=.105+.155*(.5+.5*Math.cos(age*13.5));pose.left=[-d,.94,-.3];pose.right=[d,.94,-.3];pose.headPitch=mix(pose.headPitch,-.05);break;}
+  case 'bravo':{const pump=Math.sin(age*9)*.05;pose.left=[-.8,1.49+pump,-.48];pose.right=[.8,1.49+pump,-.48];pose.headPitch=mix(pose.headPitch,-.18);break;}
   // Remote visitors and NPCs keep the default pose when no camera target is supplied.
   case 'ovation':{
    const turn=gestureTurnWeight('ovation',age);

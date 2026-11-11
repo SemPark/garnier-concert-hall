@@ -39,7 +39,7 @@ export const BALCONY_SEATS:Seat[]=[];
 export const SIDE_BOX_SEATS:Seat[]=[];
 export const SEATS:Seat[]=[...FLOOR_SEATS,...SIDE_BOX_SEATS,...BALCONY_SEATS];
 /** The hall admits as many visitors as it has seats, including the raised side boxes. */
-export const CAPACITY=440;
+export const CAPACITY=SEATS.length;
 /** Gallery seats are numbered 1, 2, 3… along each side, from the stage end towards the back. */
 const BALCONY_NUMBER=new Map([-1,1].flatMap(side=>BALCONY_SEATS.filter(s=>Math.sign(s.x)===side).sort((a,b)=>a.z-b.z).map((s,i)=>[s.id,i+1] as const)));
 export function seatNumber(s:Seat){return s.level==='parterre'?s.column:BALCONY_NUMBER.get(s.id)!;}

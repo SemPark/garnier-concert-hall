@@ -28,7 +28,7 @@ export class Presence{
   socket.onmessage=e=>{if(this.socket!==socket)return;let msg:ServerMessage;try{msg=JSON.parse(e.data) as ServerMessage;}catch{return;}
    if(msg.type==='welcome'){
     this.selfId=msg.selfId;sessionStorage.setItem(RESUME_KEY,msg.resumeToken);sessionStorage.setItem(ROOM_KEY,msg.state.roomId);
-    this.offset=msg.state.serverNow-(this.origin+performance.now());this.bestRTT=Infinity;this.retry=0;this.status='connected';this.accept(msg.state);this.onStatus();this.ping();
+    this.offset=msg.state.serverNow-(this.origin+performance.now());this.bestRTT=Infinity;this.retry=0;this.syncing=false;this.status='connected';this.accept(msg.state);this.onStatus();this.ping();
     window.clearInterval(this.heartbeat);this.heartbeat=window.setInterval(()=>this.ping(),30000);
    }else if(msg.type==='state'){this.syncing=false;this.accept(msg.state);}
    // Updates carry only what changed; if one was missed, ask once for the whole hall.
@@ -49,5 +49,5 @@ export class Presence{
  private ping(){this.bestRTT=Infinity;for(let i=0;i<3;i++)window.setTimeout(()=>this.send({type:'clock',sentAt:performance.now()}),i*150);}
  send(msg:ClientMessage){if(this.preview){const ok=this.preview.send(msg);this.accept(this.preview.snapshot());if(ok&&msg.type==='hallMove'){const v=this.preview.visitor;this.onRelocated({x:v.x,y:v.y??0,z:v.z});}return ok;}if(this.socket?.readyState===WebSocket.OPEN&&this.status==='connected'){this.socket.send(JSON.stringify(msg));return true;}return false;}
  reserve(seatId:string,requestId=newId()){if(this.preview){const ok=this.preview.send({type:'reserve',seatId,requestId});this.accept(this.preview.snapshot());return Promise.resolve(ok);}if(this.status!=='connected'){this.onError('음악당에 다시 연결하고 있어요. 잠시 뒤 다시 눌러 주세요.');return Promise.resolve(false);}return new Promise<boolean>(resolve=>{const timer=window.setTimeout(()=>{this.requests.delete(requestId);this.onError('좌석 응답이 늦어요. 다시 눌러 주세요.');resolve(false);},6000);this.requests.set(requestId,{resolve,timer});this.send({type:'reserve',seatId,requestId});});}
- destroy(){this.stopped=true;clearTimeout(this.timer);clearInterval(this.heartbeat);for(const q of this.requests.values()){clearTimeout(q.timer);q.resolve(false);}this.requests.clear();this.socket?.close();}
+ destroy(){this.stopped=true;clearTimeout(this.timer);clearInterval(this.heartbeat);for(const q of this.requests.values()){clearTimeout(q.timer);q.resolve(false);}this.requests.clear();const socket=this.socket;this.socket=null;socket?.close();}
 }

@@ -117,7 +117,9 @@ function buildLayout(full:boolean):MusicianPlacement[]{
   // same row. The outermost seat on each side stays free: the Christmas trees stand there.
   half(3,[null,['harp','harps'],v1,v2,v2,v2,...of('woodwinds','bass-clarinet','clarinet','clarinet','bassoon','contrabassoon'),va,vc,cb,cb,cb,null]);
   arc(4,.1455,of('brass','horn','horn','horn','horn','trumpet','trumpet','trombone','trombone','tuba'));
-  arc(5,.145,of('percussion','bass-drum','snare','cymbals','sleigh-bells','triangle','chimes','gong','timpani','xylophone'),13.8);
+  const percussion=of('percussion','bass-drum','snare','cymbals','sleigh-bells','triangle','chimes','gong','timpani','xylophone');
+  // The wide bass drum needs more room behind the terrace edge.
+  percussion.forEach(([type,section],i)=>place(type,section,5,(i-4)*.145,type==='bass-drum'?15:13.8));
   // Piano and celesta stand together on the flat left wing behind the harp.
   place('celesta','keyboards',3,Math.atan2(-11.6,3.4),Math.hypot(11.6,3.4));
   place('piano','keyboards',3,Math.atan2(-11.6,6.6),Math.hypot(11.6,6.6));

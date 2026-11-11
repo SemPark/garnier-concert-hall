@@ -1,3 +1,4 @@
+import {UPPER_DOOR_AXES,UPPER_PANEL_AXES} from '../shared/upperHall';
 import test from 'node:test';import assert from 'node:assert/strict';import * as T from 'three';
 import {readdirSync,readFileSync,statSync} from 'node:fs';
 import {rearFacade,buildGoldenHall,upperDoor,UPPER_DOOR} from '../src/scene/GoldenHall';
@@ -19,13 +20,13 @@ test('six timber columns carry the rear gallery front, under the gallery front a
  for(const column of columns){const b=new T.Box3().setFromObject(column);assert.ok(b.max.y<=H.balconyHeight-.3+1e-6,'below the gallery slab');assert.ok(b.max.z<GALLERY_BRIDGE.minZ+1.2,'under the gallery front');assert.ok(b.min.z>=GALLERY_BRIDGE.minZ-.01);
   const x=(b.min.x+b.max.x)/2;for(const aisle of FLOOR_AISLES)assert.ok(Math.abs(x-aisle)>REAR_COLUMNS.radius+.6,'aisles stay open');}
  for(const x of REAR_COLUMNS.xs)assert.equal(walkable('auditorium',{x,y:0,z:REAR_COLUMNS.z}),false,'visitors walk around columns');
- const doors:T.Object3D[]=[];facade.traverse(o=>{if(o.userData.landmark==='timber-door')doors.push(o);});assert.equal(doors.length,3,'the rear upper wall has no repeated row of invented pedimented doors');
+ const doors:T.Object3D[]=[];facade.traverse(o=>{if(o.userData.landmark==='timber-door')doors.push(o);});assert.equal(doors.length,5,'three entrance doors and two upper stair doors');
 });
 
 test('upper doors start at balcony level and the repeated painted details are shared',()=>{
  const scene=new T.Scene();buildGoldenHall(scene);const upper:T.Object3D[]=[],images=new Set<T.Material>();scene.updateMatrixWorld(true);
  scene.traverse(o=>{if(o.userData.landmark==='timber-door'&&o.userData.doorBottom>H.balconyHeight)upper.push(o);if(o instanceof T.Mesh&&!Array.isArray(o.material)&&o.material.userData.hallImage)images.add(o.material);});
- assert.equal(upper.length,14);const decorative:T.Object3D[]=[];scene.traverse(o=>{if(o.userData.landmark==='upper-decorated-panel')decorative.push(o);});assert.equal(decorative.length,12);for(const door of upper){const b=new T.Box3().setFromObject(door);assert.ok(b.min.y>=H.balconyHeight&&b.min.y<H.balconyHeight+.5);assert.ok(b.max.y>H.balconyHeight+7&&b.max.y<H.balconyHeight+7.6);}
+ assert.equal(upper.length,UPPER_DOOR_AXES.length*2);const decorative:T.Object3D[]=[];scene.traverse(o=>{if(o.userData.landmark==='upper-decorated-panel')decorative.push(o);});assert.equal(decorative.length,UPPER_PANEL_AXES.length*2);for(const door of upper){const b=new T.Box3().setFromObject(door);assert.ok(b.min.y>=H.balconyHeight&&b.min.y<H.balconyHeight+.5);assert.ok(b.max.y>H.balconyHeight+7&&b.max.y<H.balconyHeight+7.6);}
  assert.equal(new Set([...images].map(m=>m.userData.hallImage)).size,9);
 });
 
