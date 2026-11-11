@@ -91,12 +91,11 @@ export class StageFireworks{
  private pointCount=0;private lineCount=0;
  private last:number|null=null;private accumulator=0;private clock=0;private nextMovement=0;
  private readonly cues:Cue[]=[];private styleBag:Style[]=[];private lastStyle:Style|null=null;private lastMovement:typeof PHRASES[number]|null=null;private lastPalette=-1;
- private low=false;
 
- constructor(scene:T.Scene,private readonly mobile:boolean){
+ constructor(scene:T.Scene){
   // Separate capacity prevents the continuous falls from starving stage bursts.
-  this.stars=Array.from({length:(mobile?500:816)-104+GALLERY_STAR_LIMIT},()=>particle(true));
-  this.sparks=Array.from({length:mobile?1100:2400},()=>particle(false));
+  this.stars=Array.from({length:626+GALLERY_STAR_LIMIT},()=>particle(true));
+  this.sparks=Array.from({length:2400},()=>particle(false));
   const pointCapacity=this.stars.length+this.sparks.length;
   const lineCapacity=this.stars.length*(HISTORY-1)*2+this.sparks.length*2;
   this.pointPositions=new Float32Array(pointCapacity*3);this.pointColors=new Float32Array(pointCapacity*3);this.pointSizes=new Float32Array(pointCapacity);
@@ -138,7 +137,7 @@ export class StageFireworks{
  }
 
  private ember(x:number,y:number,z:number,vx:number,vy:number,vz:number,life:number,white=false,color?:Pick<Particle,'red'|'green'|'blue'>,launch=false){
-  const capacity=this.low?Math.min(700,this.sparks.length):this.sparks.length;
+  const capacity=this.sparks.length;
   const cap=launch?capacity:capacity-LAUNCH_RESERVE;
   if(this.sparkCount>=cap)return;
   const p=this.sparks[this.sparkCount++];
@@ -270,7 +269,7 @@ export class StageFireworks{
   const breakStyle=Object.hasOwn(BREAK_DENSITY,style)?style as BreakStyle:null;
   // A new shell must remain visible even while a long-lived willow is hanging.
   // Reuse the oldest stage trails instead of increasing the mobile particle budget.
-  const minimum=this.low?24:32;
+  const minimum=32;
   while(this.stageStarLimit-(this.starCount-this.galleryCount)<minimum){
    let oldest=-1,age=-1;
    for(let i=0;i<this.starCount;i++){
@@ -282,8 +281,8 @@ export class StageFireworks{
    this.stars[oldest]=this.stars[this.starCount];this.stars[this.starCount]=retired;
   }
   const remaining=this.stageStarLimit-(this.starCount-this.galleryCount);
-  const density=remaining<(this.mobile?500:816)*.35?.55:1;
-  const count=Math.round((this.low?85:this.mobile?115:175)*Math.sqrt(cue.size)*density);
+  const density=remaining<816*.35?.55:1;
+  const count=Math.round(175*Math.sqrt(cue.size)*density);
   const spread=(willow?3.8:brocade||kamuro?4.3:5)*cue.size;
   const depth=burstDepth(cue.x);
   const add=(vx:number,vy:number,vz:number,color:Color=cue.color,life=rand(willow?3.7:3.2,willow?4.6:4.1))=>{
@@ -294,7 +293,7 @@ export class StageFireworks{
    p.size=willow?.65:.85;
    [p.red,p.green,p.blue]=color;
    p.pattern=brocade||willow||kamuro||style==='glitter'?'twinkle':'steady';
-   p.sparkFreq=(willow||kamuro?.12:.19)*(this.low?2.1:this.mobile?1.5:1);
+   p.sparkFreq=(willow||kamuro?.12:.19);
    if(style==='ring'||style==='peony'||style==='glitter'){
     p.trail=style==='ring'?9:style==='glitter'?5:1;
     p.sparkFreq=0;
@@ -366,7 +365,7 @@ export class StageFireworks{
  /** Miller's secondary effects each branch only once. */
  private split(parent:Particle,style:BreakStyle){
   const start=rand(0,Math.PI*2);
-  const count=style==='crossette'?4:style==='floral'?this.low?7:12:style==='fallingLeaves'?6:this.low?7:12;
+  const count=style==='crossette'?4:style==='fallingLeaves'?6:12;
   for(let i=0;i<count;i++){
    const a=start+i/count*Math.PI*2,speed=rand(.75,1.55);
    const vx=parent.vx*.28+Math.sin(a)*speed,vy=parent.vy*.28+Math.cos(a)*speed;
@@ -386,7 +385,7 @@ export class StageFireworks{
  }
 
  // Keep space in the shared buffer for the gallery falls between stage bursts.
- private get stageStarLimit(){return (this.mobile?500:816)-(this.low?104:this.mobile?144:190);}
+ private get stageStarLimit(){return 626;}
  private gallerySpark(x:number,y:number,z:number,vx:number,vz:number,floor:number){
   const limit=GALLERY_STAR_LIMIT;
   if(this.galleryCount>=limit||this.starCount>=this.stars.length)return;
@@ -421,7 +420,7 @@ export class StageFireworks{
 
  private launchEffects(){
   // A quiet fan keeps the stage background alive between aerial bursts.
-  const interval=this.low?5:3;
+  const interval=3;
   if(this.fountainTick++%interval===0){
    for(const side of [-1,1]){
     const x=side*(MAX_BURST_X-.75);
@@ -521,7 +520,7 @@ export class StageFireworks{
    const bright=1.65*fade*flicker;this.point(p,bright);
    // Todd's history buffer extended into a curved 1.2 s trail. Individual dark
    // gaps and detached Miller embers prevent the silhouette becoming solid wires.
-   const stride=p.gallery?2:this.low?3:2;
+   const stride=2;
    const samples=Math.min(p.samples,p.trail);
    for(let j=0;j<samples-1;j+=stride){
     const older=Math.min(j+stride,samples-1);
@@ -547,12 +546,12 @@ export class StageFireworks{
   }
  }
 
- update(now:number,enabled:boolean,low:boolean){
+ update(now:number,enabled:boolean){
   if(!enabled){
    this.group.visible=false;this.last=null;this.clock=0;this.accumulator=0;this.nextMovement=0;this.cues.length=0;this.subBursts.length=0;this.fountainTick=0;this.movements=0;
    this.starCount=0;this.galleryCount=0;this.gallerySideCounts.fill(0);this.sparkCount=0;this.rockets.length=0;return;
   }
-  this.low=low;this.group.visible=true;
+  this.group.visible=true;
   if(this.last===null){this.last=now;this.draw();return;}
   // Ignore long background gaps; never catch up a whole hidden show on one frame.
   this.accumulator+=Math.min(.1,Math.max(0,now-this.last));this.last=now;
