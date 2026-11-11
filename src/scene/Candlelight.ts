@@ -149,10 +149,9 @@ export function buildCandlelight(scene:T.Scene){
   if(!light.isSpotLight||light.position.z!==-20||light.position.y!==10.5)return;
   const side=Math.sign(light.position.x);
   light.position.set(side*7,15,-10);
-  // The orchestra extends farther back and across raised terraces.
-  light.target.position.set(side*(JAZZ_HALL?4:5.5),JAZZ_HALL?0:1.6,JAZZ_HALL?-19:-22);
+  light.target.position.set(side*4,0,-19);
   light.color.set(0xffd08a);
-  light.intensity=JAZZ_HALL?380:540;
+  light.intensity=380;
   light.distance=32;light.angle=.95;light.penumbra=1;
  });
  // Every light costs each lit pixel, so overlapping ones merge: the seating washes go (their pool bleached the white
