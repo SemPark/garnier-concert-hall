@@ -6,6 +6,7 @@ import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shar
 import {isGesture,gestureSeconds} from '../shared/gestures';
 import {isOutfit,atCloakroom} from '../shared/wardrobe';
 import {LOUNGE_SEATS} from '../shared/loungeSeats';
+import {visitorName} from '../shared/visitorNames';
 import {freeVisitorPosition} from '../shared/visitorCollision';
 
 type Attachment={lastActivity?:number;visitor:Visitor;token:string;generation:string;lastMessage:number;windowAt:number;messageCount:number;reservationRequest?:string;roomId:string};
@@ -69,10 +70,11 @@ export class VenueRoom extends DurableObject<Env>{
   const existing=token?this.ctx.storage.sql.exec<SessionRow>('SELECT * FROM sessions WHERE token=?',token).toArray()[0]:undefined;
   if(this.active().length>=CAPACITY&&!existing)return new Response('Room full',{status:409});
   const active=existing?this.active().find(({a})=>a.visitor.id===existing.id):undefined;
-  // Names hint at the hall's secret without saying it: guests who keep coming back to a concert that never ends.
-  const nameParts=['희미한','돌아온','또 온','잊혀진','말없는','오래된','늦게 온','반짝이는','졸린','투명한','앙코르','되감긴'],nameNouns=['관객','손님','청중','메아리'];
-  const pick=<V,>(list:V[])=>list[crypto.getRandomValues(new Uint8Array(1))[0]%list.length];
-  const visitor:Visitor=active?.a.visitor??(existing?JSON.parse(existing.visitor) as Visitor:{id:crypto.randomUUID(),name:`${pick(nameParts)} ${pick(nameNouns)}`,color:PALETTE[crypto.getRandomValues(new Uint8Array(1))[0]%PALETTE.length],zone:'lobby',...SPAWN.lobby,yaw:0,pose:'idle',seatId:null,gesture:null,gestureAt:0});
+  // A new guest gets a name no one here has: first avoiding saved guests who may return, then at least everyone present.
+  const newName=()=>{const present=new Set(this.active().map(({a})=>a.visitor.name)),saved=new Set(present);
+   for(const row of this.ctx.storage.sql.exec<{visitor:string}>('SELECT visitor FROM sessions'))saved.add((JSON.parse(row.visitor) as Visitor).name);
+   const name=visitorName(saved);return saved.has(name)?visitorName(present):name;};
+  const visitor:Visitor=active?.a.visitor??(existing?JSON.parse(existing.visitor) as Visitor:{id:crypto.randomUUID(),name:newName(),color:PALETTE[crypto.getRandomValues(new Uint8Array(1))[0]%PALETTE.length],zone:'lobby',...SPAWN.lobby,yaw:0,pose:'idle',seatId:null,gesture:null,gestureAt:0});
   const savedToken=existing?.token??crypto.randomUUID();
   let claim:ClaimRow|undefined=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE visitorId=?',visitor.id).toArray()[0];
   if(claim&&!SEATS.some(s=>s.id===claim?.seatId)){this.ctx.storage.sql.exec('DELETE FROM claims WHERE visitorId=?',visitor.id);claim=undefined;}
