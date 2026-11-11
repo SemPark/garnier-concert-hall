@@ -1,10 +1,12 @@
 import * as T from 'three';
 import type {ConcertAudio} from '../audio/ConcertAudio';
-import {STAGE,STAGE_FLOOR} from '../orchestra/layout';
+import {STAGE,STAGE_FLOOR,stageRiseAt} from '../orchestra/layout';
 import {GOLDEN_HALL} from '../../shared/goldenHall';
 import {GALLERY_RAIL_HEIGHT} from '../../shared/gallery';
 
-const MAX_HEIGHT=GOLDEN_HALL.balconyHeight+GALLERY_RAIL_HEIGHT-STAGE_FLOOR-.04;
+const RIBBON_Z=STAGE.back+.75;
+const RIBBON_BASE=STAGE_FLOOR+stageRiseAt(0,RIBBON_Z)+.04;
+const MAX_HEIGHT=GOLDEN_HALL.balconyHeight+GALLERY_RAIL_HEIGHT-RIBBON_BASE;
 
 /** Sixteen camera-facing ribbons in one draw, no light/shadow or bloom pass. */
 export class MusicLights {
@@ -21,7 +23,7 @@ export class MusicLights {
    vertexShader:`attribute float ribbon; uniform float heights[16]; varying vec2 vUv; varying float energy; varying float lane;
     void main(){vUv=uv;lane=ribbon;float h=heights[int(ribbon)];energy=smoothstep(0.0,0.65,h);
      vec3 right=normalize(vec3(viewMatrix[0][0],0.0,viewMatrix[2][0]));
-     vec3 base=vec3((ribbon-7.5)*1.48,${STAGE_FLOOR+.04},${STAGE.back+.75});
+     vec3 base=vec3((ribbon-7.5)*1.48,${RIBBON_BASE},${RIBBON_Z});
      vec3 p=base+right*position.x*1.25+vec3(0.0,(position.y+0.5)*max(h,0.001),0.0);
      gl_Position=projectionMatrix*viewMatrix*vec4(p,1.0);}`,
    fragmentShader:`uniform float clock; varying vec2 vUv; varying float energy; varying float lane;

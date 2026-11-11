@@ -25,8 +25,8 @@ const LAUNCH_DEPTH=STAGE.back+2.6;
 const LAUNCH_RESERVE=112;
 const MAX_BURST_X=ORGAN_RAIL_JOIN_X-1.25;
 const MIDDLE_GALLERY_DOOR=Math.floor(UPPER_DOOR_AXES.length/2);
-// Keep the three original bays and continue at the same spacing towards the rear.
-const GALLERY_WATERFALL_AXES=UPPER_DOOR_AXES.slice(MIDDLE_GALLERY_DOOR-1,MIDDLE_GALLERY_DOOR+4);
+// Extend the second-floor row one door bay towards the stage on both sides.
+const GALLERY_WATERFALL_AXES=UPPER_DOOR_AXES.slice(MIDDLE_GALLERY_DOOR-2,MIDDLE_GALLERY_DOOR+4);
 const THIRD_FLOOR_WATERFALL_AXES=UPPER_DOOR_AXES.slice(0,MIDDLE_GALLERY_DOOR+4);
 // Original emission cadence sustains about 510 trails; leave room for its peaks.
 const GALLERY_STAR_LIMIT=600;

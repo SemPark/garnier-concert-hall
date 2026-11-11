@@ -144,7 +144,17 @@ export function buildCandlelight(scene:T.Scene){
  scene.traverse(o=>{const l=o as T.PointLight;if(l.isPointLight&&l.position.y>14&&lights.length<3){const [x,y,z]=targets[lights.length];l.position.set(x,y,z);l.color.set(0xffbf66);l.intensity=0;l.distance=25;l.decay=2;lights.push(l);}});
  scene.traverse(o=>{const l=o as T.SpotLight;if(l.isSpotLight&&l.position.z===-15&&l.position.y===12){l.color.set(0xffc874);l.intensity=85;lights.push(l);}});
  // The two wall washes nearest the stage turn to light the players softly from above, so faces and instruments read.
- scene.traverse(o=>{const l=o as T.SpotLight;if(l.isSpotLight&&l.position.z===-20&&l.position.y===10.5){const side=Math.sign(l.position.x);l.position.set(side*7,15,-10);l.target.position.set(side*4,0,-19);l.color.set(0xffd08a);l.intensity=300;l.distance=32;l.angle=.95;l.penumbra=1;}});
+ scene.traverse(o=>{
+  const light=o as T.SpotLight;
+  if(!light.isSpotLight||light.position.z!==-20||light.position.y!==10.5)return;
+  const side=Math.sign(light.position.x);
+  light.position.set(side*7,15,-10);
+  // The orchestra extends farther back and across raised terraces.
+  light.target.position.set(side*(JAZZ_HALL?4:5.5),JAZZ_HALL?0:1.6,JAZZ_HALL?-19:-22);
+  light.color.set(0xffd08a);
+  light.intensity=JAZZ_HALL?380:540;
+  light.distance=32;light.angle=.95;light.penumbra=1;
+ });
  // Every light costs each lit pixel, so overlapping ones merge: the seating washes go (their pool bleached the white
  // dinner-table cloths in the middle of the floor; the table candles light the floor now), the stage key folds into
  // the overhead player lights, and the dark ceiling lamp and the faint upper-wall washes go.
@@ -152,7 +162,6 @@ export function buildCandlelight(scene:T.Scene){
  scene.traverse(o=>{const l=o as T.SpotLight;if(!l.isLight)return;
   // Sunlight is already dimmed to almost nothing by candlelight, so the hall drops it (and its shadow pass).
   if((l as unknown as T.DirectionalLight).isDirectionalLight||(l as unknown as T.PointLight).isPointLight&&l.intensity===0||l.isSpotLight&&(l.position.y===18||l.position.y===12&&l.position.z===-15||l.position.y===7.5))drop.push(l);
-  else if(l.isSpotLight&&l.position.y===15&&l.position.z===-10)l.intensity=380;
  });
  for(const l of drop){l.removeFromParent();(l as T.SpotLight).target?.removeFromParent();const i=lights.indexOf(l);if(i>=0)lights.splice(i,1);}
  // One soft overhead light for the whole audience floor instead of the old seating pools: a directional light has no
