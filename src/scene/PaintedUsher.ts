@@ -6,6 +6,41 @@ export const PORTRAIT_SIZE = { width: 384, height: 480 };
 export const PORTRAIT_REST_YAW = -.70;
 export const PORTRAIT_LEFT_TRACK_LIMIT = -.32;
 
+function portraitTempleHair() {
+  const columns = 16, rows = 8;
+  const positions: number[] = [], colors: number[] = [], indices: number[] = [];
+  const shadow = new T.Color(0x77736b), silver = new T.Color(0xc3bcad);
+  const color = new T.Color();
+  for (const [start, end] of [[-2.22, -.82], [.82, 2.22]]) {
+    const offset = positions.length / 3;
+    for (let column = 0; column <= columns; column++) {
+      const u = column / columns;
+      const angle = T.MathUtils.lerp(start, end, u);
+      const length = Math.sin(u * Math.PI);
+      for (let row = 0; row <= rows; row++) {
+        const v = row / rows;
+        const polar = 1.42 + (v - .5) * (.26 + .57 * length);
+        const ring = Math.sin(polar);
+        const taper = length * Math.sin(v * Math.PI);
+        const shell = .985 + .10 * taper;
+        const frontDepth = -ring * Math.cos(angle);
+        const z = frontDepth < 0 ? -.9 * (-frontDepth) ** .72 : frontDepth;
+        positions.push(.3552 * ring * Math.sin(angle) * shell, .03 + .345 * Math.cos(polar), .35 * z * shell);
+        color.copy(shadow).lerp(silver, .23 + .53 * taper + .08 * Math.cos(angle * 13 + v * 3));
+        colors.push(color.r, color.g, color.b);
+        if (column === columns || row === rows) continue;
+        const a = offset + column * (rows + 1) + row, b = a + rows + 1;
+        indices.push(a, b, a + 1, b, b + 1, a + 1);
+      }
+    }
+  }
+  const geometry = new T.BufferGeometry();
+  geometry.setAttribute('position', new T.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new T.Float32BufferAttribute(colors, 3));
+  geometry.setIndex(indices);
+  return geometry;
+}
+
 /** Live avatar portrait. Both render targets are reused for every frame. */
 export class PaintedUsher {
   private readonly scene = new T.Scene();
@@ -17,8 +52,9 @@ export class PaintedUsher {
   private readonly screenCamera = new T.OrthographicCamera(-1, 1, 1, -1, 0, 2);
   private readonly materials: T.Material[] = [];
   private readonly geometries: T.BufferGeometry[] = [];
-  private readonly eyeMarks: { position: T.BufferAttribute; rest: Float32Array; lensOffsetX: number }[] = [];
+  private readonly eyeMarks: { position: T.BufferAttribute; open: Float32Array; closed: Float32Array; lensOffsetX: number }[] = [];
   private lastGazeX = NaN;
+  private lastEyesClosed = false;
   readonly texture = this.target.texture;
   readonly ready = true;
   private readonly filter = new T.ShaderMaterial({
@@ -65,6 +101,7 @@ export class PaintedUsher {
     this.avatar.rightHand.removeFromParent();
     this.avatar.instrument.removeFromParent();
     this.avatar.root.clear().add(this.avatar.body);
+    this.avatar.head.children.find(part => part.userData.hairPart)?.removeFromParent();
     this.avatar.root.traverse(object => {
       if (!(object instanceof T.Mesh)) return;
       const convert = (original: T.Material) => {
@@ -89,14 +126,22 @@ export class PaintedUsher {
       };
       object.material = Array.isArray(object.material) ? object.material.map(convert) : convert(object.material);
     });
+    const hair = portraitTempleHair();
+    const hairPigment = new T.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+    this.avatar.head.add(new T.Mesh(hair, hairPigment));
+    this.geometries.push(hair);
+    this.materials.push(hairPigment);
     for (const eyeMark of this.avatar.eyes.children) {
       if (!(eyeMark instanceof T.Mesh)) continue;
       const geometry = eyeMark.geometry.clone();
       const position = geometry.getAttribute('position') as T.BufferAttribute;
-      const rest = new Float32Array(position.array);
+      const open = new Float32Array(position.array);
+      const closed = new Float32Array(geometry.morphAttributes.position[0].array);
       position.setUsage(T.DynamicDrawUsage);
-      this.eyeMarks.push({ position, rest, lensOffsetX: Math.sign(rest[0]) * .025 });
+      this.eyeMarks.push({ position, open, closed, lensOffsetX: Math.sign(open[0]) * .025 });
       eyeMark.geometry = geometry;
+      // Apply the closed shape before placing it on the curved face at the current gaze.
+      eyeMark.morphTargetInfluences![0] = 0;
       eyeMark.frustumCulled = false;
       this.geometries.push(geometry);
     }
@@ -218,17 +263,19 @@ export class PaintedUsher {
     this.faceMark(new T.ShapeGeometry(shape, 8), material);
   }
 
-  pose(yaw = PORTRAIT_REST_YAW, pitch = 0) {
+  pose(yaw = PORTRAIT_REST_YAW, pitch = 0, eyesClosed = false) {
     // Tracking is in painting space; remove the shoulders' rotation before
     // applying it to the head. Eyes cover the remaining part of the turn.
     const faceYaw = Math.max(PORTRAIT_REST_YAW, yaw <= PORTRAIT_REST_YAW ? yaw : yaw * .75);
     this.avatar.head.rotation.set(pitch + .025, faceYaw - this.avatar.root.rotation.y, -.045);
     const gazeX = -T.MathUtils.clamp((yaw - faceYaw) / .15, -1, 1) * .027;
-    if (gazeX === this.lastGazeX) return;
+    if (gazeX === this.lastGazeX && eyesClosed === this.lastEyesClosed) return;
     this.lastGazeX = gazeX;
+    this.lastEyesClosed = eyesClosed;
     // Place the pupil's lower edge against the inner bottom of the spectacle rim.
     const gazeY = -.027;
-    for (const { position, rest, lensOffsetX } of this.eyeMarks) {
+    for (const { position, open, closed, lensOffsetX } of this.eyeMarks) {
+      const rest = eyesClosed ? closed : open;
       for (let i = 0; i < position.count; i++) {
         const x = rest[i * 3] + lensOffsetX + gazeX;
         const y = rest[i * 3 + 1] + .03 + gazeY;

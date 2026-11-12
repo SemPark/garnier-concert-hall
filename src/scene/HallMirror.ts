@@ -72,7 +72,7 @@ export class HallMirror{
   this.root.userData.landmark='hall-mirror';
   const frame=new T.Mesh(arch(1.44,3.57),material(0x9f763e));
   const bevel=new T.Mesh(arch(1.29,3.42),material(0x403126));bevel.position.z=.018;
-  this.glass=new Reflector(arch(1.20,3.33),{textureWidth:1024,textureHeight:1024,multisample:0,color:0xc8d6de,clipBias:.003,shader:mirrorShader});
+  this.glass=new Reflector(arch(1.20,3.33),{textureWidth:512,textureHeight:512,multisample:0,color:0xc8d6de,clipBias:.003,shader:mirrorShader});
   this.glass.position.z=.031;
   const renderReflection = this.glass.onBeforeRender.bind(this.glass);
   this.glass.onBeforeRender=(renderer,world,camera,geometry,mat,group)=>{

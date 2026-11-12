@@ -1,5 +1,6 @@
-import {onTrainDeck,TRAIN_DECK,TRAIN_PLATFORM} from '../shared/encoreTrain';
+import {onTrainDeck,TRAIN_DECK,TRAIN_PLATFORM,TRAIN_PERIOD} from '../shared/encoreTrain';
 import {EncoreTrain} from './scene/EncoreTrain';
+import {EncoreClock} from './scene/EncoreClock';
 import {MusicLights} from './scene/MusicLights';
 import {StageFireworks} from './scene/StageFireworks';
 import {newId} from './util/requestId';
@@ -22,6 +23,8 @@ import {constrainCamera} from './controls/cameraCollision';
 import {createVenue,createVenueAsync,type Venue} from './scene/Venue';
 import {Ghosts,type GhostSpot} from './scene/Ghosts';
 import {TEA_TABLE} from './scene/GhostTeaParty';
+import type {GhostCostume} from './scene/GhostCostumes';
+import {whiteRabbitSpot} from './scene/WhiteRabbit';
 import {GESTURE_ICON,gestureTurnWeight,gestureWeight,type Icon} from './character/villager';
 import {ICON_SIZE,MAX_GROWTH} from './character/EmoteLayer';
 import {ghostTop} from './character/VisitorNames';
@@ -39,7 +42,13 @@ function ghostGesture(id:string,t:number){const offset=(ghostSeatHash(id)%97)/97
 function visitorGhostGesture(v:Visitor,now:number){if(!v.gesture)return null;const age=(now-v.gestureAt)/1000;return age<=gestureSeconds(v.gesture)?{gesture:v.gesture,age}:null;}
 const ghostSeatHash=(id:string)=>{let h=2166136261;for(let i=0;i<id.length;i++)h=Math.imul(h^id.charCodeAt(i),16777619);return h>>>0;};
 /** A handful of parterre seats hold a ghost while no visitor has taken them. */
-const NPC_SEATS=FLOOR_SEATS.filter((_,i)=>i%25===6).slice(0,5);
+const NPC_CAST:ReadonlyArray<{row:number;column:number;costume:GhostCostume}>=[
+ {row:2,column:3,costume:'phantom'},
+ {row:8,column:3,costume:'vesper'},
+ {row:8,column:4,costume:'candra'},
+ {row:21,column:2,costume:'queen'},
+];
+const NPC_SEATS=NPC_CAST.map(guest=>FLOOR_SEATS.find(seat=>seat.row===guest.row&&seat.column===guest.column)!);
 const TEA_SEATS=FLOOR_SEATS.filter(seat=>seat.row===TEA_TABLE&&seat.column<=2);
 import {LobbyLightPass,type RenderPassTimings} from './scene/LobbyLighting';
 import {interiorEnvironment,bakeArchitectureShadows} from './scene/InteriorLight';
@@ -112,6 +121,7 @@ export class World{
  private fireworks:StageFireworks|null=null;
  private musicLights:MusicLights|null=null;
  private encoreTrain:EncoreTrain|null=null;
+ private encoreClock:EncoreClock|null=null;
  private lightingPass:LobbyLightPass|null=null;private environment:T.WebGLRenderTarget;private poseFrustum=new T.Frustum();private poseProjection=new T.Matrix4();private poseSphere=new T.Sphere();private poseCenter=new T.Vector3();private avatar:Avatar|null=null;private remotes=new Map<string,Remote>();private ghostBuffer:GhostSpot[]=[];private route:Point[]=[];private avatarVariant=-1;private reservedSeat:string|null=null;private seating=false;private reserveVersion=0;
  private collisionPauseUntil=0;private seatedTarget:T.Vector3|null=null;private cameraSeatAmount=0;private petFocus=new T.Vector3();
  hallLoading=false;private hallLoadingTimeout=0;
@@ -187,7 +197,7 @@ export class World{
  }
  private prepareHall(){
   if(this.venues.auditorium)return Promise.resolve(this.venues.auditorium);
-  return this.hallBuild??=createVenueAsync('auditorium',()=>this.disposed).then(venue=>{venue.scene.environment=this.environment.texture;venue.scene.environmentIntensity=.03;/* Candlelight concert: the walls and organ fall back into the dark. */this.venues.auditorium=venue;this.fireworks=new StageFireworks(venue.scene);this.musicLights=new MusicLights(venue.scene);this.encoreTrain=new EncoreTrain(venue.scene);this.crowds.auditorium=new Ghosts(venue.scene);venue.emotes.setViewport(this.renderer.domElement.height,this.camera.fov);venue.sunlight?.setViewport(this.renderer.domElement.height,this.camera.fov);return venue;}).catch(error=>{this.hallBuild=null;throw error;});
+  return this.hallBuild??=createVenueAsync('auditorium',()=>this.disposed).then(venue=>{venue.scene.environment=this.environment.texture;venue.scene.environmentIntensity=.03;/* Candlelight concert: the walls and organ fall back into the dark. */this.venues.auditorium=venue;this.fireworks=new StageFireworks(venue.scene);this.musicLights=new MusicLights(venue.scene);this.encoreTrain=new EncoreTrain(venue.scene);this.encoreClock=new EncoreClock(venue.scene);this.crowds.auditorium=new Ghosts(venue.scene);venue.emotes.setViewport(this.renderer.domElement.height,this.camera.fov);venue.sunlight?.setViewport(this.renderer.domElement.height,this.camera.fov);return venue;}).catch(error=>{this.hallBuild=null;throw error;});
  }
  /** Shader readiness can stop progressing after a mobile GPU context loss. */
  private async compileHall(scene:T.Scene,camera:T.Camera){
@@ -265,7 +275,7 @@ export class World{
  private *remoteAvatars(){for(const r of this.remotes.values())yield r.avatar;}
  /** Everyone but the viewer is a ghost (ghosts face +z, people face -z, hence the half turn) (each viewer sees only themself as a person). */
  private *ghostSpots():Generator<GhostSpot>{for(const r of this.remotes.values()){const a=r.avatar.root;if(a.visible)yield {x:a.position.x,y:a.position.y,z:a.position.z,yaw:a.rotation.y+Math.PI,id:r.visitor.id,sitting:r.visitor.pose==='sit',walking:a.position.distanceToSquared(this.poseCenter.set(r.visitor.x,r.visitor.y??0,r.visitor.z))>.0025,drink:r.visitor.drink,bite:r.visitor.dish?BITE_COLOUR[r.visitor.dish]:undefined,...visitorGhostGesture(r.visitor,this.net.now())};}}
- private *allGhosts(){yield*this.ghostSpots();yield*this.flyingGhosts();if(GHOST_ORCHESTRA&&this.zone==='auditorium')yield*ORCHESTRA_GHOSTS;}
+ private *allGhosts(){yield*this.ghostSpots();yield*this.flyingGhosts();yield*this.playfulGhosts();if(GHOST_ORCHESTRA&&this.zone==='auditorium')yield*ORCHESTRA_GHOSTS;}
  /** The hall's own ghosts: a few drifting overhead, some strolling the aisles, some cheering in empty seats.
   * Everything follows the shared clock, so every visitor sees the same ghosts in the same places. */
  private *flyingGhosts():Generator<GhostSpot>{
@@ -273,16 +283,55 @@ export class World{
   // Above the stage: left, middle and right.
   FLYERS.forEach((f,i)=>{const a=t*f.speed+i*2.1,x=f.x+f.rx*Math.sin(a),z=f.z+f.rz*Math.sin(a*2)/2,y=f.y+.8*Math.sin(t*.4+i);
    this.ghostBuffer.push({x,y,z,yaw:Math.atan2(f.rx*Math.cos(a),f.rz*Math.cos(a*2)),id:'npc-fly'+i,sitting:false,npc:true,angel:true});});
-  // (Walking ghosts are switched off for now: WALKER_PATHS is kept to bring them back.)
+  this.ghostBuffer.push(whiteRabbitSpot(t));
   // In seats nobody has claimed: clapping, waving, cheering and nodding in turns.
   const claimed=this.net.state?.seats??{};
   for(const [i,seat] of TEA_SEATS.entries()){
    if(claimed[seat.id])continue;
    this.ghostBuffer.push({x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw+Math.PI,id:`tea-party-${i}`,sitting:true,npc:true,teaGuest:i===0?'hatter':'hare',age:(t+i*5)%10});
   }
+  const loneClapAge=t%67;
+  const loneClapper=NPC_SEATS.find(seat=>!claimed[seat.id]&&seat.row!==TEA_TABLE);
   NPC_SEATS.forEach((seat,i)=>{if(claimed[seat.id]||seat.row===TEA_TABLE)return;
-   this.ghostBuffer.push({x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw+Math.PI,id:'npc-'+seat.id,sitting:true,npc:true,...ghostGesture('npc-'+seat.id,t)});});
+   this.ghostBuffer.push({x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw+Math.PI,id:'npc-'+seat.id,sitting:true,npc:true,costume:NPC_CAST[i].costume,...(loneClapAge<6?{gesture:seat===loneClapper?(loneClapAge<2.8?'clap':'shh'):null,age:loneClapAge<2.8?loneClapAge:loneClapAge-2.8}:ghostGesture('npc-'+seat.id,t))});});
   yield*this.ghostBuffer;this.ghostBuffer.length=0;
+ }
+ private photoGhostAt = 0;
+ private photoGhostVisit = 0;
+ private readonly playfulPosition = new T.Vector3();
+ private *playfulGhosts(): Generator<GhostSpot> {
+  if (this.zone !== 'auditorium' || !this.entered || this.reduced) return;
+  const seconds = this.net.now() / 1000;
+  const point = this.playfulPosition;
+  const trainAge = seconds % (TRAIN_PERIOD + 3) - 3;
+  if (this.encoreTrain && trainAge >= 0 && trainAge < 15) {
+   const yaw = this.encoreTrain.seat(0, point) + Math.PI;
+   // A late guest launches from the platform and catches the rear carriage roof.
+   const catchUp = T.MathUtils.smoothstep(trainAge, 1.2, 9);
+   point.y += 2.5;
+   point.lerp(new T.Vector3(TRAIN_PLATFORM.x + 3, TRAIN_PLATFORM.y, TRAIN_PLATFORM.z), 1 - catchUp);
+   point.y += Math.sin(catchUp * Math.PI) * 2;
+   if (trainAge > 12) point.y += (trainAge - 12) * 3;
+   yield {x:point.x,y:point.y,z:point.z,yaw,id:'late-train-ghost',sitting:false,npc:true,gesture:trainAge<3?'wave':null,age:trainAge};
+  }
+  const clockAge = seconds % 180;
+  if (this.encoreClock && clockAge >= 35 && clockAge < 55) {
+   const yaw = this.encoreClock.riderPosition(performance.now()/1000, point);
+   const arrival = 1 - T.MathUtils.smoothstep(clockAge, 35, 39);
+   const departure = T.MathUtils.smoothstep(clockAge, 50, 55);
+   point.y += (arrival + departure) * 6;
+   yield {x:point.x,y:point.y,z:point.z,yaw,id:'pendulum-rider',sitting:true,npc:true,gesture:'wave',age:(clockAge-35)%6};
+  }
+  if (this.photoMode && this.photoGhostVisit % 3 === 1) {
+   const age = (performance.now() - this.photoGhostAt) / 1000;
+   if (age < 1.2) return;
+   const approach = T.MathUtils.smoothstep(age, 1.2, 3.2);
+   const direction = this.position.clone().sub(this.camera.position).setY(0).normalize();
+   const side = new T.Vector3(-direction.z, 0, direction.x);
+   point.copy(this.position).addScaledVector(direction, .85).addScaledVector(side, 2.8 - approach * 2.1);
+   point.y += .12;
+   yield {x:point.x,y:point.y,z:point.z,yaw:Math.atan2(this.camera.position.x-point.x,this.camera.position.z-point.z),id:'photo-sneak',sitting:false,npc:true,gesture:'wave',age:(age-1.2)%5};
+  }
  }
  startPhotoMode(){
   if(!this.entered||!this.ready||this.changingZone||this.hallLoading)return;
@@ -291,6 +340,7 @@ export class World{
   if(this.pose!=='sit')this.cancelSeat();
   this.photoAnchor.copy(this.position);
   this.photoMode=true;
+  this.photoGhostAt=performance.now();this.photoGhostVisit++;
   this.route=[];
   this.marker.visible=false;
   this.input.keys.clear();
@@ -686,6 +736,7 @@ export class World{
   if(gesture==='drink'){if(this.zone==='auditorium'?!me?.drink||(me.drinkSips??0)>=DISH_BITES||me.drinkEmptyAt:!me?.coffee||(me.coffeeSips??0)>=3)return;}
   if(gesture==='eat'&&(me?.dish?(me.dishBites??0)>=DISH_BITES||me.dishEmptyAt:!me?.macaron||me.macaronEmptyAt||(me.macaronBites??0)>=2))return;
   this.lobbyEnteredAt=performance.now();this.gesture=gesture;this.gestureAt=this.net.now();this.gestureCameraTurn=null;this.net.send({type:'gesture',gesture});if(gesture==='clap')this.audio.clap();else if(gesture==='bravo')this.audio.bravo();
+  if(this.entered&&(gesture==='wave'||gesture==='bow'))this.venue.portrait?.greet(this.position,this.lobbyEnteredAt);
   }
  private click(x:number,y:number){if(!this.entered||this.photoMode)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
   const hits=this.ray.intersectObjects([...(this.zone==='auditorium'?this.encoreTrain?.targets??[]:[]),...(this.venue.usher?.targets??[]),...(this.venue.portrait?[this.venue.portrait.surface]:[]),...(this.dishLayer()?.targets??[]),...(this.venue.cat?.targets??[]),...(this.venue.stairArrows?.targets??[]),...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);if(!hits.length)return;const hit=hits[0];
@@ -1012,6 +1063,7 @@ export class World{
   const fireworksStart=timings?performance.now():0;
   this.fireworks?.update(now/1000,this.zone==='auditorium'&&this.entered&&!this.reduced,this.poseFrustum);
   if(timings)timings.fireworksUpdate=performance.now()-fireworksStart;
+  this.encoreClock?.update(now/1000,this.audio.playback,this.camera,this.zone==='auditorium'&&this.entered,this.reduced);
   this.musicLights?.update(now/1000,dt,this.zone==='auditorium'&&this.entered&&!this.reduced,this.audio);
   this.updateCandles(now);this.updateCoffee(now);
   const playback=this.audio.playback;if(now-this.orchestraAt>=1000/30){
@@ -1084,5 +1136,5 @@ export class World{
   if(timings)this.onDiagnosticFrame?.(timings);
   if(now-this.lastUI>500){this.lastUI=now;this.onChange();}
  };
- destroy(){if(this.disposed)return;this.disposed=true;this.endPhotoMode();this.encoreTrain?.dispose();this.musicLights?.dispose();this.fireworks?.dispose();this.venues.auditorium?.mirror?.dispose();this.venues.auditorium?.portrait?.dispose();this.venues.auditorium?.usher?.dispose();this.conductEffect?.dispose();this.activityEvents.abort();clearTimeout(this.hallLoadingTimeout);this.releaseLoadingCallbacks();cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.lightingPass?.dispose();this.environment.dispose();this.renderer.dispose();this.renderer.forceContextLoss();this.renderer.domElement.remove();this.visitorNames.dispose();}
+ destroy(){if(this.disposed)return;this.disposed=true;this.endPhotoMode();this.encoreTrain?.dispose();this.encoreClock?.dispose();this.musicLights?.dispose();this.fireworks?.dispose();this.venues.auditorium?.mirror?.dispose();this.venues.auditorium?.portrait?.dispose();this.venues.auditorium?.usher?.dispose();this.conductEffect?.dispose();this.activityEvents.abort();clearTimeout(this.hallLoadingTimeout);this.releaseLoadingCallbacks();cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.lightingPass?.dispose();this.environment.dispose();this.renderer.dispose();this.renderer.forceContextLoss();this.renderer.domElement.remove();this.visitorNames.dispose();}
 }

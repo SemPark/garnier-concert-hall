@@ -1,9 +1,13 @@
 export type RenderQuality='balanced'|'sharp'|'low';
 /** Preserve aspect ratio within the selected landscape/portrait resolution envelope. */
 export function renderRatio(width:number,height:number,dpr:number,quality:RenderQuality,mobile=false){
+ if(mobile){
+  const [long,short]=quality==='sharp'?[1280,720]:[1136,640];
+  return Math.min(Math.max(1,dpr),long/Math.max(1,width,height),short/Math.max(1,Math.min(width,height)));
+ }
  const [long,short]=quality==='sharp'?[1920,1080]:quality==='balanced'?[1600,900]:[1280,720];
  const fit=Math.min(long/Math.max(1,width,height),short/Math.max(1,Math.min(width,height)));
- const cap=quality==='sharp'?Infinity:quality==='balanced'?(mobile?2:1.8):1.5;
+ const cap=quality==='sharp'?Infinity:quality==='balanced'?1.8:1.5;
  return Math.min(Math.max(1,dpr),cap,fit);
 }
 

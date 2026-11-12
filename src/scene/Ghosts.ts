@@ -5,15 +5,18 @@ import type {Gesture} from '../../shared/gestures';
 import {buildFork,buildWineGlass,WINE_SCALE} from './DinnerDishes';
 import {buildCoffeeCup} from '../character/CoffeeCup';
 import {buildTeaGuest,type TeaGuest} from './GhostTeaParty';
+import {buildGhostCostume,type GhostCostume} from './GhostCostumes';
+import {GHOST_SURFACE} from './GhostSurface';
 
 /** One ghost to draw this frame: where it is, which way it faces, and a stable id for its colour and rhythm. */
 export type GhostSpot={x:number;y:number;z:number;yaw:number;id:string;sitting:boolean;
  teaGuest?:TeaGuest;
+ costume?:GhostCostume;
  /** Hall ghosts (not visitors) share one blue. */npc?:boolean;
  /** A visitor gesture and its age in seconds: posed with the same hand targets and body lean as the people. */gesture?:Gesture|null;age?:number;
  /** What a diner has: the drink they lift while sipping and the colour of the bite on their fork. */drink?:'coffee'|'wine';bite?:number;
  /** The ghosts above the stage: wings and a halo. */angel?:boolean;
- /** Moving right now (visitors only): steps and arm swing instead of idle floating. */walking?:boolean};
+ /** Moving right now: steps and arm swing. */walking?:boolean};
 
 /** Soft glow colours; each ghost keeps one, chosen from its id so every viewer sees the same colour. */
 const GLOWS=[0xffd24a,0xff6fa8,0xb38cff,0x6cf2a0].map(c=>new T.Color(c));
@@ -49,15 +52,19 @@ const vertex=/* glsl */`
 uniform float uTime;
 attribute vec3 aGlow;attribute float aSeed;attribute float aArm;attribute vec3 aLeft;attribute vec3 aRight;attribute vec3 aBody;
 varying vec3 vGlow;varying vec3 vLocal;varying vec3 vNormal;varying vec3 vView;varying float vUp;
+varying float vRabbitCloth;
 #include <common>
 #include <logdepthbuf_pars_vertex>
 void main(){
  // aSeed = rhythm (fraction) + 32 when seated + 64 for a visitor + 128 while walking. Gestures arrive ready-made from
  // the people's own pose: aLeft/aRight are the directions the arms point, aBody is (bow forward, lean sideways, turn).
- float seed=fract(aSeed),flags=floor(aSeed/32.),seated=mod(flags,2.),visitor=mod(floor(flags/2.),2.),walk=floor(flags/4.);
+ float seed=fract(aSeed),flags=floor(aSeed/32.),seated=mod(flags,2.),visitor=mod(floor(flags/2.),2.),walk=mod(floor(flags/4.),2.),objectHead=mod(floor(flags/8.),2.);
+ vRabbitCloth=mod(floor(flags/16.),2.)*(1.-abs(aArm));
  // Real visitors move only as their person does: no idle float or flutter, steps while walking.
  float idle=1.-visitor;
- vec3 p=position;vec3 n=normal;float below=clamp((-p.y-.4)/.3,0.,1.)*(1.-seated);
+ vec3 p=position;vec3 n=normal;
+ // Object-headed guests keep their sheet and arms, capped under the collar.
+ if(objectHead>.5&&aArm==0.&&p.y>0.){p.y=0.;n=vec3(0.,1.,0.);}float below=clamp((-p.y-.4)/.3,0.,1.)*(1.-seated);
  if(seated>.5&&p.y<-.66&&aArm==0.){ // below the seat line the sheet slides forward over the cushion and drapes down like legs
   float k=smoothstep(0.,.1,-.66-p.y);p.z=p.z*mix(1.,.6,k)+.22*k;n=normalize(mix(n,vec3(0.,-.3,1.),k*.4));
  }
@@ -80,21 +87,28 @@ void main(){
  p.y+=sin(uTime*1.5+seed*6.)*.07*(1.-seated*.8)*idle+abs(sin(uTime*9.+seed*6.))*.05*walk; // float, or steps
  vec4 world=modelMatrix*instanceMatrix*vec4(p,1.);
  vec4 mv=viewMatrix*world;gl_Position=projectionMatrix*mv;
- vLocal=position;vGlow=aGlow;vView=-mv.xyz;
+ vLocal=position;if(objectHead>.5)vLocal.z=-1.;vGlow=aGlow;vView=-mv.xyz;
  vNormal=normalize(mat3(viewMatrix)*mat3(modelMatrix)*mat3(instanceMatrix)*n);vUp=normalize(mat3(modelMatrix)*mat3(instanceMatrix)*n).y;
  #include <logdepthbuf_vertex>
 }`;
 const fragment=/* glsl */`
 uniform float uFace;uniform float uTime;
 varying vec3 vGlow;varying vec3 vLocal;varying vec3 vNormal;varying vec3 vView;varying float vUp;
+varying float vRabbitCloth;
 #include <common>
 #include <logdepthbuf_pars_fragment>
 float dot2(vec2 a,vec2 c,vec2 r){vec2 d=(a-c)/r;return dot(d,d);}
+${GHOST_SURFACE}
 void main(){
  #include <logdepthbuf_fragment>
- float rim=1.-max(dot(normalize(vNormal),normalize(vView)),0.);
  // A warm ivory like the hall's plaster in candlelight, lit softly from above; no glow of its own.
- vec3 c=vec3(.8,.7,.56)*(.6+.32*(.5+.5*vUp)+.08*rim);
+ vec3 c=ghostSurface(vNormal,vView,vUp);
+ if(vRabbitCloth>.5&&vLocal.y<-.37){
+  // Colour the existing sheet so the trousers follow its running deformation exactly.
+  c*=vec3(.055,.09,.15);
+  float seam=1.-smoothstep(.008,.018,abs(vLocal.x));
+  if(vLocal.z>0.&&vLocal.y<-.44)c*=1.-.25*seam;
+ }
  if(uFace>.5&&vLocal.z>0.){
   vec2 f=vLocal.xy/1.23;
   // Proportions of a classic cute ghost: big oval eyes just above the middle.
@@ -172,6 +186,7 @@ function angelKit(){
  * hem flutter and gestures run in the shader; the CPU only places each ghost 30 times a second.
  */
 export class Ghosts{
+ private readonly costumes=new Map<GhostCostume,ReturnType<typeof buildGhostCostume>>();
  private readonly teaGuests=new Map<TeaGuest,ReturnType<typeof buildTeaGuest>>();
  private time={value:0};
  private near:Batch;private far:Batch;
@@ -211,13 +226,14 @@ export class Ghosts{
   if(now-this.updatedAt<1000/30)return;this.updatedAt=now;
   camera.updateMatrixWorld();this.frustum.setFromProjectionMatrix(this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
   for(const b of [this.near,this.far])b.used=0;let angels=0,holding=0;const time=now/1000;
+  for(const costume of this.costumes.values())costume.root.visible=false;
   for(const guest of this.teaGuests.values()){guest.root.visible=false;guest.cup.visible=false;}
   for(const g of ghosts){
    // Heads at the visitors' head height. Seated, that leaves only the last 0.1 m of sheet below the cushion (0.63 m);
    // it drapes over the front edge (see the vertex shader).
    if(g.sitting){this.s.set(1,1,1);this.v.set(g.x+Math.sin(g.yaw)*SEAT_FORWARD,g.y+SEATED_HEAD,g.z+Math.cos(g.yaw)*SEAT_FORWARD);}
-   else{this.s.set(1,1,1);this.v.set(g.x,g.y+STANDING_HEAD,g.z);}if(!this.frustum.intersectsSphere(this.sphere.set(this.v,g.teaGuest?1.7:1)))continue;
-   const h=hash(g.id),glow=g.npc?NPC_GLOW:GLOWS[h%GLOWS.length],seed=(h>>>8)%1000/1000+(g.sitting?32:0)+(g.npc?0:64)+(g.walking&&!g.sitting?128:0),distance=this.v.distanceTo(camera.position),far=distance>14;
+   else{this.s.set(1,1,1);this.v.set(g.x,g.y+STANDING_HEAD,g.z);}if(!this.frustum.intersectsSphere(this.sphere.set(this.v,g.teaGuest||g.costume?1.9:1)))continue;
+   const h=hash(g.id),glow=g.npc?NPC_GLOW:GLOWS[h%GLOWS.length],seed=(h>>>8)%1000/1000+(g.sitting?32:0)+(g.npc?0:64)+(g.walking&&!g.sitting?128:0)+(g.costume==='vesper'||g.costume==='candra'?256:0)+(g.costume==='white-rabbit'?512:0),distance=this.v.distanceTo(camera.position),far=distance>14;
    this.m.compose(this.v,this.q.setFromAxisAngle(this.up,g.yaw),this.s);
    this.b.set(0,0,0);
    if(g.teaGuest){
@@ -276,6 +292,19 @@ export class Ghosts{
     }
     this.b.set(pose.lean+lean+pose.headPitch*.5*w,-(pose.sway+pose.headRoll*.5)*w,pose.turn+(pose.turn?pose.headYaw:0));
    }else{this.l.copy(REST[0]);this.r.copy(REST[1]);}
+   if(g.costume==='white-rabbit')this.b.x+=.14;
+   if(g.costume){
+    let costume=this.costumes.get(g.costume);
+    if(!costume){costume=buildGhostCostume(g.costume);this.costumes.set(g.costume,costume);this.scene.add(costume.root);}
+    costume.root.visible=true;
+    costume.root.position.copy(this.v);
+    costume.root.position.y+=Math.sin(time*1.5+(h>>>8)%1000/1000*6)*.07*(g.sitting?.2:1);
+    if(g.walking&&!g.sitting)costume.root.position.y+=Math.abs(Math.sin(time*9+(h>>>8)%1000/1000*6))*.05;
+    costume.root.rotation.y=g.yaw;
+    // Match the shader's roll, turn and pitch about the hips, in that order.
+    costume.pivot.rotation.set(this.b.x,this.b.z,this.b.y,'XYZ');
+    if(costume.flame){costume.flame.scale.y=1+Math.sin(time*5)*.045;costume.flame.rotation.z=Math.sin(time*3)*.04;}
+   }
    this.put(far?this.far:this.near,this.m,glow,seed);
   }
   for(let i=angels;i<this.angels.length;i++)this.angels[i].kit.visible=false;
