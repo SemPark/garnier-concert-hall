@@ -75,7 +75,7 @@ const DINNER_SEATS_BY_ID=new Map(FLOOR_SEATS.map(seat=>[seat.id,seat]));
 
 function measuredVenue(zone:Zone){const start=performance.now(),venue=createVenue(zone);performance.measure(`aurea-${zone}-build`,{start,end:performance.now()});return venue;}
 type Remote={avatar:Avatar;visitor:Visitor;lastPosition:T.Vector3;zone:Zone;poseAt:number;};
-export type FrameTimings=RenderPassTimings&{musicianAnimation:number;musicianBatch:number;crowdBatch:number};
+export type FrameTimings=RenderPassTimings&{musicianAnimation:number;musicianBatch:number;crowdBatch:number;fireworksUpdate:number};
 /** The lobby is drawn a little darker than the hall's default exposure. */
 const LOBBY_EXPOSURE=.88;
 const FIRST_PERSON_ZOOM=1.2;
@@ -125,6 +125,7 @@ export class World{
  onDiagnosticFrame:((timings:FrameTimings)=>void)|null=null;
  private probeViewport:{width:number;height:number}|undefined;
  private readonly visitorNames:VisitorNames;
+ private graphicsLost=false;private graphicsRestorePending=false;
  private marker:T.Mesh;private statsTime=0;private frames=0;private reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
  constructor(host:HTMLElement,private net:Presence,private audio:ConcertAudio){
   reportLoading(20,'음악당 공간을 만들고 있어요');
@@ -149,7 +150,37 @@ export class World{
   this.marker=new T.Mesh(new T.RingGeometry(.16,.24,24),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.8,depthWrite:false}));this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.venues.lobby.scene.add(this.marker);
   this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>{if(this.photoMode)this.endPhotoMode();else this.stand();}});
   for(const event of ['pointerdown','pointermove','keydown','wheel'])window.addEventListener(event,()=>{const now=performance.now();this.lobbyEnteredAt=now;this.stageInputAt=now;if(this.entered&&this.zone==='lobby'&&now-this.activitySentAt>2000){this.activitySentAt=now;this.net.send({type:'activity'});}},{passive:true,signal:this.activityEvents.signal});
-  window.addEventListener('resize',this.resize);canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();if(this.disposed)return;failLoading();this.stopHallLoading();this.onToast('화면 연결이 끊겼어요. 복구하고 있습니다.');});canvas.addEventListener('webglcontextrestored',()=>{if(!this.disposed)location.reload();});this.resize();this.snapCamera();bakeArchitectureShadows(this.renderer,this.venues.lobby.scene,this.camera);this.venues.lobby.updateLOD(this.camera);this.animate();if(new URLSearchParams(location.search).has('diagnostics'))Object.assign(window,{__concertMetrics:()=>({fps:this.fps,calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,pixelRatio:this.renderer.getPixelRatio(),buffer:[this.renderer.domElement.width,this.renderer.domElement.height],quality:this.quality,mobile:this.mobile,targetFPS:frameRate(this.mobile,this.quality),animationHz:Math.min(30,frameRate(this.mobile,this.quality)),antialias:this.renderer.getContext().getContextAttributes()?.antialias})});
+  window.addEventListener('resize',this.resize);
+  canvas.addEventListener('webglcontextlost',event=>{
+   event.preventDefault();
+   if(this.disposed)return;
+   this.graphicsLost=true;this.graphicsRestorePending=false;
+   this.onToast('화면 연결이 끊겼어요. 복구하고 있습니다.');
+  },{signal:this.activityEvents.signal});
+  canvas.addEventListener('webglcontextrestored',()=>{
+   if(!this.disposed)this.graphicsRestorePending=true;
+  },{signal:this.activityEvents.signal});
+  this.resize();this.snapCamera();bakeArchitectureShadows(this.renderer,this.venues.lobby.scene,this.camera);this.venues.lobby.updateLOD(this.camera);this.animate();if(new URLSearchParams(location.search).has('diagnostics'))Object.assign(window,{__concertMetrics:()=>({fps:this.fps,calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,pixelRatio:this.renderer.getPixelRatio(),buffer:[this.renderer.domElement.width,this.renderer.domElement.height],quality:this.quality,mobile:this.mobile,targetFPS:frameRate(this.mobile,this.quality),animationHz:Math.min(30,frameRate(this.mobile,this.quality)),antialias:this.renderer.getContext().getContextAttributes()?.antialias})});
+ }
+ private restoreGraphics(){
+  this.graphicsRestorePending=false;
+  try{
+   const previous=this.environment;
+   this.environment=interiorEnvironment(this.renderer);
+   for(const venue of Object.values(this.venues)){
+    venue.scene.environment=this.environment.texture;
+    venue.portrait?.invalidateRender();
+    if(venue===this.venues.lobby||this.hallWarmed){
+     bakeArchitectureShadows(this.renderer,venue.scene,this.camera);
+     venue.updateLOD(this.camera);
+    }
+   }
+   previous.dispose();
+   this.graphicsLost=false;
+  }catch(error){
+   console.error('Could not restore concert graphics',error);
+   this.onToast('화면을 복구하지 못했어요.');
+  }
  }
  private ensureHall(){
   if(!this.venues.auditorium)throw new Error('공연장을 준비하고 있어요.');return this.venues.auditorium;
@@ -875,11 +906,11 @@ export class World{
  }
  private animate=()=>{
   if(this.disposed)return;
-  this.frame=requestAnimationFrame(this.animate);const now=performance.now();if(document.hidden){this.last=now;this.renderedAt=0;return;}const rate=this.frameBudget(),interval=1000/rate;if(now-this.renderedAt<interval)return;this.renderedAt=interval?now-((now-this.renderedAt)%interval):now;const elapsed=(now-this.last)/1000,dt=Math.min(.1,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
+  this.frame=requestAnimationFrame(this.animate);const now=performance.now();if(document.hidden){this.last=now;this.renderedAt=0;return;}if(this.graphicsRestorePending)this.restoreGraphics();if(this.graphicsLost){this.last=now;this.renderedAt=0;return;}const rate=this.frameBudget(),interval=1000/rate;if(now-this.renderedAt<interval)return;this.renderedAt=interval?now-((now-this.renderedAt)%interval):now;const elapsed=(now-this.last)/1000,dt=Math.min(.1,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
   const workStart=this.diagnosticActive?performance.now():0;
   if(this.diagnosticActive&&this.diagnosticMode==='audio-only'){this.frameCost={at:now,cpu:0,submit:0};if(now-this.lastUI>500){this.lastUI=now;this.onChange();}return;}
   const timings:FrameTimings|undefined=this.onDiagnosticFrame
-   ? {musicianAnimation:0,musicianBatch:0,crowdBatch:0,sceneRender:0,postProcessing:0}
+   ? {musicianAnimation:0,musicianBatch:0,crowdBatch:0,fireworksUpdate:0,sceneRender:0,postProcessing:0}
    : undefined;
   this.encoreTrain?.update(this.net.now()/1000,this.zone==='auditorium',this.reduced);
   if(this.photoMode||this.ridingTrain){this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;this.route=[];}
@@ -978,7 +1009,9 @@ export class World{
   {const layer=this.dishLayer();if(layer){const self=this.net.selfId;const now=this.net.now(),busy=(v:Visitor,g:Gesture)=>v.gesture===g&&now-v.gestureAt<gestureSeconds(g)*1000;layer.update((this.net.state?.visitors??[]).filter(v=>v.zone==='auditorium').map(v=>({id:v.id,seatId:v.seatId,dish:v.dish,dishBites:v.dishBites,drink:v.drink,drinkSips:v.drinkSips,own:v.id===self,eating:busy(v,'eat'),sipping:busy(v,'drink')})));
    if(this.avatar){const me=this.net.state?.visitors.find(v=>v.id===self);this.avatar.diningBite=me?.dish?BITE_COLOUR[me.dish]:null;}}}
   this.conducting.tick(now,dt);if(this.conducting.active){this.guestConductor?.update(now/1000,0,this.conductSeat,false,null,10,dt);this.input.keys.clear();const actor=this.demoAvatar,demo=this.conducting;if(actor){actor.update(now/1000,0,false,demo.playing&&!this.reduced,null,10,dt);actor.root.position.x=T.MathUtils.damp(actor.root.position.x,CONDUCTOR.x+conductorShift(demo.x),12,dt);actor.root.rotation.y=T.MathUtils.damp(actor.root.rotation.y,conductorTurn(demo.x),12,dt);actor.head.rotation.set(-.06,Math.atan(demo.x*.2),0);actor.leftArm.rotation.set(1.05+.38*Math.sin(now*.0026),0,-.38-.06*Math.abs(demo.x)+.43*Math.sin(now*.0024));actor.rightArm.rotation.copy(rightStroke(demo.x,demo.stroke));actor.root.updateMatrixWorld(true);this.conductEffect?.update(actor.rightHand,this.camera,demo.pulse);}}
+  const fireworksStart=timings?performance.now():0;
   this.fireworks?.update(now/1000,this.zone==='auditorium'&&this.entered&&!this.reduced,this.poseFrustum);
+  if(timings)timings.fireworksUpdate=performance.now()-fireworksStart;
   this.musicLights?.update(now/1000,dt,this.zone==='auditorium'&&this.entered&&!this.reduced,this.audio);
   this.updateCandles(now);this.updateCoffee(now);
   const playback=this.audio.playback;if(now-this.orchestraAt>=1000/30){

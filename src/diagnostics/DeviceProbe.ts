@@ -8,6 +8,7 @@ const stageLabels={
  musicianAnimation:'연주자 동작',
  musicianBatch:'연주자 배칭',
  crowdBatch:'관객 배칭',
+ fireworksUpdate:'불꽃 입자 갱신',
  sceneRender:'장면 렌더 제출',
  postProcessing:'블룸·화면 합성',
 } satisfies Record<keyof FrameTimings,string>;
@@ -24,9 +25,9 @@ export async function runDeviceProbe(world:World,audio:ConcertAudio,progress:(me
  if(world.diagnosticActive)throw new Error('이미 진단 중입니다.');
  const playback=audio.playback;
  const compareAudio=audio.enabled&&playback.playing&&!playback.track.stage&&playback.remaining>=35;
- const phaseCount=compareAudio?modes.length:1;
+ const phaseCount=compareAudio?modes.length:2;
  const frameTimings:FrameTimings[]=[];
- const abort=new AbortController(),events:unknown[]=[],longTasks:{at:number;ms:number}[]=[],phases:{phase:string;duration:number;renderedFPS:number;initial:ReturnType<typeof audioState>;final:ReturnType<typeof audioState>;samples:Sample[]}[]=[];let phase:string='normal';
+ const abort=new AbortController(),events:unknown[]=[],longTasks:{at:number;ms:number}[]=[],phases:{phase:string;duration:number;callbackFPS:number;renderedFPS:number;initial:ReturnType<typeof audioState>;final:ReturnType<typeof audioState>;samples:Sample[]}[]=[];let phase:string='normal';
  const waits:Record<string,number>={normal:0,'no-draw':0,'audio-only':0};
  const longTasksSupported=typeof PerformanceObserver!=='undefined'&&!!PerformanceObserver.supportedEntryTypes?.includes('longtask');
  const observer=longTasksSupported?new PerformanceObserver(list=>longTasks.push(...list.getEntries().map(e=>({at:e.startTime,ms:e.duration})))):null;observer?.observe({type:'longtask'});
@@ -42,10 +43,32 @@ export async function runDeviceProbe(world:World,audio:ConcertAudio,progress:(me
   for(let index=0;index<phaseCount;index++){
    phase=modes[index];world.diagnosticMode=modes[index];const start=performance.now(),drawStart=world.drawCount,initial=audioState(audio),samples:Sample[]=[];
    world.onDiagnosticFrame=phase==='normal'?timings=>{frameTimings.push(timings);}:null;
-   const label=compareAudio?labels[index]:'화면과 GPU 측정';
+   const label=labels[index];
    progress(`${index+1}/${phaseCount} · ${label} · 10초`);
-   await new Promise<void>((resolve,reject)=>{const timer=setInterval(()=>{if(document.hidden){clearInterval(timer);reject(new Error('진단 중 다른 앱으로 이동했습니다. 화면을 켠 상태에서 다시 실행해 주세요.'));return;}samples.push({at:performance.now(),frame:{...world.frameCost},audio:audioState(audio)});const elapsed=performance.now()-start;progress(`${index+1}/${phaseCount} · ${label} · ${Math.max(0,Math.ceil((10000-elapsed)/1000))}초`);if(elapsed>=10000){clearInterval(timer);resolve();}},250);});
-   phases.push({phase,duration:performance.now()-start,renderedFPS:world.drawCount===drawStart?0:+((world.drawCount-drawStart)*1000/(performance.now()-start)).toFixed(1),initial,final:audioState(audio),samples});
+   let callbackCount=0,callbackId=0;
+   const countCallback=()=>{
+    callbackCount++;
+    callbackId=requestAnimationFrame(countCallback);
+   };
+   callbackId=requestAnimationFrame(countCallback);
+   try{
+    await new Promise<void>((resolve,reject)=>{
+     const timer=setInterval(()=>{
+      if(document.hidden){
+       clearInterval(timer);
+       reject(new Error('진단 중 다른 앱으로 이동했습니다. 화면을 켠 상태에서 다시 실행해 주세요.'));
+       return;
+      }
+      samples.push({at:performance.now(),frame:{...world.frameCost},audio:audioState(audio)});
+      const elapsed=performance.now()-start;
+      progress(`${index+1}/${phaseCount} · ${label} · ${Math.max(0,Math.ceil((10000-elapsed)/1000))}초`);
+      if(elapsed>=10000){clearInterval(timer);resolve();}
+     },250);
+    });
+   }finally{cancelAnimationFrame(callbackId);}
+   const duration=performance.now()-start;
+   const fps=(frames:number)=>+(frames*1000/duration).toFixed(1);
+   phases.push({phase,duration,callbackFPS:fps(callbackCount),renderedFPS:fps(world.drawCount-drawStart),initial,final:audioState(audio),samples});
   }
   world.onDiagnosticFrame=null;
   gpu?.collect();
@@ -61,14 +84,15 @@ export async function runDeviceProbe(world:World,audio:ConcertAudio,progress:(me
    ? `${/iPhone/.test(device.userAgent)?'아이폰':'현재 모바일 기기'} 실측 · ${device.buffer.join('×')} · 목표 ${target}FPS`
    : `PC 실측 · iPhone 13 Pro 렌더링 조건 · 저발열 · ${device.buffer.join('×')} · 목표 ${target}FPS`;
   const frame=`화면: 평균 ${fps}FPS · CPU 프레임 처리 ${cpuTime?.avg??'—'}ms · 목표 프레임 간격 ${(1000/target).toFixed(1)}ms`;
+  const callbackSummary=`브라우저 프레임 호출: 장면 그리기 ${phases[0].callbackFPS}회/초 · 그리기 중단 ${phases[1].callbackFPS}회/초`;
   const gpuSummary=`GPU: ${renderer} · ${gpuTime?`렌더링 평균 ${gpuTime.avg}ms / 상위 5% 경계 ${gpuTime.p95}ms`:gpu?.extension?'유효한 GPU 시간 표본 없음':'이 브라우저는 GPU 시간 측정을 지원하지 않아요'}`;
   const sound=waits['audio-only']>0?'음악만 재생할 때도 재생 대기 신호가 있었습니다. 다운로드 상태나 브라우저의 오디오 처리를 확인해야 합니다.':waits.normal>0&&waits['no-draw']===0?'화면을 그릴 때만 재생 대기 신호가 있었습니다. 화면 처리와 음악 재생이 서로 영향을 주는지 추가 비교가 필요합니다.':Object.values(waits).some(n=>n>0)?'일부 구간에서 재생 대기 신호가 있었습니다. 구간별 수치를 비교해 주세요.':'세 구간 모두 음악 재생 대기 신호가 없었습니다. 실제로 들리는 끊김까지 없다고 보장하는 결과는 아닙니다.';
   const audioSummary=compareAudio
    ? `음악: ${sound}
 재생 대기 신호: 화면+음악 ${waits.normal}회 / 그리기 중단 ${waits['no-draw']}회 / 음악만 ${waits['audio-only']}회.`
-   : '음악 비교는 건너뛰었습니다. 곡 사이, 곡이 끝나기 직전, 또는 소리가 꺼진 상태에서는 화면과 GPU를 측정합니다.';
-  const userSummary=[profile,frame,stageSummary,gpuSummary,audioSummary,phases.some(p=>p.final.error)?'오디오 오류가 기록됐습니다. 상세 결과를 확인해 주세요.':''].filter(Boolean).join('\n\n');
-  return {userSummary,version:3,created:new Date().toISOString(),device,compareAudio,cpuTime,stageTimes,gpuTime,phases,events,longTasks,longTasksSupported};
+   : '음악 비교는 건너뛰었습니다. 곡 사이, 곡이 끝나기 직전, 또는 소리가 꺼진 상태에서는 화면 그리기 비용을 비교합니다.';
+  const userSummary=[profile,frame,callbackSummary,stageSummary,gpuSummary,audioSummary,phases.some(p=>p.final.error)?'오디오 오류가 기록됐습니다. 상세 결과를 확인해 주세요.':''].filter(Boolean).join('\n\n');
+  return {userSummary,version:4,created:new Date().toISOString(),device,compareAudio,cpuTime,stageTimes,gpuTime,phases,events,longTasks,longTasksSupported};
  }finally{
   world.onDiagnosticFrame=null;
   world.diagnosticGpu=null;

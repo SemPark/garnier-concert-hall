@@ -92,6 +92,11 @@ export class HallPortrait {
     this.lastDraw = now;
   }
 
+  invalidateRender() {
+    this.drawn = false;
+    this.lastDraw = -Infinity;
+  }
+
   dispose() {
     this.painting?.dispose();
     this.surface.geometry.dispose();

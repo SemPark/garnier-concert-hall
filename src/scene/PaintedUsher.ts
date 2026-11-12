@@ -56,6 +56,15 @@ export class PaintedUsher {
   });
 
   constructor() {
+    this.avatar.update(1.5, 0, false, false, null, 10, 1/15);
+    // The portrait camera only sees the upper body. Hands, held props, legs,
+    // and the floor shadow are below its frame throughout gaze tracking.
+    this.avatar.leftLeg.removeFromParent();
+    this.avatar.rightLeg.removeFromParent();
+    this.avatar.leftHand.removeFromParent();
+    this.avatar.rightHand.removeFromParent();
+    this.avatar.instrument.removeFromParent();
+    this.avatar.root.clear().add(this.avatar.body);
     this.avatar.root.traverse(object => {
       if (!(object instanceof T.Mesh)) return;
       const convert = (original: T.Material) => {
@@ -146,10 +155,7 @@ export class PaintedUsher {
     this.camera.position.set(0, 1.35, -2.25);
     this.camera.lookAt(0, 1.31, 0);
     this.avatar.root.rotation.y = -.62;
-    this.scene.add(this.avatar.root, new T.HemisphereLight(0xffe8ba, 0x524a52, 2));
-    const light = new T.DirectionalLight(0xffe4b4, 3);
-    light.position.set(2, 4, -3);
-    this.scene.add(light);
+    this.scene.add(this.avatar.root);
     const backdropGeometry = new T.PlaneGeometry(1.4, 1.4);
     const backdropMaterial = new T.ShaderMaterial({
       vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
@@ -172,7 +178,6 @@ export class PaintedUsher {
     const screenGeometry = new T.PlaneGeometry(2, 2);
     this.geometries.push(screenGeometry);
     this.screenScene.add(new T.Mesh(screenGeometry, this.filter));
-    this.avatar.update(1.5, 0, false, false, null, 10, 1/15);
     this.pose();
   }
 

@@ -72,7 +72,7 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=fals
  const frustum=new T.Frustum(),projection=new T.Matrix4(),sphere=new T.Sphere(),occlusionRay=new T.Ray(),intersection=new T.Vector3();
  let initialized=false;
  const write=(camera?:T.Camera,sharedFrustum?:T.Frustum,reuseVisibility=false)=>{
-  let changed=!initialized,poseChanged=!initialized;const eye=camera?.position;if(camera&&!sharedFrustum){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));}
+  let changed=!initialized,transformsChanged=false,morphsChanged=false;const eye=camera?.position;if(camera&&!sharedFrustum){camera.updateMatrixWorld();frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));}
   const viewFrustum=sharedFrustum??frustum;
   const focus=scene.userData.cameraFocus as T.Vector3|undefined;
   for(const cell of cells){
@@ -86,8 +86,8 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=fals
    // A blink can change even when the head matrix stays still.
    if(checkPose){
     const morph=item.mesh.morphTargetInfluences;
-    if(morph&&(!item.morph||morph.some((value,i)=>value!==item.morph![i]))){item.morph=[...morph];poseChanged=true;}
-    if(matrixChanged)poseChanged=true;
+    if(morph&&(!item.morph||morph.some((value,i)=>value!==item.morph![i]))){item.morph=[...morph];morphsChanged=true;}
+    if(matrixChanged)transformsChanged=true;
    }
    if(dynamic&&reuseVisibility&&!item.occluder&&!matrixChanged)continue;
    const actor=actorRoots.get(item.mesh);
@@ -103,14 +103,15 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=fals
    if(level!==item.level||shown!==item.shown)changed=true;item.level=level;item.shown=shown;
    }
   }
-  if(!changed&&(!dynamic||!poseChanged))return;
+  if(!changed&&!transformsChanged&&!morphsChanged)return;
+  const writeTransforms=changed||transformsChanged,writeMorphs=changed||morphsChanged;
   let highCount=0,lowCount=0;
   for(const cell of cells){if(!cell.shown)continue;
-   for(const item of cell.items){if(!item.shown)continue;const batch=item.level===0?high:low,index=batch===high?highCount++:lowCount++;batch.setMatrixAt(index,item.matrix);if(item.mesh.morphTargetInfluences)batch.setMorphAt(index,item.mesh);if(item.color&&changed)batch.setColorAt(index,item.color);}
+   for(const item of cell.items){if(!item.shown)continue;const batch=item.level===0?high:low,index=batch===high?highCount++:lowCount++;if(writeTransforms)batch.setMatrixAt(index,item.matrix);if(writeMorphs&&item.mesh.morphTargetInfluences)batch.setMorphAt(index,item.mesh);if(item.color&&changed)batch.setColorAt(index,item.color);}
   }
   // Upload only what is drawn: an empty batch sends nothing, a partly filled one sends just its used range.
-  const upload=(mesh:T.InstancedMesh,count:number)=>{mesh.count=count;mesh.visible=count>0;if(!count)return;if(mesh.morphTexture)mesh.morphTexture.needsUpdate=true;
-   mesh.instanceMatrix.clearUpdateRanges();mesh.instanceMatrix.addUpdateRange(0,count*16);mesh.instanceMatrix.needsUpdate=true;if(changed&&mesh.instanceColor)mesh.instanceColor.needsUpdate=true;};
+  const upload=(mesh:T.InstancedMesh,count:number)=>{mesh.count=count;mesh.visible=count>0;if(!count)return;if(writeMorphs&&mesh.morphTexture)mesh.morphTexture.needsUpdate=true;
+   if(writeTransforms){mesh.instanceMatrix.clearUpdateRanges();mesh.instanceMatrix.addUpdateRange(0,count*16);mesh.instanceMatrix.needsUpdate=true;}if(changed&&mesh.instanceColor)mesh.instanceColor.needsUpdate=true;};
   upload(high,highCount);if(low!==high)upload(low,lowCount);
   initialized=true;
  };
