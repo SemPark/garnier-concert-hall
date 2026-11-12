@@ -6,6 +6,8 @@ export type Icon=typeof ICONS[number];
 export const GESTURE_ICON:Record<Gesture,Icon|null>={wave:null,clap:'note',bravo:'bang',ovation:null,bow:null,moved:'heart',shh:'dots',doze:'zz',drink:null,eat:null};
 
 type Vec=[number,number,number];
+/** Shared rigid-arm greeting, mirrored for the chosen hand. */
+export function greetingTarget(age:number,side:number):Vec {return [side*(1.30+Math.sin(age*11)*.06),1.50+Math.cos(age*11)*.035,-.44];}
 export type CameraFacing={turn:number;pitch:number};
 export type PoseInput={time:number;speed:number;sit:number;music:boolean;musician:boolean;gesture:Gesture|null|undefined;age:number;cameraFacing?:CameraFacing};
 export type VillagerPose={
@@ -53,7 +55,7 @@ export function poseVillager(input:PoseInput,phase=0):VillagerPose{
  const swing=Math.sin(t*8)*Math.min(input.speed/2.8,1);
  const pose:VillagerPose={sit:input.sit,lift:Math.abs(swing)*.07*(1-input.sit),lean:0,sway:0,turn:0,headPitch:0,headYaw:0,headRoll:0,blink:1,swing,left:null,right:null,weight:w,icon:gesture?GESTURE_ICON[gesture]:null,iconAlpha:w};
  // Round eyes close briefly every few seconds, at a different moment for each character.
- const cycle=((t*1+phase*1.7)%3.7+3.7)%3.7;if(cycle<.13)pose.blink=0;
+ const cycle=((t*1+phase*1.7)%3.7+3.7)%3.7;if(!input.musician&&cycle<.13)pose.blink=0;
  if(input.musician){
   // Players keep their eyes on the conductor but move with the music: a clear nod and sway, readable from the back of the hall.
   pose.headPitch=input.music?.05+Math.sin(t*1.7)*.1:0;pose.headRoll=input.music?Math.sin(t*1.3)*.09:Math.sin(t*1.3)*.02;pose.headYaw=input.music?Math.sin(t*.6)*.07:0;
@@ -71,10 +73,10 @@ export function poseVillager(input:PoseInput,phase=0):VillagerPose{
  const mix=(value:number,target:number)=>value+(target-value)*w;
  pose.headYaw=mix(pose.headYaw,0);
  switch(gesture){
-  // The hand goes up high while the whole body leans away from it, so the arm clears the big head.
-  case 'wave':pose.left=[-1.06-Math.sin(age*11)*.06,1.61+Math.cos(age*11)*.035,-.31];pose.sway=mix(pose.sway,-.26);pose.headRoll=mix(pose.headRoll,-.12-Math.sin(age*11)*.03);break;
+  // The hand swings outward before it rises past the cheek.
+  case 'wave':pose.left=greetingTarget(age,-1);pose.sway=mix(pose.sway,-.14);pose.headRoll=mix(pose.headRoll,-.12-Math.sin(age*11)*.03);break;
   case 'clap':{const d=.105+.155*(.5+.5*Math.cos(age*13.5));pose.left=[-d,.94,-.3];pose.right=[d,.94,-.3];pose.headPitch=mix(pose.headPitch,-.05);break;}
-  case 'bravo':{const pump=Math.sin(age*9)*.05;pose.left=[-.8,1.49+pump,-.48];pose.right=[.8,1.49+pump,-.48];pose.headPitch=mix(pose.headPitch,-.18);break;}
+  case 'bravo':{const pump=Math.sin(age*9)*.05;pose.left=[-1.02,1.39+pump,-.56];pose.right=[1.02,1.39+pump,-.56];pose.headPitch=mix(pose.headPitch,-.18);break;}
   // Remote visitors and NPCs keep the default pose when no camera target is supplied.
   case 'ovation':{
    const turn=gestureTurnWeight('ovation',age);
@@ -83,7 +85,7 @@ export function poseVillager(input:PoseInput,phase=0):VillagerPose{
    }else{
     pose.turn=-(input.sit>.5?1.55:2.4)*turn;pose.headYaw=-(input.sit>.5?.95:.3)*turn;
    }
-   pose.right=[.90+Math.sin(age*11)*.04,1.80,-.18];pose.sway=mix(pose.sway,0);pose.headPitch=mix(pose.headPitch,-.05);break;
+   pose.right=greetingTarget(age,1);pose.sway=mix(pose.sway,0);pose.headPitch=mix(pose.headPitch,-.05);break;
   }
   case 'bow':pose.lean=.55*w;pose.headPitch=mix(pose.headPitch,.2);break;
   case 'moved':pose.left=[-.12,.86,-.32];pose.right=[.12,.86,-.32];pose.headRoll=mix(pose.headRoll,.18);pose.headPitch=mix(pose.headPitch,-.1);break;
@@ -97,8 +99,12 @@ export function poseVillager(input:PoseInput,phase=0):VillagerPose{
   }
   pose.headPitch=mix(pose.headPitch,-.05);pose.headRoll=mix(pose.headRoll,0);pose.sway=mix(pose.sway,0);break;
   case 'eat':case 'drink':pose.headPitch=mix(pose.headPitch,.08);pose.sway=mix(pose.sway,0);break;
-  case 'doze':pose.headPitch=mix(pose.headPitch,.38+Math.sin(age*2.2)*.06);pose.lean=.08*w;pose.blink=Math.min(pose.blink,1-w);break;
+  case 'doze':pose.headPitch=mix(pose.headPitch,.38+Math.sin(age*2.2)*.06);pose.lean=.08*w;if(!input.musician)pose.blink=Math.min(pose.blink,1-w);break;
  }
- if(input.cameraFacing)pose.headPitch=mix(pose.headPitch,input.cameraFacing.pitch);
+ if(input.cameraFacing){
+  // Steep angles swing the long hair into the sleeves during a turn.
+  const pitch=Math.max(-.23,Math.min(.22,input.cameraFacing.pitch));
+  pose.headPitch=mix(pose.headPitch,pitch);
+ }
  return pose;
 }

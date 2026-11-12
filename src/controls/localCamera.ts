@@ -11,12 +11,21 @@ export function dinnerCameraFrame(point:T.Vector3,seat:Seat,table:{x:number;z:nu
   ? (Math.sign(table.x)*Math.sin(left)<Math.sign(table.x)*Math.sin(right)?left:right)
   : (Math.cos(left)>Math.cos(right)?left:right);
  const angle=defaultYaw+yaw;
- const tilt=T.MathUtils.clamp(pitch+.19,.04,1.18);
- const portraitDistance=3.7/(2*aspect*Math.tan(T.MathUtils.degToRad(fov/2)));
+ const tilt=T.MathUtils.clamp(pitch-.05,.04,1.18);
+ const halfFov=T.MathUtils.degToRad(fov/2);
+ const portraitDistance=3.7/(2*aspect*Math.tan(halfFov));
  const radius=distance*Math.max(1,portraitDistance/4.4);
  const origin=point.clone().add(new T.Vector3(0,1.15,0));
  const look=point.clone().add(new T.Vector3(dx*.62,.89,dz*.62));
- const position=look.clone().add(new T.Vector3(Math.sin(angle)*Math.cos(tilt),Math.sin(tilt),Math.cos(angle)*Math.cos(tilt)).multiplyScalar(radius));
+ const horizontal=radius*Math.cos(tilt);
+ const position=new T.Vector3(
+  look.x+Math.sin(angle)*horizontal,
+  look.y+Math.sin(tilt)*radius,
+  look.z+Math.cos(angle)*horizontal,
+ );
+ // Raise the gaze so the visitor and table sit a little lower in the frame.
+ const headroom=Math.atan(Math.tan(halfFov)*.36);
+ look.y=position.y+horizontal*Math.tan(headroom-tilt);
  return {origin,look,position};
 }
 

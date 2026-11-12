@@ -8,13 +8,14 @@ import * as T from 'three';
 import {box,cylinder,sphere,material} from '../scene/primitives';
 import {frontLitMaterial,prepareClothContact,type ClothContact} from './characterLight';
 import {buildInstrument} from '../orchestra/instruments';
-import {poseVillager,type CameraFacing,type Icon} from './villager';
+import {greetingTarget,poseVillager,type CameraFacing,type Icon} from './villager';
 import type {Gesture} from '../../shared/gestures';
 export type Instrument='violin'|'viola'|'cello'|'bass'|'harp'|'piano'|'celesta'|'flute'|'piccolo'|'oboe'|'english-horn'|'clarinet'|'bass-clarinet'|'bassoon'|'contrabassoon'|'horn'|'trumpet'|'trombone'|'tuba'|'bass-drum'|'snare'|'cymbals'|'sleigh-bells'|'triangle'|'chimes'|'gong'|'timpani'|'xylophone'|'marimba'|'vibraphone'|'alto-sax'|'tenor-sax'|'bari-sax'|'guitar'|'drum-kit'|'conductor';
 export type HairStyle='short'|'long';
 type Arm={shoulder:T.Group;hand:T.Group};
 export const PERCUSSION:readonly Instrument[]=['bass-drum','snare','cymbals','sleigh-bells','triangle','chimes','gong','timpani','xylophone','marimba','vibraphone'];
 const ARM_LENGTH=.4,HIP=new T.Vector3(0,.55,0),DOWN=new T.Vector3(0,-1,0);
+const SHOULDER_X=.16,SHOULDER_Y=.99;
 /** Seconds into the eat gesture when the macaron reaches the mouth and half of it goes. */
 const MACARON_BITE_AT=1.5;
 const shadowGeometry=new T.CircleGeometry(.36,20),shadowMaterial=new T.MeshBasicMaterial({color:0x18100a,transparent:true,opacity:.2,depthWrite:false});
@@ -99,7 +100,7 @@ function buildLongHair(cols:number,dome:number,hang:number){
 // Far-away listeners get a coarser copy of the same shape.
 const longHairGeometry=buildLongHair(24,7,8),longHairFar=buildLongHair(12,4,4);
 /** Index finger seat on the right mitten: thumb side, toward the face, rising above the knuckles. */
-export const FINGER_OFFSET=[-.035,.13,.075] as const;
+export const FINGER_OFFSET=[-.035,.105,-.045] as const;
 /** In the jazz hall the trumpets stand on the back tier, as a big band's do. */
 export function musicianSits(type:Instrument|undefined){return !!type&&type!=='bass'&&type!=='conductor'&&!PERCUSSION.includes(type)&&!(JAZZ_HALL&&type==='trumpet');}
 export class Avatar{
@@ -137,7 +138,7 @@ export class Avatar{
   this.left={shoulder:this.leftArm,hand:this.leftHand};this.right={shoulder:this.rightArm,hand:this.rightHand};
   for(const [side,arm]of [[-1,this.left],[1,this.right]] as const){
    // Arms start inside the torso, so the top of the arm is buried in the body instead of hanging beside it.
-   arm.shoulder.position.set(side*.16,.99,0);arm.shoulder.add(arm.hand);arm.hand.position.y=-ARM_LENGTH;
+   arm.shoulder.position.set(side*SHOULDER_X,SHOULDER_Y,0);arm.shoulder.add(arm.hand);arm.hand.position.y=-ARM_LENGTH;
    const limb=new T.Mesh(armGeometry,material(color));limb.position.y=-(ARM_LENGTH-.06)/2;limb.userData.clothContact='sleeve';arm.shoulder.add(limb);
    sphere(arm.hand,.082,[0,0,0],skin).scale.set(.082,.088,.078);
   }
@@ -193,11 +194,18 @@ export class Avatar{
   if(this.trainPassenger&&gesture==='wave'&&pose.left){
    const [x,y,z]=pose.left;pose.right=[-x,y,z];pose.left=null;pose.sway=-pose.sway;pose.headRoll=-pose.headRoll;
   }
-  // Keep raised sleeves in front of the collar and clear of the cheeks.
-  const raised=gesture==='wave'||gesture==='bravo'||gesture==='ovation'||gesture==='shh';
-  const shoulderShift=raised?pose.weight:0;
-  this.leftArm.position.set(-.16,.99-.13*shoulderShift,-.12*shoulderShift);
-  this.rightArm.position.set(.16,.99-.13*shoulderShift,-.12*shoulderShift);
+  const turn=cameraFacing?.turn;
+  let leftReach=pose.left?1:0,rightReach=pose.right?1:0;
+  if(!type&&gesture==='ovation'){
+   const left=T.MathUtils.smoothstep(turn??-1,.02,.24);
+   leftReach=this.trainPassenger?1-left:left;rightReach=1-leftReach;
+  }
+  if(!type&&gesture==='shh'){
+   leftReach=T.MathUtils.smoothstep(turn??0,.02,.24);rightReach=1-leftReach;
+  }
+  // Keep the original shoulder anchors fixed; gestures rotate the single-piece sleeves.
+  this.leftArm.position.set(-SHOULDER_X,SHOULDER_Y,0);
+  this.rightArm.position.set(SHOULDER_X,SHOULDER_Y,0);
   // At the dinner table the body leans in to reach the middle of the plate, then sits back up as the fork rises.
   if(gesture==='eat'&&this.diningBite!=null)pose.lean=.24*pose.weight*(1-T.MathUtils.smoothstep(gestureAge,.75,1.3));
   // Bend around the hips: the body pivots at the hip joint and the legs counter-rotate, so the feet stay put.
@@ -253,13 +261,9 @@ export class Avatar{
   if(pose.weight>0&&(type||gesture!=='ovation'&&gesture!=='shh')){if(pose.left)this.aimAt(this.left,...pose.left,pose.weight);if(pose.right)this.aimAt(this.right,...pose.right,pose.weight);}
   if(gesture==='ovation'&&pose.weight>0&&!type){
    // Use the arm on the side of the turn, and blend through the switch.
-   const usualLeft=T.MathUtils.smoothstep(cameraFacing?.turn??-1,.02,.24);
-   const left=this.trainPassenger?1-usualLeft:usualLeft;
-   for(const [arm,side,weight] of [[this.left,-1,left],[this.right,1,1-left]] as const){
+   for(const [arm,side,weight] of [[this.left,-1,leftReach],[this.right,1,rightReach]] as const){
     if(!weight)continue;
-    const wave=Math.sin(gestureAge*7)*.035;
-    this.direction.set(side*(.48+wave),1.30,-.46);
-    this.aimAt(arm,this.direction.x,this.direction.y,this.direction.z,pose.weight*weight);
+    this.aimAt(arm,...greetingTarget(gestureAge,side),pose.weight*weight);
    }
   }
   const vessel=this.holdingWine?this.wineGlass:this.holdingCoffee?this.coffeeCup:undefined;
@@ -321,9 +325,8 @@ export class Avatar{
    // Choose from the camera target before the head starts turning.
    // The animated mouth position would raise the right hand first on every gesture.
    this.direction.set(0,-.14,faceSurfaceZ(0,-.14)-.012).applyQuaternion(this.head.quaternion).add(this.head.position);
-   const left=T.MathUtils.smoothstep(cameraFacing?.turn??0,.02,.24);
    const mouthX=this.direction.x,mouthY=this.direction.y,mouthZ=this.direction.z;
-   for(const [arm,side,weight] of [[this.left,-1,left],[this.right,1,1-left]] as const){
+   for(const [arm,side,weight] of [[this.left,-1,leftReach],[this.right,1,rightReach]] as const){
     if(!weight)continue;
     this.direction.set(side*FINGER_OFFSET[0],FINGER_OFFSET[1],FINGER_OFFSET[2]).applyQuaternion(this.head.quaternion);
     const fingerX=this.direction.x,fingerY=this.direction.y,fingerZ=this.direction.z;

@@ -1,13 +1,13 @@
 import * as T from 'three';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
-import {TRAIN_DECK,TRAIN_PERIOD,TRAIN_PLATFORM,TRAIN_STEP} from '../../shared/encoreTrain';
+import {TRAIN_DECK,TRAIN_EXIT,TRAIN_PERIOD,TRAIN_PLATFORM,TRAIN_SEATS,TRAIN_STEP} from '../../shared/encoreTrain';
 import {hasGalleryFloor} from '../../shared/gallery';
 import {parterreHeight} from '../../shared/parterre';
 import {hallImageMaterial,woodMaterial} from './HallTextures';
 import {buildFloorGuide} from './TicketGuide';
 
-const DUST_COUNT=512,DUST_LIFE=3,DUST_RATE=60;
+const DUST_COUNT=256,DUST_LIFE=3,DUST_RATE=60;
 const CAR_SCALE=new T.Vector3(.64,.86,.72);
 const CHIMNEY_TOP=3.34,CHIMNEY_Z=1.06;
 const STATION_DWELL=3;
@@ -181,13 +181,13 @@ export class EncoreTrain {
  private readonly geometries:T.BufferGeometry[]=[];
  private readonly textures:T.Texture[]=[];
  private readonly boardingGuide:ReturnType<typeof buildFloorGuide>;
- // Stardust streams from the two engine chimneys into one world-space point cloud.
+ // Stardust streams from the engine chimney into a world-space point cloud.
  private readonly dustPositions=new Float32Array(DUST_COUNT*3);
  private readonly dustData=new Float32Array(DUST_COUNT*2).fill(-1e3);
  private readonly dustGeometry=new T.BufferGeometry();
  private readonly dustUniforms={uTime:{value:0},uHeight:{value:800}};
- private readonly dustCarry=[0,0];
- private readonly dustPrevious=[new T.Vector3(),new T.Vector3()];
+ private dustCarry=0;
+ private readonly dustPrevious=new T.Vector3();
  private readonly dustOrigin=new T.Vector3();
  private dustCursor=0;private dustStart:number|null=null;private dustTime=0;
  constructor(scene:T.Scene){
@@ -207,8 +207,7 @@ export class EncoreTrain {
    [12.4,upper,trackZ],[7,upper,trackZ],
   ].map(p=>new T.Vector3(...p as [number,number,number])),true,'centripetal');
   this.curve.arcLengthDivisions=1200;this.curve.updateArcLengths();this.length=this.curve.getLength();
-  // Each segment stays on one side of the hall. Give them equal travel time
-  // so a one-segment offset always places the other train on the opposite side.
+  // Give each side of the hall equal travel time.
   const arcLengths=this.curve.getLengths();
   this.sideBoundaries=[0,10,17,24,this.curve.points.length].map(index=>{
    const sample=index/this.curve.points.length*this.curve.arcLengthDivisions;
@@ -220,7 +219,7 @@ export class EncoreTrain {
   const gold=new T.MeshStandardMaterial({color:0xc69a4d,metalness:.55,roughness:.4});
   const glow=new T.MeshBasicMaterial({color:0xffdf94});
   this.materials.push(ivory,wine,gold,glow);
-  for(let c=0;c<3;c++){
+  for(let c=0;c<TRAIN_SEATS;c++){
    const car=new T.Group();this.cars.push(car);this.root.add(car);
    const parts=new Map<T.Material,T.BufferGeometry[]>();
    const add=(g:T.BufferGeometry,m:T.Material,x:number,y:number,z:number)=>{g.translate(x,y,z);const list=parts.get(m)??[];list.push(g);parts.set(m,list);};
@@ -278,8 +277,6 @@ export class EncoreTrain {
     car.add(cabinLight);
    }
   }
-  // Second train shares all geometry and materials, one side segment behind.
-  for(let c=0;c<3;c++){const car=this.cars[c].clone();car.traverse(o=>{if(o instanceof T.Mesh){o.userData.trainSeat+=3;this.targets.push(o);}});this.cars.push(car);this.root.add(car);}
   const lampTemplate=underbodyLamp();
   this.geometries.push(lampTemplate.geometry);
   for(const car of this.cars){
@@ -459,9 +456,9 @@ void main(){
   if(!visible)return;
   this.boardingGuide.update(reducedMotion?0:seconds);
   const cycle=TRAIN_PERIOD+STATION_DWELL;
-  const firstTrainTime=T.MathUtils.euclideanModulo(seconds,cycle);
-  const secondTrainTime=T.MathUtils.euclideanModulo(seconds-cycle/4,cycle);
-  const stationTime=Math.min(firstTrainTime,secondTrainTime);
+  const stationTime=T.MathUtils.euclideanModulo(seconds,cycle);
+  const travelPhase=Math.max(0,stationTime-STATION_DWELL)/TRAIN_PERIOD;
+  const headDistance=this.routeDistance(travelPhase)+2.55/this.length;
   this.stationAscent.visible=!reducedMotion&&stationTime<ARRIVAL_ASCENT_DURATION;
   if(this.stationAscent.visible)this.stationAscent.material.uniforms.uTime.value=stationTime;
   for(const effect of [this.stationPulse,this.stationRibbons]){
@@ -478,11 +475,7 @@ void main(){
   this.dustTime=time;this.dustUniforms.uTime.value=time;
   let wrote=false;
   this.cars.forEach((car,i)=>{
-   const carriage=i%3;
-   const localTime=i<3?firstTrainTime:secondTrainTime;
-   const travelPhase=Math.max(0,localTime-STATION_DWELL)/TRAIN_PERIOD;
-   const headDistance=this.routeDistance(travelPhase)+2.55/this.length;
-   const distance=T.MathUtils.euclideanModulo(headDistance-carriage*2.55/this.length,1);
+   const distance=T.MathUtils.euclideanModulo(headDistance-i*2.55/this.length,1);
    this.curve.getPointAt(distance,car.position);
    const {x,y,z}=car.position;
    const ground=y>=TRAIN_PLATFORM.y&&hasGalleryFloor(x,z)?TRAIN_PLATFORM.y:parterreHeight(x,z)??0;
@@ -498,16 +491,15 @@ void main(){
    this.curve.getTangentAt(distance,this.tangent);
    car.rotation.y=Math.atan2(this.tangent.x,this.tangent.z);
    car.updateMatrixWorld(true);
-   if(carriage!==0)return;
-   const engine=i/3;
-   const previous=this.dustPrevious[engine];
+   if(i!==0)return;
+   const previous=this.dustPrevious;
    if(emit){
     // Dust follows speed, so a train waiting at the platform only shimmers faintly.
     const speed=previous.distanceTo(car.position)/dt;
-    this.dustCarry[engine]+=dt*DUST_RATE*T.MathUtils.clamp(speed/2,.12,1);
+    this.dustCarry+=dt*DUST_RATE*T.MathUtils.clamp(speed/2,.12,1);
     this.dustOrigin.set(0,CHIMNEY_TOP+.03,CHIMNEY_Z).multiply(CAR_SCALE);
     car.localToWorld(this.dustOrigin);
-    for(;this.dustCarry[engine]>=1;this.dustCarry[engine]--){
+    for(;this.dustCarry>=1;this.dustCarry--){
      const n=this.dustCursor;this.dustCursor=(n+1)%DUST_COUNT;
      this.dustPositions[n*3]=this.dustOrigin.x+(Math.random()-.5)*.16;
      this.dustPositions[n*3+1]=this.dustOrigin.y;
@@ -519,7 +511,10 @@ void main(){
   });
   if(wrote){this.dustGeometry.attributes.position.needsUpdate=true;this.dustGeometry.attributes.aData.needsUpdate=true;}
  }
- seat(index:number,target:T.Vector3){const car=this.cars[Math.floor(index/3)*3+(index%3===2?0:1+index%3)];target.set(0,.21,0);car.localToWorld(target);// Avatars face local -Z, while the train nose points along +Z.
+ seat(index:number,target:T.Vector3){
+ const car=Number.isInteger(index)&&index>=0&&index<TRAIN_SEATS?this.cars[index===2?0:1+index]:undefined;
+ if(!car){target.set(TRAIN_EXIT.x,TRAIN_EXIT.y,TRAIN_EXIT.z);return 0;}
+ target.set(0,.21,0);car.localToWorld(target);// Avatars face local -Z, while the train nose points along +Z.
  return car.rotation.y+Math.PI;}
  dispose(){this.root.removeFromParent();for(const g of this.geometries)g.dispose();for(const m of this.materials)m.dispose();for(const t of this.textures)t.dispose();}
 }

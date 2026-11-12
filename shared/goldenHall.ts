@@ -6,4 +6,4 @@ export const GOLDEN_HALL={
  bayCenters:Array.from({length:13},(_,i)=>-24+i*6),
 } as const;
 
-export const HALL_CAMERA={eye:[0,15.2,46],look:[0,9,-21]} as const;
+export const HALL_CAMERA={eye:[0,15.2,47.35],look:[0,9.1,-21]} as const;

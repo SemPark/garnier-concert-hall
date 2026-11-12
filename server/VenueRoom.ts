@@ -26,7 +26,17 @@ export class VenueRoom extends DurableObject<Env>{
   this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,token TEXT UNIQUE,visitor TEXT NOT NULL,until INTEGER)');
   this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS claims(seatId TEXT PRIMARY KEY,visitorId TEXT UNIQUE,status TEXT NOT NULL,expiresAt INTEGER)');
  }
- private attachment(ws:WebSocket):Attachment|null{return ws.deserializeAttachment() as Attachment|null;}
+ private releaseRemovedTrainSeat(visitor:Visitor){
+  if(visitor.trainSeat===undefined||visitor.trainSeat<TRAIN_SEATS)return false;
+  delete visitor.trainSeat;
+  Object.assign(visitor,TRAIN_EXIT,{pose:'idle',seatId:null,loungeSeatId:null,yaw:0});
+  return true;
+ }
+ private attachment(ws:WebSocket):Attachment|null{
+  const attachment=ws.deserializeAttachment() as Attachment|null;
+  if(attachment&&this.releaseRemovedTrainSeat(attachment.visitor))ws.serializeAttachment(attachment);
+  return attachment;
+ }
  private send(ws:WebSocket,message:ServerMessage){try{ws.send(JSON.stringify(message));}catch{/* A close event will release this connection. */}}
  private active(){return this.ctx.getWebSockets().flatMap(ws=>{const a=this.attachment(ws);return a?[{ws,a}]:[]});}
  private claims(){const seats:Record<string,SeatClaim>={};for(const r of this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims').toArray())seats[r.seatId]={visitorId:r.visitorId,status:r.status,expiresAt:r.expiresAt};return seats;}
@@ -76,6 +86,7 @@ export class VenueRoom extends DurableObject<Env>{
    for(const row of this.ctx.storage.sql.exec<{visitor:string}>('SELECT visitor FROM sessions'))saved.add((JSON.parse(row.visitor) as Visitor).name);
    const name=visitorName(saved);return saved.has(name)?visitorName(present):name;};
   const visitor:Visitor=active?.a.visitor??(existing?JSON.parse(existing.visitor) as Visitor:{id:crypto.randomUUID(),name:newName(),color:PALETTE[crypto.getRandomValues(new Uint8Array(1))[0]%PALETTE.length],zone:'lobby',...SPAWN.lobby,yaw:0,pose:'idle',seatId:null,gesture:null,gestureAt:0});
+  this.releaseRemovedTrainSeat(visitor);
   const savedToken=existing?.token??crypto.randomUUID();
   let claim:ClaimRow|undefined=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE visitorId=?',visitor.id).toArray()[0];
   if(claim&&!SEATS.some(s=>s.id===claim?.seatId)){this.ctx.storage.sql.exec('DELETE FROM claims WHERE visitorId=?',visitor.id);claim=undefined;}

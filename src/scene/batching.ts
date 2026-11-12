@@ -13,7 +13,9 @@ const restoredSphere=new T.SphereGeometry(1,16,12);
 // Far musicians (beyond LOD_NEAR) use this lighter ball; at that distance a hand or nose is a few pixels wide.
 const farSphere=new T.SphereGeometry(1,9,6);
 type Lit=T.MeshStandardMaterial|T.MeshLambertMaterial;
-type Item={mesh:T.Mesh;matrix:T.Matrix4;center:T.Vector3;radius:number;limit:number;min:number;color:T.Color|null;level:number;shown:boolean;morph?:number[];occluder?:T.Box3};
+type ActorPose={dirty:boolean};
+const actorPoses=new WeakMap<T.Object3D,ActorPose>();
+type Item={pose?:ActorPose;actorEnd?:number;mesh:T.Mesh;matrix:T.Matrix4;center:T.Vector3;radius:number;limit:number;min:number;color:T.Color|null;level:number;shown:boolean;morph?:number[];occluder?:T.Box3};
 type BatchGroup={material:T.Material;objects:T.Mesh[];colors:boolean};
 type Cell={items:Item[];shown:boolean;bounds?:T.Box3;center?:T.Vector3;extent?:T.Vector3};
 // Character parts share one view test per character per update: on screen, detail level and wall occlusion were
@@ -59,6 +61,13 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=fals
  const high=make(geometry),low=lowGeometry===geometry?high:make(lowGeometry);
  geometry.computeBoundingSphere();
  const items:Item[]=group.objects.map(mesh=>({mesh,matrix:mesh.matrixWorld.clone(),center:geometry.boundingSphere!.center.clone().applyMatrix4(mesh.matrixWorld),radius:geometry.boundingSphere!.radius*mesh.matrixWorld.getMaxScaleOnAxis(),limit:fullDetail||mesh.userData.preserveSilhouette?Infinity:detailDistance(mesh),min:mesh.userData.lodMin??0,color:group.colors?(mesh.material as Lit).color.clone():null,level:0,shown:false,occluder:mesh.userData.occluderBox??(mesh.userData.cameraOccluder?new T.Box3().setFromObject(mesh).expandByScalar(.12):undefined)}));
+ // Parts were collected actor by actor. Keep that compact order; an unchanged actor's
+ // contiguous run can be skipped without another hierarchy or per-part matrix tests.
+ if(dynamic)for(let start=0;start<items.length;){
+  const root=actorRoots.get(items[start].mesh),pose=root?actorPoses.get(root):undefined;let end=start+1;
+  while(end<items.length&&actorRoots.get(items[end].mesh)===root)end++;
+  for(let i=start;i<end;i++){items[i].pose=pose;items[i].actorEnd=end-1;}start=end;
+ }
  const cells:Cell[]=partition&&items.length>=16&&!group.material.transparent?spatialCells(items):[{items,shown:true}];
  const frustum=new T.Frustum(),projection=new T.Matrix4(),sphere=new T.Sphere(),occlusionRay=new T.Ray(),intersection=new T.Vector3();
  let initialized=false;
@@ -70,10 +79,12 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=fals
    const shown=!camera||!cell.bounds||viewFrustum.intersectsBox(cell.bounds)&&!scene.userData.solidOccluded?.(eye,cell.center,cell.extent);
    if(shown!==cell.shown){changed=true;cell.shown=shown;}
    if(!shown)continue;
-   for(const item of cell.items){
-   const matrixChanged=dynamic&&!item.matrix.equals(item.mesh.matrixWorld);
+   for(let i=0;i<cell.items.length;i++){
+   const item=cell.items[i],checkPose=dynamic&&(!initialized||!item.pose||item.pose.dirty);
+   if(dynamic&&initialized&&reuseVisibility&&item.pose&&!item.pose.dirty){i=item.actorEnd!;continue;}
+   const matrixChanged=checkPose&&!item.matrix.equals(item.mesh.matrixWorld);
    // A blink can change even when the head matrix stays still.
-   if(dynamic){
+   if(checkPose){
     const morph=item.mesh.morphTargetInfluences;
     if(morph&&(!item.morph||morph.some((value,i)=>value!==item.morph![i]))){item.morph=[...morph];poseChanged=true;}
     if(matrixChanged)poseChanged=true;
@@ -81,7 +92,7 @@ function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=fals
    if(dynamic&&reuseVisibility&&!item.occluder&&!matrixChanged)continue;
    const actor=actorRoots.get(item.mesh);
    if(actor){
-    if(dynamic)item.matrix.copy(item.mesh.matrixWorld);
+    if(matrixChanged)item.matrix.copy(item.mesh.matrixWorld);
     const view=actorView(scene,actor,eye,camera?viewFrustum:null,camera),shown=view.shown&&!(scene.userData.conducting&&item.mesh.userData.demoConductor);
     if(view.level!==item.level||shown!==item.shown)changed=true;item.level=view.level;item.shown=shown;continue;
    }
@@ -202,7 +213,7 @@ export function* batchArchitectureSteps(scene:T.Scene,exclude:T.Object3D[]){
 export function batchCharacters(scene:T.Scene,roots:T.Object3D[]){return finishBuild(batchCharactersSteps(scene,roots));}
 export function* batchCharactersSteps(scene:T.Scene,roots:T.Object3D[]){
  scene.updateMatrixWorld(true);const moving=new Map<string,BatchGroup>(),fixed=new Map<string,BatchGroup>();
- for(const root of roots){root.updateMatrixWorld(true);let marked=false;root.traverse(o=>{if(o.userData.animated)marked=true;});
+ for(const root of roots){actorPoses.set(root,{dirty:true});root.updateMatrixWorld(true);let marked=false;root.traverse(o=>{if(o.userData.animated)marked=true;});
   const visit=(node:T.Object3D,animated:boolean)=>{animated=animated||!!node.userData.animated;if(node instanceof T.Mesh){node.userData.demoConductor=!!root.userData.demoConductor;actorRoots.set(node,root);node.userData.preserveSilhouette=true;node.userData.detailRadius=1.4;if(!Array.isArray(node.material))node.material=detailedMaterial(node.material);if(node.geometry instanceof T.SphereGeometry&&node.geometry.parameters.widthSegments<16)node.geometry=restoredSphere;if(node.geometry instanceof T.SphereGeometry)node.userData.lowDetail??=farSphere;collect(animated?moving:fixed,node);}for(const child of node.children)visit(child,animated);};visit(root,!marked);
   if(marked){const freeze=(node:T.Object3D,animated:boolean)=>{animated=animated||!!node.userData.animated;node.updateMatrix();node.matrixAutoUpdate=animated;for(const child of node.children)freeze(child,animated);};freeze(root,false);}
   root.removeFromParent();yield;
@@ -229,7 +240,11 @@ export function* batchCharactersSteps(scene:T.Scene,roots:T.Object3D[]){
   }else hasPreviousView=false;
   occlusionStamp++;
   // Players re-pose at 30Hz or less (poseAt); recompute a subtree only after its pose changed.
-  for(const root of roots){const posedAt=root.userData.poseAt;if(camera&&posedAt!==undefined&&posed.get(root)===posedAt)continue;poseCenter.copy(root.position);poseCenter.y+=1;if(!camera||poseFrustum.intersectsSphere(poseSphere.set(poseCenter,2))){root.updateMatrixWorld(false);posed.set(root,posedAt);}}
+  for(const root of roots){const state=actorPoses.get(root)!,posedAt=root.userData.poseAt;state.dirty=false;
+   if(camera&&posedAt!==undefined&&posed.get(root)===posedAt)continue;
+   poseCenter.copy(root.position);poseCenter.y+=1;
+   if(!camera||poseFrustum.intersectsSphere(poseSphere.set(poseCenter,2))){root.updateMatrixWorld(false);posed.set(root,posedAt);state.dirty=true;}
+  }
   for(const update of movingUpdates)update(camera,poseFrustum,reuseVisibility);
   if(conducting!==!!scene.userData.conducting||!camera||eye.distanceToSquared(camera.position)>.04||rotation.angleTo(camera.quaternion)>.015||!projection.equals(camera.projectionMatrix)){for(const update of fixedUpdates)update(camera,poseFrustum);conducting=!!scene.userData.conducting;if(camera){eye.copy(camera.position);rotation.copy(camera.quaternion);projection.copy(camera.projectionMatrix);}}
  };

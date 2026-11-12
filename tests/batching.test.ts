@@ -76,3 +76,42 @@ test('static shadow preparation includes casters behind the camera and restores 
  scene.userData.showArchitectureForShadow();assert.equal(count(),4);assert.ok(scene.children.filter(o=>o instanceof T.InstancedMesh&&o.visible).every(o=>o.castShadow));
  update(camera);assert.equal(count(),2);camera.rotation.y=Math.PI;update(camera);assert.equal(count(),2);
 });
+
+function trackedActors(morph=false){
+ const scene=new T.Scene(),geometry=new T.BoxGeometry(.2,.2,.2);
+ if(morph)geometry.morphAttributes.position=[geometry.getAttribute('position').clone()];
+ const roots=[-1,0,1].map((x,i)=>{const root=new T.Group();root.userData.animated=true;root.userData.poseAt=0;root.position.set(x,0,-5);
+  const mesh=new T.Mesh(geometry,new T.MeshLambertMaterial({color:[0xff0000,0x00ff00,0x0000ff][i]}));root.add(mesh);scene.add(root);return root;});
+ const update=batchCharacters(scene,roots),camera=new T.PerspectiveCamera(70,2,.1,150);update(camera);
+ const batch=scene.children.find((o):o is T.InstancedMesh=>o instanceof T.InstancedMesh&&o.visible)!;batch.instanceMatrix.clearUpdateRanges();
+ return {scene,roots,update,camera,batch};
+}
+test('unchanged poseAt skips part comparisons but camera turns still update visibility',()=>{
+ const {roots,update,camera,batch}=trackedActors(),sources=new Set(roots.flatMap(r=>r.children.map(m=>m.matrixWorld))),equals=T.Matrix4.prototype.equals;let comparisons=0;
+ T.Matrix4.prototype.equals=function(m){if(sources.has(m))comparisons++;return equals.call(this,m);};
+ try{update(camera);assert.equal(comparisons,0);camera.rotation.y=Math.PI;update(camera);assert.equal(batch.count,0);camera.rotation.y=0;update(camera);assert.equal(batch.count,3);assert.equal(comparisons,0);
+ roots[1].children[0].position.y=.5;roots[1].userData.poseAt++;update(camera);assert.equal(comparisons,1);
+ const matrix=new T.Matrix4();batch.getMatrixAt(1,matrix);assert.equal(matrix.elements[13],.5);
+ }finally{T.Matrix4.prototype.equals=equals;}
+});
+test('blink-only poses still reach the instance morph texture after a skipped pose',()=>{
+ const {roots,update,camera,batch}=trackedActors(true);update(camera);
+ const eye=roots[1].children[0] as T.Mesh;eye.morphTargetInfluences![0]=.75;roots[1].userData.poseAt++;update(camera);
+ assert.deepEqual(Array.from(batch.morphTexture!.image.data).slice(2,4),[.25,.75]);
+});
+test('slot compaction keeps transforms, colors and morphs aligned across conductor visibility changes',()=>{
+ const scene=new T.Scene(),geometry=new T.BoxGeometry(.2,.2,.2);geometry.morphAttributes.position=[geometry.getAttribute('position').clone()];
+ const roots=[0,1,2].map(i=>{const r=new T.Group();r.userData.animated=true;r.userData.poseAt=0;r.userData.demoConductor=i===1;r.position.set(i,0,-6);const m=new T.Mesh(geometry,new T.MeshLambertMaterial({color:[0xff0000,0x00ff00,0x0000ff][i]}));m.morphTargetInfluences![0]=i*.25;r.add(m);scene.add(r);return r;});
+ const update=batchCharacters(scene,roots),camera=new T.PerspectiveCamera(80,2,.1,100);update(camera);const batch=scene.children.find(o=>o instanceof T.InstancedMesh&&o.visible) as T.InstancedMesh;
+ scene.userData.conducting=true;update(camera);assert.equal(batch.count,2);const matrix=new T.Matrix4(),color=new T.Color();batch.getMatrixAt(1,matrix);batch.getColorAt(1,color);assert.equal(matrix.elements[12],2);assert.equal(color.getHex(),0x0000ff);assert.equal(batch.morphTexture!.image.data[3],.5);
+ // A hidden conductor changes pose, then returns to a freshly compacted slot.
+ roots[1].children[0].position.y=.4;roots[1].userData.poseAt++;update(camera);scene.userData.conducting=false;update(camera);assert.equal(batch.count,3);batch.getMatrixAt(1,matrix);batch.getColorAt(1,color);assert.ok(Math.abs(matrix.elements[13]-.4)<1e-6);assert.equal(color.getHex(),0x00ff00);assert.equal(batch.morphTexture!.image.data[3],.25);
+});
+
+test('unchanged tracked poses still switch LOD and restore near geometry',()=>{
+ const scene=new T.Scene(),root=new T.Group(),geometry=new T.SphereGeometry(.15,16,12);root.userData.animated=true;root.userData.poseAt=0;root.add(new T.Mesh(geometry,new T.MeshLambertMaterial()));scene.add(root);
+ const update=batchCharacters(scene,[root]),camera=new T.PerspectiveCamera(60,1,.1,200);camera.position.z=3;update(camera);
+ const batches=scene.children.filter((o):o is T.InstancedMesh=>o instanceof T.InstancedMesh),high=batches.find(b=>b.geometry===geometry)!;
+ assert.equal(high.count,1);camera.position.z=80;update(camera);assert.equal(high.count,0);assert.equal(batches.filter(b=>b.visible).reduce((n,b)=>n+b.count,0),1);
+ camera.position.z=3;update(camera);assert.equal(high.count,1);
+});

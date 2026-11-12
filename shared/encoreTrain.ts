@@ -11,5 +11,5 @@ export function onTrainDeck(p:{x:number;y?:number;z:number}){
   &&Math.abs((p.y??0)-(TRAIN_PLATFORM.y+TRAIN_DECK.height))<.15;
 }
 
-export const TRAIN_SEATS=6;
+export const TRAIN_SEATS=3;
 export const TRAIN_PERIOD=120;

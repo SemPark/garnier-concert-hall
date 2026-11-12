@@ -1,4 +1,6 @@
 import * as T from 'three';
+import { REAR_SCREENS } from '../../shared/gallery';
+import { WALL_DATUM } from './HallWallBands';
 import {GOLDEN_HALL as H} from '../../shared/goldenHall';
 import {glowTexture} from './Candlelight';
 import {box,cylinder,sphere} from './primitives';
@@ -63,4 +65,28 @@ export function buildHallLampHalos(scene:T.Scene){
  if(!glows.length)return;
  const batch=new T.InstancedMesh(wallWashGeometry,new T.MeshBasicMaterial({map:glowTexture(.55,.28),color:0xffbc70,opacity:.5,transparent:true,depthWrite:false,blending:T.AdditiveBlending,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1}),glows.length);
  glows.forEach((m,i)=>batch.setMatrixAt(i,m));batch.frustumCulled=false;batch.name='warm-wall-glows';batch.renderOrder=1;batch.userData.fullDetail=true;scene.add(batch);
+}
+
+/** Reuse the hall's shallow upper fixture over the portrait and mirror bays. */
+export function raiseLandingDisplayLights(scene: T.Scene) {
+ const panelZ = (REAR_SCREENS.z + REAR_SCREENS.thickness / 2 + WALL_DATUM.rear) / 2;
+ const fixtures: T.Object3D[] = [];
+ const position = new T.Vector3();
+ scene.updateMatrixWorld(true);
+ scene.traverse(object => {
+  if (object.userData.landmark !== 'panel-centre-sconce') return;
+  object.getWorldPosition(position);
+  if (Math.abs(Math.abs(position.x) - WALL_DATUM.halfWidth) < 1
+    && Math.abs(position.z - panelZ) < 1 && position.y < 5) fixtures.push(object);
+ });
+ for (const fixture of fixtures) {
+  const parent = fixture.parent;
+  if (!parent) continue;
+  const x = fixture.position.x;
+  const z = fixture.position.z;
+  fixture.removeFromParent();
+  const upper = hallDoorHeaderLight(parent, 6.45);
+  upper.position.x = x;
+  upper.position.z = z + .12;
+ }
 }

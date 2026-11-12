@@ -1,5 +1,5 @@
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import {buildHallLampHalos} from './HallLighting';
+import {buildHallLampHalos,raiseLandingDisplayLights} from './HallLighting';
 import {CANDLE_TABLES} from '../../shared/venue';
 import {PARTERRE,parterreHeight} from '../../shared/parterre';
 import {archedTimberDoor} from './ArchedTimberDoor';
@@ -14,6 +14,7 @@ import {finishArchitecture,surfaceMaterial} from './SurfaceMaterials';
 import {LobbyCat} from '../character/LobbyCat';
 import {Usher,USHER} from '../character/Usher';
 import {HallMirror} from './HallMirror';
+import {HallPortrait} from './HallPortrait';
 import {buildGalleryGuide,buildTicketGuide} from './TicketGuide';
 import * as T from 'three';
 import {box,cylinder,sphere,line,text,material,wallWithOpenings,C} from './primitives';
@@ -38,7 +39,7 @@ import {buildGoldenHallSteps,timberDoor} from './GoldenHall';
 import {woodMaterial,applyWoodSurface,hallImage,hallImageMaterial} from './HallTextures';
 import {batchArchitectureSteps,batchCharactersSteps} from './batching';
 import {EmoteLayer} from '../character/EmoteLayer';
-export type Venue={treeStar:ReturnType<typeof buildFloatingTreeStar>|null;cat:LobbyCat|null;usher:Usher|null;mirror:HallMirror|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
+export type Venue={treeStar:ReturnType<typeof buildFloatingTreeStar>|null;cat:LobbyCat|null;usher:Usher|null;mirror:HallMirror|null;portrait:HallPortrait|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
 
 function chandelier(parent:T.Object3D,x:number,y:number,z:number,r=1){
  const g=new T.Group();g.position.set(x,y,z);g.userData.landmark='lobby-chandelier';parent.add(g);
@@ -312,7 +313,7 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  scene.traverse(o=>{if(o.userData.wallSurface)cameraWalls.push(o);});
  cameraWalls.push(portal);
  for(const wall of cameraWalls)wall.traverse(o=>{o.userData.cameraWall=true;});
- if(zone==='auditorium')buildHallLampHalos(scene);
+ if(zone==='auditorium'){raiseLandingDisplayLights(scene);buildHallLampHalos(scene);}
  finishArchitecture(scene,[...(usher?[usher.avatar.root]:[]),...(cat?[cat.root]:[]),...musicians.map(a=>a.root)]);
  const updateLOD=yield* batchArchitectureSteps(scene,[floor,portal,...(cat?[cat.root,...cat.targets]:[]),...(usher?[usher.avatar.root]:[]),...walkTargets,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
  const updateMusicians=yield* batchCharactersSteps(scene,[...musicians.map(a=>a.root),...(cat?[cat.root]:[])]);updateMusicians();
@@ -342,5 +343,6 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
   }};
  const stairArrows=zone==='lobby'?buildTicketGuide(scene):buildGalleryGuide(scene);
  const mirror=zone==='auditorium'?new HallMirror(scene):null;
- return {treeStar,cat,usher,mirror,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
+ const portrait=zone==='auditorium'?new HallPortrait(scene):null;
+ return {treeStar,cat,usher,mirror,portrait,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
 }

@@ -66,13 +66,13 @@ export class HallMirror{
   // Side-wall panel beside the stair door, below its lamp on the rear landing.
   const landingFaceZ = REAR_SCREENS.z + REAR_SCREENS.thickness / 2;
   const panelCenterZ = (landingFaceZ + WALL_DATUM.rear) / 2;
-  this.root.position.set(WALL_DATUM.halfWidth-.29,1.65,panelCenterZ);
+  this.root.position.set(WALL_DATUM.halfWidth-.29,1.94,panelCenterZ);
   this.root.rotation.y = -Math.PI / 2;
   this.ghostsScene.background=null;
   this.root.userData.landmark='hall-mirror';
-  const frame=new T.Mesh(arch(1.44,2.55),material(0x9f763e));
-  const bevel=new T.Mesh(arch(1.29,2.40),material(0x403126));bevel.position.z=.018;
-  this.glass=new Reflector(arch(1.20,2.31),{textureWidth:1024,textureHeight:1024,multisample:0,color:0xc8d6de,clipBias:.003,shader:mirrorShader});
+  const frame=new T.Mesh(arch(1.44,3.57),material(0x9f763e));
+  const bevel=new T.Mesh(arch(1.29,3.42),material(0x403126));bevel.position.z=.018;
+  this.glass=new Reflector(arch(1.20,3.33),{textureWidth:1024,textureHeight:1024,multisample:0,color:0xc8d6de,clipBias:.003,shader:mirrorShader});
   this.glass.position.z=.031;
   const renderReflection = this.glass.onBeforeRender.bind(this.glass);
   this.glass.onBeforeRender=(renderer,world,camera,geometry,mat,group)=>{
@@ -106,7 +106,7 @@ export class HallMirror{
     renderer.setClearColor(this.clearColor,clearAlpha);
    }
   };
-  const back=new T.Mesh(arch(1.44,2.55),material(0x403126));back.rotation.y=Math.PI;back.position.z=-.025;
+  const back=new T.Mesh(arch(1.44,3.57),material(0x403126));back.rotation.y=Math.PI;back.position.z=-.025;
   this.root.add(frame,bevel,this.glass,back);scene.add(this.root);
  }
  setVisitor(avatar:T.Object3D|null,spot:GhostSpot|null){this.avatar=avatar;this.spot=spot;}

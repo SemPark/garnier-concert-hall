@@ -3,7 +3,7 @@ import type {World} from './World';
 import {JAZZ_HALL} from '../shared/hallKind';
 
 /** Souvenir card drawn into the photo itself, so the saved file matches the preview:
- * vine flourishes in the corners, thin side lines, small scrolls top and bottom, and the text at the lower right. */
+ * vine flourishes in the corners, thin edge lines, small scrolls top and bottom, and the text at the lower right. */
 async function decorate(blob:Blob):Promise<Blob>{
  const image=await createImageBitmap(blob);
  const canvas=document.createElement('canvas');
@@ -12,6 +12,8 @@ async function decorate(blob:Blob):Promise<Blob>{
  if(!c){image.close();return blob;}
  c.drawImage(image,0,0);image.close();
  const u=Math.min(W,H)/100,cx=W/2,m=3.6*u;
+ // Leave room for the edge lines between the ornaments on portrait cards.
+ const frameUnit=Math.min(u,W/128);
  await document.fonts.load(`italic 500 ${10*u}px 'Modu Serif'`).catch(()=>{});
  const shade=c.createRadialGradient(W,H,0,W,H,72*u);
  shade.addColorStop(0,'rgba(12,8,5,.86)');shade.addColorStop(.5,'rgba(12,8,5,.5)');shade.addColorStop(1,'rgba(12,8,5,0)');
@@ -19,7 +21,7 @@ async function decorate(blob:Blob):Promise<Blob>{
  const gold=c.createLinearGradient(0,0,W,H);
  gold.addColorStop(0,'#f5e2b0');gold.addColorStop(.5,'#d6b272');gold.addColorStop(1,'#f0d89e');
  c.lineCap='round';c.lineJoin='round';
- // Everything below is drawn in card units (1 = 1% of the short side), mirrored into place.
+ // The flourishes are drawn in frame units and mirrored into place.
  const leaf=(x:number,y:number,angle:number,length:number)=>{
   c.save();c.translate(x,y);c.rotate(angle);c.beginPath();c.moveTo(0,0);
   c.quadraticCurveTo(length*.45,-length*.4,length,0);c.quadraticCurveTo(length*.45,length*.4,0,0);c.fill();c.restore();
@@ -44,7 +46,7 @@ async function decorate(blob:Blob):Promise<Blob>{
    [3.9,3.3,-1.75,1.7],[3.9,3.3,-2.95,1.7],[2.2,1.9,-1.8,1.5],[2.2,1.9,-2.9,1.5],[.4,.6,-2.36,1.9],[6.4,3.2,-1.9,1.4]]);
  };
  const corner=(x:number,y:number,sx:number,sy:number)=>{
-  c.save();c.translate(x,y);c.scale(sx*u,sy*u);c.lineWidth=.13;
+  c.save();c.translate(x,y);c.scale(sx*frameUnit,sy*frameUnit);c.lineWidth=.13;
   arm();c.save();c.transform(0,1,1,0,0,0);arm();c.restore();
   // The side arm ends in a hanging bud that leads into the side line.
   c.beginPath();c.moveTo(1.2,22.5);c.bezierCurveTo(.2,23.6,.6,25,1.3,25.6);c.stroke();
@@ -53,7 +55,7 @@ async function decorate(blob:Blob):Promise<Blob>{
  };
  const scroll=(y:number,sy:number)=>{
   for(const sx of [1,-1]){
-   c.save();c.translate(cx,y);c.scale(sx*u,sy*u);c.lineWidth=.12;c.beginPath();
+   c.save();c.translate(cx,y);c.scale(sx*frameUnit,sy*frameUnit);c.lineWidth=.12;c.beginPath();
    c.moveTo(1.1,.9);c.bezierCurveTo(2.8,-1.5,5.6,-1.4,6.3,.3);c.bezierCurveTo(6.8,1.6,5.3,2.2,4.7,1.3);
    c.moveTo(1.6,1.7);c.bezierCurveTo(4.4,3.5,8.2,2.8,10.2,.7);c.bezierCurveTo(11.7,-.9,13.8,-.6,13.8,.7);c.bezierCurveTo(13.8,1.8,12.4,1.9,12.3,1);
    c.moveTo(10.2,.7);c.bezierCurveTo(12.6,-1.9,15.4,-.5,18.6,-.3);
@@ -65,23 +67,30 @@ async function decorate(blob:Blob):Promise<Blob>{
    c.restore();
   }
   // Lily in the middle: one upright petal, a pearl and a small drop.
-  c.save();c.translate(cx,y);c.scale(u,sy*u);
+  c.save();c.translate(cx,y);c.scale(frameUnit,sy*frameUnit);
   leaf(0,.9,-Math.PI/2,3);leaf(0,2.2,Math.PI/2,1.4);c.beginPath();c.arc(0,1.5,.38,0,Math.PI*2);c.fill();c.restore();
  };
  c.strokeStyle=gold;c.fillStyle=gold;
  corner(m,m,1,1);corner(W-m,m,-1,1);corner(m,H-m,1,-1);corner(W-m,H-m,-1,-1);
- scroll(m+.4*u,1);scroll(H-m-.4*u,-1);
- // Side lines: one short stretch below each upper vine and above each lower one, open in the middle.
- const reach=Math.max(0,Math.min(.16*H,H/2-m-35*u));
- c.lineWidth=Math.max(1,.12*u);c.beginPath();
- for(const x of [m+1.3*u,W-m-1.3*u])for(const [from,to] of [[m+29.5*u,m+29.5*u+reach],[H-m-29.5*u-reach,H-m-29.5*u]]){c.moveTo(x,from);c.lineTo(x,to);}
+ scroll(m+.4*frameUnit,1);scroll(H-m-.4*frameUnit,-1);
+ const inset=m+1.3*frameUnit;
+ const sideStart=m+29.5*frameUnit;
+ const sideReach=Math.max(0,Math.min(.16*H,H/2-m-35*frameUnit));
+ const cornerEnd=m+25.5*frameUnit;
+ const scrollEnd=22*frameUnit;
+ c.lineWidth=Math.max(1,.12*frameUnit);c.beginPath();
+ for(const x of [inset,W-inset])for(const [from,to] of [[sideStart,sideStart+sideReach],[H-sideStart-sideReach,H-sideStart]]){c.moveTo(x,from);c.lineTo(x,to);}
+ for(const y of [inset,H-inset]){
+  c.moveTo(cornerEnd,y);c.lineTo(cx-scrollEnd,y);
+  c.moveTo(cx+scrollEnd,y);c.lineTo(W-cornerEnd,y);
+ }
  c.stroke();
  // Text block, right-aligned inside the lower-right vine.
  const right=W-m-11*u,base=H-m-10.5*u;
  c.textAlign='right';c.textBaseline='alphabetic';c.shadowColor='rgba(0,0,0,.55)';c.shadowBlur=1.2*u;
  c.fillStyle='#f8ead0';
  c.font=`italic 500 ${11*u}px 'Modu Serif',Baskerville,Georgia,serif`;
- const title=c.measureText('pleee').width;c.fillText('pleee',right,base-16.2*u);
+ const title=c.measureText('pleee');c.fillText('pleee',right,base-16.2*u);
  c.font=`400 ${2.5*u}px 'Noto Serif KR','AppleMyungjo','Nanum Myeongjo',Georgia,serif`;c.fillText('영원히 끝나지 않는 플레이리스트',right,base-7.5*u);
  const now=new Date(),two=(value:number)=>String(value).padStart(2,'0');
  c.fillStyle='#ead9b6';
@@ -90,15 +99,16 @@ async function decorate(blob:Blob):Promise<Blob>{
  c.font=`400 ${1.9*u}px 'Noto Serif KR','AppleMyungjo','Nanum Myeongjo',Georgia,serif`;
  if('letterSpacing' in c)(c as CanvasRenderingContext2D&{letterSpacing:string}).letterSpacing=`${.5*u}px`;
  c.fillText(JAZZ_HALL?'재즈 홀':'클래식 홀',right+.5*u,base);
- // Swash under the name: one long dip that curls up at both ends.
+ // Keep the curl outside the visible letters while retaining the original height.
  c.shadowBlur=0;c.strokeStyle=gold;
- const sx0=right-title/2,y=base-13.3*u,half=Math.min(13*u,title/2);
+ const titleLeft=right-title.actualBoundingBoxLeft,titleRight=right+title.actualBoundingBoxRight;
+ const swashCenter=(titleLeft+titleRight)/2,y=base-13.3*u,half=(titleRight-titleLeft)/2+3.5*u;
  c.lineWidth=Math.max(1,.14*u);c.beginPath();
  for(const s of [1,-1]){
-  c.moveTo(sx0,y+1.65*u);
-  c.bezierCurveTo(sx0+s*half*.46,y+1.65*u,sx0+s*half*.77,y+1.2*u,sx0+s*half,y);
-  c.bezierCurveTo(sx0+s*(half+2.4*u),y-1.1*u,sx0+s*(half+2.2*u),y-3.3*u,sx0+s*(half+.4*u),y-3*u);
-  c.bezierCurveTo(sx0+s*(half-.8*u),y-2.8*u,sx0+s*(half-.7*u),y-1.4*u,sx0+s*(half+.4*u),y-1.6*u);
+  c.moveTo(swashCenter,y+1.65*u);
+  c.bezierCurveTo(swashCenter+s*half*.46,y+1.65*u,swashCenter+s*half*.77,y+1.2*u,swashCenter+s*half,y);
+  c.bezierCurveTo(swashCenter+s*(half+2.4*u),y-1.1*u,swashCenter+s*(half+2.2*u),y-3.3*u,swashCenter+s*(half+.4*u),y-3*u);
+  c.bezierCurveTo(swashCenter+s*(half-.8*u),y-2.8*u,swashCenter+s*(half-.7*u),y-1.4*u,swashCenter+s*(half+.4*u),y-1.6*u);
  }
  c.stroke();
  return new Promise(resolve=>canvas.toBlob(result=>resolve(result??blob),'image/png'));

@@ -10,6 +10,8 @@ import {ORGAN_LOFT_BACK,ORGAN_RAIL_JOIN_X,organBalconyFront} from '../../shared/
  * with Grand Fireworks' willow/brocade shaping. See public/licenses/fireworks.txt.
  * One world-space simulation, two draw calls, no extra renderer or bloom pass. */
 const STEP=1/30, HISTORY=38;
+const trailFade=Array.from({length:HISTORY},(_,age)=>1-age/HISTORY);
+const stepDrag=(drag:number)=>Math.exp(-drag*STEP);
 const DEPTH=STAGE.back+5.2, FLOOR=4.8, GRAVITY=1.45;
 // The combined shell catalog of Miller and Gray, plus the existing brocade.
 const STYLES=[
@@ -28,8 +30,7 @@ const MIDDLE_GALLERY_DOOR=Math.floor(UPPER_DOOR_AXES.length/2);
 // Extend the second-floor row one door bay towards the stage on both sides.
 const GALLERY_WATERFALL_AXES=UPPER_DOOR_AXES.slice(MIDDLE_GALLERY_DOOR-2,MIDDLE_GALLERY_DOOR+4);
 const THIRD_FLOOR_WATERFALL_AXES=UPPER_DOOR_AXES.slice(0,MIDDLE_GALLERY_DOOR+4);
-// Original emission cadence sustains about 510 trails; leave room for its peaks.
-const GALLERY_STAR_LIMIT=600;
+const GALLERY_STAR_LIMIT=710;
 const SECOND_FLOOR_FALL_Y=GOLDEN_HALL.balconyHeight+GALLERY_RAIL_HEIGHT-.08;
 const THIRD_FLOOR_FALL_Y=WALL_LEVELS.cornices[1]+.44;
 const FRONT_LOFT_WING_X=ORGAN_RAIL_JOIN_X-1.5;
@@ -57,13 +58,13 @@ const COLOR_THEMES:readonly (readonly [Color,Color])[]=[
 
 interface Particle{
  x:number;y:number;z:number;px:number;py:number;pz:number;
- vx:number;vy:number;vz:number;life:number;fullLife:number;drag:number;
- seed:number;size:number;red:number;green:number;blue:number;trail:number;splitAt:number;sparkTimer:number;sparkFreq:number;
+ vx:number;vy:number;vz:number;life:number;fullLife:number;dragFactor:number;
+ seed:number;size:number;red:number;green:number;blue:number;trail:number;trailGaps:number;splitAt:number;sparkTimer:number;sparkFreq:number;
  pattern:LightPattern;breakStyle:BreakStyle|null;gallery:boolean;floor:number;history:Float32Array;slot:number;samples:number;
 }
 function particle(trail:boolean):Particle{return{
- x:0,y:0,z:0,px:0,py:0,pz:0,vx:0,vy:0,vz:0,life:0,fullLife:0,drag:0,
- seed:0,size:0,red:1,green:0,blue:0,trail:HISTORY,splitAt:0,sparkTimer:0,sparkFreq:0,pattern:'steady',breakStyle:null,gallery:false,floor:FLOOR,
+ x:0,y:0,z:0,px:0,py:0,pz:0,vx:0,vy:0,vz:0,life:0,fullLife:0,dragFactor:1,
+ seed:0,size:0,red:1,green:0,blue:0,trail:HISTORY,trailGaps:-1,splitAt:0,sparkTimer:0,sparkFreq:0,pattern:'steady',breakStyle:null,gallery:false,floor:FLOOR,
  history:new Float32Array(trail?HISTORY*3:0),slot:0,samples:0,
 };}
 const rand=(lo:number,hi:number)=>lo+Math.random()*(hi-lo);
@@ -75,6 +76,20 @@ const BREAK_DENSITY:Record<BreakStyle,number>={crossette:.14,floral:.08,fallingL
 const GOLD_STYLES:readonly Style[]=['willow','brocade','kamuro','palm','fallingLeaves','crackle'];
 
 export class StageFireworks{
+ // Include launch trails and falling embers, not just the burst centres.
+ private readonly visibilityBounds=[
+  new T.Box3(new T.Vector3(-30,LAUNCH_HEIGHT-.3,DEPTH-18),new T.Vector3(30,36,DEPTH+22)),
+  ...GALLERY_WATERFALL_LEVELS.flatMap(level=>[-1,1].flatMap(side=>[
+   ...level.axes.map(z=>new T.Box3(
+    new T.Vector3(side*level.x-4,level.floor-.2,z-3.5),
+    new T.Vector3(side*level.x+4,level.y+.3,z+3.5),
+   )),
+   new T.Box3(
+    new T.Vector3(side*level.front.x-2,level.front.floor-.2,level.front.z-.5),
+    new T.Vector3(side*level.front.x+2,level.y+.3,level.front.z+4),
+   ),
+  ])),
+ ];
  private readonly group=new T.Group();
  private readonly points:T.Points<T.BufferGeometry,T.ShaderMaterial>;
  private readonly lines:T.LineSegments<T.BufferGeometry,T.LineBasicMaterial>;
@@ -133,7 +148,7 @@ export class StageFireworks{
  private init(p:Particle,x:number,y:number,z:number,vx:number,vy:number,vz:number,life:number){
   p.x=p.px=x;p.y=p.py=y;p.z=p.pz=z;p.vx=vx;p.vy=vy;p.vz=vz;
   p.life=p.fullLife=life;p.splitAt=0;p.breakStyle=null;p.pattern='steady';p.gallery=false;p.floor=FLOOR;p.trail=HISTORY;p.seed=rand(0,Math.PI*2);p.slot=0;p.samples=1;
-  if(p.history.length){p.history[0]=x;p.history[1]=y;p.history[2]=z;}
+  if(p.history.length){p.trailGaps=-1;p.history[0]=x;p.history[1]=y;p.history[2]=z;}
  }
 
  private ember(x:number,y:number,z:number,vx:number,vy:number,vz:number,life:number,white=false,color?:Pick<Particle,'red'|'green'|'blue'>,launch=false){
@@ -142,7 +157,7 @@ export class StageFireworks{
   if(this.sparkCount>=cap)return;
   const p=this.sparks[this.sparkCount++];
   this.init(p,x,y,z,vx,vy,vz,life);
-  p.drag=2.7;p.size=rand(.32,.62);p.red=color?.red??1;
+  p.dragFactor=stepDrag(2.7);p.size=rand(.32,.62);p.red=color?.red??1;
   p.green=color?.green??(white?.86:rand(.43,.68));p.blue=color?.blue??(white?.47:.065);
   if(launch)p.floor=LAUNCH_HEIGHT-.15;
   return p;
@@ -289,7 +304,7 @@ export class StageFireworks{
    if(this.starCount-this.galleryCount>=this.stageStarLimit||this.starCount>=this.stars.length)return;
    const p=this.stars[this.starCount++];
    this.init(p,cue.x,cue.y,depth,vx,vy,vz,life);
-   p.drag=willow?.52:brocade||kamuro?.58:palm?.48:.78;
+   p.dragFactor=stepDrag(willow?.52:brocade||kamuro?.58:palm?.48:.78);
    p.size=willow?.65:.85;
    [p.red,p.green,p.blue]=color;
    p.pattern=brocade||willow||kamuro||style==='glitter'?'twinkle':'steady';
@@ -299,11 +314,11 @@ export class StageFireworks{
     p.sparkFreq=0;
     p.size=1.05;
    }
-   if(style==='dahlia'){p.size=1.32;p.trail=26;p.drag=.9;}
-   if(style==='spider'){p.trail=30;p.drag=1.65;p.sparkFreq=.32;}
+   if(style==='dahlia'){p.size=1.32;p.trail=26;p.dragFactor=stepDrag(.9);}
+   if(style==='spider'){p.trail=30;p.dragFactor=stepDrag(1.65);p.sparkFreq=.32;}
    if(style==='strobe'){p.pattern='strobe';p.trail=10;p.sparkFreq=.5;}
    if(style==='ghost'){p.pattern='ghost';p.trail=15;p.sparkFreq=0;}
-   if(style==='horsetail'){p.trail=HISTORY;p.drag=.48;}
+   if(style==='horsetail'){p.trail=HISTORY;p.dragFactor=stepDrag(.48);}
    if(breakStyle){
     p.breakStyle=breakStyle;p.splitAt=rand(.65,1.14);p.trail=17;p.sparkFreq=.38;
     if(breakStyle==='floral'||breakStyle==='fallingLeaves')p.pattern='hidden';
@@ -378,7 +393,7 @@ export class StageFireworks{
    const p=this.stars[this.starCount++];
    const leaves=style==='fallingLeaves';
    this.init(p,parent.x,parent.y,parent.z,vx,vy,parent.vz*.3,leaves?rand(2.5,3.5):rand(1.05,1.8));
-   p.drag=leaves?.58:.65;p.size=.78;p.red=leaves?1:parent.red;p.green=leaves?.65:parent.green;p.blue=leaves?.12:parent.blue;
+   p.dragFactor=stepDrag(leaves?.58:.65);p.size=.78;p.red=leaves?1:parent.red;p.green=leaves?.65:parent.green;p.blue=leaves?.12:parent.blue;
    p.pattern=leaves?'hidden':'steady';p.trail=style==='floral'?10:24;
    p.sparkFreq=leaves?.17:.31;p.sparkTimer=rand(0,p.sparkFreq);
   }
@@ -391,29 +406,29 @@ export class StageFireworks{
   if(this.galleryCount>=limit||this.starCount>=this.stars.length)return;
   const p=this.stars[this.starCount++];
   this.init(p,x,y,z,vx,rand(-.8,-.25),vz,rand(2.5,3.2));
-  p.gallery=true;this.galleryCount++;this.gallerySideCounts[x<0?0:1]++;p.floor=floor;p.drag=.18;p.size=.8;p.red=1;p.green=rand(.65,.83);p.blue=.27;
-  p.pattern='twinkle';p.trail=30;p.sparkFreq=0;p.sparkTimer=0;
+  p.gallery=true;this.galleryCount++;this.gallerySideCounts[x<0?0:1]++;p.floor=floor;p.dragFactor=stepDrag(.18);p.size=.8;p.red=1;p.green=rand(.65,.83);p.blue=.27;
+  p.pattern='twinkle';p.trail=34;p.sparkFreq=0;p.sparkTimer=0;
  }
  private galleryWaterfalls(){
-  const baseInterval=10;
+  const baseInterval=8;
   const swellInterval=6;
   for(const [tier,level] of GALLERY_WATERFALL_LEVELS.entries()){
    const tick=this.fountainTick+tier*5;
    const base=tick%baseInterval===0,swell=tick%swellInterval===0;
    if(!base&&!swell)continue;
-   // Give the less populated side first access to the unchanged shared budget.
+   // Give the less populated side first access to the gallery budget.
    const sides=this.gallerySideCounts[0]<=this.gallerySideCounts[1]?[-1,1]:[1,-1];
    for(const side of sides){
     const phase=this.clock+level.offset+(side===1?2.8:0);
     for(let n=0;n<level.axes.length;n++){
      const index=(n+Math.floor(this.fountainTick/3))%level.axes.length,doorZ=level.axes[index];
      const count=Number(base)+Number(swell&&(phase+index*3.1)%8<4.6);
-     for(let i=0;i<count;i++)this.gallerySpark(side*level.x,level.y,doorZ+rand(-1.5,1.5),-side*rand(.45,1.05),rand(-.3,.3),level.floor);
+     for(let i=0;i<count;i++)this.gallerySpark(side*level.x,level.y,doorZ+rand(-1.75,1.75),-side*rand(.45,1.05),rand(-.38,.38),level.floor);
     }
     // Both front falls hug the organ wings, clear of the musicians and train crossing.
     const {x,z,floor}=level.front;
     const count=Number(base)+Number(swell&&(phase+1.2)%8<3.8);
-    for(let i=0;i<count;i++)this.gallerySpark(side*(x+rand(-.72,.72)),level.y,z,rand(-.22,.22),rand(.45,1.05),floor);
+    for(let i=0;i<count;i++)this.gallerySpark(side*(x+rand(-.85,.85)),level.y,z,rand(-.28,.28),rand(.45,1.05),floor);
    }
   }
  }
@@ -425,7 +440,7 @@ export class StageFireworks{
    for(const side of [-1,1]){
     const x=side*(MAX_BURST_X-.75);
     const spark=this.ember(x,LAUNCH_HEIGHT,launchDepth(x),side*rand(-1.8,1.05),rand(4.4,7.4),rand(-.26,.26),rand(1.25,1.95),false,undefined,true);
-    if(spark){spark.drag=1.1;spark.size=.62;}
+    if(spark){spark.dragFactor=stepDrag(1.1);spark.size=.62;}
    }
   }
   for(let i=this.rockets.length-1;i>=0;i--){
@@ -475,8 +490,9 @@ export class StageFireworks{
    p.slot=(p.slot+1)%HISTORY;p.samples=Math.min(HISTORY,p.samples+1);
    const h=p.slot*3;p.history[h]=p.x;p.history[h+1]=p.y;p.history[h+2]=p.z;
    // Miller's burn-rate emitter: lots of sparks while hot, less as a star burns out.
-   const burnRate=Math.sqrt(p.life/p.fullLife);p.sparkTimer-=STEP;
+   p.sparkTimer-=STEP;
    if(p.sparkFreq>0&&p.sparkTimer<0){
+    const burnRate=Math.sqrt(p.life/p.fullLife);
     p.sparkTimer+=p.sparkFreq*(.75+(1-burnRate)*4);
     const a=rand(0,Math.PI*2),speed=rand(.06,.34)*burnRate;
     this.ember(p.x,p.y,p.z,Math.sin(a)*speed,Math.cos(a)*speed,rand(-.09,.09),rand(.8,1.9),false,p);
@@ -492,7 +508,7 @@ export class StageFireworks{
 
  private move(p:Particle,gravity:number,wind:number){
   p.px=p.x;p.py=p.y;p.pz=p.z;
-  const drag=Math.exp(-p.drag*STEP);
+  const drag=p.dragFactor;
   p.vx=(p.vx+wind*STEP)*drag;p.vy=(p.vy-gravity*STEP)*drag;p.vz*=drag;
   p.x+=p.vx*STEP;p.y+=p.vy*STEP;p.z+=p.vz*STEP;
  }
@@ -511,24 +527,32 @@ export class StageFireworks{
  private draw(){
   this.pointCount=0;this.lineCount=0;
   for(let i=0;i<this.starCount;i++){
-   const p=this.stars[i],remaining=p.life/p.fullLife;
-   const fade=Math.min(1,p.life/.6,Math.max(0,(p.y-p.floor)/.65));
+   const p=this.stars[i];
    if(p.pattern==='hidden'||p.life<=0)continue;
+   const fade=Math.min(1,p.life/.6,Math.max(0,(p.y-p.floor)/.65));
    const flicker=p.pattern==='strobe'?Math.floor((this.clock+p.seed)*13)%3===0?1:.08
-    :p.pattern==='ghost'?remaining>.68?.04:1
+    :p.pattern==='ghost'?p.life/p.fullLife>.68?.04:1
     :p.pattern==='twinkle'?.62+.38*Math.abs(Math.sin(this.clock*18+p.seed)):1;
    const bright=1.65*fade*flicker;this.point(p,bright);
    // Todd's history buffer extended into a curved 1.2 s trail. Individual dark
    // gaps and detached Miller embers prevent the silhouette becoming solid wires.
-   const stride=2;
-   const samples=Math.min(p.samples,p.trail);
-   for(let j=0;j<samples-1;j+=stride){
-    const older=Math.min(j+stride,samples-1);
-    if(j>5&&Math.sin(j*12.7+p.seed*31)>.64)continue;
-    const a=((p.slot-j+HISTORY)%HISTORY)*3,b=((p.slot-older+HISTORY)%HISTORY)*3;
-    const hot=bright*(1-j/HISTORY)*.9,cool=bright*(1-older/HISTORY)*.85;
-    this.line(p.history[a],p.history[a+1],p.history[a+2],hot,p.green,p.blue,p.red);
-    this.line(p.history[b],p.history[b+1],p.history[b+2],cool,p.green*.8,p.blue*.6,p.red);
+   const last=Math.min(p.samples,p.trail)-1;
+   if(p.trailGaps===-1){
+    // Gap positions depend on the star's seed and sample age, so they stay fixed for its lifetime.
+    const phase=p.seed*31;
+    let gaps=0;
+    for(let age=6;age<p.trail-1;age+=2)if(Math.sin(age*12.7+phase)>.64)gaps|=1<<(age>>1);
+    p.trailGaps=gaps;
+   }
+   const {slot,history,trailGaps,red,green,blue}=p;
+   const coolGreen=green*.8,coolBlue=blue*.6;
+   for(let age=0;age<last;age+=2){
+    if(trailGaps&(1<<(age>>1)))continue;
+    const older=Math.min(age+2,last);
+    const a=(slot-age+(age>slot?HISTORY:0))*3,b=(slot-older+(older>slot?HISTORY:0))*3;
+    const hot=bright*trailFade[age]*.9,cool=bright*trailFade[older]*.85;
+    this.line(history[a],history[a+1],history[a+2],hot,green,blue,red);
+    this.line(history[b],history[b+1],history[b+2],cool,coolGreen,coolBlue,red);
    }
   }
   for(let i=0;i<this.sparkCount;i++){
@@ -546,10 +570,16 @@ export class StageFireworks{
   }
  }
 
- update(now:number,enabled:boolean){
+ update(now:number,enabled:boolean,frustum?:T.Frustum){
   if(!enabled){
    this.group.visible=false;this.last=null;this.clock=0;this.accumulator=0;this.nextMovement=0;this.cues.length=0;this.subBursts.length=0;this.fountainTick=0;this.movements=0;
    this.starCount=0;this.galleryCount=0;this.gallerySideCounts.fill(0);this.sparkCount=0;this.rockets.length=0;return;
+  }
+  if(frustum&&!this.visibilityBounds.some(bounds=>frustum.intersectsBox(bounds))){
+   this.group.visible=false;
+   // Pause without resetting the show or accumulating hidden simulation work.
+   this.last=null;
+   return;
   }
   this.group.visible=true;
   if(this.last===null){this.last=now;this.draw();return;}

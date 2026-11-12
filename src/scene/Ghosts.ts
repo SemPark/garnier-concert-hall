@@ -4,13 +4,15 @@ import {poseVillager} from '../character/villager';
 import type {Gesture} from '../../shared/gestures';
 import {buildFork,buildWineGlass,WINE_SCALE} from './DinnerDishes';
 import {buildCoffeeCup} from '../character/CoffeeCup';
+import {buildTeaGuest,type TeaGuest} from './GhostTeaParty';
 
 /** One ghost to draw this frame: where it is, which way it faces, and a stable id for its colour and rhythm. */
 export type GhostSpot={x:number;y:number;z:number;yaw:number;id:string;sitting:boolean;
+ teaGuest?:TeaGuest;
  /** Hall ghosts (not visitors) share one blue. */npc?:boolean;
  /** A visitor gesture and its age in seconds: posed with the same hand targets and body lean as the people. */gesture?:Gesture|null;age?:number;
  /** What a diner has: the drink they lift while sipping and the colour of the bite on their fork. */drink?:'coffee'|'wine';bite?:number;
- /** The ghosts above the stage: wings, a halo and a harp. */angel?:boolean;
+ /** The ghosts above the stage: wings and a halo. */angel?:boolean;
  /** Moving right now (visitors only): steps and arm swing instead of idle floating. */walking?:boolean};
 
 /** Soft glow colours; each ghost keeps one, chosen from its id so every viewer sees the same colour. */
@@ -111,7 +113,7 @@ type Batch={mesh:T.InstancedMesh;glow:T.InstancedBufferAttribute;seed:T.Instance
 /** Where the ghost's arms rest (see body()), and the people's shoulders their hand targets are measured from. */
 const REST=[-1,1].map(s=>new T.Vector3(s*.172,-.675,.717).normalize()),SHOULDER_X=.16,SHOULDER_Y=.99;
 
-const GOLD=new T.MeshBasicMaterial({color:0xe6bf5a}),FEATHER=new T.MeshBasicMaterial({color:0xefe6d2,side:T.DoubleSide}),STRING=new T.LineBasicMaterial({color:0xfff3cf});
+const GOLD=new T.MeshBasicMaterial({color:0xe6bf5a}),FEATHER=new T.MeshBasicMaterial({color:0xefe6d2,side:T.DoubleSide});
 /** Where a ghost's mouth would be: on the front of the sheet, below and between the eyes (head centre is the origin, facing +z). */
 export const MOUTH=new T.Vector3(0,-.1,.38);
 const SHOULDER=new T.Vector3(-.28,-.12,0),ARM=.48,BACK=new T.Vector3(0,0,-1),TINES_DOWN=new T.Vector3(0,-.5,.85).normalize(),TIP=.45;
@@ -135,7 +137,7 @@ function tableware(){
  mug.scale.setScalar(1);mug.rotation.y=Math.PI;mug.position.set(.12,-.105,0);cup.add(mug);
  bite.position.set(0,.01,-.15);fork.add(bite);wine.scale.setScalar(WINE_SCALE);wine.position.y=-WINE_GRIP;kit.add(fork,wine,cup);return {kit,fork,bite,wine,cup};
 }
-/** Wings, a halo and a little harp for a ghost that flies over the stage; set at the ghost's head centre, facing +z. */
+/** Wings and a halo for a ghost that flies over the stage; set at the ghost's head centre, facing +z. */
 function angelKit(){
  const kit=new T.Group(),wing=new T.Shape();
  // A compact upper wing with three rounded feather tips.
@@ -160,15 +162,7 @@ function angelKit(){
   return mesh;
  });
  const halo=new T.TorusGeometry(.2,.022,6,24);halo.rotateX(Math.PI/2);halo.rotateZ(.12);halo.translate(0,.53,0);
- // Harp in its own xy plane: pillar at the front, curved neck on top, sound box slanting back to the foot.
- const rod=(ax:number,ay:number,bx:number,by:number,r:number)=>{const a=new T.Vector3(ax,ay,0),b=new T.Vector3(bx,by,0),g=new T.CylinderGeometry(r,r,a.distanceTo(b),6);g.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),b.clone().sub(a).normalize()));g.translate((ax+bx)/2,(ay+by)/2,0);return g;};
- const neck=new T.TubeGeometry(new T.CatmullRomCurve3([new T.Vector3(.15,.5,0),new T.Vector3(.05,.44,0),new T.Vector3(-.06,.51,0),new T.Vector3(-.17,.45,0)]),10,.02,6);
- const frame=[rod(.15,0,.15,.5,.018),rod(-.17,.45,.15,0,.034),neck,new T.SphereGeometry(.035,8,6).translate(.15,.52,0)];
- const place=(g:T.BufferGeometry)=>g.rotateY(1.05).translate(-.2,-.58,.4);
- frame.forEach(place);for(const g of [halo,...frame]){g.deleteAttribute('uv');}
- kit.add(new T.Mesh(mergeGeometries([halo,...frame].map(g=>g.index?g.toNonIndexed():g))!,GOLD));
- const strings:number[]=[];for(let i=0;i<7;i++){const x=-.11+i*.035,top=.47+.03*Math.sin(i*1.1),bottom=.45-(x+.17)/.32*.45+.03;strings.push(x,top,0,x,bottom,0);}
- const lines=new T.BufferGeometry();lines.setAttribute('position',new T.Float32BufferAttribute(strings,3));place(lines);kit.add(new T.LineSegments(lines,STRING));
+ kit.add(new T.Mesh(halo,GOLD));
  kit.matrixAutoUpdate=true;return {kit,wings};
 }
 
@@ -178,6 +172,7 @@ function angelKit(){
  * hem flutter and gestures run in the shader; the CPU only places each ghost 30 times a second.
  */
 export class Ghosts{
+ private readonly teaGuests=new Map<TeaGuest,ReturnType<typeof buildTeaGuest>>();
  private time={value:0};
  private near:Batch;private far:Batch;
  private updatedAt=-Infinity;private frustum=new T.Frustum();private projection=new T.Matrix4();private sphere=new T.Sphere();
@@ -216,17 +211,42 @@ export class Ghosts{
   if(now-this.updatedAt<1000/30)return;this.updatedAt=now;
   camera.updateMatrixWorld();this.frustum.setFromProjectionMatrix(this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
   for(const b of [this.near,this.far])b.used=0;let angels=0,holding=0;const time=now/1000;
+  for(const guest of this.teaGuests.values()){guest.root.visible=false;guest.cup.visible=false;}
   for(const g of ghosts){
    // Heads at the visitors' head height. Seated, that leaves only the last 0.1 m of sheet below the cushion (0.63 m);
    // it drapes over the front edge (see the vertex shader).
    if(g.sitting){this.s.set(1,1,1);this.v.set(g.x+Math.sin(g.yaw)*SEAT_FORWARD,g.y+SEATED_HEAD,g.z+Math.cos(g.yaw)*SEAT_FORWARD);}
-   else{this.s.set(1,1,1);this.v.set(g.x,g.y+STANDING_HEAD,g.z);}if(!this.frustum.intersectsSphere(this.sphere.set(this.v,1)))continue;
+   else{this.s.set(1,1,1);this.v.set(g.x,g.y+STANDING_HEAD,g.z);}if(!this.frustum.intersectsSphere(this.sphere.set(this.v,g.teaGuest?1.7:1)))continue;
    const h=hash(g.id),glow=g.npc?NPC_GLOW:GLOWS[h%GLOWS.length],seed=(h>>>8)%1000/1000+(g.sitting?32:0)+(g.npc?0:64)+(g.walking&&!g.sitting?128:0),distance=this.v.distanceTo(camera.position),far=distance>14;
    this.m.compose(this.v,this.q.setFromAxisAngle(this.up,g.yaw),this.s);
    this.b.set(0,0,0);
-   if(g.angel){
-    // Left arm holds the harp's pillar, the right hand plucks the strings.
-    this.l.set(.1,-.3,.4).normalize();this.r.set(-.3+.05*Math.sin(time*3.1+h),-.26+.09*Math.sin(time*5.3+h),.4).normalize();
+   if(g.teaGuest){
+    let guest=this.teaGuests.get(g.teaGuest);
+    if(!guest){guest=buildTeaGuest(g.teaGuest);this.teaGuests.set(g.teaGuest,guest);this.scene.add(guest.root,guest.cup);}
+    const age=g.age??0;
+    const sip=T.MathUtils.smoothstep(age,.4,1.4)*(1-T.MathUtils.smoothstep(age,2.4,3.4));
+    const toast=T.MathUtils.smoothstep(age,4,4.8)*(1-T.MathUtils.smoothstep(age,5.8,6.6));
+    const greeting=T.MathUtils.smoothstep(age,7,7.6)*(1-T.MathUtils.smoothstep(age,8.7,9.4));
+    this.d.copy(CUP_HAND).lerp(CUP_AT_MOUTH,sip);
+    this.d.y+=toast*.42;this.d.z-=toast*.08;
+    this.l.copy(this.d).sub(SHOULDER).normalize();this.r.copy(REST[1]);
+    if(g.teaGuest==='hatter'){
+     this.r.lerp(this.hand.set(.07,.42,.1).normalize(),greeting).normalize();
+     guest.hat.rotation.z=-.035*greeting;
+    }else{
+     this.r.lerp(this.hand.set(.3,.23,.25).normalize(),greeting).normalize();
+     for(const [i,ear] of guest.ears.entries()){
+      const side=i===0?-1:1;
+      ear.rotation.z=-side*.16+Math.sin(age*12+i)*.12*greeting;
+      ear.rotation.x=Math.sin(age*9+i)*.10*greeting;
+     }
+    }
+    const bob=Math.sin(time*1.5+(h>>>8)%1000/1000*6)*.014;
+    guest.root.visible=true;guest.root.position.copy(this.v);guest.root.position.y+=bob;guest.root.rotation.y=g.yaw;
+    guest.cup.visible=true;guest.cup.position.copy(this.d).applyQuaternion(this.q).add(this.v);guest.cup.position.y+=bob;
+    guest.cup.rotation.set(0,g.yaw,0);guest.cup.rotateX(-TIP*sip);
+   }else if(g.angel){
+    this.l.copy(REST[0]);this.r.copy(REST[1]);
     const a=this.angels[angels++]??=(()=>{const k=angelKit();this.scene.add(k.kit);return k;})();
     // Same slow float as the body (see the shader).
     a.kit.visible=true;a.kit.position.copy(this.v).y+=Math.sin(time*1.5+(h>>>8)%1000/1000*6)*.07;a.kit.rotation.y=g.yaw;

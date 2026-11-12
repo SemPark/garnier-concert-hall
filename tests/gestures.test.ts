@@ -42,7 +42,7 @@ export function headClipping(a:Avatar){
  const shapes=a.head.children.filter((o):o is T.Mesh=>o instanceof T.Mesh&&(o.userData.hairPart||o===a.head.children[0]));
  for(const [arm,hand] of [[a.leftArm,a.leftHand],[a.rightArm,a.rightHand]] as const){
   // The sleeve capsule and mitten ellipsoid have different centres and radii.
-  const sleeve=arm.children.find((o):o is T.Mesh<T.CapsuleGeometry>=>o instanceof T.Mesh&&o.geometry instanceof T.CapsuleGeometry)!;
+  for(const sleeve of arm.children.filter((o):o is T.Mesh<T.CapsuleGeometry>=>o instanceof T.Mesh&&o.visible&&o.geometry instanceof T.CapsuleGeometry)){
   const {height,radius}=sleeve.geometry.parameters;
   const sleeveInverse=sleeve.matrixWorld.clone().invert();
   const mitten=hand.children[0];
@@ -62,12 +62,34 @@ export function headClipping(a:Avatar){
    }
   }
  }
+ }
  return worst;
 }
 test('raised arms and hands never pass into the head or hair',()=>{
  for(const variant of [0,4,5])for(const g of GESTURES){
   const a=new Avatar(0x5a7d8c,undefined,variant);for(let i=0;i<40;i++)a.update(0,0,false,false,null,10,1/30);
   for(let age=0;age<=g.seconds;age+=.1){a.update(0,0,false,false,g.id,age,1/30);const depth=headClipping(a);assert.ok(depth<.015,`${a.hair} ${g.id} at ${age.toFixed(1)}: arm ${(depth*100).toFixed(1)}cm inside the head`);}
+ }
+});
+
+test('raised gestures keep the shoulders near their resting height while clearing long hair',()=>{
+ for(const mode of ['standing','seated','train'] as const){
+  const seated=mode!=='standing',a=new Avatar(0x5a7d8c,undefined,4);
+  a.trainPassenger=mode==='train';
+  a.update(0,0,seated,false,null,10,10);
+  const restY=a.leftArm.position.y;
+  for(const gesture of ['wave','bravo','ovation','shh'] as const){
+   for(const cameraFacing of [{turn:-3.3,pitch:.4},{turn:.14,pitch:.4},{turn:.5,pitch:-.5},{turn:2.2,pitch:.4}]){
+    const facing=gesture==='ovation'||gesture==='shh'?cameraFacing:undefined;
+    for(let age=0;age<=gestureSeconds(gesture);age+=.05){
+     a.update(age,0,seated,true,gesture,age,1/30,facing);
+     const context=`${mode} ${gesture} at ${age.toFixed(2)}`;
+     assert.ok(restY-Math.min(a.leftArm.position.y,a.rightArm.position.y)<.07,`${context}: shoulders drop`);
+     if(gesture==='wave')assert.equal((a.trainPassenger?a.leftArm:a.rightArm).position.y,restY,context);
+     assert.ok(headClipping(a)<.015,`${context}: arm crosses the face or hair`);
+    }
+   }
+  }
  }
 });
 

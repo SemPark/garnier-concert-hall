@@ -93,20 +93,43 @@ export class ConcertAudio{
   const c=this.context;if(!this.enabled||this.volume<=0||document.hidden||!c)return false;
   if(c.state!=='running')void c.resume().catch(()=>{});
   if(!this.clapBuffer){
-   this.clapBuffer=c.createBuffer(1,Math.ceil(c.sampleRate*.085),c.sampleRate);const data=this.clapBuffer.getChannelData(0);
-   for(let i=0;i<data.length;i++){const t=i/c.sampleRate;data[i]=(Math.random()*2-1)*Math.min(1,t/.0008)*Math.exp(-t*72);}
+   this.clapBuffer=c.createBuffer(1,Math.ceil(c.sampleRate*.14),c.sampleRate);const data=this.clapBuffer.getChannelData(0);
+   // Several close skin contacts give a handclap its crack.
+   let softened=0;
+   for(let i=0;i<data.length;i++){
+    const t=i/c.sampleRate,noise=Math.random()*2-1;softened+=.38*(noise-softened);
+    let contacts=0;
+    for(const [start,amount] of [[0,1],[.008,.58],[.019,.32]]){
+     const age=t-start;if(age>=0)contacts+=amount*Math.min(1,age/.0006)*Math.exp(-age*95);
+    }
+    data[i]=softened*contacts*.85;
+   }
    this.clapRoom=c.createBuffer(2,Math.ceil(c.sampleRate*.65),c.sampleRate);
    for(let channel=0;channel<2;channel++){const room=this.clapRoom.getChannelData(channel);for(let i=0;i<room.length;i++){const t=i/c.sampleRate;room[i]=t<.035?0:(Math.random()*2-1)*Math.exp(-t*9)*.055;}
     for(const [delay,level] of [[.055,.25],[.095,.13],[.16,.07]])room[Math.floor((delay+channel*.007)*c.sampleRate)]+=level;
    }
   }
-  for(const offset of [0,.43,.86]){
+  for(const [offset,rate,amount] of [[0,1,1],[.37,.95,.83],[.79,1.04,.94]]){
    const source=c.createBufferSource(),high=c.createBiquadFilter(),low=c.createBiquadFilter(),level=c.createGain(),room=c.createConvolver(),wet=c.createGain();
-   source.buffer=this.clapBuffer;high.type='highpass';high.frequency.value=650;low.type='lowpass';low.frequency.value=6500;level.gain.value=Math.min(1,this.volume*gain)*.85;room.buffer=this.clapRoom;room.normalize=false;wet.gain.value=this.zone==='auditorium'?.42:.24;
+   source.buffer=this.clapBuffer;source.playbackRate.value=rate;high.type='highpass';high.frequency.value=160;low.type='lowpass';low.frequency.value=5600;level.gain.value=Math.min(1,Math.max(0,this.volume*gain))*.85*amount;room.buffer=this.clapRoom;room.normalize=false;wet.gain.value=this.zone==='auditorium'?.42:.24;
    source.connect(high);high.connect(low);low.connect(level);level.connect(c.destination);level.connect(room);room.connect(wet);wet.connect(c.destination);
    source.start(c.currentTime+offset);source.onended=()=>window.setTimeout(()=>{for(const node of [source,high,low,level,room,wet])node.disconnect();},700);
   }
   return true;
+ }
+ /** A brief celebratory whistle, distinct from applause and generated without an audio download. */
+ bravo(gain=1){
+  const c=this.context;if(!this.enabled||this.volume<=0||document.hidden||!c)return false;
+  if(c.state!=='running')void c.resume().catch(()=>{});
+  const t=c.currentTime,voice=c.createOscillator(),vibrato=c.createOscillator(),depth=c.createGain(),level=c.createGain();
+  voice.type='sine';vibrato.frequency.value=6;depth.gain.value=12;
+  voice.frequency.setValueAtTime(880,t);voice.frequency.exponentialRampToValueAtTime(1568,t+.16);
+  voice.frequency.exponentialRampToValueAtTime(1397,t+.35);voice.frequency.exponentialRampToValueAtTime(1047,t+.65);
+  level.gain.setValueAtTime(0,t);level.gain.linearRampToValueAtTime(Math.min(1,Math.max(0,this.volume*gain))*.1,t+.045);
+  level.gain.setTargetAtTime(.0001,t+.35,.09);level.gain.linearRampToValueAtTime(0,t+.7);
+  vibrato.connect(depth);depth.connect(voice.frequency);voice.connect(level);level.connect(c.destination);
+  voice.start(t);vibrato.start(t);voice.stop(t+.72);vibrato.stop(t+.72);
+  voice.onended=()=>{for(const node of [voice,vibrato,depth,level])node.disconnect();};return true;
  }
  /** A short, soft cartoon meow; generated locally, with no extra file or download. */
  meow(){
