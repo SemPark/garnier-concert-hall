@@ -409,10 +409,12 @@ export class StageFireworks{
   p.gallery=true;this.galleryCount++;this.gallerySideCounts[x<0?0:1]++;p.floor=floor;p.dragFactor=stepDrag(.18);p.size=.8;p.red=1;p.green=rand(.65,.83);p.blue=.27;
   p.pattern='twinkle';p.trail=34;p.sparkFreq=0;p.sparkTimer=0;
  }
- private galleryWaterfalls(){
+ private galleryWaterfalls(emitThirdFloor:boolean){
   const baseInterval=8;
   const swellInterval=6;
   for(const [tier,level] of GALLERY_WATERFALL_LEVELS.entries()){
+   // Stop the source while the existing sparks finish their fall.
+   if(level.y===THIRD_FLOOR_FALL_Y&&!emitThirdFloor)continue;
    const tick=this.fountainTick+tier*5;
    const base=tick%baseInterval===0,swell=tick%swellInterval===0;
    if(!base&&!swell)continue;
@@ -463,7 +465,7 @@ export class StageFireworks{
   }
  }
 
- private step(){
+ private step(emitThirdFloor:boolean){
   this.clock+=STEP;
   if(this.clock>=this.nextMovement)this.direct();
   while(this.cues.length&&this.clock>=this.cues[0].at){
@@ -477,7 +479,7 @@ export class StageFireworks{
    const cue=this.subBursts[i];
    if(cue.at<=this.clock){this.subBursts.splice(i,1);this.burst(cue);}
   }
-  this.galleryWaterfalls();
+  this.galleryWaterfalls(emitThirdFloor);
   this.launchEffects();
   for(let i=0;i<this.starCount;){
    const p=this.stars[i];p.life-=STEP;
@@ -570,7 +572,7 @@ export class StageFireworks{
   }
  }
 
- update(now:number,enabled:boolean,frustum?:T.Frustum){
+ update(now:number,enabled:boolean,frustum?:T.Frustum,emitThirdFloor=true){
   if(!enabled){
    this.group.visible=false;this.last=null;this.clock=0;this.accumulator=0;this.nextMovement=0;this.cues.length=0;this.subBursts.length=0;this.fountainTick=0;this.movements=0;
    this.starCount=0;this.galleryCount=0;this.gallerySideCounts.fill(0);this.sparkCount=0;this.rockets.length=0;return;
@@ -586,7 +588,7 @@ export class StageFireworks{
   // Ignore long background gaps; never catch up a whole hidden show on one frame.
   this.accumulator+=Math.min(.1,Math.max(0,now-this.last));this.last=now;
   let changed=false;
-  while(this.accumulator>=STEP){this.accumulator-=STEP;this.step();changed=true;}
+  while(this.accumulator>=STEP){this.accumulator-=STEP;this.step(emitThirdFloor);changed=true;}
   if(changed)this.draw();
  }
 

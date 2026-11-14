@@ -81,7 +81,7 @@ export type CandleTable=(typeof CANDLE_TABLES)[number];
 export const CAFE_APPROACH={x:F.cafeCounter.x+1.25,y:0,z:F.cafeCounter.z};
 export const cafeApproach=(z:number)=>({...CAFE_APPROACH,z:Math.max(F.cafeCounter.z-F.cafeCounter.hz+.4,Math.min(F.cafeCounter.z+F.cafeCounter.hz-.4,z))});
 export const atCafe=(v:{zone:string;x:number;y?:number;z:number})=>v.zone==='lobby'&&Math.abs(v.y??0)<.5&&Math.abs(v.x-CAFE_APPROACH.x)<1.1&&Math.abs(v.z-F.cafeCounter.z)<F.cafeCounter.hz;
-export const SPAWN={lobby:{x:0,y:0,z:24},auditorium:{x:0,y:0,z:47}};
+export const SPAWN={lobby:{x:0,y:0,z:24},auditorium:HALL_DESTINATIONS.rear};
 export const PALETTE=[0xc9564d,0xd98a4f,0xd9b04f,0x5fa860,0x3f9c8f,0x4f7fd0,0x7462c9,0xd7769f,0xc25283,0x5aa9c9,0x95b856,0xd86662];
 export function visitorColor(v:{id:string;outfit?:Outfit}){return OUTFITS.find(o=>o.id===v.outfit)?.color??PALETTE[(appearanceSeed(v.id)>>>16)%PALETTE.length];}
 export function inGallery(p:Point,padding=.27){const side=Math.abs(p.x)>=12.9+padding&&Math.abs(p.x)<=15.9-padding&&p.z>=-26.5+padding&&p.z<=50.3-padding;const rear=Math.abs(p.x)<=15.9-padding&&p.z>=GALLERY_BRIDGE.minZ+padding&&p.z<=GALLERY_BRIDGE.maxZ-padding;return (side||rear)&&hasGalleryFloor(p.x,p.z);}

@@ -182,6 +182,7 @@ export class Avatar{
  holdingCoffee=false;private coffeeCup?:T.Group;holdingMacaron=false;macaronBites=0;private macaron?:T.Group;
  holdingCandle=false;
  holdingBouquet=false;
+ wishing=false;
  /** Train passengers wave with the opposite hand. */
  trainPassenger=false;
  /** Colour of the forkful while this visitor eats a dinner dish (null: not dining). The fork is shown only while eating. */
@@ -353,6 +354,15 @@ export class Avatar{
   }
   this.icon=pose.icon;this.iconAlpha=pose.iconAlpha;
   if(this.holdingBouquet&&!type)this.aimAt(this.left,-.38,.70,-.37);
+  if(this.wishing){
+   this.aimAt(this.left,-.06,.78,-.32);
+   this.aimAt(this.right,.06,.78,-.32);
+   this.head.rotation.x=.2;
+   for(const eye of this.eyes.children){
+    const mesh=eye as T.Mesh;
+    if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[0]=1;
+   }
+  }
   // Mittens stay rounded and tools keep their body-space orientation.
   for(const arm of [this.left,this.right])arm.hand.quaternion.copy(arm.shoulder.quaternion).invert();
  }

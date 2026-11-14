@@ -6,7 +6,8 @@ import {REAR_SCREENS} from '../../shared/gallery';
 import {WALL_DATUM} from './HallWallBands';
 import {MIRROR_RASTER} from './quality';
 
-const GLASS_WIDTH=1.20,GLASS_HEIGHT=3.33;
+const GLASS_WIDTH=1.72,GLASS_HEIGHT=3.43,GLASS_BOTTOM=.275;
+const FRAME_BORDER=.24,BEVEL_BORDER=.09;
 const glassCorners=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([x,y])=>new T.Vector4(x*GLASS_WIDTH/2,y*GLASS_HEIGHT/2,0,1));
 
 function arch(width:number,height:number){
@@ -29,11 +30,11 @@ const mirrorShader={
  uniforms:{...reflectorShader.uniforms,uTime:{value:0},uPresence:{value:0}},
  vertexShader:reflectorShader.vertexShader
   .replace('varying vec4 vUv;','varying vec4 vUv; varying vec2 vSurface;')
-  .replace('vUv = textureMatrix', 'vSurface = position.xy / vec2(1.20, 2.31) + 0.5; vUv = textureMatrix'),
+  .replace('vUv = textureMatrix', `vSurface = position.xy / vec2(${GLASS_WIDTH.toFixed(2)}, ${GLASS_HEIGHT.toFixed(2)}); vUv = textureMatrix`),
  fragmentShader:reflectorShader.fragmentShader
   .replace('varying vec4 vUv;', 'varying vec4 vUv; varying vec2 vSurface; uniform float uTime; uniform float uPresence;')
   .replace('gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );', `
-   vec2 p=(vSurface-0.5)*vec2(1.0,1.55);
+   vec2 p=vSurface*vec2(1.0,2.23);
    float t=uTime*0.15;
    float flow=sin(p.y*9.0+t+sin(p.x*8.0-t))*0.5;
    flow+=sin(p.x*12.0-p.y*5.0-t*1.3+flow)*0.3;
@@ -56,6 +57,7 @@ export class HallMirror{
  readonly standingMarker:T.Mesh<T.PlaneGeometry,T.MeshBasicMaterial>;
  readonly standingPoint:T.Vector3;
  private readonly standingRing:T.Mesh<T.RingGeometry,T.MeshBasicMaterial>;
+ private readonly standingIcon:T.Mesh<T.ShapeGeometry,T.MeshBasicMaterial>;
  private readonly standingRipple:T.Mesh<T.RingGeometry,T.MeshBasicMaterial>;
  private readonly glass:Reflector;
  private readonly ghostsScene=new T.Scene();
@@ -80,7 +82,7 @@ export class HallMirror{
   // Side-wall panel beside the stair door, below its lamp on the rear landing.
   const landingFaceZ = REAR_SCREENS.z + REAR_SCREENS.thickness / 2;
   const panelCenterZ = (landingFaceZ + WALL_DATUM.rear) / 2;
-  this.root.position.set(WALL_DATUM.halfWidth-.29,1.94,panelCenterZ);
+  this.root.position.set(WALL_DATUM.halfWidth-.29,GLASS_BOTTOM+GLASS_HEIGHT/2,panelCenterZ);
   this.root.rotation.y = -Math.PI / 2;
   this.standingPoint=new T.Vector3(this.root.position.x-2.15,0,panelCenterZ);
   this.standingMarker=new T.Mesh(new T.PlaneGeometry(1.46,1.46),new T.MeshBasicMaterial({visible:false}));
@@ -89,16 +91,30 @@ export class HallMirror{
   this.standingMarker.userData.mirrorStandingSpot=true;
   this.standingMarker.userData.fullDetail=true;
   this.standingRing=new T.Mesh(new T.RingGeometry(.40,.44,64),new T.MeshBasicMaterial({color:0xf0d29b,transparent:true,opacity:.85,depthWrite:false}));
+  // A hand mirror faces the landing so visitors can read it as they approach.
+  const mirrorIcon=new T.Shape();
+  mirrorIcon.moveTo(-.032,-.25);
+  mirrorIcon.lineTo(.032,-.25);
+  mirrorIcon.lineTo(.032,-.114);
+  mirrorIcon.bezierCurveTo(.22,-.07,.18,.25,0,.25);
+  mirrorIcon.bezierCurveTo(-.18,.25,-.22,-.07,-.032,-.114);
+  mirrorIcon.closePath();
+  const mirrorFace=new T.Path();
+  mirrorFace.absellipse(0,.066,.112,.14,0,Math.PI*2,false,0);
+  mirrorIcon.holes.push(mirrorFace);
+  this.standingIcon=new T.Mesh(new T.ShapeGeometry(mirrorIcon),this.standingRing.material);
+  this.standingIcon.rotation.z=-Math.PI/2;
+  this.standingIcon.raycast=()=>{};
   this.standingRipple=new T.Mesh(new T.RingGeometry(.43,.45,64),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.36,depthWrite:false}));
   this.standingRipple.position.z=.001;
   this.standingRing.raycast=()=>{};
   this.standingRipple.raycast=()=>{};
-  this.standingMarker.add(this.standingRing,this.standingRipple);
+  this.standingMarker.add(this.standingRing,this.standingRipple,this.standingIcon);
   scene.add(this.standingMarker);
   this.ghostsScene.background=null;
   this.root.userData.landmark='hall-mirror';
-  const frame=new T.Mesh(arch(1.44,3.57),material(0x9f763e));
-  const bevel=new T.Mesh(arch(1.29,3.42),material(0x403126));bevel.position.z=.018;
+  const frame=new T.Mesh(arch(GLASS_WIDTH+FRAME_BORDER,GLASS_HEIGHT+FRAME_BORDER),material(0x9f763e));
+  const bevel=new T.Mesh(arch(GLASS_WIDTH+BEVEL_BORDER,GLASS_HEIGHT+BEVEL_BORDER),material(0x403126));bevel.position.z=.018;
   this.glass=new Reflector(arch(GLASS_WIDTH,GLASS_HEIGHT),{textureWidth:MIRROR_RASTER.width,textureHeight:MIRROR_RASTER.height,multisample:MIRROR_RASTER.samples,color:0xc8d6de,clipBias:.003,shader:mirrorShader});
   this.glass.position.z=.031;
   const renderReflection = this.glass.onBeforeRender.bind(this.glass);
@@ -133,7 +149,7 @@ export class HallMirror{
     renderer.setClearColor(this.clearColor,clearAlpha);
    }
   };
-  const back=new T.Mesh(arch(1.44,3.57),material(0x403126));back.rotation.y=Math.PI;back.position.z=-.025;
+  const back=new T.Mesh(frame.geometry,bevel.material);back.rotation.y=Math.PI;back.position.z=-.025;
   this.root.add(frame,bevel,this.glass,back);scene.add(this.root);
  }
  /** Zoom the reflection projection to the part of the viewport occupied by the glass.
@@ -176,6 +192,7 @@ export class HallMirror{
  }
  dispose(){
   this.standingMarker.removeFromParent();
+  this.standingIcon.geometry.dispose();
   for(const mesh of [this.standingMarker,this.standingRing,this.standingRipple]){
    mesh.geometry.dispose();mesh.material.dispose();
   }

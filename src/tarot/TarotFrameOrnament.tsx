@@ -91,7 +91,6 @@ export function TarotFrameOrnament({card}:{card:TarotCard}){
   <path d="M96 876Q300 832 504 876L489 936Q300 901 111 936Z" fill={`url(${ref('paper')})`} stroke="#81765e" strokeWidth="2"/>
   <path d="M108 882Q300 844 492 882M119 927Q300 896 481 927" stroke="#c7b68b" strokeWidth="1"/>
   <text x="300" y="902" textAnchor="middle" className="tarot-frame-title" fontSize={card.nameEn.length>18?25:card.nameEn.length>13?29:35}>{card.nameEn.toUpperCase()}</text>
-  <text x="300" y="945" textAnchor="middle" className="tarot-frame-korean">{card.nameKo}</text>
   <g stroke="#838270" strokeWidth="1.3" fill="#e3d4ab">
    <path d="M269 966C241 945 209 950 204 964C200 977 221 981 226 969C230 958 214 956 215 965C230 955 247 966 252 976Z"/>
    <path d="M331 966C359 945 391 950 396 964C400 977 379 981 374 969C370 958 386 956 385 965C370 955 353 966 348 976Z"/>

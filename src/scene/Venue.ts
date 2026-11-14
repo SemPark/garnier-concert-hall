@@ -1,3 +1,5 @@
+import {HallTransition} from './HallTransition';
+import {separateUpperHall} from './OpenHall';
 import {buildStoryTableProps} from './StoryTableProps';
 import {buildProgramBook} from './ProgramBookModel';
 import {MagicChairs} from './MagicChair';
@@ -305,6 +307,7 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
   sun.position.set(21,28,22);sun.target.position.set(-3,0,32);scene.add(sun.target);
  }else{
   cameraWalls.push(...(yield* buildGoldenHallSteps(scene)).cameraWalls);
+  scene.userData.upperArchitecture=separateUpperHall(scene);
   scene.traverse(o=>{if(o instanceof T.Mesh&&o.userData.walkSurface)walkTargets.push(o);});
   const hitGeometry=new T.BoxGeometry(1.08,1.5,1.05),dinnerHitGeometry=new T.BoxGeometry(.62,1,.5),hitMaterial=new T.MeshBasicMaterial({visible:false});
   const availableSeatIds=new Set(SEATS.map(s=>s.id));
@@ -324,7 +327,18 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  for(const wall of cameraWalls)wall.traverse(o=>{o.userData.cameraWall=true;});
  if(zone==='auditorium'){raiseLandingDisplayLights(scene);buildHallLampHalos(scene);}
  finishArchitecture(scene,[...(magicChair?[magicChair.root]:[]),...(usher?[usher.avatar.root]:[]),...(cat?[cat.root]:[]),...musicians.map(a=>a.root)]);
- const updateLOD=yield* batchArchitectureSteps(scene,[...(magicChair?[magicChair.root]:[]),floor,portal,...(cat?[cat.root,...cat.targets]:[]),...(usher?[usher.avatar.root]:[]),...walkTargets,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
+ const updateBaseLOD=yield* batchArchitectureSteps(scene,[...(magicChair?[magicChair.root]:[]),floor,portal,...(cat?[cat.root,...cat.targets]:[]),...(usher?[usher.avatar.root]:[]),...walkTargets,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
+ const upper=scene.userData.upperArchitecture as T.Scene|undefined;
+ let updateUpper:((camera:T.Camera)=>void)|undefined;
+ if(upper){
+  buildHallLampHalos(upper);
+  finishArchitecture(upper,[]);
+  updateUpper=yield* batchArchitectureSteps(upper,[]);
+  scene.add(upper);
+  const showBase=scene.userData.showArchitectureForShadow;
+  scene.userData.showArchitectureForShadow=()=>{showBase?.();if(upper.visible)upper.userData.showArchitectureForShadow?.();};
+ }
+ const updateLOD=(camera:T.Camera)=>{updateBaseLOD(camera);if(upper?.visible)updateUpper?.(camera);};
  const updateMusicians=yield* batchCharactersSteps(scene,[...musicians.map(a=>a.root),...(cat?[cat.root]:[])]);updateMusicians();
  // Visitor reaction icons share one draw call per hall.
  const emotes=new EmoteLayer(64);scene.add(emotes.points);
@@ -332,6 +346,7 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  const sunlight=zone==='lobby'?buildSunlight(scene,[23.1,33.1,38.1].map(z=>new T.Vector3(14.5,16.5,z)),{color:0xffdfb0,strength:.18,pool:.035,fill:.08,spread:.6}):null; // The hall has no window light: it washed over the dinner tables.
  // Candlelight concert: candles fill the stage and the hall's own lights go down (after batching, which they must not join).
  if(zone==='auditorium'){buildCandlelight(scene);for(const table of CANDLE_TABLES)walkTargets.push(buildCandleTable(scene,table).hit);}
+ if(upper)scene.userData.hallTransition=new HallTransition(scene,upper);
  const storyTableProps=zone==='auditorium'?buildStoryTableProps(scene):null;
  if(storyTableProps)walkTargets.push(...storyTableProps.cardTargets);
  const hallStars=zone==='auditorium'?TREE_SPOTS.map(t=>buildFloatingTreeStar(scene,t.x,t.z,{y:stageRiseAt(t.x,t.z),light:false})):[];

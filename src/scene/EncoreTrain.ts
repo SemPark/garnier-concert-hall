@@ -9,7 +9,7 @@ import {buildFloorGuide} from './TicketGuide';
 
 const DUST_COUNT=256,DUST_LIFE=3,DUST_RATE=60;
 const CAR_SCALE=new T.Vector3(.64,.86,.72);
-const CHIMNEY_TOP=3.34,CHIMNEY_Z=1.06;
+const CHIMNEY_BASE=2.96,CHIMNEY_TOP=3.76,CHIMNEY_Z=1.06;
 const STATION_DWELL=3;
 const ARRIVAL_ASCENT_DURATION=1.8;
 const ARRIVAL_RIBBON_DELAY=.28;
@@ -254,7 +254,8 @@ export class EncoreTrain {
    if(c===0){
     box(1.6,1.03,.7,ivory,0,1,1.25,.22);
     add(new T.CylinderGeometry(.32,.38,.09,12),gold,0,2.95,CHIMNEY_Z);
-    add(new T.CylinderGeometry(.24,.30,.34,12),wine,0,CHIMNEY_TOP-.21,CHIMNEY_Z);
+    const shaftTop=CHIMNEY_TOP-.04;
+    add(new T.CylinderGeometry(.24,.30,shaftTop-CHIMNEY_BASE,12),wine,0,(CHIMNEY_BASE+shaftTop)/2,CHIMNEY_Z);
     const rim=new T.LatheGeometry([
      new T.Vector2(.24,-.09),new T.Vector2(.36,-.065),new T.Vector2(.36,-.015),
      new T.Vector2(.32,0),new T.Vector2(.20,0),new T.Vector2(.20,-.06),

@@ -1,8 +1,16 @@
 import {memo,useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {DINNER_TABLES,NPC_SEATS,SEATS,SEAT_GRADES,TABLE_RADIUS,seatGrade,seatLabel,seatNumber,type Seat} from '../shared/venue';
 import type {SeatClaim} from '../shared/protocol';
+import {QUEEN_SEAT,TAROT_HOST_SEAT,TEA_TABLE} from '../shared/storyGuestSeats';
 import {seatMapPosition,SEAT_MAP_SIZE,SEAT_MAP_PARTS as M,mapX,mapY,SEAT_MAP_SCALE} from './seatMapLayout';
 const TABLE_PX=TABLE_RADIUS*SEAT_MAP_SCALE;
+const visibleGrades=SEAT_GRADES.filter(grade=>[...SEATS,...NPC_SEATS].some(seat=>seatGrade(seat)===grade));
+
+const storyTableSymbols:Partial<Record<number,{label:string;theme:string;path:string}>>={
+ [TAROT_HOST_SEAT.row]:{label:'별빛 타로',theme:'tarot',path:'M9.5 21h5V11h-5v10ZM12 11V9m0-6.5c1.6 1.8 2.2 3 2.2 4a2.2 2.2 0 0 1-4.4 0c0-1 .6-2.2 2.2-4Z'},
+ [QUEEN_SEAT.row]:{label:'하트 여왕 카드 게임',theme:'queen',path:'M12 20S3 14.5 3 8.8a4.5 4.5 0 0 1 9-1 4.5 4.5 0 0 1 9 1C21 14.5 12 20 12 20Z'},
+ [TEA_TABLE]:{label:'모자장수의 차',theme:'tea',path:'M4 9h13v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5Zm13 1h2a2 2 0 0 1 0 4h-2M3 21h16M8 6c-2-2 2-2 0-4m5 4c-2-2 2-2 0-4'},
+};
 
 function GhostSeatIcon(){
  return <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -52,7 +60,7 @@ export const SeatMap=memo(function SeatMap({open,claims,selfId,connected,onClose
  const scale=fit*zoom,available=selected&&(!claims[selected.id]||claims[selected.id].visitorId===selfId);
  return <dialog ref={dialog} className="ticket-dialog" onCancel={e=>{e.preventDefault();onClose();}} aria-label="전체 좌석 선택">
   <div className="ticket-heading"><div><h2>나의 자리</h2><p>관객용 좌석 {SEATS.length}석</p></div><button autoFocus onClick={onClose} aria-label="좌석 선택 닫기">✕</button></div>
-  <div className="ticket-toolbar"><div className="ticket-legend">{SEAT_GRADES.map(g=><span key={g} className={`grade grade-${g}`}><i/>{g}석</span>)}<span className="selected">● 선택</span><span className="mine">● 내 자리</span><span className="occupied">● 이용 중</span><span className="ghost"><GhostSeatIcon/>유령 착석</span></div></div>
+  <div className="ticket-toolbar"><div className="ticket-legend">{visibleGrades.map(g=><span key={g} className={`grade grade-${g}`}><i/>{g}석</span>)}<span className="selected">● 선택</span><span className="mine">● 내 자리</span><span className="occupied">● 이용 중</span><span className="ghost"><GhostSeatIcon/>유령 착석</span></div></div>
   <div className="ticket-map-area">
    {showZoomHint&&<div className="ticket-touch-hint" role="status">두 손가락으로 확대·축소할 수 있어요</div>}
    {/* Zoom stack in the bottom-right corner: zoom in / out together, the whole-map view below. */}
@@ -65,7 +73,15 @@ export const SeatMap=memo(function SeatMap({open,claims,selfId,connected,onClose
    </div>
   <div className="ticket-viewport" ref={viewport}><div className="ticket-scroll" style={{width:SEAT_MAP_SIZE.width*scale,height:SEAT_MAP_SIZE.height*scale}}><div className="ticket-map" style={{width:SEAT_MAP_SIZE.width,height:SEAT_MAP_SIZE.height,transform:`scale(${scale})`}}>
    <div className="ticket-hall" style={M.hall}/><div className="ticket-stage" style={M.stage}>무 대 <small>오케스트라</small></div>
-   {DINNER_TABLES.map(t=><span className="ticket-table" key={t.id} style={{left:mapX(t.x)-TABLE_PX,top:mapY(t.z)-TABLE_PX,width:TABLE_PX*2,height:TABLE_PX*2}}>{t.id}</span>)}
+   {DINNER_TABLES.map(table=>{
+    const symbol=storyTableSymbols[table.id];
+    return <span className={`ticket-table${symbol?` story-table-symbol ${symbol.theme}`:''}`} key={table.id}
+     style={{left:mapX(table.x)-TABLE_PX,top:mapY(table.z)-TABLE_PX,width:TABLE_PX*2,height:TABLE_PX*2}}>
+     {symbol?<svg viewBox="0 0 24 24" role="img" aria-label={symbol.label} focusable="false">
+      <path d={symbol.path} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+     </svg>:table.id}
+    </span>;
+   })}
    {NPC_SEATS.map(seat=>{
     const {x,y}=seatMapPosition(seat);
     const label=`${seatGrade(seat)}석 ${seatLabel(seat)} · 유령 착석`;

@@ -5,8 +5,11 @@
 .wish-tarot-backs button:first-child img{transform:translateY(5px) rotate(-7deg)}
 .wish-tarot-backs button:last-child img{transform:translateY(5px) rotate(7deg)}
 .wish-tarot-dialog p{text-align:center;line-height:1.7}
+.wish-tarot-dialog .wish-tarot-header{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:start;gap:4px;text-align:center}
+.wish-tarot-header div{grid-column:2}
+.wish-tarot-dialog .wish-tarot-header button{width:44px;padding:0}
 .wish-tarot-status{margin:8px 0;font-size:16px}
-.wish-tarot-note{color:#d5c2a4;font-size:13px;margin:12px 0 6px}
+.wish-tarot-note{color:#d5c2a4;font-size:12px;margin:4px 0 0;word-break:keep-all}
 .wish-tarot-backs button{padding:0;border:0;background:none;display:grid;gap:16px;justify-items:center;min-width:0}
 .wish-tarot-art{position:relative;min-height:240px;margin:0 auto;width:min(100%,330px,max(210px,54dvh - 150px));perspective:1000px}
 .tarot-card-frame{position:relative;aspect-ratio:3/5;isolation:isolate;border-radius:6% / 3.6%;background:#efe5d0;box-shadow:0 8px 24px #16091066;opacity:0;overflow:hidden}
@@ -15,10 +18,11 @@
 .tarot-frame-ornament{position:absolute;inset:0;display:block;width:100%;height:100%;pointer-events:none}
 .tarot-frame-number{font:48px Georgia,'Times New Roman',serif;fill:#f4ebd7;stroke:#716c67;stroke-width:1.8;letter-spacing:1px}
 .tarot-frame-title{font-family:Georgia,'Times New Roman',serif;letter-spacing:1.2px;fill:#655c59}
-.tarot-frame-korean{font:17px 'Apple SD Gothic Neo','Malgun Gothic',sans-serif;letter-spacing:3px;fill:#655c59}
 .wish-tarot-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .wish-tarot-result h3{text-align:center;font-size:16px;font-weight:500;margin:18px 0 6px;line-height:1.6}
 .wish-tarot-result h3 small{font-size:12px;letter-spacing:0}.wish-tarot-result p{font-size:15px;margin:6px 0 18px;word-break:keep-all;overflow-wrap:anywhere}
-.wish-tarot-dialog footer{margin-top:18px}.wish-tarot-dialog footer .wish-tarot-note{font-size:11px;margin:0}
+.wish-tarot-dialog .wish-tarot-footer{justify-content:center;margin-top:18px}
+.wish-tarot-dialog .wish-tarot-footer button{padding-inline:24px;border-color:#dfbd83;background:#eac98e;color:#47232b;font-weight:700}
+.wish-tarot-dialog .wish-tarot-footer button:hover{background:#f5dcae}
 @keyframes tarot-reveal{from{transform:rotateY(-85deg);opacity:0}to{transform:rotateY(0);opacity:1}}
 @media(prefers-reduced-motion:reduce){.tarot-card-frame.is-ready{animation:none}}

@@ -484,3 +484,16 @@ body.photo-active #world > :not(canvas){display:none!important}
 .photo-mode .photo-wand:hover:enabled{background:#553140}
 
 .tea-prompt .cafe-choices button{min-width:76px;min-height:76px;padding:14px}.tea-prompt .cafe-choices button>b{font-size:38px;line-height:1}
+
+.wish-action{position:relative;touch-action:none;user-select:none;-webkit-touch-callout:none}
+.wish-action b{font-size:22px}
+.wish-action.holding{background:linear-gradient(#e9c77b33,#e9c77b33);box-shadow:inset 0 -3px #e9c77b}
+.ticket-table.story-table-symbol svg{width:56%;height:56%}
+.ticket-table.story-table-symbol.tarot{color:#624588;background:#eee4f5;border-color:#a48dbd}
+.ticket-table.story-table-symbol.queen{color:#982b44;background:#f4e1e4;border-color:#bf8693}
+.ticket-table.story-table-symbol.tea{color:#53633d;background:#e8ecd9;border-color:#939e77}
+
+.galaxy-settings{margin:18px 0;padding:0 12px;border:1px solid #a68c5b50;border-radius:6px}
+.galaxy-settings legend{padding:0 6px;color:var(--gold);font-size:11px}
+.galaxy-settings .setting-row{margin:12px 0}
+.settings-info.galaxy-credits{display:grid;gap:6px}

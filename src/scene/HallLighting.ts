@@ -15,7 +15,9 @@ export function buildHallPracticalLights(scene:T.Scene){
   }
  }
  for(const side of [-1,1])for(const z of [-12,24]){
-  const upper=new T.SpotLight(0xffc27e,65,28,1.1,.9,2);upper.position.set(side*10.8,18,z);upper.target.position.set(side*15.5,12,z);scene.add(upper,upper.target);
+  const upper=new T.SpotLight(0xffc27e,65,28,1.1,.9,2);upper.position.set(side*10.8,18,z);upper.target.position.set(side*15.5,12,z);
+  upper.userData.upperWallLight=upper.target.userData.upperWallLight=true;
+  scene.add(upper,upper.target);
  }
  // Light across the performers, rather than bleaching the whole audience floor.
  for(const side of [-1,1]){
