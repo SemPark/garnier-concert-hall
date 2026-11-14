@@ -22,3 +22,6 @@ export function bloomResolution(mobile:boolean,quality:RenderQuality){return mob
 /** Multisampling for the scene buffer: smooth edges where it is affordable. Low quality (the phone default) uses 2×,
  * which already removes most stair-stepping at a fraction of the memory traffic of 4×. */
 export function msaaSamples(quality:RenderQuality){return quality==='low'?2:4;}
+
+/** This buffer covers only the visible mirror, using two samples at each pixel. */
+export const MIRROR_RASTER={width:384,height:512,samples:2} as const;

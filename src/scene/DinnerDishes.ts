@@ -1,3 +1,4 @@
+import {buildTeaCup} from '../character/TeaCup';
 import {buildCoffeeCup} from '../character/CoffeeCup';
 import * as T from 'three';
 import {DINNER_TABLES,TABLE_RADIUS} from '../../shared/dinnerTables';
@@ -10,7 +11,7 @@ const mat=(color:number,roughness=.7)=>new T.MeshStandardMaterial({color,roughne
 const plateGeometry=new T.CylinderGeometry(.2,.15,.024,24),rimGeometry=new T.TorusGeometry(.19,.008,6,32).rotateX(Math.PI/2);
 const plateMaterial=mat(0x1d2a4a,.3),gold=new T.MeshStandardMaterial({color:0xd4a64a,metalness:.7,roughness:.3}),silver=new T.MeshStandardMaterial({color:0xd8d8d2,metalness:.8,roughness:.25});
 /** The colour of one forkful of each dish (shown on the fork on its way to the mouth). */
-export const BITE_COLOUR:Record<Dish,number>={bread:0xc98a45,soup:0xe0a24a,steak:0x6b3520,salad:0x5d9a3a,pasta:0xe8c26a,cake:0xf3e2c3,coffee:0x3b2414,wine:0x6d1022};
+export const BITE_COLOUR:Record<Dish,number>={bread:0xc98a45,soup:0xe0a24a,steak:0x6b3520,salad:0x5d9a3a,pasta:0xe8c26a,cake:0xf3e2c3,coffee:0x3b2414,tea:0xb66b24,wine:0x6d1022};
 
 /** A table fork: handle and four tines along −z (tips at z −0.17), shared by the table setting and the diner's hand. */
 export function buildFork(){
@@ -95,8 +96,8 @@ function food(dish:Dish){
  g.userData.chunks=chunks;return g;
 }
 /** The diner's drink, beside the plate: the coffee cup on its saucer or the wine glass. */
-function drinkVessel(drink:'coffee'|'wine'){
- const g=new T.Group(),glass=drink==='wine',cup=glass?buildWineGlass():buildTableCup();if(glass)cup.scale.setScalar(WINE_SCALE);g.add(cup);g.userData.vessel=cup;g.userData.levels=cup.userData.levels;
+function drinkVessel(drink:'coffee'|'wine'|'tea'){
+ const g=new T.Group(),glass=drink==='wine',cup=glass?buildWineGlass():drink==='tea'?buildTeaCup():buildTableCup();if(glass)cup.scale.setScalar(WINE_SCALE);g.add(cup);g.userData.vessel=cup;g.userData.levels=cup.userData.levels;
  if(!glass){g.userData.liquid=cup.userData.liquid;g.userData.radiusAt=cup.userData.radiusAt;}
  return g;
 }
@@ -104,7 +105,7 @@ function drinkVessel(drink:'coffee'|'wine'){
 export const WINE_SCALE=1.6;
 
 type Served={root:T.Group;food:T.Group;fork?:T.Object3D;kind:string;seatId:string};
-type Diner={id:string;seatId:string|null;dish?:Dish;dishBites?:number;drink?:'coffee'|'wine';drinkSips?:number;own:boolean;eating:boolean;sipping:boolean};
+type Diner={id:string;seatId:string|null;dish?:Dish;dishBites?:number;drink?:'coffee'|'wine'|'tea';drinkSips?:number;teaFill?:number;own:boolean;eating:boolean;sipping:boolean};
 
 /**
  * Dinner settings on the tables, in front of whoever ordered: a navy plate with three pieces of the dish, a fork on the
@@ -147,7 +148,7 @@ export class DinnerDishes{
     (s.food.userData.chunks as T.Object3D[]|undefined)?.forEach((c,i)=>{c.visible=i>=bites;});
     const mound=s.food.userData.mound as T.Object3D|undefined;if(mound){mound.visible=bites<3;mound.scale.setScalar(1-bites*.2);}
     const liquid=s.food.userData.liquid as T.Object3D|undefined;
-    if(liquid){liquid.visible=bites<3;liquid.position.y=drink?.125-.03*bites:.066-.018*bites;const at=s.food.userData.radiusAt as ((y:number)=>number)|undefined;liquid.scale.setScalar(at?at(liquid.position.y):1-bites*.12);}
+    if(liquid){liquid.visible=bites<3&&(d.teaFill??1)>0;liquid.position.y=drink?.125-.03*bites:.066-.018*bites;if(drink&&d.drink==='tea')liquid.position.y=T.MathUtils.lerp(.025,.102-.023*bites,d.teaFill??1);const at=s.food.userData.radiusAt as ((y:number)=>number)|undefined;liquid.scale.setScalar(at?at(liquid.position.y):1-bites*.12);}
     (s.food.userData.levels as T.Object3D[]|undefined)?.forEach((l,i)=>{l.visible=i===bites;});
     // While a drink is being sipped it is in the diner's hand, not on the table; so is the fork while eating.
     const vessel=s.food.userData.vessel as T.Object3D|undefined;if(vessel)vessel.visible=!d.sipping;

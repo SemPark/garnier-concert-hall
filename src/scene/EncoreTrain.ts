@@ -45,7 +45,7 @@ void main(){
 function arrivalRibbons(topY:number,frontZ:number){
  const deckY=TRAIN_PLATFORM.y+TRAIN_DECK.height;
  const parts:T.BufferGeometry[]=[];
- for(const side of [-1,1])for(let strand=0;strand<3;strand++){
+ for(const side of [-1,1])for(let strand=0;strand<5;strand++){
   const z=frontZ-.18*strand;
   const y=topY-.13*strand;
   const edge=4.03+.16*strand;
@@ -55,7 +55,7 @@ function arrivalRibbons(topY:number,frontZ:number){
    [3.35,deckY+.16,z-.9],[2.3+.28*strand,deckY+.13,z-1.22],
   ].map(([x,y,z])=>new T.Vector3(side*x,y,z)));
   for(const halo of [false,true]){
-   const radius=halo?.145-strand*.019:.048-strand*.009;
+   const radius=halo?.145-strand*.015:.048-strand*.006;
    const tube=new T.TubeGeometry(path,40,radius,6);
    const count=tube.attributes.position.count;
    tube.setAttribute('aRibbon',new T.BufferAttribute(new Float32Array(count).fill(strand),1));
@@ -102,15 +102,15 @@ function arrivalAscent(trackZ:number){
  const floor=new T.PlaneGeometry(9.6,4.6).rotateX(-Math.PI/2).translate(0,y,centerZ);
  floor.setAttribute('aSeed',new T.Float32BufferAttribute([-1,-1,-1,-1],1));
  const parts:T.BufferGeometry[]=[floor];
- for(let i=0;i<24;i++){
+ for(let i=0;i<48;i++){
   const beam=new T.PlaneGeometry(1,1);
   for(let v=0;v<4;v++)beam.attributes.position.setXYZ(v,0,y,centerZ);
-  beam.setAttribute('aSeed',new T.Float32BufferAttribute(new Float32Array(4).fill(i/24),1));
+  beam.setAttribute('aSeed',new T.Float32BufferAttribute(new Float32Array(4).fill(i/48),1));
   parts.push(beam);
  }
  const geometry=mergeGeometries(parts)!;
  for(const part of parts)part.dispose();
- geometry.boundingSphere=new T.Sphere(new T.Vector3(0,y+2.4,centerZ),6.5);
+ geometry.boundingSphere=new T.Sphere(new T.Vector3(0,y+3.4,centerZ),8);
  const material=new T.ShaderMaterial({
   uniforms:{uTime:{value:0}},transparent:true,depthWrite:false,
   side:T.DoubleSide,forceSinglePass:true,blending:T.AdditiveBlending,
@@ -129,7 +129,7 @@ function arrivalAscent(trackZ:number){
    float age=clamp((uTime-.08-.52*seed)/1.15,0.,1.);
    float angle=aSeed*6.283+age*1.2;
    float radius=.67+.28*age;
-   float height=mix(3.4,5.3,fract(aSeed*11.));
+   float height=mix(4.4,6.8,fract(aSeed*11.));
    vec3 offset=vec3(cos(angle)*4.45*radius,max(0.,age*height-(1.-uv.y)*(.55+seed)),sin(angle)*2.0*radius);
    vec4 view=modelViewMatrix*vec4(position+offset,1.);
    view.x+=(uv.x-.5)*(.12+.14*seed);

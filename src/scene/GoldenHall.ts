@@ -9,7 +9,7 @@ import * as T from 'three';
 import {buildHallPracticalLights,hallPanelSconce,hallDoorHeaderLight,hallFlatCeilingLight} from './HallLighting';
 import {finishBuild} from './buildBudget';
 import {wallWithOpenings,box,cylinder,sphere,line,text,material} from './primitives';
-import {GOLDEN_HALL as H} from '../../shared/goldenHall';
+import {GOLDEN_HALL as H,HALL_CHANDELIERS} from '../../shared/goldenHall';
 import {STAGE,STAGE_FLOOR} from '../orchestra/layout';
 import {crystalChandelier,paintedCeiling,friezeMaterial} from './HallDetails';
 import {WALL_DATUM,WALL_LEVELS,buildPerimeterCornices,buildPerimeterFriezes} from './HallWallBands';
@@ -429,7 +429,7 @@ export function* buildGoldenHallSteps(scene:T.Scene){
  cameraWalls.push(...rearScreens(scene));rearCornice(scene);
  buildPerimeterCornices(scene);buildPerimeterFriezes(scene,friezeMaterial());
  buildFrontWindows(scene);yield;buildOrgan(scene);yield;paintedCeiling(scene);yield;
- for(const x of [-7.4,7.4])for(const z of [-20,-7,6,19,32,45]){crystalChandelier(scene,x,z);yield;}
+ for(const {x,y,z} of HALL_CHANDELIERS){crystalChandelier(scene,x,y,z);yield;}
  buildHallPracticalLights(scene);
  const stageLight=new T.SpotLight(0xffd5a4,185,42,1.05,.8,1.5);stageLight.position.set(0,18,-8);stageLight.target.position.set(0,1,-20);scene.add(stageLight,stageLight.target);
  rearFacade(scene);

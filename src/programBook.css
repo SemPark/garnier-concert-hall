@@ -1,0 +1,16 @@
+.program-book-dialog{box-sizing:border-box;width:min(92vw,540px);max-height:90dvh;margin:auto;padding:20px;border:1px solid #c6a16c;border-radius:10px;background:#481b28;color:#f4e7cd;box-shadow:0 25px 80px #0009;overflow:auto;overflow-x:hidden}
+.program-book-dialog::backdrop{background:#100c12a6}
+.program-book-dialog header,.program-book-dialog footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.program-book-dialog header{margin-bottom:16px}.program-book-dialog h2{font:500 24px Georgia,serif;margin:5px 0}.program-book-dialog small{font-size:11px;letter-spacing:.06em}
+.program-book-dialog button{min-height:44px;padding:8px 14px;border:1px solid #b8966266;border-radius:5px;background:#ffffff09;color:inherit;cursor:pointer}
+.program-book-dialog button:disabled{opacity:.35;cursor:default}.program-book-dialog button:focus-visible{outline:2px solid #f4d28c;outline-offset:3px}
+.program-paper{box-sizing:border-box;min-height:360px;padding:26px 24px;color:#37251e;background:linear-gradient(90deg,#d9c8a8,#fff7e6 6%,#f7ecd5 95%,#dbc8a1);border-radius:2px;transform-origin:left center;box-shadow:inset 0 0 0 1px #b2935c}
+.program-paper h3{font-size:23px;line-height:1.35;margin:12px 0 6px;overflow-wrap:anywhere}.program-paper p{font-size:15px;line-height:1.6;margin:6px 0}
+.program-kicker{font-size:12px;letter-spacing:.1em;color:#80532e}.program-rule{text-align:center;margin:22px 0;color:#a07a3d}.program-paper .program-footnote{font-size:12px;margin-top:26px;color:#786049}
+.program-paper ol{padding-left:24px;margin:16px 0 0}.program-paper li{padding:9px 0 12px;border-bottom:1px solid #aa8d5933;font-size:13px}.program-paper li div{display:inline}.program-paper li strong{font-size:16px;font-weight:600;overflow-wrap:anywhere}.program-paper li span{display:block;margin-top:4px;color:#725744;line-height:1.4}.program-paper li[aria-current=true] strong{color:#8d263c}
+.program-announcement{text-align:center;font-size:12px;min-height:22px;margin:12px 0;color:#decba7}
+.program-turn{animation:program-turn .32s ease-out}.program-return{animation:program-return .65s ease-in-out}
+@keyframes program-turn{from{transform:perspective(900px) rotateY(-9deg);opacity:.65}to{transform:none;opacity:1}}
+@keyframes program-return{0%,100%{transform:none}45%{transform:perspective(900px) rotateY(-18deg);filter:brightness(1.18)}}
+@media(max-width:480px){.program-book-dialog{padding:14px;width:94vw}.program-paper{padding:22px 18px;min-height:330px}.program-paper h3{font-size:21px}.program-book-dialog h2{font-size:21px}}
+@media(prefers-reduced-motion:reduce){.program-turn,.program-return{animation:none}}

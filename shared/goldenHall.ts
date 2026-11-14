@@ -7,3 +7,4 @@ export const GOLDEN_HALL={
 } as const;
 
 export const HALL_CAMERA={eye:[0,15.2,47.35],look:[0,9.1,-21]} as const;
+export const HALL_CHANDELIERS=[-7.4,7.4].flatMap(x=>[-20,-7,6,19,32,45].map(z=>({x,y:17.5,z})));

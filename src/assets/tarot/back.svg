@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="384" viewBox="0 0 256 384">
+  <defs>
+    <pattern id="weave" width="16" height="16" patternUnits="userSpaceOnUse">
+      <path d="M0 8 8 0 16 8 8 16Z" fill="none" stroke="#b18a4b" stroke-opacity=".14"/>
+    </pattern>
+  </defs>
+  <rect width="256" height="384" rx="10" fill="#f1e6d2"/>
+  <rect x="6" y="6" width="244" height="372" rx="7" fill="#532638"/>
+  <rect x="13" y="13" width="230" height="358" rx="4" fill="url(#weave)" stroke="#d6b476" stroke-width="3"/>
+  <rect x="22" y="22" width="212" height="340" rx="2" fill="none" stroke="#b18a4b"/>
+  <g fill="none" stroke="#d6b476" stroke-width="2">
+    <path d="M128 54C58 80 52 146 80 192s22 112 48 138c26-26 20-92 48-138s22-112-48-138Z"/>
+    <path d="M128 54C198 80 204 146 176 192s-22 112-48 138c-26-26-20-92-48-138S58 80 128 54Z"/>
+    <path d="M128 96 194 192 128 288 62 192Z"/>
+    <circle cx="128" cy="192" r="38"/>
+  </g>
+  <path d="m128 148 10 34 34 10-34 10-10 34-10-34-34-10 34-10Z" fill="#ecd6a4"/>
+  <g fill="#d6b476">
+    <circle cx="128" cy="54" r="4"/><circle cx="128" cy="330" r="4"/>
+    <path d="m36 36 8 4-8 4-4-4Zm184 0 4 4-4 4-8-4ZM36 340l8 4-8 4-4-4Zm184 0 4 4-4 4-8-4Z"/>
+  </g>
+</svg>

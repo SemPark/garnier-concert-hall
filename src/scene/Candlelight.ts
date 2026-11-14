@@ -111,7 +111,7 @@ export function buildCandlelight(scene:T.Scene){
  for(const t of DINNER_TABLES)clusters.push({x:t.x,y:PARTERRE.floor+.76,z:t.z,n:3,r:.16});
  for(let z=FLOOR_ROWS[0]-.9;z<FLOOR_ROWS[FLOOR_ROWS.length-1]+4.9;z+=1.95)for(const x of [-11.9,11.9])clusters.push({x,y:ground(x,z),z,n:2+Math.floor(rnd()*2),r:.18});
  for(let z=PARTERRE.stairFront+.3;z<PARTERRE.stairBack;z+=.6)for(const x of [-8.85,8.85])clusters.push({x,y:ground(x,z),z,n:2,r:.12});
- for(const side of [-1,1])for(const dx of [-2.3,2.3])clusters.push({x:side*STAIR_DOORS.lower.x+dx,y:0,z:STAIR_DOORS.lower.z-.7,n:6,r:.35});
+ for(const side of [-1,1])clusters.push({x:side*(STAIR_DOORS.lower.x+2.3),y:0,z:STAIR_DOORS.lower.z-.7,n:6,r:.35});
  // Either side of the centre door from the lobby, so the candlelight greets visitors as they come in,
  // and small groups spaced along the foot of both side walls to draw the outline of the room.
  for(const x of [-2.7,2.7])clusters.push({x,y:0,z:50.7,n:8,r:.4});
@@ -174,16 +174,14 @@ export function buildCandlelight(scene:T.Scene){
  for(const light of lights)if(light.intensity===0)light.removeFromParent();
  // No flicker on lights, halos or flames: the bloom is computed at a fraction of the screen resolution, so any swing in
  // brightness, or a bright point moving quickly, makes blocky glow pop on and off along nearby gilded edges.
- // One candle per cell prevents clusters. Jitter keeps the rows from looking rigid.
- const columns=10,rows=17,floatAmplitude=1.25;
+ // Keep the original height distribution and drift, with slightly wider spacing.
+ const columns=9,rows=16,floatAmplitude=1.25;
  const floating=Array.from({length:columns*rows},(_,i)=>{
   const x=((i%columns+.5+(rnd()-.5)*.56)/columns-.5)*24;
   const heightRank=rnd();
   const z=-6+(Math.floor(i/columns)+.5+(rnd()-.5)*.56)/rows*46;
-  // Keep more clearance towards the stage to preserve the sightline to the performers.
   const distanceFromStage=T.MathUtils.smoothstep(z,-6,10);
   const baseHeight=T.MathUtils.lerp(7.8,4.5,distanceFromStage);
-  // Keep the lower third in place and stretch the upper layers to the former peak.
   const previousPeak=T.MathUtils.lerp(14.88,11.28,distanceFromStage);
   const extraHeight=previousPeak-baseHeight-floatAmplitude-3.9;
   const heightVariation=heightRank*3.9+T.MathUtils.smoothstep(heightRank,1/3,1)*extraHeight;

@@ -1,8 +1,14 @@
+import {atTeaTable} from '../shared/tea';
+import {QueenWand} from './scene/QueenWand';
+import type {TarotCard} from './tarot/TarotCardFrame';
+import {isMagicChair} from '../shared/magicChairConfig';
+import {magicChairPose} from '../shared/magicChair';
 import {onTrainDeck,TRAIN_DECK,TRAIN_PLATFORM,TRAIN_PERIOD} from '../shared/encoreTrain';
 import {EncoreTrain} from './scene/EncoreTrain';
 import {EncoreClock} from './scene/EncoreClock';
 import {MusicLights} from './scene/MusicLights';
 import {StageFireworks} from './scene/StageFireworks';
+import {HallDust} from './scene/HallDust';
 import {newId} from './util/requestId';
 import {PROBE_PROFILE} from './diagnostics/ProbeProfile';
 import type {GpuFrameTimer} from './diagnostics/GpuFrameTimer';
@@ -22,9 +28,8 @@ import {characterFrontLight,FRONT_LIGHT} from './character/characterLight';
 import {constrainCamera} from './controls/cameraCollision';
 import {createVenue,createVenueAsync,type Venue} from './scene/Venue';
 import {Ghosts,type GhostSpot} from './scene/Ghosts';
-import {TEA_TABLE} from './scene/GhostTeaParty';
-import type {GhostCostume} from './scene/GhostCostumes';
-import {whiteRabbitSpot} from './scene/WhiteRabbit';
+import {NpcBehavior,QUEEN_SEAT} from './scene/NpcBehavior';
+import {TAROT_HOST_SEAT} from '../shared/storyGuestSeats';
 import {GESTURE_ICON,gestureTurnWeight,gestureWeight,type Icon} from './character/villager';
 import {ICON_SIZE,MAX_GROWTH} from './character/EmoteLayer';
 import {ghostTop} from './character/VisitorNames';
@@ -34,22 +39,8 @@ const FLYERS=[{x:-5,z:-14,y:7.5,rx:3.5,rz:3.5,speed:.16},{x:0,z:-16,y:8.5,rx:5,r
 const WALKER_PATHS=[{x1:-11.4,z1:-7,x2:-11.4,z2:38},{x1:11.4,z1:38,x2:11.4,z2:-7},...DINNER_LANES_Z.filter((_,i)=>i%2===0).map((z,i)=>i%2?{x1:11,z1:z,x2:-11,z2:z}:{x1:-11,z1:z,x2:11,z2:z}),{x1:-9,z1:43,x2:9,z2:43},{x1:-10,z1:-7.6,x2:10,z2:-7.6},{x1:-12.9,z1:2,x2:-12.9,z2:38},{x1:12.9,z1:38,x2:12.9,z2:2}];
 /** Walking ghosts (currently off, see flyingGhosts): two per lane, spread out along it, each at its own pace. */
 export const WALKERS=WALKER_PATHS.flatMap((w,i)=>[0,1].map(k=>({...w,phase:k/2+i*.13,speed:.6+.08*((i+k)%4)})));
-/** Hall ghosts act like visitors: every four seconds each one picks one of the eight audience gestures at random (a
- * third of the time it just rests), out of step with the others. Seeded by id and time, so every viewer sees the same. */
-const GHOST_GESTURES=8;
-function ghostGesture(id:string,t:number){const offset=(ghostSeatHash(id)%97)/97,slot=Math.floor(t/4+offset),h=ghostSeatHash(id+':'+slot)%12;return h<GHOST_GESTURES?{gesture:GESTURES[h].id as Gesture,age:t-(slot-offset)*4}:null;}
 /** A visitor's own gesture, shown on their ghost while it lasts (eating and drinking included). */
 function visitorGhostGesture(v:Visitor,now:number){if(!v.gesture)return null;const age=(now-v.gestureAt)/1000;return age<=gestureSeconds(v.gesture)?{gesture:v.gesture,age}:null;}
-const ghostSeatHash=(id:string)=>{let h=2166136261;for(let i=0;i<id.length;i++)h=Math.imul(h^id.charCodeAt(i),16777619);return h>>>0;};
-/** A handful of parterre seats hold a ghost while no visitor has taken them. */
-const NPC_CAST:ReadonlyArray<{row:number;column:number;costume:GhostCostume}>=[
- {row:2,column:3,costume:'phantom'},
- {row:8,column:3,costume:'vesper'},
- {row:8,column:4,costume:'candra'},
- {row:21,column:2,costume:'queen'},
-];
-const NPC_SEATS=NPC_CAST.map(guest=>FLOOR_SEATS.find(seat=>seat.row===guest.row&&seat.column===guest.column)!);
-const TEA_SEATS=FLOOR_SEATS.filter(seat=>seat.row===TEA_TABLE&&seat.column<=2);
 import {LobbyLightPass,type RenderPassTimings} from './scene/LobbyLighting';
 import {interiorEnvironment,bakeArchitectureShadows} from './scene/InteriorLight';
 import {Avatar,musicianSits} from './character/Avatar';
@@ -76,7 +67,7 @@ import {renderRatio,frameRate,bloomResolution,msaaSamples,type RenderQuality} fr
 import {CONCERT_CAMERA,CONDUCTOR,STAGE,STAGE_FLOOR} from './orchestra/layout';
 import {GOLDEN_HALL,HALL_CAMERA} from '../shared/goldenHall';
 import {GALLERY_BRIDGE} from '../shared/gallery';
-import {GESTURES,gestureSeconds,type Gesture} from '../shared/gestures';
+import {gestureSeconds,type Gesture} from '../shared/gestures';
 import {DISH_BITES,isDrink,type Dish} from '../shared/dishes';
 import {DinnerDishes,BITE_COLOUR} from './scene/DinnerDishes';
 
@@ -117,8 +108,88 @@ export class World{
  private stageCameraBlend=0;
  ready=false;private texturesLoaded=false;private hallBuild:Promise<Venue>|null=null;private hallWarm:Promise<void>|null=null;private hallWarmed=false;private deferredState:Snapshot|null=null;private changingZone=false;uiObscured=false;
  position=new T.Vector3(SPAWN.lobby.x,SPAWN.lobby.y,SPAWN.lobby.z);pose:'idle'|'walk'|'sit'='idle';yaw=0;cameraYaw=0;cameraPitch=.13;cameraDistance=4.8;private cameraLocked=false;private introGlide=false;private entranceFraming=false;fps=60;entered=false;
+ readonly queenWand=new QueenWand();
+ onQueenCardGame:()=>void=()=>{};
+ queenCardResult(won:boolean){
+  this.npcBehavior.queenCardResult(won,this.net.now()/1000,this.position);
+  if(won)this.queenWand.receive();
+  this.onChange();
+ }
+ get atTeaTable(){return !!this.self&&atTeaTable(this.self);}
+ get teaPouring(){return this.drink==='tea'&&this.net.now()<(this.self?.teaReadyAt??0);}
+ get atQueenTable(){
+  if(this.zone!=='auditorium'||this.pose!=='sit')return false;
+  return DINNER_SEATS_BY_ID.get(this.self?.seatId??'')?.row===QUEEN_SEAT.row;
+ }
+ onWishTarot:()=>void=()=>{};
+ private wishFlowerSeat:string|null=null;
+ private onMirrorSpot=false;
+ private mirrorView=false;
+ get wishFlowerCard(){return this.venues.auditorium?.storyTableProps?.wishFlower.cardName??null;}
+ get atWishTarotTable(){
+  if(this.zone!=='auditorium'||this.pose!=='sit'||this.self?.pose!=='sit')return false;
+  const seatId=this.self.seatId;
+  if(!seatId||DINNER_SEATS_BY_ID.get(seatId)?.row!==TAROT_HOST_SEAT.row)return false;
+  const claim=this.net.state?.seats[seatId];
+  return claim?.visitorId===this.net.selfId&&claim?.status==='seated';
+ }
+ openWishTarot(){
+  if(!this.atWishTarotTable||this.net.status!=='connected'||this.photoMode||this.uiObscured)return;
+  this.input.keys.clear();
+  this.input.touchMove.x=this.input.touchMove.z=0;
+  this.route=[];
+  this.marker.visible=false;
+  this.onWishTarot();
+ }
+ receiveWishFlower(card:TarotCard,image:HTMLImageElement){
+  if(!this.atWishTarotTable||this.net.status!=='connected'||this.photoMode)return;
+  const seat=DINNER_SEATS_BY_ID.get(this.self?.seatId??'');
+  const flower=this.venue.storyTableProps?.wishFlower;
+  if(!seat||!flower)return;
+  const time=this.net.now()/1000;
+  this.wishFlowerSeat=seat.id;
+  flower.show(card,image,time);
+  this.npcBehavior.offerWishFlower(time,seat);
+  this.onToast('두 사람이 타로 카드가 꽂힌 꽃다발을 건네요.');
+ }
+ discardWishFlower(){
+  if(!this.wishFlowerCard)return;
+  this.wishFlowerSeat=null;
+  this.venues.auditorium?.storyTableProps?.wishFlower.discard();
+  this.npcBehavior.cancelWishFlower();
+  this.onToast('꽃다발을 버렸어요.');
+ }
+ openQueenCardGame(){
+  if(this.zone!=='auditorium')return;
+  if(this.queenWand.receiving)return;
+  if(this.queenWand.casting||this.queenWand.charges){
+   this.onToast('마법을 다 쓰거나 지팡이를 버리면 다시 도전할 수 있어요.');
+   return;
+  }
+  this.input.keys.clear();
+  this.input.touchMove.x=this.input.touchMove.z=0;
+  this.route=[];
+  this.marker.visible=false;
+  this.onQueenCardGame();
+ }
+ discardQueenWand(){
+  if(!this.queenWand.discard())return;
+  this.onToast('하트 지팡이를 버렸어요.');
+  this.onChange();
+ }
+ castQueenWand(){
+  if(!this.avatar||!this.queenWand.cast())return;
+  if(!this.photoMode){
+   this.concertView=false;
+   if(this.firstPerson)this.cameraDistance=3.4;
+  }
+  this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;this.route=[];this.marker.visible=false;
+  this.onChange();
+ }
+ onProgramBook:()=>void=()=>{};
  onChange:()=>void=()=>{};onToast:(message:string)=>void=()=>{};onSeatMap:()=>void=()=>{};onWardrobe:()=>void=()=>{};private wardrobeNear=false;private visitingWardrobe=false;private pendingSeat:string|null=null;private loungeTarget:string|null=null;private visitingCat=false;private petUntil=0;private visitingBoxOffice=false;private seatWalkAt=0;private boardAt=0;
  private fireworks:StageFireworks|null=null;
+ private hallDust:HallDust|null=null;
  private musicLights:MusicLights|null=null;
  private encoreTrain:EncoreTrain|null=null;
  private encoreClock:EncoreClock|null=null;
@@ -158,7 +229,7 @@ export class World{
   this.venues.lobby.scene.environment=this.environment.texture;this.venues.lobby.scene.environmentIntensity=.18;this.lightingPass=new LobbyLightPass(this.renderer,this.venues.lobby.scene,this.camera,bloomResolution(this.mobile,this.quality),msaaSamples(this.quality));
   this.crowds={lobby:new Ghosts(this.venues.lobby.scene)} as Record<Zone,Ghosts>;
   this.marker=new T.Mesh(new T.RingGeometry(.16,.24,24),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.8,depthWrite:false}));this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.venues.lobby.scene.add(this.marker);
-  this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>{if(this.photoMode)this.endPhotoMode();else this.stand();}});
+  this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>{if(this.uiObscured)return;if(this.photoMode)this.endPhotoMode();else this.stand();}});
   for(const event of ['pointerdown','pointermove','keydown','wheel'])window.addEventListener(event,()=>{const now=performance.now();this.lobbyEnteredAt=now;this.stageInputAt=now;if(this.entered&&this.zone==='lobby'&&now-this.activitySentAt>2000){this.activitySentAt=now;this.net.send({type:'activity'});}},{passive:true,signal:this.activityEvents.signal});
   window.addEventListener('resize',this.resize);
   canvas.addEventListener('webglcontextlost',event=>{
@@ -185,6 +256,7 @@ export class World{
      venue.updateLOD(this.camera);
     }
    }
+   this.encoreClock?.setEnvironment(this.environment.texture);
    previous.dispose();
    this.graphicsLost=false;
   }catch(error){
@@ -197,7 +269,7 @@ export class World{
  }
  private prepareHall(){
   if(this.venues.auditorium)return Promise.resolve(this.venues.auditorium);
-  return this.hallBuild??=createVenueAsync('auditorium',()=>this.disposed).then(venue=>{venue.scene.environment=this.environment.texture;venue.scene.environmentIntensity=.03;/* Candlelight concert: the walls and organ fall back into the dark. */this.venues.auditorium=venue;this.fireworks=new StageFireworks(venue.scene);this.musicLights=new MusicLights(venue.scene);this.encoreTrain=new EncoreTrain(venue.scene);this.encoreClock=new EncoreClock(venue.scene);this.crowds.auditorium=new Ghosts(venue.scene);venue.emotes.setViewport(this.renderer.domElement.height,this.camera.fov);venue.sunlight?.setViewport(this.renderer.domElement.height,this.camera.fov);return venue;}).catch(error=>{this.hallBuild=null;throw error;});
+  return this.hallBuild??=createVenueAsync('auditorium',()=>this.disposed).then(venue=>{venue.scene.environment=this.environment.texture;venue.scene.environmentIntensity=.03;/* Candlelight concert: the walls and organ fall back into the dark. */this.venues.auditorium=venue;this.fireworks=new StageFireworks(venue.scene);this.hallDust=new HallDust(venue.scene);this.musicLights=new MusicLights(venue.scene);this.encoreTrain=new EncoreTrain(venue.scene);this.encoreClock=new EncoreClock(venue.scene);this.crowds.auditorium=new Ghosts(venue.scene);venue.emotes.setViewport(this.renderer.domElement.height,this.camera.fov);venue.sunlight?.setViewport(this.renderer.domElement.height,this.camera.fov);return venue;}).catch(error=>{this.hallBuild=null;throw error;});
  }
  /** Shader readiness can stop progressing after a mobile GPU context loss. */
  private async compileHall(scene:T.Scene,camera:T.Camera){
@@ -274,7 +346,7 @@ export class World{
  get venue(){return this.zone==='auditorium'?this.ensureHall():this.venues.lobby;}
  private *remoteAvatars(){for(const r of this.remotes.values())yield r.avatar;}
  /** Everyone but the viewer is a ghost (ghosts face +z, people face -z, hence the half turn) (each viewer sees only themself as a person). */
- private *ghostSpots():Generator<GhostSpot>{for(const r of this.remotes.values()){const a=r.avatar.root;if(a.visible)yield {x:a.position.x,y:a.position.y,z:a.position.z,yaw:a.rotation.y+Math.PI,id:r.visitor.id,sitting:r.visitor.pose==='sit',walking:a.position.distanceToSquared(this.poseCenter.set(r.visitor.x,r.visitor.y??0,r.visitor.z))>.0025,drink:r.visitor.drink,bite:r.visitor.dish?BITE_COLOUR[r.visitor.dish]:undefined,...visitorGhostGesture(r.visitor,this.net.now())};}}
+ private *ghostSpots():Generator<GhostSpot>{for(const r of this.remotes.values()){const a=r.avatar.root,chair=magicChairPose(r.visitor.pose==='sit'?r.visitor.seatId:null,this.net.state?.magicChair,this.net.now());if(a.visible)yield {x:a.position.x+chair.x,y:a.position.y,z:a.position.z+chair.z,yaw:a.rotation.y+Math.PI+chair.turn,id:r.visitor.id,sitting:r.visitor.pose==='sit',walking:a.position.distanceToSquared(this.poseCenter.set(r.visitor.x,r.visitor.y??0,r.visitor.z))>.0025,drink:r.visitor.drink,bite:r.visitor.dish?BITE_COLOUR[r.visitor.dish]:undefined,...visitorGhostGesture(r.visitor,this.net.now())};}}
  private *allGhosts(){yield*this.ghostSpots();yield*this.flyingGhosts();yield*this.playfulGhosts();if(GHOST_ORCHESTRA&&this.zone==='auditorium')yield*ORCHESTRA_GHOSTS;}
  /** The hall's own ghosts: a few drifting overhead, some strolling the aisles, some cheering in empty seats.
   * Everything follows the shared clock, so every visitor sees the same ghosts in the same places. */
@@ -283,19 +355,13 @@ export class World{
   // Above the stage: left, middle and right.
   FLYERS.forEach((f,i)=>{const a=t*f.speed+i*2.1,x=f.x+f.rx*Math.sin(a),z=f.z+f.rz*Math.sin(a*2)/2,y=f.y+.8*Math.sin(t*.4+i);
    this.ghostBuffer.push({x,y,z,yaw:Math.atan2(f.rx*Math.cos(a),f.rz*Math.cos(a*2)),id:'npc-fly'+i,sitting:false,npc:true,angel:true});});
-  this.ghostBuffer.push(whiteRabbitSpot(t));
-  // In seats nobody has claimed: clapping, waving, cheering and nodding in turns.
-  const claimed=this.net.state?.seats??{};
-  for(const [i,seat] of TEA_SEATS.entries()){
-   if(claimed[seat.id])continue;
-   this.ghostBuffer.push({x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw+Math.PI,id:`tea-party-${i}`,sitting:true,npc:true,teaGuest:i===0?'hatter':'hare',age:(t+i*5)%10});
-  }
-  const loneClapAge=t%67;
-  const loneClapper=NPC_SEATS.find(seat=>!claimed[seat.id]&&seat.row!==TEA_TABLE);
-  NPC_SEATS.forEach((seat,i)=>{if(claimed[seat.id]||seat.row===TEA_TABLE)return;
-   this.ghostBuffer.push({x:seat.x,y:seat.y,z:seat.z,yaw:seat.yaw+Math.PI,id:'npc-'+seat.id,sitting:true,npc:true,costume:NPC_CAST[i].costume,...(loneClapAge<6?{gesture:seat===loneClapper?(loneClapAge<2.8?'clap':'shh'):null,age:loneClapAge<2.8?loneClapAge:loneClapAge-2.8}:ghostGesture('npc-'+seat.id,t))});});
+  const visitors=this.net.state?.visitors??[];
+  const train=this.encoreTrain?this.playfulPosition:null;
+  if(train)this.encoreTrain!.seat(0,train);
+  this.ghostBuffer.push(...this.npcBehavior.update(t,visitors,this.net.state?.seats??{},train,this.reduced));
   yield*this.ghostBuffer;this.ghostBuffer.length=0;
  }
+ private readonly npcBehavior = new NpcBehavior();
  private photoGhostAt = 0;
  private photoGhostVisit = 0;
  private readonly playfulPosition = new T.Vector3();
@@ -313,14 +379,6 @@ export class World{
    point.y += Math.sin(catchUp * Math.PI) * 2;
    if (trainAge > 12) point.y += (trainAge - 12) * 3;
    yield {x:point.x,y:point.y,z:point.z,yaw,id:'late-train-ghost',sitting:false,npc:true,gesture:trainAge<3?'wave':null,age:trainAge};
-  }
-  const clockAge = seconds % 180;
-  if (this.encoreClock && clockAge >= 35 && clockAge < 55) {
-   const yaw = this.encoreClock.riderPosition(performance.now()/1000, point);
-   const arrival = 1 - T.MathUtils.smoothstep(clockAge, 35, 39);
-   const departure = T.MathUtils.smoothstep(clockAge, 50, 55);
-   point.y += (arrival + departure) * 6;
-   yield {x:point.x,y:point.y,z:point.z,yaw,id:'pendulum-rider',sitting:true,npc:true,gesture:'wave',age:(clockAge-35)%6};
   }
   if (this.photoMode && this.photoGhostVisit % 3 === 1) {
    const age = (performance.now() - this.photoGhostAt) / 1000;
@@ -573,7 +631,7 @@ export class World{
   if(!ok){this.net.send({type:'release',requestId});return;}this.reservedSeat=id;this.concertView=false;this.cameraYaw=0;this.seating=false;this.route=path??[seat.approach];this.renewAt=performance.now();this.marker.visible=true;this.marker.position.set(seat.approach.x,seat.y+.035,seat.approach.z);
   // Chosen on the seat map: appear in front of the seat and sit at once, no walk across the hall.
   if(direct&&!this.candle)this.net.send({type:'candle',state:'on'});
-  if(direct){this.position.set(seat.approach.x,seat.approach.y??seat.y,seat.approach.z);this.route=[seat.approach];this.marker.visible=false;this.sentAt=0;this.onToast(`${seatLabel(seat)} 자리에 앉아요.`);}else this.onToast(`${seatLabel(seat)} 자리로 걸어가요.`);
+  if(direct){this.position.set(seat.approach.x,seat.approach.y??seat.y,seat.approach.z);this.route=[seat.approach];this.marker.visible=false;this.sentAt=0;this.onToast(`${seatLabel(seat)}에 앉아요.`);}else this.onToast(`${seatLabel(seat)}까지 걸어가요.`);
  }
  get ridingTrain(){return this.zone==='auditorium'&&this.self?.trainSeat!==undefined;}
  toggleTrain(){
@@ -640,6 +698,7 @@ export class World{
  /** One drag rule for every view. */
  get entranceViewLocked(){return this.entered&&this.entranceFraming&&this.zone==='auditorium'&&this.pose!=='sit'&&underEntranceRoof(this.position);}
  rotateView(dx:number,dy:number){
+  this.mirrorView=false;
   if(this.photoMode){
    const scale=4/Math.max(320,this.renderer.domElement.clientWidth);
    this.photoYaw-=dx*scale;
@@ -659,6 +718,7 @@ export class World{
  }
  private get firstPerson(){return !this.ridingTrain&&this.entered&&!this.conducting.active&&!(this.zone==='auditorium'&&this.concertView)&&this.cameraDistance<=FIRST_PERSON_ZOOM;}
  zoomView(f:number){
+  this.mirrorView=false;
   if(this.photoMode){
    this.photoZoom=T.MathUtils.clamp(this.photoZoom/f,.65,1.25);
    this.updatePhotoLens();
@@ -728,20 +788,36 @@ export class World{
   if(this.zone!=='auditorium'){if(this.avatar)this.avatar.holdingCandle=false;for(const r of this.remotes.values())r.avatar.holdingCandle=false;return;}
   let layer=this.candleLayers.get(this.venue.scene);if(!layer){layer=new CarriedCandles(this.venue.scene);this.candleLayers.set(this.venue.scene,layer);}
   const carriers:{hand:T.Object3D;lit:boolean;own?:boolean}[]=[],mine=this.candle;
-  if(this.avatar){this.avatar.holdingCandle=mine==='on'&&this.entered;if(this.avatar.holdingCandle)carriers.push({hand:this.avatar.leftHand,lit:mine==='on',own:true});}
+  if(this.avatar){this.avatar.holdingCandle=mine==='on'&&this.entered&&!this.avatar.holdingBouquet;if(this.avatar.holdingCandle)carriers.push({hand:this.avatar.leftHand,lit:true,own:true});}
   for(const r of this.remotes.values()){const c=r.visitor.zone===this.zone?r.visitor.candle:undefined;r.avatar.holdingCandle=c==='on';if(c==='on')carriers.push({hand:r.avatar.leftHand,lit:true});}
   layer.update(carriers,this.reduced?0:now/1000);
  }
  gestureAction(gesture:Gesture){const me=this.net.state?.visitors.find(v=>v.id===this.net.selfId);if((gesture==='eat'||gesture==='drink')&&(this.gesture==='eat'||this.gesture==='drink')&&this.net.now()-this.gestureAt<3200)return;
+  if(gesture==='drink'&&this.teaPouring)return;
   if(gesture==='drink'){if(this.zone==='auditorium'?!me?.drink||(me.drinkSips??0)>=DISH_BITES||me.drinkEmptyAt:!me?.coffee||(me.coffeeSips??0)>=3)return;}
   if(gesture==='eat'&&(me?.dish?(me.dishBites??0)>=DISH_BITES||me.dishEmptyAt:!me?.macaron||me.macaronEmptyAt||(me.macaronBites??0)>=2))return;
   this.lobbyEnteredAt=performance.now();this.gesture=gesture;this.gestureAt=this.net.now();this.gestureCameraTurn=null;this.net.send({type:'gesture',gesture});if(gesture==='clap')this.audio.clap();else if(gesture==='bravo')this.audio.bravo();
-  if(this.entered&&(gesture==='wave'||gesture==='bow'))this.venue.portrait?.greet(this.position,this.lobbyEnteredAt);
+  if(this.entered&&(gesture==='wave'||gesture==='bow')){
+   this.venue.portrait?.greet(this.position,this.lobbyEnteredAt);
+   const usher=this.venue.usher;
+   if(usher&&this.position.distanceTo(usher.avatar.root.position)<4){
+    usher.greet(this.lobbyEnteredAt/1000,'반가워요. 편하게 공연을 즐겨 주세요.');
+   }
   }
- private click(x:number,y:number){if(!this.entered||this.photoMode)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
+  }
+ private click(x:number,y:number){if(!this.entered||this.photoMode||this.uiObscured)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
   const hits=this.ray.intersectObjects([...(this.zone==='auditorium'?this.encoreTrain?.targets??[]:[]),...(this.venue.usher?.targets??[]),...(this.venue.portrait?[this.venue.portrait.surface]:[]),...(this.dishLayer()?.targets??[]),...(this.venue.cat?.targets??[]),...(this.venue.stairArrows?.targets??[]),...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);if(!hits.length)return;const hit=hits[0];
   if(hit.object.userData.trainSeat!==undefined){if(this.ridingTrain)this.net.send({type:'trainBoard',seat:hit.object.userData.trainSeat});return;}
   if(this.ridingTrain)return;
+  if(hit.object.userData.mirrorStandingSpot){
+   const mirror=this.venue.mirror;
+   if(!mirror||this.pose==='sit'||this.net.status!=='connected')return;
+   const path=findPath(this.zone,this.position,mirror.standingPoint);
+   if(!path)return;
+   this.cancelSeat();this.route=path;
+   this.onMirrorSpot=false;
+   return;
+  }
   const boardingText=hit.object.userData.trainBoardSign&&hit.uv&&hit.uv.x>=.27&&hit.uv.x<=.73&&hit.uv.y>=.3&&hit.uv.y<=.7;
   if(hit.object.userData.trainBoardArrow||boardingText){
    this.boardTrain(hit.object.userData.trainBoardArrow===true);return;
@@ -750,6 +826,8 @@ export class World{
   if(hit.object.userData.ownDish){this.gestureAction(hit.object.userData.ownDish);return;}
   if(hit.object.userData.hallPortrait)return;
   if(hit.object.userData.usher){this.venue.usher?.greet(performance.now()/1000,USHER_LINES.ask);return;}
+  if(hit.object.userData.queenCard){this.openQueenCardGame();return;}
+  if(hit.object.userData.programBook){this.route=[];this.marker.visible=false;this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;this.onProgramBook();return;}
   if(hit.object.userData.lobbyCat){this.visitCat();return;}
   if(hit.object.userData.loungeSeatId){this.sitInLobby(hit.object.userData.loungeSeatId);return;}
   if(hit.object.userData.cloakroom){this.visitWardrobe();return;}
@@ -757,7 +835,7 @@ export class World{
   if(hit.object.userData.candleTable){this.visitCandleTable(hit.object.userData.candleTable as CandleTable);return;}
   if(hit.object.userData.boxOffice){this.visitBoxOffice();return;}
   if(hit.object.userData.lobbyExit){this.changeZone();return;}let obj:T.Object3D|null=hit.object,seatId:string|undefined;while(obj){seatId=seatId??obj.userData.seatId;if(obj.userData.portal){if(this.zone==='lobby')this.walkToEntrance();else void this.changeZone();return;}obj=obj.parent;}
-  if(seatId){void this.chooseSeat(seatId);return;}
+  if(seatId){void this.chooseSeat(seatId,isMagicChair(seatId));return;}
   if(this.pose==='sit'){this.stand();return;}
   const point={x:hit.point.x,y:surfaceHeight(this.zone,hit.point,hit.point.y)??hit.point.y,z:hit.point.z};
   // A tap on the stage lip, whose ray reaches the floor under the stage, walks to the front of the stage instead.
@@ -902,6 +980,13 @@ export class World{
    view.applyAxisAngle(right,-(this.cameraPitch-.13));
    return {look:position.clone().add(view),position};
   }
+  if(this.mirrorView&&!this.firstPerson&&this.zone==='auditorium'&&this.venue.mirror){
+   const point=this.venue.mirror.standingPoint;
+   const origin=point.clone().add(new T.Vector3(0,1.2,0));
+   const look=point.clone().add(new T.Vector3(.95,1.48,0));
+   const desired=point.clone().add(new T.Vector3(-3.85,3.2,-.85));
+   return {look,position:constrainCamera(origin,desired,this.venue.cameraWalls)};
+  }
   const framingAngle=Math.atan(Math.tan(T.MathUtils.degToRad(this.camera.fov/2))/3);
   if(this.firstPerson){
    // Match the avatar's eye height without inheriting the walk cycle's head bob.
@@ -964,7 +1049,8 @@ export class World{
    ? {musicianAnimation:0,musicianBatch:0,crowdBatch:0,fireworksUpdate:0,sceneRender:0,postProcessing:0}
    : undefined;
   this.encoreTrain?.update(this.net.now()/1000,this.zone==='auditorium',this.reduced);
-  if(this.photoMode||this.ridingTrain){this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;this.route=[];}
+  this.venues.auditorium?.magicChair?.update(this.net.state?.magicChair,this.net.now());
+  if(this.photoMode||this.ridingTrain||this.uiObscured||this.queenWand.casting||this.queenWand.receiving){this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;this.route=[];}
   let speed=0;const keys=this.input.keys;let kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+this.input.touchMove.x;let kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+this.input.touchMove.z;
   if(this.entered&&this.net.status==='connected'){
    // Automatically enter only after 30 seconds without activity.
@@ -1007,8 +1093,21 @@ export class World{
    if(this.zone==='lobby'&&Math.abs(this.position.y-GRAND_STAIR.rise)<.3&&this.position.z>=HALL_INNER_DOOR.approachZ-.02&&this.position.z<HALL_INNER_DOOR.z&&Math.abs(this.position.x)<HALL_INNER_DOOR.halfWidth)void this.changeZone(true);
   }
   if(this.pose==='sit'&&this.seatedTarget)this.position.lerp(this.seatedTarget,1-Math.exp(-dt*7));
+  const mirror=this.venue.mirror;
+  const nearMirror=!!mirror&&this.position.distanceToSquared(mirror.standingPoint)<.29**2;
+  if(!nearMirror||this.route.length||kx||kz||this.pose==='sit'||this.ridingTrain){
+   this.onMirrorSpot=false;this.mirrorView=false;
+  }else if(!this.onMirrorSpot&&this.entered&&this.net.status==='connected'&&!this.uiObscured&&!this.photoMode){
+   this.onMirrorSpot=true;this.mirrorView=true;
+   this.concertView=false;this.entranceFraming=false;this.introUntil=0;this.introEase=0;this.introGlide=false;
+   this.cameraYaw=-Math.PI/2;this.cameraPitch=.35;this.cameraDistance=4.4;
+   this.pose='idle';this.yaw=-Math.PI/2;
+   this.sendPosition(now,true);this.onChange();
+  }
+  mirror?.updateStandingMarker(now/1000,this.onMirrorSpot);
   const music=this.audio.playback.playing&&!this.reduced;
   // Dust and shimmer hold still for visitors who prefer reduced motion.
+  this.venue.storyTableProps?.update(this.net.now()/1000,this.net.state?.visitors??[],this.reduced);
   this.venue.treeStar?.update(this.reduced?0:now/1000);this.venue.sunlight?.update(this.reduced?0:now/1000);this.venue.stairArrows?.update(this.reduced?0:now/1000);
   this.venue.usher?.update(now/1000,dt,this.reduced);
   this.venue.cat?.update(now/1000,this.entered?this.position:new T.Vector3(Infinity,0,0),this.reduced,[...this.remotes.values()].filter(r=>r.visitor.zone===this.zone).flatMap(r=>[r.visitor,r.avatar.root.position]));
@@ -1018,13 +1117,17 @@ export class World{
    const sip=this.zone==='auditorium'&&this.gesture==='drink'&&gestureAge<gestureSeconds('drink');
    const seated=this.ridingTrain||this.pose==='sit';
    this.avatar.holdingCoffee=this.zone==='lobby'&&this.coffee||sip&&this.drink==='coffee';
+   this.avatar.holdingTea=sip&&this.drink==='tea';
    this.avatar.holdingWine=sip&&this.drink==='wine';
    this.avatar.holdingMacaron=this.zone==='lobby'&&this.macaron;
+   this.avatar.holdingBouquet=!!this.wishFlowerCard&&!(this.avatar.holdingMacaron&&this.gesture==='eat'&&gestureAge<gestureSeconds('eat'));
    this.avatar.macaronBites=this.net.state?.visitors.find(v=>v.id===this.net.selfId)?.macaronBites??0;
    this.avatar.root.position.copy(this.position);
+
    const dx=this.position.x-this.camera.position.x,dz=this.position.z-this.camera.position.z;
    const cameraYaw=Math.atan2(dx,dz);
    this.avatar.root.rotation.y=this.photoMode?(this.photoComposition==='current'?this.photoOriginal.avatarYaw:cameraYaw):this.yaw;
+   if(this.pose==='sit'){const chair=magicChairPose(this.self?.seatId,this.net.state?.magicChair,this.net.now());this.avatar.root.position.x+=chair.x;this.avatar.root.position.z+=chair.z;this.avatar.root.rotation.y+=chair.turn;}
    let cameraFacing;
    const gesture=this.gesture;
    if(!this.photoMode&&!this.firstPerson&&(gesture==='ovation'||gesture==='shh')&&gestureAge<gestureSeconds(gesture)&&dx*dx+dz*dz>.04){
@@ -1042,6 +1145,12 @@ export class World{
    }else this.gestureCameraTurn=null;
    this.avatar.trainPassenger=this.ridingTrain;
    this.avatar.update(clock/1000,speed,seated,music,gesture,gestureAge,dt,cameraFacing);
+   if(this.wishFlowerCard){
+    const leftTable=this.wishFlowerSeat!==null&&(!this.atWishTarotTable||this.self?.seatId!==this.wishFlowerSeat);
+    if(leftTable){this.wishFlowerSeat=null;this.npcBehavior.cancelWishFlower();}
+    this.venues.auditorium?.storyTableProps?.wishFlower.update(clock/1000,this.avatar.leftHand,this.reduced||leftTable,this.avatar.holdingBouquet);
+   }
+   if(this.queenWand.casting&&!seated&&dx*dx+dz*dz>.04)this.avatar.root.rotation.y=cameraYaw;
    this.avatar.root.visible=this.entered;
    if(now<this.petUntil&&this.venue.cat)this.avatar.pet(this.venue.cat.petPoint(this.petFocus),now/1000,this.reduced);
   }
@@ -1057,16 +1166,19 @@ export class World{
    const dy=T.MathUtils.euclideanModulo(v.yaw-r.avatar.root.rotation.y+Math.PI,Math.PI*2)-Math.PI;r.avatar.root.rotation.y+=dy*(1-Math.exp(-poseDt*12));
   }
   this.showEmotes();
-  {const layer=this.dishLayer();if(layer){const self=this.net.selfId;const now=this.net.now(),busy=(v:Visitor,g:Gesture)=>v.gesture===g&&now-v.gestureAt<gestureSeconds(g)*1000;layer.update((this.net.state?.visitors??[]).filter(v=>v.zone==='auditorium').map(v=>({id:v.id,seatId:v.seatId,dish:v.dish,dishBites:v.dishBites,drink:v.drink,drinkSips:v.drinkSips,own:v.id===self,eating:busy(v,'eat'),sipping:busy(v,'drink')})));
+  {const layer=this.dishLayer();if(layer){const self=this.net.selfId;const now=this.net.now(),busy=(v:Visitor,g:Gesture)=>v.gesture===g&&now-v.gestureAt<gestureSeconds(g)*1000;layer.update((this.net.state?.visitors??[]).filter(v=>v.zone==='auditorium').map(v=>({id:v.id,seatId:v.seatId,dish:v.dish,dishBites:v.dishBites,drink:v.drink,drinkSips:v.drinkSips,teaFill:v.drink==='tea'?T.MathUtils.clamp((now-((v.teaReadyAt??0)-4600))/3200,0,1):1,own:v.id===self,eating:busy(v,'eat'),sipping:busy(v,'drink')})));
    if(this.avatar){const me=this.net.state?.visitors.find(v=>v.id===self);this.avatar.diningBite=me?.dish?BITE_COLOUR[me.dish]:null;}}}
   this.conducting.tick(now,dt);if(this.conducting.active){this.guestConductor?.update(now/1000,0,this.conductSeat,false,null,10,dt);this.input.keys.clear();const actor=this.demoAvatar,demo=this.conducting;if(actor){actor.update(now/1000,0,false,demo.playing&&!this.reduced,null,10,dt);actor.root.position.x=T.MathUtils.damp(actor.root.position.x,CONDUCTOR.x+conductorShift(demo.x),12,dt);actor.root.rotation.y=T.MathUtils.damp(actor.root.rotation.y,conductorTurn(demo.x),12,dt);actor.head.rotation.set(-.06,Math.atan(demo.x*.2),0);actor.leftArm.rotation.set(1.05+.38*Math.sin(now*.0026),0,-.38-.06*Math.abs(demo.x)+.43*Math.sin(now*.0024));actor.rightArm.rotation.copy(rightStroke(demo.x,demo.stroke));actor.root.updateMatrixWorld(true);this.conductEffect?.update(actor.rightHand,this.camera,demo.pulse);}}
   const fireworksStart=timings?performance.now():0;
   this.fireworks?.update(now/1000,this.zone==='auditorium'&&this.entered&&!this.reduced,this.poseFrustum);
   if(timings)timings.fireworksUpdate=performance.now()-fireworksStart;
-  this.encoreClock?.update(now/1000,this.audio.playback,this.camera,this.zone==='auditorium'&&this.entered,this.reduced);
+  const playback=this.audio.playback;
+  const concertSeconds=this.net.now()/1000,hallActive=this.zone==='auditorium'&&this.entered;
+  this.encoreClock?.update(now/1000,playback,this.camera,hallActive,this.reduced,concertSeconds);
+  this.hallDust?.update(concertSeconds,hallActive&&!this.reduced);
   this.musicLights?.update(now/1000,dt,this.zone==='auditorium'&&this.entered&&!this.reduced,this.audio);
   this.updateCandles(now);this.updateCoffee(now);
-  const playback=this.audio.playback;if(now-this.orchestraAt>=1000/30){
+  if(now-this.orchestraAt>=1000/30){
    const animationStart=timings?performance.now():0;
    const animationDt=Math.min(.15,(now-this.orchestraAt)/1000);this.orchestraAt=now-((now-this.orchestraAt)%(1000/30));const show=stageShow(playback),clock=this.reduced?0:this.net.now()/1000;
    for(const actor of this.venue.musicians){
@@ -1113,11 +1225,18 @@ export class World{
    this.venue.mirror?.setVisitor(this.avatar?.root??null,this.entered&&this.self?{x:this.position.x,y:this.position.y,z:this.position.z,yaw:this.yaw+Math.PI,id:this.self.id,sitting:this.pose==='sit',walking:this.pose==='walk',gesture:this.gesture,age:(this.net.now()-this.gestureAt)/1000}:null);
    if(this.entered)this.venue.portrait?.update(this.renderer,this.camera,this.position,now);
    const namedAvatar=this.demoAvatar??this.avatar;
-   const self=this.entered&&this.self&&namedAvatar?{avatar:namedAvatar,visitor:this.self}:null;
+   const self=this.entered&&this.self&&namedAvatar&&!(this.zone==='auditorium'&&this.concertView&&!this.demoAvatar)?{avatar:namedAvatar,visitor:this.self}:null;
    this.visitorNames.update(this.camera,self,this.remotes.values(),this.venue.scene.userData.solidOccluded,this.probeViewport);
    this.venues.auditorium?.usher?.updateSpeech(this.camera,this.renderer.domElement,this.entered&&this.zone==='auditorium'&&!this.uiObscured,now/1000);
    const crowdStart=timings?performance.now():0;
-   this.crowds[this.zone].update(this.allGhosts(),this.camera);
+   this.crowds[this.zone].update(this.allGhosts(),this.camera,now,this.reduced);
+   if(this.avatar){
+    const crowd=this.crowds[this.zone];
+    const wasReceiving=this.queenWand.receiving;
+    this.queenWand.update(now,this.avatar.rightHand,this.avatar.rightArm,this.camera,this.venue.scene,this.reduced,
+     crowd.queenGivingWand?crowd.queenGiftPosition:undefined);
+    if(wasReceiving&&!this.queenWand.receiving)this.onChange();
+   }
    if(timings)timings.crowdBatch=performance.now()-crowdStart;
    characterFrontLight.value=this.venue===this.venues.lobby?FRONT_LIGHT.lobby:FRONT_LIGHT.auditorium;this.renderer.toneMappingExposure=this.venue===this.venues.lobby?LOBBY_EXPOSURE:1;
     if(this.lightingPass)this.lightingPass.render(this.venue.scene,this.camera,timings);
@@ -1136,5 +1255,5 @@ export class World{
   if(timings)this.onDiagnosticFrame?.(timings);
   if(now-this.lastUI>500){this.lastUI=now;this.onChange();}
  };
- destroy(){if(this.disposed)return;this.disposed=true;this.endPhotoMode();this.encoreTrain?.dispose();this.encoreClock?.dispose();this.musicLights?.dispose();this.fireworks?.dispose();this.venues.auditorium?.mirror?.dispose();this.venues.auditorium?.portrait?.dispose();this.venues.auditorium?.usher?.dispose();this.conductEffect?.dispose();this.activityEvents.abort();clearTimeout(this.hallLoadingTimeout);this.releaseLoadingCallbacks();cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.lightingPass?.dispose();this.environment.dispose();this.renderer.dispose();this.renderer.forceContextLoss();this.renderer.domElement.remove();this.visitorNames.dispose();}
+ destroy(){if(this.disposed)return;this.disposed=true;this.queenWand.dispose();this.endPhotoMode();this.venues.auditorium?.programBook?.dispose();this.venues.auditorium?.storyTableProps?.dispose();this.encoreTrain?.dispose();this.encoreClock?.dispose();this.musicLights?.dispose();this.fireworks?.dispose();this.hallDust?.dispose();this.venues.auditorium?.mirror?.dispose();this.venues.auditorium?.portrait?.dispose();this.venues.auditorium?.usher?.dispose();this.conductEffect?.dispose();this.activityEvents.abort();clearTimeout(this.hallLoadingTimeout);this.releaseLoadingCallbacks();cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.lightingPass?.dispose();this.environment.dispose();this.renderer.dispose();this.renderer.forceContextLoss();this.renderer.domElement.remove();this.visitorNames.dispose();}
 }

@@ -1,15 +1,17 @@
+import {buildTeaCup} from '../character/TeaCup';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export type TeaGuest='hatter'|'hare';
-export const TEA_TABLE=27;
+export {TEA_TABLE} from '../../shared/storyGuestSeats';
 
 /** Tea-party costumes with static decorations merged by colour. */
 export function buildTeaGuest(role:TeaGuest){
  const root=new T.Group();
  root.name=`tea-party-${role}`;
  const parts=new Map<number,T.BufferGeometry[]>();
- const hat=new T.Group(),ears:T.Group[]=[];
+ const head=new T.Group(),hat=new T.Group(),ears:T.Group[]=[];
+ root.add(head);
  const hatter=role==='hatter';
  hat.position.y=-.17;
  const add=(color:number,geometry:T.BufferGeometry,x:number,y:number,z:number,tilt=0)=>{
@@ -57,12 +59,12 @@ export function buildTeaGuest(role:TeaGuest){
      mesh.geometry.computeVertexNormals();
     }
    }
-   ear.rotation.z=-side*.16;ears.push(ear);root.add(ear);
+   ear.rotation.z=-side*.16;ears.push(ear);head.add(ear);
   }
  }
  addBatches(hat);
  if(hatter){
-  root.add(hat);
+  head.add(hat);
   const canvas=document.createElement('canvas');canvas.width=256;canvas.height=192;
   const ctx=canvas.getContext('2d')!;
   ctx.fillStyle='#fff2ce';ctx.fillRect(0,0,256,192);
@@ -74,21 +76,15 @@ export function buildTeaGuest(role:TeaGuest){
    add(orange,new T.SphereGeometry(.15,8,5).scale(.7,1.25,.75),side*.35,.12,.02);
   }
  }
+ addBatches(head);
  const silk=hatter?0x74a8bd:0xa44939;
  for(const side of [-1,1]){
   add(silk,new T.SphereGeometry(.17,8,5).scale(1,.7,.35),side*.14,-.23,.34,side*.2);
  }
  add(gold,new T.SphereGeometry(.055,8,5),0,-.23,.39);
  addBatches(root);
- const cup=new T.Group();cup.name=`${role}-teacup`;
- const porcelain=new T.MeshLambertMaterial({color:ivory});
- const bowl=new T.LatheGeometry([[0,0],[.06,0],[.09,.04],[.105,.12],[.09,.12],[.075,.04],[0,.025]].map(([x,y])=>new T.Vector2(x,y)),12);
- const handle=new T.TorusGeometry(.05,.012,5,10).translate(-.13,.08,0);
- cup.add(new T.Mesh(mergeGeometries([bowl,handle])!,porcelain));
- bowl.dispose();handle.dispose();
- const tea=new T.Mesh(new T.CircleGeometry(.087,12),new T.MeshBasicMaterial({color:0x754518}));
- tea.rotation.x=-Math.PI/2;tea.position.y=.102;cup.add(tea);
+ const cup=buildTeaCup();cup.name=`${role}-teacup`;
  // The handle is the hand anchor, matching the existing ghost drinking pose.
  for(const child of cup.children){child.position.x+=.13;child.position.y-=.08;}
- return {root,cup,hat,ears};
+ return {root,head,cup,hat,ears};
 }

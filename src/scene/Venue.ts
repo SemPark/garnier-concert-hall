@@ -1,3 +1,7 @@
+import {buildStoryTableProps} from './StoryTableProps';
+import {buildProgramBook} from './ProgramBookModel';
+import {MagicChairs} from './MagicChair';
+import {isMagicChair} from '../../shared/magicChairConfig';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {buildHallLampHalos,raiseLandingDisplayLights} from './HallLighting';
 import {CANDLE_TABLES} from '../../shared/venue';
@@ -15,7 +19,7 @@ import {LobbyCat} from '../character/LobbyCat';
 import {Usher,USHER} from '../character/Usher';
 import {HallMirror} from './HallMirror';
 import {HallPortrait} from './HallPortrait';
-import {buildGalleryGuide,buildTicketGuide} from './TicketGuide';
+import {buildTicketGuide} from './TicketGuide';
 import * as T from 'three';
 import {box,cylinder,sphere,line,text,material,wallWithOpenings,C} from './primitives';
 import {ATRIUM,GRAND_STAIR,LOBBY_BRANCH,LOBBY_ARCADE,HALL_INNER_DOOR} from '../../shared/grandStair';
@@ -23,7 +27,7 @@ import {buildGarnierCeiling} from './GarnierCeiling';
 import {buildLobbyEntrance} from './LobbyEntrance';
 import {buildLobbyDetails,lobbyWoodWall,LOBBY_PALETTE} from './LobbyDetails';
 import {buildLobbyAmenities,type ProgramBoard} from './LobbyAmenities';
-import {SEATS,BOUNDS,DINNER_TABLES,TABLE_RADIUS,surfaceHeight,type Zone} from '../../shared/venue';
+import {ALL_SEATS,SEATS,BOUNDS,DINNER_TABLES,TABLE_RADIUS,surfaceHeight,type Zone} from '../../shared/venue';
 import {DINNER_SIT_BACK,DINNER_SIT_DROP} from '../../shared/dinnerTables';
 import type {Avatar} from '../character/Avatar';
 import {buildOrchestraSteps} from '../orchestra/buildOrchestra';
@@ -39,7 +43,7 @@ import {buildGoldenHallSteps,timberDoor} from './GoldenHall';
 import {woodMaterial,applyWoodSurface,hallImage,hallImageMaterial} from './HallTextures';
 import {batchArchitectureSteps,batchCharactersSteps} from './batching';
 import {EmoteLayer} from '../character/EmoteLayer';
-export type Venue={treeStar:ReturnType<typeof buildFloatingTreeStar>|null;cat:LobbyCat|null;usher:Usher|null;mirror:HallMirror|null;portrait:HallPortrait|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
+export type Venue={storyTableProps:ReturnType<typeof buildStoryTableProps>|null;programBook?:ReturnType<typeof buildProgramBook>;magicChair?:MagicChairs;treeStar:ReturnType<typeof buildFloatingTreeStar>|null;cat:LobbyCat|null;usher:Usher|null;mirror:HallMirror|null;portrait:HallPortrait|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
 
 function chandelier(parent:T.Object3D,x:number,y:number,z:number,r=1){
  const g=new T.Group();g.position.set(x,y,z);g.userData.landmark='lobby-chandelier';parent.add(g);
@@ -282,7 +286,7 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
 export function createVenue(zone:Zone):Venue{return finishBuild(createVenueSteps(zone));}
 export function createVenueAsync(zone:Zone,cancelled:()=>boolean){return buildOverFrames(createVenueSteps(zone),cancelled);}
 function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
- const scene=new T.Scene();scene.background=new T.Color(0x24201b);scene.fog=new T.FogExp2(zone==='lobby'?0x342b25:0x2b221b,zone==='lobby'?.015:.0025);
+ const scene=new T.Scene();scene.background=new T.Color(0x24201b);scene.fog=zone==='lobby'?new T.FogExp2(0x342b25,.015):new T.FogExp2(0x735337,.0085);
  scene.add(new T.HemisphereLight(0xffdfb8,0x3c2e28,zone==='lobby'?.36:.22));const ambient=new T.AmbientLight(0xffe8cc,zone==='lobby'?.045:.028);scene.add(ambient);
  const sun=new T.DirectionalLight(zone==='lobby'?0xffe1b5:0xffe6c4,zone==='lobby'?.6:.24);sun.position.set(-7,13,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-17,right:17,top:20,bottom:-20,near:1,far:55});sun.shadow.normalBias=.035;sun.shadow.bias=-.0002;sun.shadow.autoUpdate=false;sun.shadow.needsUpdate=true;scene.add(sun);
  const b=BOUNDS[zone],floor=box(scene,[zone==='lobby'?ATRIUM.halfWidth*2:GOLDEN_HALL.width,.15,zone==='lobby'?ATRIUM.back-ATRIUM.front:GOLDEN_HALL.rear-GOLDEN_HALL.front],[0,-.09,zone==='lobby'?(ATRIUM.front+ATRIUM.back)/2:(GOLDEN_HALL.front+GOLDEN_HALL.rear)/2],zone==='lobby'?0x8f7a5c:0x44352b);
@@ -290,10 +294,12 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  const walkTargets:T.Object3D[]=[floor];
  if(zone==='auditorium'){const target=new T.Mesh(new T.PlaneGeometry(GOLDEN_HALL.width,GOLDEN_HALL.rear-PARTERRE.stairFront,1,20),new T.MeshBasicMaterial({visible:false}));target.rotation.x=-Math.PI/2;const p=target.geometry.getAttribute('position');for(let i=0;i<p.count;i++){const z=(GOLDEN_HALL.rear+PARTERRE.stairFront)/2-p.getY(i);p.setZ(i,parterreHeight(p.getX(i),z)??0);}target.position.z=(GOLDEN_HALL.rear+PARTERRE.stairFront)/2;target.userData.floor=true;scene.add(target);walkTargets.push(target);}
  const cameraWalls:T.Object3D[]=[],overviewHidden:T.Object3D[]=[],seatTargets:T.Object3D[]=[],musicians:Avatar[]=[],seatLights=new Map<string,T.Mesh>();
+ let magicChair:MagicChairs|undefined;
+ let programBook:Venue['programBook'];
  let portal:T.Object3D,programBoard:ProgramBoard|undefined;
  if(zone==='lobby'){
   grandEscalier(scene,cameraWalls,walkTargets);lobbyPracticalLights(scene);
-  programBoard=buildLobbyAmenities(scene,walkTargets).programBoard;
+  const amenities=buildLobbyAmenities(scene,walkTargets);programBoard=amenities.programBoard;
   // The amphitheatre door at the head of the flight is the way into the hall.
   portal=new T.Mesh(new T.BoxGeometry(2.5,3.4,.5),new T.MeshBasicMaterial({visible:false}));portal.position.set(HALL_INNER_DOOR.x,GRAND_STAIR.rise+1.7,HALL_INNER_DOOR.z);portal.userData.portal=true;scene.add(portal);
   sun.position.set(21,28,22);sun.target.position.set(-3,0,32);scene.add(sun.target);
@@ -301,21 +307,24 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
   cameraWalls.push(...(yield* buildGoldenHallSteps(scene)).cameraWalls);
   scene.traverse(o=>{if(o instanceof T.Mesh&&o.userData.walkSurface)walkTargets.push(o);});
   const hitGeometry=new T.BoxGeometry(1.08,1.5,1.05),dinnerHitGeometry=new T.BoxGeometry(.62,1,.5),hitMaterial=new T.MeshBasicMaterial({visible:false});
-  for(const [i,s] of SEATS.entries()){const g=s.level==='parterre'?dinnerChair(scene,s.x-Math.sin(s.yaw)*DINNER_SIT_BACK,s.z-Math.cos(s.yaw)*DINNER_SIT_BACK):seat(scene,s.x,s.z,true);g.position.y=s.level==='parterre'?PARTERRE.floor:s.y;g.rotation.y=s.yaw;
+  const availableSeatIds=new Set(SEATS.map(s=>s.id));
+  for(const [i,s] of ALL_SEATS.entries()){const g=s.level==='parterre'?dinnerChair(scene,s.x-Math.sin(s.yaw)*DINNER_SIT_BACK,s.z-Math.cos(s.yaw)*DINNER_SIT_BACK):seat(scene,s.x,s.z,true);g.position.y=s.level==='parterre'?PARTERRE.floor:s.y;g.rotation.y=s.yaw;
+   if(!availableSeatIds.has(s.id))continue;
    // Dinner chairs answer only to a tap on the chair itself, so the floor around them stays walkable by tapping.
-   const dinner=s.level==='parterre',target=new T.Mesh(dinner?dinnerHitGeometry:hitGeometry,hitMaterial);if(dinner)target.position.set(s.x-Math.sin(s.yaw)*DINNER_SIT_BACK,PARTERRE.floor+.5,s.z-Math.cos(s.yaw)*DINNER_SIT_BACK);else target.position.set(s.x,s.y+.7,s.z);target.rotation.y=s.yaw;target.userData.seatId=s.id;scene.add(target);seatTargets.push(target);if(i%12===11)yield;
+   const dinner=s.level==='parterre',target=new T.Mesh(dinner?dinnerHitGeometry:hitGeometry,hitMaterial);if(dinner)target.position.set(s.x-Math.sin(s.yaw)*DINNER_SIT_BACK,PARTERRE.floor+.5,s.z-Math.cos(s.yaw)*DINNER_SIT_BACK);else target.position.set(s.x,s.y+.7,s.z);target.rotation.y=s.yaw;target.userData.seatId=s.id;scene.add(target);seatTargets.push(target);if(isMagicChair(s.id)){magicChair??=new MagicChairs();magicChair.add(scene,g,target,s);}if(i%12===11)yield;
   }
   buildDinnerTables(scene);
   portal=box(scene,[6.75,6.4,.3],[0,3.2,GOLDEN_HALL.rear-.18],C.wood);(portal as T.Mesh).material=woodMaterial('walnut');portal.userData.portal=true;
   musicians.push(...(yield* buildOrchestraSteps(scene)));
  }
+ if(zone==='auditorium')programBook=buildProgramBook(scene,walkTargets);
  const cat=zone==='lobby'?new LobbyCat(scene):null;const usher=zone==='auditorium'?new Usher(scene,surfaceHeight('auditorium',USHER,0)??0):null;
  scene.traverse(o=>{if(o.userData.wallSurface)cameraWalls.push(o);});
  cameraWalls.push(portal);
  for(const wall of cameraWalls)wall.traverse(o=>{o.userData.cameraWall=true;});
  if(zone==='auditorium'){raiseLandingDisplayLights(scene);buildHallLampHalos(scene);}
- finishArchitecture(scene,[...(usher?[usher.avatar.root]:[]),...(cat?[cat.root]:[]),...musicians.map(a=>a.root)]);
- const updateLOD=yield* batchArchitectureSteps(scene,[floor,portal,...(cat?[cat.root,...cat.targets]:[]),...(usher?[usher.avatar.root]:[]),...walkTargets,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
+ finishArchitecture(scene,[...(magicChair?[magicChair.root]:[]),...(usher?[usher.avatar.root]:[]),...(cat?[cat.root]:[]),...musicians.map(a=>a.root)]);
+ const updateLOD=yield* batchArchitectureSteps(scene,[...(magicChair?[magicChair.root]:[]),floor,portal,...(cat?[cat.root,...cat.targets]:[]),...(usher?[usher.avatar.root]:[]),...walkTargets,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
  const updateMusicians=yield* batchCharactersSteps(scene,[...musicians.map(a=>a.root),...(cat?[cat.root]:[])]);updateMusicians();
  // Visitor reaction icons share one draw call per hall.
  const emotes=new EmoteLayer(64);scene.add(emotes.points);
@@ -323,6 +332,8 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  const sunlight=zone==='lobby'?buildSunlight(scene,[23.1,33.1,38.1].map(z=>new T.Vector3(14.5,16.5,z)),{color:0xffdfb0,strength:.18,pool:.035,fill:.08,spread:.6}):null; // The hall has no window light: it washed over the dinner tables.
  // Candlelight concert: candles fill the stage and the hall's own lights go down (after batching, which they must not join).
  if(zone==='auditorium'){buildCandlelight(scene);for(const table of CANDLE_TABLES)walkTargets.push(buildCandleTable(scene,table).hit);}
+ const storyTableProps=zone==='auditorium'?buildStoryTableProps(scene):null;
+ if(storyTableProps)walkTargets.push(...storyTableProps.cardTargets);
  const hallStars=zone==='auditorium'?TREE_SPOTS.map(t=>buildFloatingTreeStar(scene,t.x,t.z,{y:stageRiseAt(t.x,t.z),light:false})):[];
  const stageTrees:T.Group[]=[];
  if(zone==='auditorium'){
@@ -341,8 +352,9 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
    const angle=(time%120)*Math.PI/60;
    for(const [i,tree] of stageTrees.entries())tree.rotation.y=i===0?angle:-angle;
   }};
- const stairArrows=zone==='lobby'?buildTicketGuide(scene):buildGalleryGuide(scene);
+ const stairArrows=zone==='lobby'?buildTicketGuide(scene):null;
  const mirror=zone==='auditorium'?new HallMirror(scene):null;
+ if(mirror)walkTargets.push(mirror.standingMarker);
  const portrait=zone==='auditorium'?new HallPortrait(scene):null;
- return {treeStar,cat,usher,mirror,portrait,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
+ return {storyTableProps,programBook,magicChair,treeStar,cat,usher,mirror,portrait,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
 }

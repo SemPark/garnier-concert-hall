@@ -167,6 +167,11 @@ export function PhotoMode({world}:{world:World}){
     {([['recommended','추천 구도'],['current','현재 화면']] as const).map(([value,label])=><button key={value} aria-pressed={world.photoComposition===value} onClick={()=>world.setPhotoComposition(value)}>{label}</button>)}
    </div>
    <div className="photo-actions">
+    {world.queenWand.charges>0&&<button type="button" className="photo-wand"
+     aria-label={`하트 마법, ${world.queenWand.charges}회 남음`}
+     disabled={busy||world.queenWand.casting} onClick={()=>world.castQueenWand()}>
+     <b aria-hidden="true">{'♥'.repeat(world.queenWand.charges)}</b>
+    </button>}
     <button className="photo-shutter" aria-label="사진 촬영" disabled={busy} onClick={()=>void capture()}><span/></button>
     <span className="photo-status" role="status">{busy?'촬영 중…':error}</span>
    </div>

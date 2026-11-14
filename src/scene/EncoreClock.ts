@@ -5,6 +5,93 @@ import { TRAIN_PLATFORM } from '../../shared/encoreTrain';
 
 const TAU = Math.PI * 2;
 const REWIND = 1.4;
+const ORBIT_SPARKS = 132;
+const OPENING_SPARKS = 180;
+const OPENING_SECONDS = 5;
+
+function makeClockSparks() {
+  const points = new Float32Array((ORBIT_SPARKS + OPENING_SPARKS) * 3);
+  for (let i = 0; i < points.length / 3; i++) {
+    points[i * 3] = i;
+    points[i * 3 + 1] = (i * .61803398875) % 1;
+    points[i * 3 + 2] = (i * .75487766625) % 1;
+  }
+  const geometry = new T.BufferGeometry();
+  geometry.setAttribute('position', new T.BufferAttribute(points, 3));
+  // The shader generates clock-local positions from these fixed particle seeds.
+  geometry.boundingSphere = new T.Sphere(new T.Vector3(0, -.5, 0), 9);
+  const material = new T.ShaderMaterial({
+    uniforms: {
+      orbitPhase: { value: 0 },
+      openingAge: { value: 0 },
+      viewportHeight: { value: 1 },
+    },
+    transparent: true,
+    depthWrite: false,
+    blending: T.AdditiveBlending,
+    vertexShader: `
+      #define TAU 6.28318530718
+      uniform float orbitPhase, openingAge, viewportHeight;
+      varying float brightness, glint, warmth;
+
+      void main() {
+        float index = position.x;
+        float seed = position.y;
+        float variation = position.z;
+        float size;
+        vec3 offset;
+        warmth = variation;
+
+        if (index < ${ORBIT_SPARKS}.0) {
+          float band = mod(index, 2.0);
+          float angle = TAU * (seed + orbitPhase * (4.0 - band));
+          float radius = mix(3.1, 4.2, variation) + 0.15 * sin(angle * 3.0 + TAU * variation);
+          offset = vec3(cos(angle) * radius, sin(angle) * radius * (0.92 + 0.08 * band),
+            0.52 + 0.72 * sin(angle + band * 2.1) + variation * 0.35);
+
+          float pulse = 0.5 + 0.5 * cos(TAU * (orbitPhase * (52.0 + floor(seed * 48.0)) + variation));
+          glint = step(0.72, seed);
+          brightness = mix(0.14 + pulse * 0.44, 0.1 + pow(pulse, 5.0) * 0.88, glint);
+          size = mix(0.095 + variation * 0.14, 0.30 + variation * 0.24, glint) * (0.7 + pulse * 0.3);
+        } else {
+          float spark = index - ${ORBIT_SPARKS}.0;
+          float angle = spark * 2.39996 + openingAge * 0.35;
+          float radius = 2.9 + openingAge * (0.35 + mod(spark, 7.0) * 0.08);
+          offset = vec3(cos(angle) * radius, sin(angle) * radius - openingAge * openingAge * 0.07,
+            0.5 + sin(spark * 1.7 + openingAge) * 0.8);
+          glint = step(0.90, seed);
+          size = mix(0.14 + variation * 0.12, 0.42, glint);
+          brightness = sin(3.14159265 * openingAge / ${OPENING_SECONDS}.0) * (0.65 + variation * 0.35);
+        }
+
+        vec4 eye = modelViewMatrix * vec4(offset, 1.0);
+        gl_Position = projectionMatrix * eye;
+        gl_PointSize = clamp(size * projectionMatrix[1][1] * viewportHeight / max(0.1, -2.0 * eye.z), 2.0, 64.0);
+      }
+    `,
+    fragmentShader: `
+      varying float brightness, glint, warmth;
+
+      void main() {
+        vec2 p = abs(gl_PointCoord * 2.0 - 1.0);
+        float radius = length(p);
+        float glow = (1.0 - smoothstep(0.0, 0.94, radius)) * (0.34 + glint * 0.09);
+        float core = 1.0 - smoothstep(0.05, 0.35 - glint * 0.17, radius);
+        float rays = (1.0 - smoothstep(0.025, 0.19, min(p.x, p.y)))
+          * (1.0 - smoothstep(0.0, 0.96, max(p.x, p.y)));
+        float shape = min(1.0, glow + 0.72 * core + glint * rays * 0.86);
+        vec3 gold = mix(vec3(1.0, 0.44, 0.095), vec3(1.0, 0.82, 0.50), warmth);
+        gl_FragColor = vec4(mix(gold, vec3(1.0, 0.96, 0.79), core), shape * brightness);
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+  const sparks = new T.Points(geometry, material);
+  sparks.name = '시계 둘레의 금빛 별가루';
+  sparks.onBeforeRender = renderer => { material.uniforms.viewportHeight.value = renderer.domElement.height; };
+  return sparks;
+}
+
 /** One song is one revolution; after its end, unwind before joining the next song. */
 export function clockPhase(p: Playback) {
   const duration = Math.max(1, p.track.durationSeconds);
@@ -23,9 +110,16 @@ export class EncoreClock {
   private readonly geometries = new Set<T.BufferGeometry>();
   private readonly materials: T.Material[] = [];
   private readonly dial: T.CanvasTexture;
+  private readonly weightMaterial = new T.MeshStandardMaterial({
+    color: 0xc28c48,
+    metalness: .92,
+    roughness: .18,
+    envMapIntensity: .35,
+  });
   private readonly frustum = new T.Frustum();
   private readonly matrix = new T.Matrix4();
   private readonly bounds = new T.Sphere(new T.Vector3(0, 21, TRAIN_PLATFORM.z - 2.2), 6);
+  private readonly sparks = makeClockSparks();
   private key = '';
   private rewindAt = -Infinity;
   private rewindFrom = 1;
@@ -42,9 +136,8 @@ export class EncoreClock {
     const gold = new T.MeshStandardMaterial({color:0xc69547,metalness:.72,roughness:.32,emissive:0x593607,emissiveIntensity:.3});
     const bright = new T.MeshBasicMaterial({color:0xf3d68d});
     const dark = new T.MeshStandardMaterial({color:0x693c28,metalness:.45,roughness:.5});
-    const crystal = new T.MeshBasicMaterial({color:0xb78add});
-    const crystalShade = new T.MeshBasicMaterial({color:0x75539e});
-    this.materials.push(gold,bright,dark,crystal,crystalShade);
+    this.setEnvironment(scene.environment);
+    this.materials.push(gold,bright,dark,this.weightMaterial);
     const mesh = (g:T.BufferGeometry,m:T.Material,parent:T.Object3D=this.root) => {
       this.geometries.add(g);const o=new T.Mesh(g,m);parent.add(o);return o;
     };
@@ -82,21 +175,14 @@ export class EncoreClock {
       const merged=mergeGeometries(ornaments);if(merged)mesh(merged,bright,pivot);ornaments.forEach(g=>g.dispose());
     }
     // Pendulum pivots stay below the dial: long central bob and two shorter flank bobs.
-    const bobScale = 1.3;
+    const weightGeometry = new T.CapsuleGeometry(.32, 1, 6, 20);
     for(let i=0;i<3;i++){
       const pivot=new T.Group();pivot.position.set((i-1)*1.48,-2.77,.28);this.root.add(pivot);this.pendulums.push(pivot);
       const length = i === 1 ? 2.75 : 2.1;
       mesh(new T.CylinderGeometry(.022,.022,length,6),gold,pivot).position.y=-length/2;
       ring(.11,.025,gold,pivot);
-      const cap = mesh(new T.ConeGeometry(.25 * bobScale, .30 * bobScale, 8), gold, pivot);
-      cap.position.y = -length + .10 * bobScale;
-      const bobY = -length - .30 * bobScale;
-      const gem = mesh(new T.OctahedronGeometry(.35 * bobScale), crystal, pivot);
-      gem.scale.set(.74, 1.8, .74);
-      gem.position.y = bobY;
-      const core = mesh(new T.OctahedronGeometry(.21 * bobScale), crystalShade, pivot);
-      core.scale.set(.8, 1.9, .8);
-      core.position.set(.09 * bobScale, bobY, .10 * bobScale);
+      const weight = mesh(weightGeometry, this.weightMaterial, pivot);
+      weight.position.y = -length - .39;
     }
     // A matching crown silhouette above the dial, rather than a support or hanging chain.
     mesh(star(.43,.13),bright).position.set(0,3.92,0);
@@ -116,11 +202,27 @@ export class EncoreClock {
         if (merged) {parts.forEach(part => group.remove(part));mesh(merged, material, group);}
       }
     }
+    this.root.add(this.sparks);
+    this.geometries.add(this.sparks.geometry);
+    this.materials.push(this.sparks.material);
     scene.add(this.root);
   }
 
-  update(seconds:number,p:Playback,camera:T.Camera,active:boolean,reduced:boolean) {
+  setEnvironment(texture: T.Texture | null) {
+    this.weightMaterial.envMap = texture;
+    this.weightMaterial.needsUpdate = true;
+  }
+
+  update(seconds:number,p:Playback,camera:T.Camera,active:boolean,reduced:boolean,concertSeconds:number) {
     this.root.visible=active;if(!active){this.lastTime=-1;return;}
+    this.sparks.visible = !reduced;
+    if (!reduced) {
+      const opening = p.playing && p.offset < OPENING_SECONDS;
+      const uniforms = this.sparks.material.uniforms;
+      uniforms.orbitPhase.value = (concertSeconds % 360) / 360;
+      uniforms.openingAge.value = opening ? p.offset : 0;
+      this.sparks.geometry.setDrawRange(0, ORBIT_SPARKS + (opening ? OPENING_SPARKS : 0));
+    }
     const {progress,rewindAge}=clockPhase(p),key=`${p.track.id}:${p.cycle}:${p.index}`;
     const changed=this.key!==''&&key!==this.key;
     const ended=this.previousPlaying&&!p.playing;

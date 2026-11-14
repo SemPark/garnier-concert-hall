@@ -1,10 +1,11 @@
 import {defineConfig} from 'vite';
 import {iphoneProbeBridge} from './scripts/iphone-probe';
+import {liveStyles} from './scripts/live-styles';
 export default defineConfig(({mode})=>{
  const iphone=mode==='iphone';
  return {
   base:mode==='pages'?'/garnier-concert-hall/':'/',
-  plugins:[iphoneProbeBridge(),{
+  plugins:[iphoneProbeBridge(),liveStyles(),{
    name:'reject-disabled-development-socket',
    configureServer(server){
     server.httpServer?.on('upgrade',(request,socket)=>{

@@ -8,9 +8,9 @@ test('the rectangular hall follows the reference length, width and height propor
  const length=H.rear-H.front;assert.ok(Math.abs(length/H.width-H.referenceDimensions.length/H.referenceDimensions.width)<.01);assert.ok(Math.abs(H.height/H.width-H.referenceDimensions.height/H.referenceDimensions.width)<.01);
  assert.ok(H.balconyHeight>6&&H.balconyHeight<H.height/2);
 });
-test('the dinner floor has 32 staggered tables with four selectable seats each',()=>{
- assert.equal(DINNER_TABLES.length,32);assert.equal(FLOOR_SEATS.length,128);assert.equal(SEATS.length,128);
- assert.equal(new Set(SEATS.map(s=>s.id)).size,128);
+test('the dinner floor keeps four physical chairs per table and reserves five for story NPCs',()=>{
+ assert.equal(DINNER_TABLES.length,32);assert.equal(FLOOR_SEATS.length,128);assert.equal(SEATS.length,123);
+ assert.equal(new Set(SEATS.map(s=>s.id)).size,123);
  for(const table of DINNER_TABLES){const seats=FLOOR_SEATS.filter(s=>s.row===table.id);assert.equal(seats.length,4);assert.deepEqual(seats.map(s=>s.column),[1,2,3,4]);
   for(const seat of seats){assert.ok(Math.abs(Math.hypot(seat.x-table.x,seat.z-table.z)-(CHAIR_RING+DINNER_SIT_BACK))<1e-8);assert.ok(walkable('auditorium',seat.approach));assert.ok(findPath('auditorium',SPAWN.auditorium,seat.approach));}}
 });

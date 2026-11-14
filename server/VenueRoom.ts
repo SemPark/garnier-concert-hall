@@ -1,8 +1,10 @@
+import {serveTea} from '../shared/tea';
+import {RESTING_CHAIR,updateMagicChairs,MAGIC_CHAIR_ID} from '../shared/magicChair';
 import {onTrainDeck,TRAIN_EXIT,TRAIN_PLATFORM,TRAIN_SEATS} from '../shared/encoreTrain';
 import {isDish,isDrink,DISH_BITES} from '../shared/dishes';
 import {zoneUpdate} from '../shared/zoneUpdates';
 import {DurableObject} from 'cloudflare:workers';
-import {SEATS,HALL_DESTINATIONS,DESTINATION_ZONE,isHallDestination,SPAWN,CAPACITY,PALETTE,atCafe,walkable,surfaceHeight,distance,isLook,isCandleState,type Visitor} from '../shared/venue';
+import {ALL_SEATS,NPC_SEATS,SEATS,HALL_DESTINATIONS,DESTINATION_ZONE,isHallDestination,SPAWN,CAPACITY,PALETTE,atCafe,walkable,surfaceHeight,distance,isLook,isCandleState,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shared/protocol';
 import {isGesture,gestureSeconds} from '../shared/gestures';
 import {isOutfit,atCloakroom} from '../shared/wardrobe';
@@ -16,8 +18,10 @@ type SessionRow={id:string;token:string;visitor:string;until:number|null};
 const RESERVE_MS=20000,GRACE_MS=12000,FLUSH_MS=100;
 /** Millimetres are plenty for drawing; shorter numbers keep a full house's updates small. */
 const round=(n:number)=>Math.round(n*1000)/1000;
+const availableSeatIds=new Set(SEATS.map(seat=>seat.id));
 
 export class VenueRoom extends DurableObject<Env>{
+ private magicChair={...RESTING_CHAIR};
  private revision=0;
  private visibleVisitors=new WeakMap<WebSocket,Set<string>>();
  // What everyone was last sent, so each update carries only the changes.
@@ -25,6 +29,11 @@ export class VenueRoom extends DurableObject<Env>{
  constructor(ctx:DurableObjectState,env:Env){super(ctx,env);
   this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY,token TEXT UNIQUE,visitor TEXT NOT NULL,until INTEGER)');
   this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS claims(seatId TEXT PRIMARY KEY,visitorId TEXT UNIQUE,status TEXT NOT NULL,expiresAt INTEGER)');
+  for(const seat of NPC_SEATS)this.ctx.storage.sql.exec('DELETE FROM claims WHERE seatId=?',seat.id);
+  this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS magic_furniture(id TEXT PRIMARY KEY,state TEXT NOT NULL)');
+  const stored=this.ctx.storage.sql.exec<{state:string}>('SELECT state FROM magic_furniture WHERE id=?',MAGIC_CHAIR_ID).toArray()[0];
+  if(stored)this.magicChair=JSON.parse(stored.state);
+
  }
  private releaseRemovedTrainSeat(visitor:Visitor){
   if(visitor.trainSeat===undefined||visitor.trainSeat<TRAIN_SEATS)return false;
@@ -34,14 +43,27 @@ export class VenueRoom extends DurableObject<Env>{
  }
  private attachment(ws:WebSocket):Attachment|null{
   const attachment=ws.deserializeAttachment() as Attachment|null;
-  if(attachment&&this.releaseRemovedTrainSeat(attachment.visitor))ws.serializeAttachment(attachment);
+  if(attachment){
+   const trainChanged=this.releaseRemovedTrainSeat(attachment.visitor);
+   const seatChanged=this.releaseUnavailableSeat(attachment.visitor);
+   if(trainChanged||seatChanged)ws.serializeAttachment(attachment);
+  }
   return attachment;
+ }
+ private releaseUnavailableSeat(visitor:Visitor){
+  if(!visitor.seatId||availableSeatIds.has(visitor.seatId))return false;
+  const oldSeat=ALL_SEATS.find(seat=>seat.id===visitor.seatId);
+  const point=freeVisitorPosition(visitor.zone,oldSeat?.approach??SPAWN[visitor.zone])??SPAWN[visitor.zone];
+  this.release(visitor.id);
+  Object.assign(visitor,point,{seatId:null,pose:'idle',loungeSeatId:null});
+  this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(visitor),visitor.id);
+  return true;
  }
  private send(ws:WebSocket,message:ServerMessage){try{ws.send(JSON.stringify(message));}catch{/* A close event will release this connection. */}}
  private active(){return this.ctx.getWebSockets().flatMap(ws=>{const a=this.attachment(ws);return a?[{ws,a}]:[]});}
  private claims(){const seats:Record<string,SeatClaim>={};for(const r of this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims').toArray())seats[r.seatId]={visitorId:r.visitorId,status:r.status,expiresAt:r.expiresAt};return seats;}
  /** The whole hall, matching what everyone has been sent so far, so later deltas apply on top of it. */
- private snapshot(roomId:string,ws:WebSocket):Snapshot{this.flush();const zone=this.attachment(ws)!.visitor.zone,visitors=this.active().map(({a})=>a.visitor).filter(v=>v.zone===zone);this.visibleVisitors.set(ws,new Set(visitors.map(v=>v.id)));return {revision:this.revision,visitors,seats:this.claims(),serverNow:Date.now(),roomId};}
+ private snapshot(roomId:string,ws:WebSocket):Snapshot{this.flush();const zone=this.attachment(ws)!.visitor.zone,visitors=this.active().map(({a})=>a.visitor).filter(v=>v.zone===zone);this.visibleVisitors.set(ws,new Set(visitors.map(v=>v.id)));return {magicChair:this.magicChair,revision:this.revision,visitors,seats:this.claims(),serverNow:Date.now(),roomId};}
  private roomId(){return this.active()[0]?.a.roomId??'hall-1';}
  /** Changes are gathered and sent at most ten times a second, as one message built once for everybody. */
  private broadcast(){if(!this.flushTimer)this.flushTimer=setTimeout(()=>this.flush(),Math.max(0,this.flushedAt+FLUSH_MS-Date.now()));}
@@ -51,10 +73,13 @@ export class VenueRoom extends DurableObject<Env>{
   for(const {a} of active){const v=a.visitor,json=JSON.stringify(v);present.add(v.id);if(this.sentVisitors.get(v.id)!==json){this.sentVisitors.set(v.id,json);visitors.push(v);}}
   for(const id of this.sentVisitors.keys())if(!present.has(id)){this.sentVisitors.delete(id);left.push(id);}
   const claims=this.claims();
+  const chair=updateMagicChairs(this.magicChair,active.map(({a})=>a.visitor),claims,Date.now());
+  const chairChanged=chair!==this.magicChair;
+  if(chairChanged){this.magicChair=chair;this.ctx.storage.sql.exec('INSERT OR REPLACE INTO magic_furniture(id,state) VALUES(?,?)',MAGIC_CHAIR_ID,JSON.stringify(chair));}
   for(const [id,claim]of Object.entries(claims)){const json=JSON.stringify(claim);if(this.sentSeats.get(id)!==json){this.sentSeats.set(id,json);seats[id]=claim;}}
   for(const id of this.sentSeats.keys())if(!claims[id]){this.sentSeats.delete(id);seats[id]=null;}
-  if(!visitors.length&&!left.length&&!Object.keys(seats).length)return;
-  const delta:Delta={revision:this.revision+1,base:this.revision,visitors,left,seats,serverNow:Date.now()};this.revision++;
+  if(!chairChanged&&!visitors.length&&!left.length&&!Object.keys(seats).length)return;
+  const delta:Delta={...(chairChanged?{magicChair:this.magicChair}:{}),revision:this.revision+1,base:this.revision,visitors,left,seats,serverNow:Date.now()};this.revision++;
   const all=active.map(({a})=>a.visitor);
   for(const {ws,a} of active){const scope=zoneUpdate(all,visitors,this.visibleVisitors.get(ws)??new Set(this.sentVisitors.keys()),a.visitor.zone);this.visibleVisitors.set(ws,scope.ids);
    this.send(ws,{type:'delta',delta:{...delta,visitors:scope.visitors,left:scope.left}});
@@ -87,6 +112,7 @@ export class VenueRoom extends DurableObject<Env>{
    const name=visitorName(saved);return saved.has(name)?visitorName(present):name;};
   const visitor:Visitor=active?.a.visitor??(existing?JSON.parse(existing.visitor) as Visitor:{id:crypto.randomUUID(),name:newName(),color:PALETTE[crypto.getRandomValues(new Uint8Array(1))[0]%PALETTE.length],zone:'lobby',...SPAWN.lobby,yaw:0,pose:'idle',seatId:null,gesture:null,gestureAt:0});
   this.releaseRemovedTrainSeat(visitor);
+  this.releaseUnavailableSeat(visitor);
   const savedToken=existing?.token??crypto.randomUUID();
   let claim:ClaimRow|undefined=this.ctx.storage.sql.exec<ClaimRow>('SELECT * FROM claims WHERE visitorId=?',visitor.id).toArray()[0];
   if(claim&&!SEATS.some(s=>s.id===claim?.seatId)){this.ctx.storage.sql.exec('DELETE FROM claims WHERE visitorId=?',visitor.id);claim=undefined;}
@@ -141,7 +167,7 @@ export class VenueRoom extends DurableObject<Env>{
    if(!['lobby','auditorium'].includes(msg.zone)||msg.zone===v.zone)return;
    const point=freeVisitorPosition(msg.zone,SPAWN[msg.zone]);
    if(!point){this.send(ws,{type:'error',message:'입구 위치를 찾지 못했어요. 잠시 후 다시 들어와 주세요.'});return;}
-   delete v.trainSeat;this.release(v.id);Object.assign(v,{zone:msg.zone,...point,seatId:null,loungeSeatId:null,pose:'idle'});delete v.candle;delete v.macaron;delete v.macaronBites;delete v.macaronEmptyAt;delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;
+   delete v.trainSeat;this.release(v.id);Object.assign(v,{zone:msg.zone,...point,seatId:null,loungeSeatId:null,pose:'idle'});delete v.candle;delete v.macaron;delete v.macaronBites;delete v.macaronEmptyAt;delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.teaReadyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;
   }else if(msg.type==='hallMove'){
    if(!isHallDestination(msg.destination)||v.zone!==DESTINATION_ZONE[msg.destination])return;
    const point=freeVisitorPosition(v.zone,HALL_DESTINATIONS[msg.destination]);
@@ -173,7 +199,7 @@ export class VenueRoom extends DurableObject<Env>{
    const seat=v.loungeSeatId?LOUNGE_SEATS.find(s=>s.id===v.loungeSeatId):SEATS.find(s=>s.id===v.seatId);
    if(v.pose==='sit'&&seat){const point=freeVisitorPosition(v.zone,seat.approach);if(!point){this.send(ws,{type:'error',message:'일어설 위치를 찾지 못했어요.'});return;}Object.assign(v,point);}
    if(v.trainSeat!==undefined){Object.assign(v,TRAIN_EXIT);delete v.trainSeat;}
-   this.release(v.id);v.seatId=null;v.loungeSeatId=null;v.pose='idle';delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;
+   this.release(v.id);v.seatId=null;v.loungeSeatId=null;v.pose='idle';delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.teaReadyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;
   }else if(msg.type==='renew'){
    this.ctx.storage.sql.exec("UPDATE claims SET expiresAt=? WHERE seatId=? AND visitorId=? AND status='reserved'",now+RESERVE_MS,msg.seatId,v.id);
   }else if(msg.type==='macaron'){
@@ -181,9 +207,10 @@ export class VenueRoom extends DurableObject<Env>{
   }else if(msg.type==='dish'){
    // Only at a dinner table (a parterre seat): one food and one drink at a time.
    const seat=SEATS.find(s=>s.id===v.seatId);if(!isDish(msg.dish)||v.pose!=='sit'||seat?.level!=='parterre')return;
-   if(isDrink(msg.dish)){if(v.drink)return;v.drink=msg.dish;v.drinkSips=0;delete v.drinkEmptyAt;}else{if(v.dish)return;v.dish=msg.dish;v.dishBites=0;delete v.dishEmptyAt;}
+   if(msg.dish==='tea'){if(!serveTea(v,this.active().map(({a})=>a.visitor),now))return;}
+   else if(isDrink(msg.dish)){if(v.drink)return;v.drink=msg.dish;v.drinkSips=0;delete v.drinkEmptyAt;}else{if(v.dish)return;v.dish=msg.dish;v.dishBites=0;delete v.dishEmptyAt;}
   }else if(msg.type==='clearDish'){
-   delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;
+   delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.teaReadyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;
   }else if(msg.type==='coffee'){
    if(!atCafe(v)||v.coffee)return;v.coffee=true;v.coffeeSips=0;
   }else if(msg.type==='candle'){
@@ -193,6 +220,7 @@ export class VenueRoom extends DurableObject<Env>{
   }else if(msg.type==='look'){
    if(!isLook(msg.look))return;v.look=msg.look;
   }else if(msg.type==='gesture'){
+   if(msg.gesture==='drink'&&v.drink==='tea'&&now<(v.teaReadyAt??0))return;
    if(!isGesture(msg.gesture)||(msg.gesture==='eat'||msg.gesture==='drink')&&(v.gesture==='eat'||v.gesture==='drink')&&now-v.gestureAt<3200||msg.gesture==='eat'&&(v.dish?(v.dishBites??0)>=DISH_BITES||!!v.dishEmptyAt:!v.macaron||(v.macaronBites??0)>=2||!!v.macaronEmptyAt)||now-v.gestureAt<1200||msg.gesture==='drink'&&(v.drink?(v.drinkSips??0)>=DISH_BITES||!!v.drinkEmptyAt:!v.coffee||(v.coffeeSips??0)>=3||v.gesture==='drink'&&now-v.gestureAt<gestureSeconds('drink')*1000))return;
    if(msg.gesture==='eat'&&v.dish){v.dishBites=(v.dishBites??0)+1;if(v.dishBites===DISH_BITES)v.dishEmptyAt=now+gestureSeconds('eat')*1000;}
    else if(msg.gesture==='eat'){v.macaronBites=(v.macaronBites??0)+1;if(v.macaronBites===2)v.macaronEmptyAt=now+gestureSeconds('eat')*1000;}
@@ -212,10 +240,10 @@ export class VenueRoom extends DurableObject<Env>{
  async alarm(){
   this.expire();const now=Date.now();
   for(const {ws,a} of this.active())if(a.visitor.macaronEmptyAt&&now>=a.visitor.macaronEmptyAt){delete a.visitor.macaron;delete a.visitor.macaronBites;delete a.visitor.macaronEmptyAt;ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(a.visitor),a.visitor.id);}
-  for(const {ws,a} of this.active())if(a.visitor.dishEmptyAt&&now>=a.visitor.dishEmptyAt||a.visitor.drinkEmptyAt&&now>=a.visitor.drinkEmptyAt){const v=a.visitor;if(v.dishEmptyAt&&now>=v.dishEmptyAt){delete v.dish;delete v.dishBites;delete v.dishEmptyAt;}if(v.drinkEmptyAt&&now>=v.drinkEmptyAt){delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;}ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(v),v.id);}
+  for(const {ws,a} of this.active())if(a.visitor.dishEmptyAt&&now>=a.visitor.dishEmptyAt||a.visitor.drinkEmptyAt&&now>=a.visitor.drinkEmptyAt){const v=a.visitor;if(v.dishEmptyAt&&now>=v.dishEmptyAt){delete v.dish;delete v.dishBites;delete v.dishEmptyAt;}if(v.drinkEmptyAt&&now>=v.drinkEmptyAt){delete v.teaReadyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;}ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(v),v.id);}
   for(const {ws,a} of this.active())if(a.visitor.coffeeEmptyAt&&now>=a.visitor.coffeeEmptyAt){const v=a.visitor;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(v),v.id);}
   for(const {ws,a} of this.active())if(a.visitor.zone==='lobby'&&a.lastActivity&&now-a.lastActivity>=30000){
-   const v=a.visitor;delete v.trainSeat;this.release(v.id);Object.assign(v,{zone:'auditorium',...SPAWN.auditorium,pose:'idle',seatId:null,loungeSeatId:null});delete v.candle;delete v.macaron;delete v.macaronBites;delete v.macaronEmptyAt;delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;
+   const v=a.visitor;delete v.trainSeat;this.release(v.id);Object.assign(v,{zone:'auditorium',...SPAWN.auditorium,pose:'idle',seatId:null,loungeSeatId:null});delete v.candle;delete v.macaron;delete v.macaronBites;delete v.macaronEmptyAt;delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.teaReadyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;
    ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(v),v.id);
   }
   this.broadcast();await this.schedule();

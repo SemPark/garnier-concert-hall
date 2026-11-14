@@ -8,6 +8,7 @@ export const DISHES=[
  {id:'pasta',label:'파스타',glyph:'🍝'},
  {id:'cake',label:'케이크',glyph:'🍰'},
  {id:'coffee',label:'커피',glyph:'☕'},
+ {id:'tea',label:'차',glyph:'🍵'},
  {id:'wine',label:'와인',glyph:'🍷'},
 ] as const;
 export type Dish=typeof DISHES[number]['id'];
@@ -15,4 +16,4 @@ export const DISH_BITES=3;
 const IDS=new Set<string>(DISHES.map(d=>d.id));
 export function isDish(value:unknown):value is Dish{return typeof value==='string'&&IDS.has(value);}
 /** Drinks are sipped (the drink gesture, cup or glass to the lips) rather than eaten with the fork. */
-export const isDrink=(dish:Dish|undefined|null):dish is 'coffee'|'wine'=>dish==='coffee'||dish==='wine';
+export const isDrink=(dish:Dish|undefined|null):dish is 'coffee'|'wine'|'tea'=>dish==='coffee'||dish==='wine'||dish==='tea';

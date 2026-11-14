@@ -1,3 +1,6 @@
+import {PROGRAM_BOOK} from './programBook';
+import {hasStoryGuest} from './storyGuestSeats';
+import {isMagicChair,MAGIC_CHAIR_TRAVEL} from './magicChairConfig';
 import {TRAIN_DECK,TRAIN_STEP} from './encoreTrain';
 import {LOWER_FINISH_RECESS,LOWER_WALL_INNER_X,LOWER_HALL} from './lowerHall';
 import {UPPER_WALK_LIMIT} from './upperHall';
@@ -20,7 +23,7 @@ export const isLook=(v:unknown):v is Look=>v==='man'||v==='woman';
 function appearanceSeed(id:string){let hash=2166136261;for(const ch of id)hash=Math.imul(hash^ch.charCodeAt(0),16777619);return hash>>>0;}
 /** Independent skin, look and hair choices, stable for the same visitor on every screen. */
 export function visitorVariant(v:{id:string;look?:Look}){const seed=appearanceSeed(v.id),look=v.look??(seed&4?'woman':'man');return (seed&3)+(look==='woman'?4:0)+((seed>>>8)&7)*8;}
-export type Visitor={trainSeat?:number;id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronBites?:number;macaronEmptyAt?:number;dish?:Dish;dishBites?:number;dishEmptyAt?:number;drink?:'coffee'|'wine';drinkSips?:number;drinkEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
+export type Visitor={trainSeat?:number;id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronBites?:number;macaronEmptyAt?:number;dish?:Dish;dishBites?:number;dishEmptyAt?:number;drink?:'coffee'|'wine'|'tea';drinkSips?:number;teaReadyAt?:number;drinkEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
 export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
 // Dinner-show floor: round tables with chairs all around (the theatre rows are kept in theatreSeating.ts).
@@ -37,8 +40,12 @@ export const FLOOR_SEATS:Seat[]=dinnerSeats(PARTERRE.floor);
 export const BALCONY_SEATS:Seat[]=[];
 /** Raised wall-side boxes face the orchestra across the room, with an aisle behind the front rail. */
 export const SIDE_BOX_SEATS:Seat[]=[];
-export const SEATS:Seat[]=[...FLOOR_SEATS,...SIDE_BOX_SEATS,...BALCONY_SEATS];
-/** The hall admits as many visitors as it has seats, including the raised side boxes. */
+/** Physical chairs include the permanently seated story cast. */
+export const ALL_SEATS:Seat[]=[...FLOOR_SEATS,...SIDE_BOX_SEATS,...BALCONY_SEATS];
+export const NPC_SEATS=FLOOR_SEATS.filter(seat=>hasStoryGuest(seat.row,seat.column));
+/** Only visitor seats may be reserved, displayed as available, or counted toward capacity. */
+export const SEATS=ALL_SEATS.filter(seat=>seat.level!=='parterre'||!hasStoryGuest(seat.row,seat.column));
+/** The hall admits as many visitors as it has visitor seats. */
 export const CAPACITY=SEATS.length;
 /** Gallery seats are numbered 1, 2, 3… along each side, from the stage end towards the back. */
 const BALCONY_NUMBER=new Map([-1,1].flatMap(side=>BALCONY_SEATS.filter(s=>Math.sign(s.x)===side).sort((a,b)=>a.z-b.z).map((s,i)=>[s.id,i+1] as const)));
@@ -93,7 +100,7 @@ export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  if(fromY<1&&fromY>PARTERRE.floor-.4&&Math.abs(p.x)<=15.65&&p.z>=STAGE_APRON_Z&&p.z<=50.3)return parterreHeight(p.x,p.z);
  return null;
 }
-const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[...FLOOR_SEATS.map(s=>({x:s.x,z:s.z,hx:.38,hz:.38,y:s.y+DINNER_SIT_DROP})),...DINNER_TABLES.map(t=>({x:t.x,z:t.z,hx:TABLE_RADIUS+.1,hz:TABLE_RADIUS+.1,y:PARTERRE.floor})),...[-1,1].flatMap(side=>LOWER_STATUES.map(z=>({x:side*(15.3+LOWER_FINISH_RECESS),z,hx:.45,hz:.48,y:0}))),...SIDE_BOX_SEATS.map(s=>({x:s.x,z:s.z,hx:.45,hz:.54,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...[-1,1].flatMap(side=>[PARTERRE.floor,0].map(y=>({x:side*(16+PARTERRE.stairHalfWidth)/2,z:(PARTERRE.stairFront+44.2)/2,hx:(16-PARTERRE.stairHalfWidth)/2,hz:(44.2-PARTERRE.stairFront)/2,y}))),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [PARTERRE.floor,0].map(y=>({x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y}));})],lobby:[
+const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[PROGRAM_BOOK,...FLOOR_SEATS.map(s=>({x:s.x+(isMagicChair(s.id)?Math.sin(s.yaw)*MAGIC_CHAIR_TRAVEL/2:0),z:s.z+(isMagicChair(s.id)?Math.cos(s.yaw)*MAGIC_CHAIR_TRAVEL/2:0),hx:.38+(isMagicChair(s.id)?Math.abs(Math.sin(s.yaw))*MAGIC_CHAIR_TRAVEL/2:0),hz:.38+(isMagicChair(s.id)?Math.abs(Math.cos(s.yaw))*MAGIC_CHAIR_TRAVEL/2:0),y:s.y+DINNER_SIT_DROP})),...DINNER_TABLES.map(t=>({x:t.x,z:t.z,hx:TABLE_RADIUS+.1,hz:TABLE_RADIUS+.1,y:PARTERRE.floor})),...[-1,1].flatMap(side=>LOWER_STATUES.map(z=>({x:side*(15.3+LOWER_FINISH_RECESS),z,hx:.45,hz:.48,y:0}))),...SIDE_BOX_SEATS.map(s=>({x:s.x,z:s.z,hx:.45,hz:.54,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...[-1,1].flatMap(side=>[PARTERRE.floor,0].map(y=>({x:side*(16+PARTERRE.stairHalfWidth)/2,z:(PARTERRE.stairFront+44.2)/2,hx:(16-PARTERRE.stairHalfWidth)/2,hz:(44.2-PARTERRE.stairFront)/2,y}))),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [PARTERRE.floor,0].map(y=>({x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y}));})],lobby:[
  ...[-1,1].map(side=>({x:side*(GRAND_STAIR.flightHalf+.06),z:GRAND_STAIR.flightEnd,hx:.29,hz:.29,y:GRAND_STAIR.rise})),
  ...[-1,1].map(side=>({x:side*2.55,z:AMPHITHEATRE_DOOR.z-.75,hx:.52,hz:.46,y:GRAND_STAIR.rise})),
  ...LOBBY_ARCADE.endColumns.flatMap(x=>[ATRIUM.front+ATRIUM.balconyDepth,ATRIUM.back-ATRIUM.balconyDepth].map(z=>({x,z,hx:.33,hz:.33,y:ATRIUM.balconyY}))),

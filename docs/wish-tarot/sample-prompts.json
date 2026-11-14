@@ -1,0 +1,28 @@
+{
+  "status": "design-review-only; not submitted for generation",
+  "styleVersion": "pleee-classical-engraving-v1-proposed",
+  "initialGenerationCount": 3,
+  "generationOrder": [19, 17, 16],
+  "referencePolicy": "Use each 1909 RWS scan only for composition and symbols. After Sun passes review, also supply its generated artwork as the style reference for Star and Tower. Never treat source lettering or border as output requirements.",
+  "commonPrompt": "Use case: illustration-story. Asset type: original fantasy tarot interior artwork for PLEEE, one upright card per image. Create a richly detailed classical painting with delicate copperplate engraving linework, thin translucent paint layers, restrained cross-hatching and subtle ivory paper texture. Consistent elegant natural proportions; convincing faces, hands, cloth, stone, animals and water. Palette: ivory #F1E6D2, antique gold #B18A4B, burgundy #682C3C, deep brown #302725; restrained slate blue #536876 and sage #70775D where the scene requires. Preserve the specified 1909 Rider-Waite-Smith composition and recognizable concrete symbols. Vertical 2:3 interior illustration, subject comfortably inset from edges, major silhouettes legible at 240 pixels wide. Use soft painterly light with a clear foreground/background value separation. Fill the artwork with the scene; the common frame will be added separately in code. No words, letters, numerals, titles, signatures, watermarks, card borders, decorative frames, multi-card layouts or contact sheets. No abstract symbol substitutes, minimalist icons, photorealistic collage, anime, plastic 3D render, neon or excessive bloom. Do not insert PLEEE's ghost characters into the historical scene.",
+  "cards": [
+    {
+      "id": 19,
+      "referenceUrl": "https://commons.wikimedia.org/wiki/File:RWS1909_-_19_Sun.jpeg",
+      "prompt": "THE SUN scene, upright. Upper portion: a large benevolent human-faced sun, with alternating straight and wavy rays. Lower portion: a white horse carrying a joyful young child, naturally posed with arms open; retain the floral wreath and red feather. A short opaque ivory drape modestly covers the child's body; depict innocent joy and no anatomical detail. Preserve the large flowing red banner on the right, in luminous burgundy/crimson. Behind them, a low masonry wall and exactly four visible sunflower heads. Keep the horse's expressive head, the child's face, the banner and the sun clearly separated. Warm daylight, luminous ivory and antique gold, richly painted red fabric, detailed yet subordinate stone and foliage. This image establishes the shared paint, engraving, paper and light treatment for the deck.",
+      "mustVerify": ["Human-faced sun and alternating rays", "White horse and child", "Red banner", "Wall and exactly four sunflower heads", "Floral wreath and red feather", "Natural anatomy and modest drape", "No generated text or frame"]
+    },
+    {
+      "id": 17,
+      "referenceUrl": "https://commons.wikimedia.org/wiki/File:RWS1909_-_17_Star.jpeg",
+      "prompt": "THE STAR scene, upright. Match the approved Sun style reference in linework, paint layering, paper grain and anatomical finish, while shifting the atmosphere to quiet slate-blue twilight. A clearly adult woman kneels at a pool, one knee on land and one foot resting on the water. Depict the original classical nonsexual figure respectfully, without erotic emphasis. She pours from exactly two vessels: one stream into the pool and the other onto the earth, where it separates into five small rivulets. Above her, exactly one large eight-pointed gold star and exactly seven smaller eight-pointed ivory stars, with enough dark space around each to count them. Preserve a small tree with a bird at the rear right, low hills, and the pool's ripples. Make the adult figure, two vessels and their separate streams the readable focal scene. Antique gold in star and vessel highlights, subtle burgundy accents, calm and hopeful rather than glittery.",
+      "mustVerify": ["One large and seven small eight-pointed stars", "Clearly adult figure; knee on land, foot on water", "Exactly two vessels", "Separate streams into pool and onto land", "Five land rivulets", "Tree with bird", "Same style as approved Sun", "No generated text or frame"]
+    },
+    {
+      "id": 16,
+      "referenceUrl": "https://commons.wikimedia.org/wiki/File:RWS1909_-_16_Tower.jpeg",
+      "prompt": "THE TOWER scene, upright. Match the approved Sun style reference in painted materials, fine engraving, paper grain and figure detail. A tall pale stone tower stands on a jagged rocky height. A bright diagonal lightning bolt strikes the upper tower, dislodging a large gold crown toward the upper left. Flames emerge at the summit and windows. Exactly two clearly separate clothed adult figures fall on opposite sides of the tower, preserving the dramatic original gestures and distinguishable burgundy and slate-blue fabrics. Include exactly 22 small gold teardrop-shaped sparks distributed around the tower, not readable letters. Dark slate and burgundy storm clouds frame the pale masonry and gold lightning. Maintain the original unsettling event with dignity, without gore, visible wounds or horror exaggeration. Keep the tower, crown, lightning and both figures readable in a small portrait image; do not replace the scene with a peaceful castle, a flower or an abstract lightning icon.",
+      "mustVerify": ["Rocky height and tall tower", "Lightning striking tower", "Crown thrown from summit", "Flames", "Exactly two falling clothed figures", "Exactly 22 gold teardrop sparks", "No gore", "Same style as approved Sun", "No generated text or frame"]
+    }
+  ]
+}

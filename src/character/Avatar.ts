@@ -1,3 +1,4 @@
+import {buildTeaCup} from './TeaCup';
 import {buildFork,buildWineGlass,WINE_SCALE} from '../scene/DinnerDishes';
 import {JAZZ_HALL} from '../../shared/hallKind';
 import {buildCoffeeCup,buildMacaron} from './CoffeeCup';
@@ -159,7 +160,7 @@ export class Avatar{
    if(cloth)prepareClothContact(o.geometry,cloth);
    o.material=frontLitMaterial(o.material,cloth?'cloth':'body');
   }});
-  if(!instrument){this.fork=buildFork();this.fork.scale.setScalar(0);this.forkBite=new T.Mesh(forkBiteGeometry,new T.MeshStandardMaterial({roughness:.6}));this.forkBite.position.set(0,.01,-.15);this.fork.add(this.forkBite);this.rightHand.add(this.fork);this.wineGlass=buildWineGlass();this.wineGlass.position.set(-.07,-.03,-.05);this.wineGlass.scale.setScalar(0);this.rightHand.add(this.wineGlass);this.coffeeCup=buildCoffeeCup();this.rightHand.add(this.coffeeCup);this.macaron=buildMacaron();this.macaron.scale.setScalar(0);this.leftHand.add(this.macaron);}
+  if(!instrument){this.fork=buildFork();this.fork.scale.setScalar(0);this.forkBite=new T.Mesh(forkBiteGeometry,new T.MeshStandardMaterial({roughness:.6}));this.forkBite.position.set(0,.01,-.15);this.fork.add(this.forkBite);this.rightHand.add(this.fork);this.wineGlass=buildWineGlass();this.wineGlass.position.set(-.07,-.03,-.05);this.wineGlass.scale.setScalar(0);this.rightHand.add(this.wineGlass);this.coffeeCup=buildCoffeeCup();this.rightHand.add(this.coffeeCup);this.teaCup=buildTeaCup();this.teaCup.position.set(-.13,-.08,-.035);this.teaCup.rotation.y=Math.PI;this.teaCup.scale.setScalar(0);this.rightHand.add(this.teaCup);this.macaron=buildMacaron();this.macaron.scale.setScalar(0);this.leftHand.add(this.macaron);}
   const shadow=new T.Mesh(shadowGeometry,shadowMaterial);shadow.rotation.x=-Math.PI/2;shadow.position.y=.012;this.root.add(shadow);
   if(instrument){buildInstrument(instrument,this.instrument,this.leftHand,this.rightHand);if(FLOOR_INSTRUMENTS.has(instrument)){this.root.add(this.instrument);this.instrument.userData.floorAnchored=true;if(instrument==='cello')this.instrument.position.y=.64;}if(instrument==='conductor'||JAZZ_HALL&&instrument==='piano')santaHat(this.head);/* the big band's leader plays the piano */}
  }
@@ -177,8 +178,10 @@ export class Avatar{
   this.aimAt(this.right,x,y+(reduced?0:Math.sin(time*9)*.025),z);
   this.rightHand.quaternion.copy(this.rightArm.quaternion).invert();
  }
+ holdingTea=false;private teaCup?:T.Group;
  holdingCoffee=false;private coffeeCup?:T.Group;holdingMacaron=false;macaronBites=0;private macaron?:T.Group;
  holdingCandle=false;
+ holdingBouquet=false;
  /** Train passengers wave with the opposite hand. */
  trainPassenger=false;
  /** Colour of the forkful while this visitor eats a dinner dish (null: not dining). The fork is shown only while eating. */
@@ -248,15 +251,16 @@ export class Avatar{
   }
   // The left hand carries the candle; backward greetings and hush use the free right hand.
   if(this.wineGlass){this.wineGlass.scale.setScalar(this.holdingWine?WINE_SCALE:0);this.wineGlass.rotation.x=0;}
+  if(this.teaCup){this.teaCup.scale.setScalar(this.holdingTea?1:0);this.teaCup.rotation.x=0;}
   if(this.coffeeCup){this.coffeeCup.scale.setScalar(this.holdingCoffee?1:0);this.coffeeCup.rotation.x=0;}
   if(this.macaron){
    // Each bite takes a whole half away at once, the moment it reaches the mouth.
-   this.macaron.scale.setScalar(this.holdingMacaron?1:0);
+   this.macaron.scale.setScalar(this.holdingMacaron&&!this.holdingBouquet?1:0);
    const eaten=gesture==='eat'&&gestureAge<MACARON_BITE_AT?this.macaronBites-1:this.macaronBites;
    const [first,second]=this.macaron.userData.halves as T.Object3D[];first.scale.setScalar(eaten>=1?0:1);second.scale.setScalar(eaten>=2?0:1);
   }
   if(this.holdingMacaron&&!type)this.aimAt(this.left,-.23,.96,-.3);
-  if(this.holdingCoffee&&!type)this.aimAt(this.right,.20,.96,-.30);
+  if((this.holdingCoffee||this.holdingTea)&&!type)this.aimAt(this.right,.20,.96,-.30);
   if(this.holdingCandle&&!type)this.aimAt(this.left,-.1,.93,-.3);
   if(pose.weight>0&&(type||gesture!=='ovation'&&gesture!=='shh')){if(pose.left)this.aimAt(this.left,...pose.left,pose.weight);if(pose.right)this.aimAt(this.right,...pose.right,pose.weight);}
   if(gesture==='ovation'&&pose.weight>0&&!type){
@@ -266,16 +270,18 @@ export class Avatar{
     this.aimAt(arm,...greetingTarget(gestureAge,side),pose.weight*weight);
    }
   }
-  const vessel=this.holdingWine?this.wineGlass:this.holdingCoffee?this.coffeeCup:undefined;
+  const vessel=this.holdingTea?this.teaCup:this.holdingWine?this.wineGlass:this.holdingCoffee?this.coffeeCup:undefined;
   if(gesture==='drink'&&vessel&&pose.weight>0&&!type){
    // Raise the drink first, tilt back for the sip, then straighten before lowering it.
    const sip=T.MathUtils.smoothstep(gestureAge,.38,.9)*(1-T.MathUtils.smoothstep(gestureAge,1.6,2.3));
-   this.head.rotation.x+=.46*sip;
-   vessel.rotation.x=.28*pose.weight+.4*sip;
-   const rimHeight=this.holdingWine?.175*WINE_SCALE:.14;
-   const rimRadius=this.holdingWine?.036*WINE_SCALE:.078;
-   const rim=new T.Vector3(0,rimHeight,rimRadius).applyQuaternion(vessel.quaternion).add(vessel.position);
-   this.direction.set(0,-.13,faceSurfaceZ(0,-.13)-.008).applyQuaternion(this.head.quaternion).add(this.head.position).sub(rim);
+   this.head.rotation.x+=(this.holdingTea?.16:.46)*sip;
+   vessel.rotation.x=this.holdingTea?.12*pose.weight+.22*sip:.28*pose.weight+.4*sip;
+   const rimHeight=this.holdingWine?.175*WINE_SCALE:this.holdingTea?.12:.14;
+   const rimRadius=this.holdingWine?.036*WINE_SCALE:this.holdingTea?.105:.078;
+   // The tea handle faces the hand via a half turn: its lip nearest the face is local -z.
+   // Align that lip, leaving the bowl out in front of the face throughout the sip.
+   const rim=new T.Vector3(0,rimHeight,this.holdingTea?-rimRadius:rimRadius).applyQuaternion(vessel.quaternion).add(vessel.position);
+   this.direction.set(0,-.13,faceSurfaceZ(0,-.13)-(this.holdingTea?.025:.008)).applyQuaternion(this.head.quaternion).add(this.head.position).sub(rim);
    const reach=T.MathUtils.lerp(ARM_LENGTH,this.direction.distanceTo(this.rightArm.position),pose.weight);
    this.aimAt(this.right,this.direction.x,this.direction.y,this.direction.z,pose.weight);this.rightHand.position.y=-reach;
    if(sleeve){sleeve.scale.y=reach/ARM_LENGTH;sleeve.position.y=-(reach-.06)/2;}
@@ -346,6 +352,7 @@ export class Avatar{
    }
   }
   this.icon=pose.icon;this.iconAlpha=pose.iconAlpha;
+  if(this.holdingBouquet&&!type)this.aimAt(this.left,-.38,.70,-.37);
   // Mittens stay rounded and tools keep their body-space orientation.
   for(const arm of [this.left,this.right])arm.hand.quaternion.copy(arm.shoulder.quaternion).invert();
  }

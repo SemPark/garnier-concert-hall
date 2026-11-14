@@ -2,7 +2,6 @@ import * as T from 'three';
 import {BOX_OFFICE_APPROACH,LOBBY_FURNITURE} from '../../shared/grandStair';
 import {CLOAKROOM_APPROACH} from '../../shared/wardrobe';
 import {CAFE_APPROACH} from '../../shared/venue';
-import {STAIR_DOORS} from '../../shared/gallery';
 import {cylinder,line} from './primitives';
 
 /** Static floor wayfinding and a clear queue lane facing the ticket windows. */
@@ -50,8 +49,4 @@ export function buildTicketGuide(scene:T.Scene){
   buildFloorGuide(scene,-8.3,CAFE_APPROACH.z,Math.PI/2,'커피 · 마카롱','cafe'),
  ];
  return {targets:guides.flatMap(g=>g.targets),update(time:number){for(const guide of guides)guide.update(time);}};
-}
-
-export function buildGalleryGuide(scene:T.Scene){
- return buildFloorGuide(scene,STAIR_DOORS.lower.x,STAIR_DOORS.lower.z-.65,Math.PI,'2층','galleryEntrance');
 }

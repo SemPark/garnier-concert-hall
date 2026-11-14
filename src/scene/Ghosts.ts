@@ -1,3 +1,4 @@
+import {buildTeaCup} from '../character/TeaCup';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {poseVillager} from '../character/villager';
@@ -6,15 +7,17 @@ import {buildFork,buildWineGlass,WINE_SCALE} from './DinnerDishes';
 import {buildCoffeeCup} from '../character/CoffeeCup';
 import {buildTeaGuest,type TeaGuest} from './GhostTeaParty';
 import {buildGhostCostume,type GhostCostume} from './GhostCostumes';
+import type {NpcPose} from './NpcBehavior';
 import {GHOST_SURFACE} from './GhostSurface';
 
 /** One ghost to draw this frame: where it is, which way it faces, and a stable id for its colour and rhythm. */
 export type GhostSpot={x:number;y:number;z:number;yaw:number;id:string;sitting:boolean;
  teaGuest?:TeaGuest;
  costume?:GhostCostume;
+ behavior?:NpcPose;
  /** Hall ghosts (not visitors) share one blue. */npc?:boolean;
  /** A visitor gesture and its age in seconds: posed with the same hand targets and body lean as the people. */gesture?:Gesture|null;age?:number;
- /** What a diner has: the drink they lift while sipping and the colour of the bite on their fork. */drink?:'coffee'|'wine';bite?:number;
+ /** What a diner has: the drink they lift while sipping and the colour of the bite on their fork. */drink?:'coffee'|'wine'|'tea';bite?:number;
  /** The ghosts above the stage: wings and a halo. */angel?:boolean;
  /** Moving right now: steps and arm swing. */walking?:boolean};
 
@@ -50,18 +53,22 @@ function body(segments:number,domeRings:number,armSides:number){
 
 const vertex=/* glsl */`
 uniform float uTime;
-attribute vec3 aGlow;attribute float aSeed;attribute float aArm;attribute vec3 aLeft;attribute vec3 aRight;attribute vec3 aBody;
+attribute vec3 aGlow;attribute float aSeed;attribute float aArm;attribute vec3 aLeft;attribute vec3 aRight;attribute vec3 aBody;attribute vec3 aHead;
 varying vec3 vGlow;varying vec3 vLocal;varying vec3 vNormal;varying vec3 vView;varying float vUp;
 varying float vRabbitCloth;
+varying float vPhantom;
+varying float vQueen;
 #include <common>
 #include <logdepthbuf_pars_vertex>
 void main(){
  // aSeed = rhythm (fraction) + 32 when seated + 64 for a visitor + 128 while walking. Gestures arrive ready-made from
  // the people's own pose: aLeft/aRight are the directions the arms point, aBody is (bow forward, lean sideways, turn).
  float seed=fract(aSeed),flags=floor(aSeed/32.),seated=mod(flags,2.),visitor=mod(floor(flags/2.),2.),walk=mod(floor(flags/4.),2.),objectHead=mod(floor(flags/8.),2.);
+ vPhantom=mod(floor(flags/32.),2.);
+ vQueen=mod(floor(flags/64.),2.)*(1.-abs(aArm));
  vRabbitCloth=mod(floor(flags/16.),2.)*(1.-abs(aArm));
  // Real visitors move only as their person does: no idle float or flutter, steps while walking.
- float idle=1.-visitor;
+ float idle=(1.-visitor)*(1.-vPhantom);
  vec3 p=position;vec3 n=normal;
  // Object-headed guests keep their sheet and arms, capped under the collar.
  if(objectHead>.5&&aArm==0.&&p.y>0.){p.y=0.;n=vec3(0.,1.,0.);}float below=clamp((-p.y-.4)/.3,0.,1.)*(1.-seated);
@@ -76,6 +83,13 @@ void main(){
   if(sn>1e-4){axis/=sn;d=d*cs+cross(axis,d)*sn+axis*dot(axis,d)*(1.-cs);n=n*cs+cross(axis,n)*sn+axis*dot(axis,n)*(1.-cs);}
   p=pivot+d;
  }
+ // Head motion is independent of the shoulders and seated body.
+ float headWeight=(1.-step(.5,abs(aArm)))*smoothstep(-.18,0.,position.y);
+ float headYaw=aHead.y*headWeight,headPitch=aHead.x*headWeight;
+ p.xz=mat2(cos(headYaw),-sin(headYaw),sin(headYaw),cos(headYaw))*p.xz;
+ n.xz=mat2(cos(headYaw),-sin(headYaw),sin(headYaw),cos(headYaw))*n.xz;
+ p.yz=mat2(cos(headPitch),sin(headPitch),-sin(headPitch),cos(headPitch))*p.yz;
+ n.yz=mat2(cos(headPitch),sin(headPitch),-sin(headPitch),cos(headPitch))*n.yz;
  // Whole body, about the hips like the people: lean sideways, turn (a seated ghost's draped hem stays on the chair), bow.
  float roll=aBody.y;
  if(roll!=0.){vec2 q=p.xy-vec2(0.,-.7);float c=cos(roll),s=sin(roll);p.xy=vec2(0.,-.7)+mat2(c,s,-s,c)*q;n.xy=mat2(c,s,-s,c)*n.xy;}
@@ -95,6 +109,8 @@ const fragment=/* glsl */`
 uniform float uFace;uniform float uTime;
 varying vec3 vGlow;varying vec3 vLocal;varying vec3 vNormal;varying vec3 vView;varying float vUp;
 varying float vRabbitCloth;
+varying float vPhantom;
+varying float vQueen;
 #include <common>
 #include <logdepthbuf_pars_fragment>
 float dot2(vec2 a,vec2 c,vec2 r){vec2 d=(a-c)/r;return dot(d,d);}
@@ -103,6 +119,24 @@ void main(){
  #include <logdepthbuf_fragment>
  // A warm ivory like the hall's plaster in candlelight, lit softly from above; no glow of its own.
  vec3 c=ghostSurface(vNormal,vView,vUp);
+ // A single continuous gown follows the seated hem and every body pose without intersecting shells.
+ if(vQueen>.5){
+  float gown=1.-smoothstep(-.24,-.225,vLocal.y);
+  // Playing-card red and black quarters remain continuous around the seated sheet.
+  float quarter=step(0.,vLocal.x)*step(-.5,vLocal.y)+(1.-step(0.,vLocal.x))*(1.-step(-.5,vLocal.y));
+  vec3 cloth=mix(vec3(.025,.018,.022),vec3(.48,.018,.035),quarter);
+  float belt=1.-smoothstep(.012,.018,abs(vLocal.y+.5));
+  cloth=mix(cloth,vec3(.72,.4,.09),belt);
+  // White heart on the back also identifies her from the aisle.
+  vec2 h=vec2(vLocal.x,(vLocal.y+.375)*1.15)/.085;
+  h.y-=.15;
+  float heartBase=h.x*h.x+h.y*h.y-1.;
+  float heartShape=heartBase*heartBase*heartBase-h.x*h.x*h.y*h.y*h.y;
+  float emblem=(1.-smoothstep(-.05,.05,heartShape))*step(vLocal.z,-.1);
+  cloth=mix(cloth,vec3(1.,.93,.78),emblem);
+  c*=mix(vec3(1.),cloth,gown);
+ }
+ if(vPhantom>.5&&vLocal.y<-.18)c*=vLocal.z>0.?vec3(.25,.025,.055):vec3(.025,.02,.03);
  if(vRabbitCloth>.5&&vLocal.y<-.37){
   // Colour the existing sheet so the trousers follow its running deformation exactly.
   c*=vec3(.055,.09,.15);
@@ -123,7 +157,7 @@ void main(){
  #include <colorspace_fragment>
 }`;
 
-type Batch={mesh:T.InstancedMesh;glow:T.InstancedBufferAttribute;seed:T.InstancedBufferAttribute;left:T.InstancedBufferAttribute;right:T.InstancedBufferAttribute;body:T.InstancedBufferAttribute;used:number};
+type Batch={mesh:T.InstancedMesh;glow:T.InstancedBufferAttribute;seed:T.InstancedBufferAttribute;left:T.InstancedBufferAttribute;right:T.InstancedBufferAttribute;body:T.InstancedBufferAttribute;head:T.InstancedBufferAttribute;used:number};
 /** Where the ghost's arms rest (see body()), and the people's shoulders their hand targets are measured from. */
 const REST=[-1,1].map(s=>new T.Vector3(s*.172,-.675,.717).normalize()),SHOULDER_X=.16,SHOULDER_Y=.99;
 
@@ -146,10 +180,11 @@ const GLASS_HAND=new T.Vector3(-.2,-.3,.42),FORK_AT_MOUTH=new T.Vector3(-.134,-.
  atMouth=(height:number,grip:number)=>new T.Vector3(-.03,MOUTH.y+grip-height*Math.cos(TIP),MOUTH.z+height*Math.sin(TIP)+.02),WINE_AT_MOUTH=atMouth(WINE_HEIGHT,WINE_GRIP);
 /** Fork (with a bite), wine glass and cup for a ghost's hand while it eats or drinks; the people's own models. */
 function tableware(){
+ const tea=buildTeaCup();tea.position.set(.13,-.08,0);
  const kit=new T.Group(),fork=buildFork(),bite=new T.Mesh(new T.IcosahedronGeometry(.028,1),new T.MeshStandardMaterial({roughness:.6})),wine=buildWineGlass(),cup=new T.Group(),mug=buildCoffeeCup();
  // The mug hangs from its handle (0.12 m out, 0.105 m up on the model), which sits in the hand; the body is towards the middle.
  mug.scale.setScalar(1);mug.rotation.y=Math.PI;mug.position.set(.12,-.105,0);cup.add(mug);
- bite.position.set(0,.01,-.15);fork.add(bite);wine.scale.setScalar(WINE_SCALE);wine.position.y=-WINE_GRIP;kit.add(fork,wine,cup);return {kit,fork,bite,wine,cup};
+ bite.position.set(0,.01,-.15);fork.add(bite);wine.scale.setScalar(WINE_SCALE);wine.position.y=-WINE_GRIP;kit.add(fork,wine,cup,tea);return {kit,fork,bite,wine,cup,tea};
 }
 /** Wings and a halo for a ghost that flies over the stage; set at the ghost's head centre, facing +z. */
 function angelKit(){
@@ -186,12 +221,14 @@ function angelKit(){
  * hem flutter and gestures run in the shader; the CPU only places each ghost 30 times a second.
  */
 export class Ghosts{
+ readonly queenGiftPosition=new T.Vector3();
+ queenGivingWand=false;
  private readonly costumes=new Map<GhostCostume,ReturnType<typeof buildGhostCostume>>();
  private readonly teaGuests=new Map<TeaGuest,ReturnType<typeof buildTeaGuest>>();
  private time={value:0};
  private near:Batch;private far:Batch;
  private updatedAt=-Infinity;private frustum=new T.Frustum();private projection=new T.Matrix4();private sphere=new T.Sphere();
- private angels:ReturnType<typeof angelKit>[]=[];private tableware:ReturnType<typeof tableware>[]=[];private l=new T.Vector3();private r=new T.Vector3();private b=new T.Vector3();private d=new T.Vector3();private hand=new T.Vector3();private qa=new T.Quaternion();private qb=new T.Quaternion();private m=new T.Matrix4();private q=new T.Quaternion();private up=new T.Vector3(0,1,0);private v=new T.Vector3();private s=new T.Vector3(1,1,1);
+ private angels:ReturnType<typeof angelKit>[]=[];private tableware:ReturnType<typeof tableware>[]=[];private l=new T.Vector3();private r=new T.Vector3();private b=new T.Vector3();private head=new T.Vector3();private d=new T.Vector3();private hand=new T.Vector3();private qa=new T.Quaternion();private qb=new T.Quaternion();private m=new T.Matrix4();private q=new T.Quaternion();private up=new T.Vector3(0,1,0);private v=new T.Vector3();private s=new T.Vector3(1,1,1);
  constructor(private scene:T.Scene){
   const mat=(face:number)=>new T.ShaderMaterial({uniforms:{uTime:this.time,uFace:{value:face}},vertexShader:vertex,fragmentShader:fragment});
   
@@ -200,20 +237,20 @@ export class Ghosts{
  private batch(geometry:T.BufferGeometry,material:T.Material,size=64):Batch{
   const mesh=new T.InstancedMesh(geometry,material,size);mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);mesh.frustumCulled=false;mesh.matrixAutoUpdate=false;mesh.count=0;
   const vec=()=>new T.InstancedBufferAttribute(new Float32Array(size*3),3).setUsage(T.DynamicDrawUsage) as T.InstancedBufferAttribute;
-  const glow=vec(),left=vec(),right=vec(),body=vec(),seed=new T.InstancedBufferAttribute(new Float32Array(size),1);
-  seed.setUsage(T.DynamicDrawUsage);geometry.setAttribute('aGlow',glow);geometry.setAttribute('aSeed',seed);geometry.setAttribute('aLeft',left);geometry.setAttribute('aRight',right);geometry.setAttribute('aBody',body);
-  this.scene.add(mesh);return {mesh,glow,seed,left,right,body,used:0};
+  const glow=vec(),left=vec(),right=vec(),body=vec(),head=vec(),seed=new T.InstancedBufferAttribute(new Float32Array(size),1);
+  seed.setUsage(T.DynamicDrawUsage);geometry.setAttribute('aGlow',glow);geometry.setAttribute('aSeed',seed);geometry.setAttribute('aLeft',left);geometry.setAttribute('aRight',right);geometry.setAttribute('aBody',body);geometry.setAttribute('aHead',head);
+  this.scene.add(mesh);return {mesh,glow,seed,left,right,body,head,used:0};
  }
  private grow(b:Batch){
   const size=b.mesh.instanceMatrix.count;if(b.used<size)return;
   const old=b.mesh,next=this.batch(old.geometry,old.material as T.Material,size*2);
   next.mesh.instanceMatrix.array.set(old.instanceMatrix.array);(next.glow.array as Float32Array).set(b.glow.array);(next.seed.array as Float32Array).set(b.seed.array);
-  for(const k of ['left','right','body'] as const){(next[k].array as Float32Array).set(b[k].array);b[k]=next[k];}
+  for(const k of ['left','right','body','head'] as const){(next[k].array as Float32Array).set(b[k].array);b[k]=next[k];}
   next.mesh.renderOrder=old.renderOrder;old.removeFromParent();b.mesh=next.mesh;b.glow=next.glow;b.seed=next.seed;
  }
  private put(b:Batch,matrix:T.Matrix4,glow:T.Color,seed:number){
   this.grow(b);b.mesh.setMatrixAt(b.used,matrix);b.glow.setXYZ(b.used,glow.r,glow.g,glow.b);b.seed.setX(b.used,seed);
-  b.left.setXYZ(b.used,this.l.x,this.l.y,this.l.z);b.right.setXYZ(b.used,this.r.x,this.r.y,this.r.z);b.body.setXYZ(b.used,this.b.x,this.b.y,this.b.z);b.used++;
+  b.left.setXYZ(b.used,this.l.x,this.l.y,this.l.z);b.right.setXYZ(b.used,this.r.x,this.r.y,this.r.z);b.body.setXYZ(b.used,this.b.x,this.b.y,this.b.z);b.head.setXYZ(b.used,this.head.x,this.head.y,this.head.z);b.used++;
  }
  /** Point one ghost arm the way the person's arm points at the same hand target (people face −z, ghosts +z). */
  private aim(out:T.Vector3,side:number,target:readonly [number,number,number]|null,weight:number){
@@ -221,11 +258,12 @@ export class Ghosts{
   this.d.set(-(target[0]+side*SHOULDER_X),target[1]-SHOULDER_Y,-target[2]).normalize();
   out.applyQuaternion(this.qb.identity().slerp(this.qa.setFromUnitVectors(out,this.d),Math.min(1,weight)));
  }
- update(ghosts:Iterable<GhostSpot>,camera:T.Camera,now=performance.now()){
+ update(ghosts:Iterable<GhostSpot>,camera:T.Camera,now=performance.now(),reducedMotion=false){
   this.time.value=now/1000;
   if(now-this.updatedAt<1000/30)return;this.updatedAt=now;
   camera.updateMatrixWorld();this.frustum.setFromProjectionMatrix(this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
   for(const b of [this.near,this.far])b.used=0;let angels=0,holding=0;const time=now/1000;
+  this.queenGivingWand=false;
   for(const costume of this.costumes.values())costume.root.visible=false;
   for(const guest of this.teaGuests.values()){guest.root.visible=false;guest.cup.visible=false;}
   for(const g of ghosts){
@@ -233,28 +271,37 @@ export class Ghosts{
    // it drapes over the front edge (see the vertex shader).
    if(g.sitting){this.s.set(1,1,1);this.v.set(g.x+Math.sin(g.yaw)*SEAT_FORWARD,g.y+SEATED_HEAD,g.z+Math.cos(g.yaw)*SEAT_FORWARD);}
    else{this.s.set(1,1,1);this.v.set(g.x,g.y+STANDING_HEAD,g.z);}if(!this.frustum.intersectsSphere(this.sphere.set(this.v,g.teaGuest||g.costume?1.9:1)))continue;
-   const h=hash(g.id),glow=g.npc?NPC_GLOW:GLOWS[h%GLOWS.length],seed=(h>>>8)%1000/1000+(g.sitting?32:0)+(g.npc?0:64)+(g.walking&&!g.sitting?128:0)+(g.costume==='vesper'||g.costume==='candra'?256:0)+(g.costume==='white-rabbit'?512:0),distance=this.v.distanceTo(camera.position),far=distance>14;
+   const h=hash(g.id),glow=g.npc?NPC_GLOW:GLOWS[h%GLOWS.length],seed=(h>>>8)%1000/1000+(g.sitting?32:0)+(g.npc&&(!g.behavior||g.teaGuest)?0:64)+(g.walking&&!g.sitting?128:0)+(g.costume==='vesper'||g.costume==='candra'?256:0)+(g.costume==='white-rabbit'?512:0)+(g.costume==='phantom'?1024:0)+(g.costume==='queen'?2048:0),distance=this.v.distanceTo(camera.position),far=distance>14;
+   if(g.costume==='phantom'){this.s.set(.96,1.22,.96);this.v.y+=.16;}
    this.m.compose(this.v,this.q.setFromAxisAngle(this.up,g.yaw),this.s);
-   this.b.set(0,0,0);
+   this.b.set(0,0,0);this.head.set(0,0,0);
    if(g.teaGuest){
     let guest=this.teaGuests.get(g.teaGuest);
     if(!guest){guest=buildTeaGuest(g.teaGuest);this.teaGuests.set(g.teaGuest,guest);this.scene.add(guest.root,guest.cup);}
     const age=g.age??0;
-    const sip=T.MathUtils.smoothstep(age,.4,1.4)*(1-T.MathUtils.smoothstep(age,2.4,3.4));
+    const headYaw=g.behavior?.headYaw??0;
+    this.head.set(0,headYaw,0);
+    guest.head.rotation.y=headYaw;
+    const replyAge=g.behavior?.action==='greet'?g.behavior.age:-1;
+    const reply=reducedMotion?0:T.MathUtils.smoothstep(replyAge,0,.45)*(1-T.MathUtils.smoothstep(replyAge,2,3));
+    const sip=(1-reply)*T.MathUtils.smoothstep(age,.4,1.4)*(1-T.MathUtils.smoothstep(age,2.4,3.4));
     const toast=T.MathUtils.smoothstep(age,4,4.8)*(1-T.MathUtils.smoothstep(age,5.8,6.6));
     const greeting=T.MathUtils.smoothstep(age,7,7.6)*(1-T.MathUtils.smoothstep(age,8.7,9.4));
     this.d.copy(CUP_HAND).lerp(CUP_AT_MOUTH,sip);
-    this.d.y+=toast*.42;this.d.z-=toast*.08;
+    this.d.y+=toast*(1-reply)*.42;this.d.z-=toast*(1-reply)*.08;
+    if(g.teaGuest==='hatter')this.d.lerp(this.hand.set(-.39,.26,.31),reply);
     this.l.copy(this.d).sub(SHOULDER).normalize();this.r.copy(REST[1]);
     if(g.teaGuest==='hatter'){
      this.r.lerp(this.hand.set(.07,.42,.1).normalize(),greeting).normalize();
-     guest.hat.rotation.z=-.035*greeting;
+     const wave=.24*Math.sin(replyAge*16);
+     this.r.lerp(this.hand.set(.65+wave,.8,.35).normalize(),reply).normalize();
+     guest.hat.rotation.z=-.035*greeting-.17*reply;
     }else{
      this.r.lerp(this.hand.set(.3,.23,.25).normalize(),greeting).normalize();
      for(const [i,ear] of guest.ears.entries()){
       const side=i===0?-1:1;
-      ear.rotation.z=-side*.16+Math.sin(age*12+i)*.12*greeting;
-      ear.rotation.x=Math.sin(age*9+i)*.10*greeting;
+      ear.rotation.z=-side*.16+Math.sin((reply>0?replyAge:age)*12+i)*.12*Math.max(greeting,reply);
+      ear.rotation.x=Math.sin((reply>0?replyAge:age)*9+i)*.10*Math.max(greeting,reply);
      }
     }
     const bob=Math.sin(time*1.5+(h>>>8)%1000/1000*6)*.014;
@@ -287,23 +334,59 @@ export class Ghosts{
       // The tines point down at the plate, then at the mouth.
       t.fork.visible=eat;if(eat)t.fork.quaternion.setFromUnitVectors(BACK,this.hand.copy(MOUTH).sub(FORK_AT_MOUTH).normalize().lerp(TINES_DOWN.copy(PLATE_CENTRE).sub(PLATE_HAND).normalize(),1-up).normalize());
       t.bite.visible=eat&&g.bite!==undefined&&age>.6&&age<1.5;if(g.bite!==undefined)(t.bite.material as T.MeshStandardMaterial).color.setHex(g.bite);
-      t.wine.visible=!eat&&wine;t.cup.visible=!eat&&g.drink==='coffee';t.wine.rotation.x=t.cup.rotation.x=eat?0:-TIP*step(age,.7,1.2)*(1-step(age,2,2.5));
+      t.wine.visible=!eat&&wine;t.cup.visible=!eat&&g.drink==='coffee';t.tea.visible=!eat&&g.drink==='tea';t.wine.rotation.x=t.cup.rotation.x=t.tea.rotation.x=eat?0:-TIP*step(age,.7,1.2)*(1-step(age,2,2.5));
      }
     }
     this.b.set(pose.lean+lean+pose.headPitch*.5*w,-(pose.sway+pose.headRoll*.5)*w,pose.turn+(pose.turn?pose.headYaw:0));
    }else{this.l.copy(REST[0]);this.r.copy(REST[1]);}
-   if(g.costume==='white-rabbit')this.b.x+=.14;
+   if(g.behavior&&!g.teaGuest){
+    const p=g.behavior;
+    this.head.set(p.headPitch,p.headYaw,0);
+    this.b.set(p.lean,p.roll,0);
+    if(g.costume==='white-rabbit'){
+     this.l.lerp(this.hand.set(.28,-.2,.85).normalize(),p.hands).normalize();
+     this.r.lerp(this.hand.set(-.1,-.4,.8).normalize(),p.hands).normalize();
+    }else if(g.costume==='queen'){
+     this.l.set(-.15,-.38,.4).normalize();
+     this.r.lerp(this.hand.set(-.12,.24,.9).normalize(),p.hands).normalize();
+    }else if(p.action==='offer-wish-flower'){
+     this.l.lerp(this.hand.set(.22,-.1,.86).normalize(),p.hands).normalize();
+     this.r.lerp(this.hand.set(-.22,-.1,.86).normalize(),p.hands).normalize();
+    }else if(g.costume==='candra'){
+     this.l.lerp(this.hand.set(.15,.95,.3).normalize(),p.hands).normalize();
+     this.r.lerp(this.hand.set(-.15,.95,.3).normalize(),p.hands).normalize();
+    }
+   }else if(g.costume==='white-rabbit')this.b.x+=.14;
    if(g.costume){
     let costume=this.costumes.get(g.costume);
     if(!costume){costume=buildGhostCostume(g.costume);this.costumes.set(g.costume,costume);this.scene.add(costume.root);}
     costume.root.visible=true;
     costume.root.position.copy(this.v);
-    costume.root.position.y+=Math.sin(time*1.5+(h>>>8)%1000/1000*6)*.07*(g.sitting?.2:1);
+    costume.root.position.y+=Math.sin(time*1.5+(h>>>8)%1000/1000*6)*.07*(g.behavior?0:g.sitting?.2:1);
     if(g.walking&&!g.sitting)costume.root.position.y+=Math.abs(Math.sin(time*9+(h>>>8)%1000/1000*6))*.05;
     costume.root.rotation.y=g.yaw;
+    if(g.costume==='phantom'){costume.root.scale.set(.96,1.22,.96);costume.root.position.y=this.v.y;}
     // Match the shader's roll, turn and pitch about the hips, in that order.
+    const objectHead=g.costume==='vesper'||g.costume==='candra';
+    costume.head.position.y=objectHead&&!reducedMotion
+     ? .018*(1+Math.sin(time*1.8+(g.costume==='vesper'?0:1.7)))
+     : 0;
+    costume.head.rotation.set(this.head.x,this.head.y,0,'YXZ');
     costume.pivot.rotation.set(this.b.x,this.b.z,this.b.y,'XYZ');
-    if(costume.flame){costume.flame.scale.y=1+Math.sin(time*5)*.045;costume.flame.rotation.z=Math.sin(time*3)*.04;}
+    if(g.costume==='queen'&&g.behavior?.action==='give-wand'){
+     this.queenGivingWand=true;
+     this.queenGiftPosition.copy(this.r).multiplyScalar(.43).add(this.hand.set(.28,-.12,0));
+     costume.model.localToWorld(this.queenGiftPosition);
+    }
+    if(costume.flame){
+     costume.flame.scale.y=g.behavior?.flame??1+Math.sin(time*5)*.045;
+     costume.flame.rotation.z=g.behavior?.flameTilt??Math.sin(time*3)*.04;
+     costume.flame.material.color.setHex(0xffe8ac).multiplyScalar(.82+.35*(g.behavior?.flame??1));
+    }
+    if(costume.flameGlow)costume.flameGlow.material.uniforms.strength.value=
+     .55*(g.behavior?.flame??1)*(reducedMotion?1:1+.12*Math.sin(time*4.1));
+    if(costume.lantern)costume.lantern.material.color.setHex(0xffe3ac).multiplyScalar(1.18*(g.behavior?.light??1));
+    if(costume.lanternGlow)costume.lanternGlow.material.uniforms.strength.value=.45*(g.behavior?.light??1);
    }
    this.put(far?this.far:this.near,this.m,glow,seed);
   }
@@ -313,7 +396,7 @@ export class Ghosts{
    b.mesh.count=b.used;b.mesh.visible=b.used>0;if(!b.used)continue;
    b.mesh.instanceMatrix.clearUpdateRanges();b.mesh.instanceMatrix.addUpdateRange(0,b.used*16);b.mesh.instanceMatrix.needsUpdate=true;
    b.glow.clearUpdateRanges();b.glow.addUpdateRange(0,b.used*3);b.glow.needsUpdate=true;b.seed.clearUpdateRanges();b.seed.addUpdateRange(0,b.used);b.seed.needsUpdate=true;
-   for(const a of [b.left,b.right,b.body]){a.clearUpdateRanges();a.addUpdateRange(0,b.used*3);a.needsUpdate=true;}
+   for(const a of [b.left,b.right,b.body,b.head]){a.clearUpdateRanges();a.addUpdateRange(0,b.used*3);a.needsUpdate=true;}
   }
  }
 }

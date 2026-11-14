@@ -1,3 +1,6 @@
+import {QueenCardGame} from './QueenCardGame';
+import {WishTarot} from './WishTarot';
+import {ProgramBook} from './ProgramBook';
 import {PhotoMode} from './PhotoMode';
 import {ConductingExperience} from './ConductingExperience';
 import coffeeIcon from './assets/cafe/coffee.webp';
@@ -51,6 +54,9 @@ function Icon({name,size=20}:{name:string;size?:number}){
   wave:<><path d="M8 12V5a1.5 1.5 0 0 1 3 0v6-8a1.5 1.5 0 0 1 3 0v8-7a1.5 1.5 0 0 1 3 0v8-5a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-13 4L3 13a1.7 1.7 0 0 1 2.5-2L8 14"/></>,
   clap:<><path d="m5 11 4 7a6 6 0 0 0 10-6l-3-6a1.5 1.5 0 0 0-2.5 1L16 12 10 3a1.5 1.5 0 0 0-2.5 1L12 12 6 5a1.5 1.5 0 0 0-2 2l5 7-4-3a1.5 1.5 0 0 0-2 2l4 5M18 2l1 2m3 1-2 1"/></>,
   seat:<><path d="M5 12V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7M4 10v7h16v-7M6 17v4m12-4v4M4 13h16"/></>,
+  cards:<><rect x="7" y="4" width="12" height="16" rx="2"/><path d="m5 18-2-1L4 5l2-1"/><path className="queen-heart-fill" d="m13 16-3-3a1.7 1.7 0 0 1 3-1.4 1.7 1.7 0 0 1 3 1.4Z"/></>,
+  tarot:<><rect x="7" y="4" width="12" height="16" rx="2"/><path d="m5 18-2-1L4 5l2-1M13 8l1.2 2.8L17 12l-2.8 1.2L13 16l-1.2-2.8L9 12l2.8-1.2Z"/></>,
+  trash:<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>,
   ticket:<path d="M3 6h18v3.5a2.5 2.5 0 0 0 0 5V18H3v-3.5a2.5 2.5 0 0 0 0-5ZM15 6v2.5m0 2.5v2m0 2.5V18"/>,
   door:<><path d="M4 21h16M6 21V3h12v18M12 12h1"/></>,
   enter:<path d="M13 4h6v16h-6M3 12h11m-4-4 4 4-4 4"/>,
@@ -68,8 +74,20 @@ function hallHref(kind:HallKind){
  else url.searchParams.delete('hall');
  return url.href;
 }
+function TablePromptClose({label,onClose}:{label:string;onClose:()=>void}){
+ return <button type="button" className="cafe-close table-prompt-close" aria-label={`${label} 안내 닫기`} onClick={onClose}>
+  <Icon name="close" size={15}/>
+ </button>;
+}
 function App(){
  // The icon menu stays listed from the start; ☰ hides or shows it.
+ const [queenGameOpen,setQueenGameOpen]=useState(false);
+ const [wishTarotOpen,setWishTarotOpen]=useState(false);
+ const [dismissedTablePrompt,setDismissedTablePrompt]=useState<string|null>(null);
+ const closeWishTarot=useCallback(()=>setWishTarotOpen(false),[]);
+ const wishTarotButton=useRef<HTMLButtonElement>(null);
+ const wishTarotWasOpen=useRef(false);
+ const [programOpen,setProgramOpen]=useState(false);
  const [menu,setMenu]=useState(true);
  const [hallPickerOpen,setHallPickerOpen]=useState(false);
  const hallPicker=useRef<HTMLDivElement>(null),hallPickerButton=useRef<HTMLButtonElement>(null);
@@ -93,7 +111,8 @@ function App(){
  const toastTimer=useRef(0),dialog=useRef<HTMLDialogElement>(null),probeDetails=useRef<HTMLDetailsElement>(null),probeText=useRef<HTMLTextAreaElement>(null);
  useEffect(()=>{let world:World|undefined;const net=new Presence(),audio=new ConcertAudio(net.now);
   try{world=new World(document.getElementById('world')!,net,audio);const active=world;const update=()=>redraw(n=>n+1);const notify=(message:string)=>{setToast(message);clearTimeout(toastTimer.current);toastTimer.current=window.setTimeout(()=>setToast(''),3500);};
-   world.onChange=update;world.onToast=notify;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{world!.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onMoveBlocked=point=>active.correctMove(point);net.onRelocated=point=>active.finishHallMove(point);net.onStatus=()=>{if(net.status!=='connected')active.stopHallLoading();update();};net.onError=message=>{active.stopHallLoading();notify(message);};setApp({world,net,audio});
+   world.onQueenCardGame=()=>setQueenGameOpen(true);world.onProgramBook=()=>setProgramOpen(true);world.onChange=update;world.onToast=notify;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{world!.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onMoveBlocked=point=>active.correctMove(point);net.onRelocated=point=>active.finishHallMove(point);net.onStatus=()=>{if(net.status!=='connected')active.stopHallLoading();update();};net.onError=message=>{active.stopHallLoading();notify(message);};setApp({world,net,audio});
+   world.onWishTarot=()=>setWishTarotOpen(true);
    if(import.meta.env.DEV)Object.assign(window,{__concert:{world,net,audio}});
   }catch(e){failLoading();setError(e instanceof Error?e.message:'3D 화면을 열지 못했어요.');}
   // Full-document hall links do not unmount React. Release the old hall before
@@ -108,10 +127,20 @@ function App(){
  useEffect(()=>{const key=(e:KeyboardEvent)=>{const i=Number(e.code.replace('Digit',''))-1;if(!app||!entered||settings||!(i>=0&&i<GESTURES.length)||app.net.status!=='connected'||(e.target as HTMLElement)?.closest('input,textarea,select,dialog'))return;e.preventDefault();app.world.gestureAction(GESTURES[i].id);};window.addEventListener('keydown',key);return ()=>window.removeEventListener('keydown',key);},[app,entered,settings]);
  useEffect(()=>{if(settings){dialog.current?.showModal();app?.world.input.keys.clear();}else dialog.current?.close();},[settings,app]);
  const world=app?.world,net=app?.net,audio=app?.audio,p=audio?.playback,zone=world?.zone??'lobby',connected=net?.status==='connected',sitting=world?.pose==='sit';
- useEffect(()=>{if(zone!=='lobby')setWardrobe(false);},[zone]);
+ const atWishTarotTable=!!world?.atWishTarotTable;
+ const tableSeat=zone==='auditorium'&&sitting?world?.self?.seatId:null;
+ useEffect(()=>{setDismissedTablePrompt(null);},[tableSeat]);
+ const showTablePrompt=!!tableSeat&&dismissedTablePrompt!==tableSeat&&connected&&!seats&&!settings&&!wardrobe&&!programOpen&&!queenGameOpen&&!wishTarotOpen&&!world?.photoMode;
+ const dismissTablePrompt=()=>setDismissedTablePrompt(tableSeat??null);
+ useEffect(()=>{if(!atWishTarotTable||!connected||world?.photoMode)setWishTarotOpen(false);},[atWishTarotTable,connected,world?.photoMode]);
+ useEffect(()=>{if(zone!=='lobby')setWardrobe(false);setProgramOpen(false);setQueenGameOpen(false);},[zone]);
  const closeSeats=useCallback(()=>setSeats(false),[]);
  const chooseMappedSeat=useCallback((id:string)=>{if(!world)return;if(world.zone==="lobby")world.chooseSeatFromLobby(id);else void world.chooseSeat(id,true);},[world]);
- useEffect(()=>{if(!world)return;world.uiObscured=(seats||settings||wardrobe)&&!probeProgress;if(world.uiObscured)world.input.keys.clear();return()=>{world.uiObscured=false;};},[world,seats,settings,wardrobe,probeProgress]);
+ useEffect(()=>{if(!world)return;world.uiObscured=(seats||settings||wardrobe||programOpen||queenGameOpen||wishTarotOpen)&&!probeProgress;if(world.uiObscured)world.input.keys.clear();return()=>{world.uiObscured=false;};},[world,seats,settings,wardrobe,programOpen,queenGameOpen,wishTarotOpen,probeProgress]);
+ useEffect(()=>{
+  if(wishTarotWasOpen.current&&!wishTarotOpen)wishTarotButton.current?.focus();
+  wishTarotWasOpen.current=wishTarotOpen;
+ },[wishTarotOpen]);
  // Start automatically once WebGL is ready; route only the initial visit to the hall.
  useEffect(()=>{if(!app||!app.world.ready||entering.current)return;entering.current=true;app.world.start();setEntered(true);app.net.connect();},[app,world?.ready]);
  useEffect(()=>{if(!world||!connected||!world.self)return;if(world.zone==='auditorium'){initialHallRequested.current=true;setInitialHallReady(true);return;}if(!initialHallRequested.current){initialHallRequested.current=true;reportInitialHallLoading(70,'공연장으로 들어가고 있어요');void world.changeZone();}},[world,connected,zone]);
@@ -190,6 +219,9 @@ function App(){
 
   {entered&&<header className="topbar">
    {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LOBBY':JAZZ_HALL?'pleee jazz':'pleee hall'}</span><span>{zone==='lobby'?'로비':'공연장'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ').replace('jazz-','재즈홀 ')??'입장 중'}</span></div>}
+   {queenGameOpen&&world&&<QueenCardGame onResult={won=>world.queenCardResult(won)} onClose={()=>setQueenGameOpen(false)}/>}
+   {wishTarotOpen&&atWishTarotTable&&connected&&<WishTarot onClose={closeWishTarot} onFlower={(card,image)=>{world?.receiveWishFlower(card,image);closeWishTarot();}}/>}
+   {programOpen&&p&&<ProgramBook playlist={program as Playlist} playback={p} onClose={()=>{setProgramOpen(false);world?.renderer.domElement.focus();}}/>}
    {zone==='auditorium'&&p&&<aside className={`now-playing ${(!world?.concertView||world?.pose==='walk'||window.innerWidth<700)&&!musicExpanded?'compact-music':''}`}><button className="music-summary" aria-label={musicExpanded?'음악 정보 접기':'음악 정보 펼치기'} aria-expanded={musicExpanded} onClick={()=>setMusicExpanded(v=>!v)}><Icon name="music" size={14}/><span>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</span><span>{musicExpanded?'−':'+'}</span></button><div className="music-details"><div className="now-label"><span className={`equalizer ${audio?.enabled&&p.playing?'active':''}`}><i/><i/><i/></span>{p.playing?(p.track.stage?'ON STAGE':'NOW PLAYING'):'잠시 후'}</div><h2>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</h2><p>{p.playing&&!p.track.stage?p.track.composer:`다음 곡: ${nextPiece(program as Playlist,p.index)?.title??''}`}{!p.playing&&` · ${Math.ceil(p.remaining)}초 후`}</p><div className="progress-track"><span style={{width:`${p.playing?p.offset/p.track.durationSeconds*100:0}%`}}/></div><div className="track-meta"><span>{audio?.state}</span><span>{format(p.offset)} / {format(p.track.durationSeconds)}</span></div></div></aside>}
    <nav className="tools" aria-label="음악당 설정">
     <div className="hall-picker" ref={hallPicker} onKeyDown={event=>{
@@ -243,8 +275,37 @@ function App(){
    </nav></>}
 
    {world?.cafeMenu&&<div className="cafe-menu" role="dialog" aria-label="카페"><button className="cafe-close" aria-label="닫기" onClick={()=>world.closeCafeMenu()}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div className="cafe-choices">{!world.coffee&&<button aria-label="커피 받기" onClick={()=>world.visitCafe('coffee')} disabled={!connected}><img src={coffeeIcon} alt="" aria-hidden="true"/></button>}{!world.macaron&&<button aria-label="마카롱 받기" onClick={()=>world.visitCafe('macaron')} disabled={!connected}><img src={macaronIcon} alt="" aria-hidden="true"/></button>}</div></div>}
-   {world?.dishMenu&&world.atDinnerTable&&!(world.dish&&world.drink)&&<div className="cafe-menu dish-menu" role="dialog" aria-label="요리 고르기"><button className="cafe-close" aria-label="닫기" onClick={()=>world.closeDishMenu()}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div className="cafe-choices dish-choices">{DISHES.map(d=><button key={d.id} aria-label={d.label} onClick={()=>world.orderDish(d.id)} disabled={!connected||!!(isDrink(d.id)?world.drink:world.dish)}><b aria-hidden="true">{d.glyph}</b><span>{d.label}</span></button>)}</div></div>}
-   <div className="bottom-center">{reactions&&<div className="reaction-panel" role="group" aria-label="리액션">{GESTURES.filter(g=>(g.id!=='drink'||world?.coffee)&&(g.id!=='eat'||world?.macaron)).map((g,n)=><button key={g.id} onClick={()=>{world?.gestureAction(g.id);setReactions(false);}} disabled={!connected}><b>{g.id==='drink'||g.id==='eat'?<img className="food-icon" src={g.id==='drink'?coffeeIcon:macaronIcon} alt="" aria-hidden="true"/>:GLYPH[g.id]}</b><span>{g.label}</span><kbd>{n+1}</kbd></button>)}</div>}{toast&&<div className="toast" role="status">{toast}</div>}{world?.atDinnerTable&&(world.dish||world.drink)&&<button className="dish-trash" aria-label="음식 모두 버리기" onClick={()=>world.clearDishes()} disabled={!connected}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button>}<div className="actionbar" aria-label="음악당에서 할 일"><button onClick={()=>world?.gestureAction('wave')} disabled={!connected}><Icon name="wave"/><span>인사</span></button><button onClick={()=>world?.gestureAction('clap')} disabled={!connected}><Icon name="clap"/><span>박수</span></button><span className="divider"/><button className="primary-action" onClick={()=>{if(sitting)world?.stand();else if(zone==='lobby')world?.changeZone();else{world?.input.keys.clear();setSeats(true);}}} disabled={!connected}><Icon name={sitting?'seat':zone==='lobby'?'enter':'ticket'}/><span>{sitting?'일어나기':zone==='lobby'?'공연장 입장':'자리 앉기'}</span></button>{zone==='lobby'&&<button onClick={()=>world?.goToHallPoint('lobby')} disabled={!connected} aria-label="로비 가운데로 바로 이동"><Icon name="center"/><span>가운데</span></button>}{zone==='lobby'&&world?.macaron&&<button className="eat-ready" onClick={()=>world.gestureAction('eat')} disabled={!connected} aria-label="마카롱 먹기"><img className="food-icon" src={macaronIcon} alt="" aria-hidden="true"/><span>마카롱 먹기</span></button>}{zone==='lobby'&&world?.coffee&&<button className="eat-ready" onClick={()=>world.gestureAction('drink')} disabled={!connected} aria-label="커피 마시기"><img className="food-icon" src={coffeeIcon} alt="" aria-hidden="true"/><span>커피 마시기</span></button>}{world?.atDinnerTable&&world.dish&&<button className="eat-ready" onClick={()=>world.gestureAction('eat')} disabled={!connected} aria-label={DISHES.find(d=>d.id===world.dish)!.label+' 먹기'}><b className="food-icon dish-icon" aria-hidden="true">{DISHES.find(d=>d.id===world.dish)!.glyph}</b><span>{DISHES.find(d=>d.id===world.dish)!.label} 먹기</span></button>}{world?.atDinnerTable&&world.drink&&<button className="eat-ready" onClick={()=>world.gestureAction('drink')} disabled={!connected} aria-label={DISHES.find(d=>d.id===world.drink)!.label+' 마시기'}><b className="food-icon dish-icon" aria-hidden="true">{DISHES.find(d=>d.id===world.drink)!.glyph}</b><span>{DISHES.find(d=>d.id===world.drink)!.label} 마시기</span></button>}{world?.atDinnerTable&&!(world.dish&&world.drink)&&<button onClick={()=>world.openDishMenu()} disabled={!connected} aria-label="요리 고르기"><Icon name="dinner"/><span>식사</span></button>}{zone==='auditorium'&&world?.candle&&<button className={'candle-action'+(world.candle==='on'?' lit':'')} aria-pressed={world.candle==='on'} aria-label={world.candle==='on'?'촛불 끄기':'촛불 켜기'} onClick={()=>{world.toggleCandle();redraw(n=>n+1);}}><Icon name="candle"/><span>촛불</span></button>}{CONDUCTING_ENABLED&&zone==='auditorium'&&<button onClick={()=>{setReactions(false);setConducting(true);}} disabled={!connected||world?.entranceViewLocked} aria-label="지휘자 체험"><Icon name="conductor"/><span>지휘자 체험</span></button>}<span className="divider"/><button className={reactions?'active':''} aria-expanded={reactions} onClick={()=>setReactions(v=>!v)} disabled={!connected}><Icon name="react"/><span>리액션</span></button></div></div>
+   {showTablePrompt&&atWishTarotTable&&
+    <div className="cafe-menu wish-tarot-prompt">
+     <TablePromptClose label="소원 타로" onClose={dismissTablePrompt}/>
+     <div className="cafe-choices"><button ref={wishTarotButton} aria-label="소원 타로" aria-haspopup="dialog" onClick={()=>world?.openWishTarot()}>
+      <Icon name="tarot" size={30}/><b>소원 타로</b>
+     </button></div>
+    </div>}
+   {showTablePrompt&&world?.atTeaTable&&!world.drink&&
+    <div className="cafe-menu queen-game-prompt tea-prompt"><TablePromptClose label="차 마시기" onClose={dismissTablePrompt}/><div className="cafe-choices">
+     <button aria-label="차 마시기" disabled={!connected} onClick={()=>world.orderDish('tea')}><b aria-hidden="true">🍵</b></button>
+    </div></div>}
+   {showTablePrompt&&world?.atQueenTable&&!world.queenWand.charges&&!world.queenWand.casting&&!world.queenWand.receiving&&
+    <div className="cafe-menu queen-game-prompt">
+     <TablePromptClose label="카드 게임" onClose={dismissTablePrompt}/>
+     <div className="cafe-choices"><button aria-label="하트 여왕 카드 게임" onClick={()=>world.openQueenCardGame()}>
+      <Icon name="cards" size={30}/><b>카드 게임</b>
+     </button></div>
+    </div>}
+   {world?.dishMenu&&world.atDinnerTable&&!(world.dish&&world.drink)&&<div className="cafe-menu dish-menu" role="dialog" aria-label="요리 고르기"><button className="cafe-close" aria-label="닫기" onClick={()=>world.closeDishMenu()}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div className="cafe-choices dish-choices">{DISHES.filter(d=>d.id!=='tea').map(d=><button key={d.id} aria-label={d.label} onClick={()=>world.orderDish(d.id)} disabled={!connected||!!(isDrink(d.id)?world.drink:world.dish)}><b aria-hidden="true">{d.glyph}</b><span>{d.label}</span></button>)}</div></div>}
+   <div className="bottom-center">{reactions&&<div className="reaction-panel" role="group" aria-label="리액션">{GESTURES.filter(g=>(g.id!=='drink'||world?.coffee)&&(g.id!=='eat'||world?.macaron)).map((g,n)=><button key={g.id} onClick={()=>{world?.gestureAction(g.id);setReactions(false);}} disabled={!connected}><b>{g.id==='drink'||g.id==='eat'?<img className="food-icon" src={g.id==='drink'?coffeeIcon:macaronIcon} alt="" aria-hidden="true"/>:GLYPH[g.id]}</b><span>{g.label}</span><kbd>{n+1}</kbd></button>)}</div>}{toast&&<div className="toast" role="status">{toast}</div>}{(world?.atDinnerTable&&(world.dish||world.drink)||world&&world.queenWand.charges>0||world?.wishFlowerCard)&&
+    <div className="discard-actions">
+     {world?.atDinnerTable&&(world.dish||world.drink)&&<button className="dish-trash" aria-label="음식 모두 버리기" title="음식 모두 버리기" onClick={()=>world.clearDishes()} disabled={!connected}><Icon name="trash" size={18}/></button>}
+     {world&&world.queenWand.charges>0&&<button className="dish-trash" aria-label="하트 지팡이 버리기" title="하트 지팡이 버리기" onClick={()=>world.discardQueenWand()} disabled={world.queenWand.casting}><Icon name="trash" size={18}/></button>}
+     {world?.wishFlowerCard&&<button className="dish-trash wish-flower-trash" aria-label="꽃다발 버리기" title={world.wishFlowerCard+' 카드가 꽂힌 꽃다발 버리기'} onClick={()=>world.discardWishFlower()}>
+      <span aria-hidden="true">💐</span><Icon name="trash" size={15}/>
+     </button>}
+    </div>}
+   <div className="actionbar" aria-label="음악당에서 할 일"><button onClick={()=>world?.gestureAction('wave')} disabled={!connected}><Icon name="wave"/><span>인사</span></button><button onClick={()=>world?.gestureAction('clap')} disabled={!connected}><Icon name="clap"/><span>박수</span></button><span className="divider"/><button className="primary-action" onClick={()=>{if(sitting)world?.stand();else if(zone==='lobby')world?.changeZone();else{world?.input.keys.clear();setSeats(true);}}} disabled={!connected}><Icon name={zone==='auditorium'?'ticket':sitting?'seat':'enter'}/><span>{sitting?'일어나기':zone==='lobby'?'공연장 입장':'자리 앉기'}</span></button>{zone==='lobby'&&<button onClick={()=>world?.goToHallPoint('lobby')} disabled={!connected} aria-label="로비 가운데로 바로 이동"><Icon name="center"/><span>가운데</span></button>}{zone==='lobby'&&world?.macaron&&<button className="eat-ready" onClick={()=>world.gestureAction('eat')} disabled={!connected} aria-label="마카롱 먹기"><img className="food-icon" src={macaronIcon} alt="" aria-hidden="true"/><span>마카롱 먹기</span></button>}{zone==='lobby'&&world?.coffee&&<button className="eat-ready" onClick={()=>world.gestureAction('drink')} disabled={!connected} aria-label="커피 마시기"><img className="food-icon" src={coffeeIcon} alt="" aria-hidden="true"/><span>커피 마시기</span></button>}{world?.atDinnerTable&&world.dish&&<button className="eat-ready" onClick={()=>world.gestureAction('eat')} disabled={!connected} aria-label={DISHES.find(d=>d.id===world.dish)!.label+' 먹기'}><b className="food-icon dish-icon" aria-hidden="true">{DISHES.find(d=>d.id===world.dish)!.glyph}</b><span>{DISHES.find(d=>d.id===world.dish)!.label} 먹기</span></button>}{world?.atDinnerTable&&world.drink&&<button className="eat-ready" onClick={()=>world.gestureAction('drink')} disabled={!connected||world.teaPouring} aria-label={world.drink==='tea'?(world.teaPouring?'차 따르는 중':'차 마시기'):DISHES.find(d=>d.id===world.drink)!.label+' 마시기'}><b className="food-icon dish-icon" aria-hidden="true">{DISHES.find(d=>d.id===world.drink)!.glyph}</b>{world.drink!=='tea'&&<span>{DISHES.find(d=>d.id===world.drink)!.label+' 마시기'}</span>}</button>}{world?.atDinnerTable&&!(world.dish&&world.drink)&&<button onClick={()=>world.openDishMenu()} disabled={!connected} aria-label="요리 고르기"><Icon name="dinner"/><span>식사</span></button>}{zone==='auditorium'&&world?.candle&&<button className={'candle-action'+(world.candle==='on'?' lit':'')} aria-pressed={world.candle==='on'} aria-label={world.candle==='on'?'촛불 끄기':'촛불 켜기'} onClick={()=>{world.toggleCandle();redraw(n=>n+1);}}><Icon name="candle"/><span>촛불</span></button>}{CONDUCTING_ENABLED&&zone==='auditorium'&&<button onClick={()=>{setReactions(false);setConducting(true);}} disabled={!connected||world?.entranceViewLocked} aria-label="지휘자 체험"><Icon name="conductor"/><span>지휘자 체험</span></button>}{world&&world.queenWand.charges>0&&<button className="eat-ready" aria-label={`하트 마법, ${world.queenWand.charges}회 남음`}
+    onClick={()=>world.castQueenWand()} disabled={world.queenWand.casting}>
+    <b className="wand-hearts" aria-hidden="true">{'♥'.repeat(world.queenWand.charges)}</b><span>하트 마법</span>
+   </button>}<span className="divider"/><button className={reactions?'active':''} aria-expanded={reactions} onClick={()=>setReactions(v=>!v)} disabled={!connected}><Icon name="react"/><span>리액션</span></button></div></div>
   </>}
   {conducting&&world&&<ConductingExperience world={world} onClose={closeConducting}/>}
   {probeProgress&&<div className="diagnostic-overlay" role="status"><p>{probeProgress}<br/><small>측정이 끝나면 이전 화면 설정으로 돌아갑니다.</small></p></div>}
