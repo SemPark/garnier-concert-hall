@@ -1,0 +1,18 @@
+.queen-card-game p{min-height:3em;line-height:1.5}
+.queen-card-row{display:flex;gap:12px;justify-content:center;margin:20px 0 26px;perspective:600px}
+.queen-card-row button{width:clamp(64px,20vw,105px);aspect-ratio:2/3;display:grid;place-content:center;position:relative;border:2px solid #d3ac6c;box-shadow:inset 0 0 0 4px #b68e5444,0 4px 8px #20081066}
+.queen-card-row button:disabled{opacity:1}
+.queen-card-row button.face{background:white;color:#9c2035}
+.queen-card-row button.back{background:repeating-linear-gradient(45deg,#6c2639 0 5px,#752e42 5px 10px);color:#f7dba5}
+.queen-card-row button b{position:absolute;top:8px;left:9px;font-family:Georgia,serif}
+.queen-card-row button span{font-size:2rem}
+.queen-card-row button.picked{outline:3px solid #e2b568;outline-offset:3px}
+
+.queen-win-burst{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+.queen-win-burst i{grid-area:1/1;color:#ff536b;font:normal 1.35rem system-ui;text-shadow:0 0 12px #fabe83;animation:queen-win-heart .85s ease-out both}
+@keyframes queen-win-heart{
+ from{transform:rotate(var(--ray)) translateY(-12px) rotate(calc(-1 * var(--ray))) scale(.65);opacity:1}
+ 65%{opacity:1}
+ to{transform:rotate(var(--ray)) translateY(-110px) rotate(calc(-1 * var(--ray))) scale(1.15);opacity:0}
+}
+@media(prefers-reduced-motion:reduce){.queen-win-burst i{animation:none;transform:rotate(var(--ray)) translateY(-38px) rotate(calc(-1 * var(--ray)))}}

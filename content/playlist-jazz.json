@@ -1,0 +1,142 @@
+{
+  "version": "jazz-holidays-peak-minus1-v1",
+  "epochMs": 1793327798000,
+  "tracks": [
+    {
+      "id": "jazz-good-king-wenceslas",
+      "title": "Good King Wenceslas and His Merry Band",
+      "work": "Good King Wenceslas and His Merry Band",
+      "composer": "Airmen of Note · United States Air Force Band",
+      "url": "/api/audio/jazz-good-king-wenceslas.mp3?v=peak-minus1-v1",
+      "durationSeconds": 245.524898,
+      "gapAfterSeconds": 4,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Good_King_Wenceslas_and_His_Merry_Band_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "Public domain (U.S. Air Force)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "Airmen of Note · United States Air Force Band",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
+      }
+    },
+    {
+      "id": "jazz-away-in-a-manger",
+      "title": "Away in a Manger",
+      "work": "Away in a Manger",
+      "composer": "Airmen of Note · United States Air Force Band",
+      "url": "/api/audio/jazz-away-in-a-manger.mp3?v=peak-minus1-v1",
+      "durationSeconds": 340.323265,
+      "gapAfterSeconds": 4,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:10-The_Airmen_of_Note-Christmas_Time_is_Here-Away_in_a_Manger.mp3",
+        "licenseName": "Public domain (U.S. Air Force)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "Airmen of Note · United States Air Force Band",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
+      }
+    },
+    {
+      "id": "jazz-hark-the-herald-angels",
+      "title": "Hark! The Herald Angels Sing",
+      "work": "Hark! The Herald Angels Sing",
+      "composer": "Airmen of Note · United States Air Force Band",
+      "url": "/api/audio/jazz-hark-the-herald-angels.mp3?v=peak-minus1-v1",
+      "durationSeconds": 477.779592,
+      "gapAfterSeconds": 4,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hark,_the_Herald_Angels_Sing_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "Public domain (U.S. Air Force)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "Airmen of Note · United States Air Force Band",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
+      }
+    },
+    {
+      "id": "jazz-o-christmas-tree",
+      "title": "O Christmas Tree",
+      "work": "O Christmas Tree",
+      "composer": "Airmen of Note · United States Air Force Band",
+      "url": "/api/audio/jazz-o-christmas-tree.mp3?v=peak-minus1-v1",
+      "durationSeconds": 347.402449,
+      "gapAfterSeconds": 4,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:O_Christmas_Tree_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "Public domain (U.S. Air Force)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "Airmen of Note · United States Air Force Band",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
+      }
+    },
+    {
+      "id": "jazz-go-tell-it",
+      "title": "Go Tell It on the Mountain",
+      "work": "Go Tell It on the Mountain",
+      "composer": "Airmen of Note · United States Air Force Band",
+      "url": "/api/audio/jazz-go-tell-it.mp3?v=peak-minus1-v1",
+      "durationSeconds": 452.832653,
+      "gapAfterSeconds": 4,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Go_Tell_It_on_the_Mountain_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "Public domain (U.S. Air Force)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "Airmen of Note · United States Air Force Band",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
+      }
+    },
+    {
+      "id": "jazz-we-three-kings",
+      "title": "We Three Kings",
+      "work": "We Three Kings",
+      "composer": "Airmen of Note · United States Air Force Band",
+      "url": "/api/audio/jazz-we-three-kings.mp3?v=peak-minus1-v1",
+      "durationSeconds": 360.594286,
+      "gapAfterSeconds": 4,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:We_Three_Kings_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "Public domain (U.S. Air Force)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "Airmen of Note · United States Air Force Band",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
+      }
+    },
+    {
+      "id": "jazz-joy-to-the-world",
+      "title": "Joy to the World / December Makes Me Feel This Way",
+      "work": "Joy to the World / December Makes Me Feel This Way",
+      "composer": "Airmen of Note · United States Air Force Band",
+      "url": "/api/audio/jazz-joy-to-the-world.mp3?v=peak-minus1-v1",
+      "durationSeconds": 516.414694,
+      "gapAfterSeconds": 4,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:December_Makes_Me_Feel_This_Way_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "Public domain (U.S. Air Force)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "Airmen of Note · United States Air Force Band",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
+      }
+    },
+    {
+      "id": "jazz-up-on-the-housetop",
+      "title": "Up on the Housetop",
+      "work": "Up on the Housetop",
+      "composer": "Airmen of Note · United States Air Force Band",
+      "url": "/api/audio/jazz-up-on-the-housetop.mp3?v=peak-minus1-v1",
+      "durationSeconds": 228.66932,
+      "gapAfterSeconds": 4,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:USAFB_Up_On_The_Housetop.ogg",
+        "licenseName": "Public domain (U.S. Air Force)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "Airmen of Note · United States Air Force Band",
+        "changes": "MP3 변환 · 고정 게인 피크 정규화 (검증된 최고 피크 −1dBTP 이하)"
+      }
+    }
+  ]
+}

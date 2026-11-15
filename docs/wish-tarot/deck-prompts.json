@@ -1,0 +1,121 @@
+{
+  "generator": "built-in image_gen",
+  "styleReference": "artwork/xix-sun.png",
+  "commonPrompt": "Original upright Major Arcana interior art in the composition of 1909 Rider–Waite–Smith. The supplied Sun painting is strictly a STYLE reference for oil glazing, paper grain, fine copperplate crosshatching and mature classical figures; do not copy its scene. Warm antique gold, ivory, muted burgundy with sage and slate-blue as appropriate. Richly rendered narrative painting, strong readable silhouettes at mobile size. Full-bleed vertical 2:3, important figures and symbols safely inset. One image, no frame, border, words, letters, numerals, labels, signature or watermark. The shared art nouveau frame is applied separately in code.",
+  "cards": [
+    {
+      "id": 0,
+      "name": "fool",
+      "scene": "A carefree young adult traveler at a precipice, looking upward; white rose in one hand, travel bindle on a staff over the shoulder, small white dog leaping at their heels. Bright sun, distant mountains, youthful golden robes.",
+      "original": "exec-05c208e6-be6b-46fc-a5bc-8589f1baf5b6.png"
+    },
+    {
+      "id": 1,
+      "name": "magician",
+      "scene": "A magician in ivory tunic and burgundy cloak at a wooden altar, right hand raises wand heavenward and left points to earth. A small gold infinity loop hovers above head. On altar distinct cup, pentacle, sword and wand. Red roses and white lilies.",
+      "original": "exec-dedd491f-c6db-4986-bba6-54f4912158b8.png"
+    },
+    {
+      "id": 2,
+      "name": "high-priestess",
+      "scene": "A seated priestess in ivory and dusty blue between one dark stone pillar and one pale stone pillar, a pomegranate-patterned veil behind her, crescent moon at feet, layered lunar crown and a blank rolled scroll in her lap. No writing or letters, even on pillars or scroll.",
+      "original": "exec-a019cfe0-d8ff-47af-9c45-d3e92c47fea0.png"
+    },
+    {
+      "id": 3,
+      "name": "empress",
+      "scene": "A crowned empress reclining on a burgundy velvet throne amid a wheat field, trees and a stream. Ivory gown with pomegranate embroidery, scepter, crown of twelve stars, heart-shaped gold shield with small Venus emblem near throne.",
+      "original": "exec-acf3dde6-1f7c-496a-bf17-56a245a1961f.png"
+    },
+    {
+      "id": 4,
+      "name": "emperor",
+      "scene": "A stern mature white-bearded emperor on a grey stone throne with carved ram heads, red robes over armor, gold crown, ankh-shaped scepter and orb. Stark ochre mountains behind him.",
+      "original": "exec-67853073-3c3a-4cf4-8e45-091e99459a47.png"
+    },
+    {
+      "id": 5,
+      "name": "hierophant",
+      "scene": "A dignified pontiff seated between two stone pillars in triple crown and layered red robes, right hand raised in benediction, left holding a triple cross staff. Two adult acolytes kneel before him with crossed gold keys between them.",
+      "original": "exec-222e0bea-b748-4029-9195-d2e3123c5782.png"
+    },
+    {
+      "id": 6,
+      "name": "lovers",
+      "scene": "Two clearly adult lovers in light draped classical clothing stand apart facing one another, a radiant winged angel above spreading both arms under the sun. Fruit tree with coiling serpent behind the woman, flame-tipped tree behind the man, mountain between.",
+      "original": "exec-79758dc4-2c87-4ec3-9d65-6bc5c658fa32.png"
+    },
+    {
+      "id": 7,
+      "name": "chariot",
+      "scene": "Crowned armored charioteer under a blue starry canopy in a stone chariot, a reclining black sphinx and a reclining pale sphinx in front, city walls in distance. Moon-shaped shoulder ornaments, squared breastplate. Keep the driver and both sphinxes clearly visible.",
+      "original": "exec-3a72f003-f0c1-4604-b37e-1dbd5af53cf2.png"
+    },
+    {
+      "id": 8,
+      "name": "strength",
+      "scene": "A calm adult woman in white drapery and rose garland gently lays her hands around the muzzle of a relaxed tawny lion, open green landscape and distant blue mountain. Small gold infinity loop above her, kindness and courage, no violence.",
+      "original": "exec-64534cb2-b6d1-42cf-8cde-c60dc04e540c.png"
+    },
+    {
+      "id": 9,
+      "name": "hermit",
+      "scene": "A solitary elderly bearded pilgrim in a heavy gray hooded robe on a snowy crag, holding aloft an antique lantern containing a bright six-pointed star, tall wooden walking staff in the other hand, blue dusk and mountains.",
+      "original": "exec-618604ca-1704-4f5e-b6d8-b32c0598aa3b.png"
+    },
+    {
+      "id": 10,
+      "name": "wheel-of-fortune",
+      "scene": "A huge antique gold wheel suspended among clouds; blue sphinx with a sword sits on its rim, a descending serpent to one side and a rising red jackal-headed figure to the other. In four corners a winged human, eagle, lion and bull each with an open book. Geometric wheel markings only, no letters or text anywhere.",
+      "original": "exec-46fb7af8-faed-40f8-b385-0ca57a8d9f2a.png"
+    },
+    {
+      "id": 11,
+      "name": "justice",
+      "scene": "An enthroned woman in a red mantle between stone pillars and purple drapery, upright double-edged sword held clearly in her right hand and suspended golden balance scales in her left. Gold crown with square jewel. Frontal and symmetrical.",
+      "original": "exec-3e1ea7be-18e7-4ae4-a609-dd6eb37a70d7.png"
+    },
+    {
+      "id": 12,
+      "name": "hanged-man",
+      "scene": "A peaceful fully clothed adult man suspended upside down by one ankle from a living T-shaped tree, free leg crosses behind to form a figure four, hands behind his back, luminous halo around his head. Burgundy trousers and blue-gray tunic. Leaves, clear sky. No injuries or distress.",
+      "original": "exec-bb1e1b76-d2cb-4cbb-bb4d-c1be86f929fd.png"
+    },
+    {
+      "id": 13,
+      "name": "death",
+      "scene": "A skeletal knight in black armor rides a white horse slowly from left to right, carrying a black banner bearing a white five-petaled rose. A fallen crowned king, a standing bishop and two figures nearby, no blood or injury detail. Distant sunrise between two towers by a river. Ceremonial allegory.",
+      "original": "exec-c2778bfa-34f5-4c6d-a78f-805d9087f509.png"
+    },
+    {
+      "id": 14,
+      "name": "temperance",
+      "scene": "An androgynous winged angel in an ivory robe pours a single stream between two gold cups. One foot on land and the other in the pool, with irises nearby and a winding path to a golden light between distant mountains. Small triangle inside a square on robe, soft daylight.",
+      "original": "exec-d394b8cb-c36d-4388-beed-b0e83be20c22.png"
+    },
+    {
+      "id": 15,
+      "name": "devil",
+      "scene": "A shadowed horned goat-headed figure with dark bat wings sits on a stone pedestal, one hand raised, downward torch in other, small inverted gold pentagram above forehead. Two draped adult figures loosely chained by collars below, chains visibly slack, sober allegory without horror or sexual detail.",
+      "original": "exec-6ca9ff0e-6657-4e04-9447-1e74de44d878.png"
+    },
+    {
+      "id": 18,
+      "name": "moon",
+      "scene": "A large moon with a subtle human profile shines in indigo twilight. Two stone towers on opposite sides of a winding path, a wolf and a domestic dog facing the moon, a crayfish emerges from the pool in the foreground. Sparse gold drops under the moon, strong clear silhouettes.",
+      "original": "exec-0cbcf73b-326c-4b04-b811-b1a99160a643.png"
+    },
+    {
+      "id": 20,
+      "name": "judgement",
+      "scene": "A radiant winged angel among slate clouds blows a golden trumpet bearing a white banner with a red cross. Draped adult figures raise their arms from open stone tombs below, water and distant mountains. Spiritual renewal, no wounds, no decay.",
+      "original": "exec-47f16ec5-1539-4704-815f-78c30a636480.png"
+    },
+    {
+      "id": 21,
+      "name": "world",
+      "scene": "A draped adult woman dancing in the center of a large oval green laurel wreath tied with burgundy ribbons, a short wand in each hand. Four corner figures emerging from clouds: human face, eagle, lion and bull. Full wreath and corner figures visible, no lettering.",
+      "original": "exec-010fc201-be3f-49f3-9f4a-f609110b2b21.png"
+    }
+  ]
+}

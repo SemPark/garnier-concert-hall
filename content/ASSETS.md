@@ -54,3 +54,23 @@
 - 오 거룩한 밤 (O Holy Night): 미국 공군 군악대 합창단과 교향악단, [Public domain](https://commons.wikimedia.org/wiki/File:O_Holy_Night_(with_Lord,_Guard_and_Guide)_-_Singing_Sergeants_and_Symphony_Orchestra_-_United_States_Air_Force_Band.mp3). MP3 변환 및 음량 조정.
 - 헨델 메시아 — 크게 기뻐하라: Advent Chamber Orchestra · Cristina Piccardi, [CC BY-SA 2.0](https://commons.wikimedia.org/wiki/File:Handel_-_Messiah_-_Rejoice_Greatly.ogg). MP3 변환 및 음량 조정.
 - 헨델 메시아 — 할렐루야: 국립합창단, [CC BY 3.0](https://commons.wikimedia.org/wiki/File:The_National_Chorus_of_Korea_-_Handel%27s_Messiah,_HWV_56_-_XLIV._Hallelujah.ogg). MP3 변환 및 음량 조정.
+
+## 재즈홀 연말 프로그램
+
+`content/playlist-jazz.json`은 클래식 프로그램과 분리된 10곡 목록입니다. 원본 순서대로 재생하며 곡 사이에는 4초의 간격을 둡니다.
+
+- 1–9: Airmen of Note / United States Air Force Band의 요청된 녹음. Wikimedia Commons의 해당 파일 설명에 따른 미국 연방정부 저작물(Public domain).
+- 7: 원본 파일명은 **December Makes Me Feel This Way**이며 설명에 **Joy to the World**가 함께 표기됩니다. 화면에서도 두 이름을 함께 표시합니다.
+- 10: **Auld Lang Syne** — Les Deux Love Orchestra, Wikimedia 사용자 **Eyharburg**. 작곡 자체의 퍼블릭 도메인 표시와 별개로 **이 녹음물은 CC BY-SA 3.0** 조건으로 이용합니다. 출처: https://commons.wikimedia.org/wiki/File:Auld_Lang_Syne_New_Year%27s_Eve.ogg · 라이선스: https://creativecommons.org/licenses/by-sa/3.0/
+- 변환: 전체 곡을 44.1kHz 스테레오 / 192kbps MP3로 변환하고 재생 음량을 조정했습니다. 10번 변환 음원에도 CC BY-SA 3.0을 적용합니다.
+- 각 파일의 원본 주소·연주자·저작자·라이선스는 공개 자산 `public/audio/JAZZ-CREDITS.md`와 플레이리스트에 보존합니다.
+
+## Stage fireworks
+
+- `src/scene/StageFireworks.ts` combines adapted portions of Caleb Miller’s [Firework Simulator v2](https://codepen.io/MillerTime/pen/XgpNwb), Todd Gray’s [Fireworks](https://github.com/toddegray/fireworks), and Travis MacDonald’s [Grand Fireworks JS](https://github.com/travisjmac/grand-fireworks-js).
+- All three are MIT licensed; full attribution and license text ships in `public/licenses/fireworks.txt`.
+- PLEEE uses one world-space simulation with bounded pools, two batched draws, reduced mobile counts, and no additional canvas, sound, lights, or postprocessing.
+
+## 클래식 피크 정규화 — 2026-11-11
+
+현재 클래식 재생 목록의 음악 파일 12개에 고정 게인을 적용했다. 곡 사이 현장음은 제외했다. 기존 강약과 길이를 유지하며 320kbps MP3로 저장했고, 인코딩 후 true peak 측정값은 −1.2~−1.1dBTP로 −1dBTP 상한 이하이다. 이는 위의 이전 평균 음량 정규화 이후 적용된 작업이며, 현재 곡별 평균 음량은 동일하지 않다. 조정 전 파일과 측정 기록: `archive/classic-audio-before-peak-normalization/`. 출처 및 라이선스는 각 곡의 기존 표시를 유지한다.

@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Local musician batching regression</title></head><body style="margin:0;background:#15181e;color:white"><p>Local musician batching regression — original geometry and poses</p><script type="module">
+import * as T from 'three';
+import {fixture,pose,clearRanges} from './musician-replay.ts';
+import {batchCharacters as baseline} from '../src/scene/.batching-baseline.ts';
+import {batchCharacters as current} from '../src/scene/batching.ts';
+const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setSize(960,480);renderer.setPixelRatio(1);document.body.append(renderer.domElement);
+const fixtures={baseline:fixture(baseline),current:fixture(current)};
+for(const f of Object.values(fixtures)){
+ for(const child of [...f.scene.children])if(!(child instanceof T.InstancedMesh))f.scene.remove(child);
+ f.scene.background=new T.Color(0x252a35);f.scene.add(new T.AmbientLight(0xffffff,1.6));const sun=new T.DirectionalLight(0xffe4be,3);sun.position.set(0,12,8);f.scene.add(sun);
+}
+const gl=renderer.getContext(),bufferSubData=gl.bufferSubData;
+let uploads=0,bytes=0;
+gl.bufferSubData=function(...args){uploads++;bytes+=(args[4]??(args[2].length-(args[3]??0)))*args[2].BYTES_PER_ELEMENT;return bufferSubData.apply(this,args);};
+window.replay={
+ async prepare(name,kind){const f=fixtures[name];for(const a of f.actors)a.root.userData.poseAt=-1;pose(f,kind,0);f.update(f.camera);await renderer.compileAsync(f.scene,f.camera);renderer.render(f.scene,f.camera);return {ready:name,actors:f.actors.length,calls:renderer.info.render.calls};},
+ frame(name,kind,frame){const f=fixtures[name];uploads=0;bytes=0;pose(f,kind,frame);f.update(f.camera);renderer.render(f.scene,f.camera);return {uploads,bytes,calls:renderer.info.render.calls,pixels:frame===69?renderer.domElement.toDataURL():null};},
+ measure(name,kind){const f=fixtures[name],samples=[],animation=[];for(const a of f.actors)a.root.userData.poseAt=-1;for(let i=0;i<720;i++){const a=performance.now();pose(f,kind,i);const b=performance.now();f.update(f.camera);const c=performance.now();if(i>=240){samples.push(c-b);animation.push(b-a);}clearRanges(f);}return {batch:samples.reduce((a,b)=>a+b,0)/samples.length,animation:animation.reduce((a,b)=>a+b,0)/animation.length};},
+ fps(name,kind){window.replayDone=null;const f=fixtures[name];let i=0,at=performance.now(),calls=0;for(const a of f.actors)a.root.userData.poseAt=-1;function tick(){pose(f,kind,i++);f.update(f.camera);renderer.render(f.scene,f.camera);calls+=renderer.info.render.calls;if(i<120)requestAnimationFrame(tick);else window.replayDone={fps:i*1000/(performance.now()-at),calls:calls/i};}requestAnimationFrame(tick);}
+};
+</script></body></html>

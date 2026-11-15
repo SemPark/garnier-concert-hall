@@ -1,18 +1,28 @@
+import {DanceControls,DanceStart} from './DanceControls';
+import {QueenCardGame} from './QueenCardGame';
+import {WishTarot} from './WishTarot';
+import {ProgramBook} from './ProgramBook';
+import {PhotoMode} from './PhotoMode';
 import {ConductingExperience} from './ConductingExperience';
 import coffeeIcon from './assets/cafe/coffee.webp';
 import macaronIcon from './assets/cafe/macaron.webp';
+import {DISHES,isDrink} from '../shared/dishes';
 import {reportLoading,reportInitialHallLoading,failLoading} from './loading';
 import {Wardrobe} from './Wardrobe';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
-import program from '../content/playlist.json';
+import program from './audio/playlist';
 import {nextPiece,type Playlist} from '../shared/timeline';
 import {createRoot} from 'react-dom/client';
 import {World} from './World';
+import {GalaxySettings,GalaxyCredits} from './GalaxySettings';
 import {Presence} from './network/Presence';
 import {ConcertAudio} from './audio/ConcertAudio';
 import {SeatMap} from './SeatMap';
 import './style.css';
 import {runDeviceProbe} from './diagnostics/DeviceProbe';
+import {HALL_KIND,JAZZ_HALL,type HallKind} from '../shared/hallKind';
+/** Conducting is available with the classical orchestra. */
+const CONDUCTING_ENABLED=!JAZZ_HALL;
 import {GESTURES,type Gesture} from '../shared/gestures';
 reportLoading(10,'시작 화면을 준비하고 있어요');
 const EMPTY_CLAIMS={};
@@ -20,12 +30,17 @@ const GLYPH:Record<Gesture,string>={wave:'〜',clap:'♪',bravo:'!',ovation:'↶
 
 function Icon({name,size=20}:{name:string;size?:number}){
  const paths:Record<string,React.ReactNode>={
+  dance:<><circle cx="14" cy="4" r="2"/><path d="m13 8-4 4-5-3m9-1 4 3 4-4m-8 1-2 7-5 6m5-6 5 1 2 5"/></>,
+  train:<><rect x="5" y="3" width="14" height="15" rx="4"/><path d="M5 10h14M9 3v7M15 3v7M7 21l2-3m8 3-2-3"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></>,
+  camera:<><path d="M3 7h4l2-3h6l2 3h4v13H3Z"/><circle cx="12" cy="13" r="4"/></>,
   hall:<><path d="m3 8 9-5 9 5M3 21h18M5 10v8m5-8v8m4-8v8m5-8v8M3 8h18"/></>,
+  planet:<><circle cx="12" cy="12" r="6.5"/><path d="M6 10.5C3.1 12.7 1.4 15 2.2 16.3c1 1.7 6.2.9 11.5-2.2s8.8-6.9 7.8-8.6c-.7-1.2-3.3-.9-6.3.2"/></>,
   sound:<><path d="m11 4-6 5H2v6h3l6 5V4Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></>,
   mute:<><path d="m11 4-6 5H2v6h3l6 5V4Zm5 5 5 6m0-6-5 6"/></>,
   people:<><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3m1-17a3 3 0 0 1 0 6m3 11v-3a6 6 0 0 0-3-5"/></>,
   stairs:<path d="M4 20h4v-4h4v-4h4V8h4V4"/>,
   conductor:<><circle cx="12" cy="4.8" r="3.1"/><path d="M8 10.2 6 11 4.6 8.2Q3.9 6.8 2.7 7.4 1.6 8 2.2 9.5L4.4 15Q4.8 16 5.8 15.6L8 14.8 7 22h10l-1-7.2 2.2.8q1 .4 1.4-.6l2.2-5.5q.6-1.5-.5-2.1-1.2-.6-1.9.8L18 11l-2-.8-4 3.4-4-3.4Z"/><path d="M21 7V1.5"/></>,
+  dinner:<><path d="M7 3v6a2 2 0 0 0 4 0V3"/><path d="M9 3v18"/><path d="M17 21V3c-2 1.5-3 4-3 7v3h3"/></>,
   candle:<><path d="M9.5 21h5V11h-5v10Z"/><path d="M12 11V9"/><path d="M12 2.5c1.6 1.8 2.2 3 2.2 4a2.2 2.2 0 0 1-4.4 0c0-1 .6-2.2 2.2-4Z"/></>,
   walk:<><circle cx="13" cy="4.5" r="2"/><path d="M12.5 8 11 14l-2.5 7M11 14l3 3v4M8 11.5l4.2-3 3.3 2.5"/></>,
   floor1:<text x="12" y="16.6" textAnchor="middle" fontSize="12.5" fontWeight="700" fill="currentColor" stroke="none">1F</text>,
@@ -33,6 +48,7 @@ function Icon({name,size=20}:{name:string;size?:number}){
   stage:<><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M10.5 7.5v6m-3-3h6"/></>,
   front:<><path d="M4 19h16M6 16V6h12v10M12 14V8m-3 3 3-3 3 3"/></>,
   back:<><path d="M4 5h16M6 8v10h12V8M12 10v6m-3-3 3 3 3-3"/></>,
+  stageLow:<path d="M4 18h16M6 21h12M12 13V3m-4 4 4-4 4 4"/>,
   overview:<path d="M4 9V4h5m6 0h5v5m0 6v5h-5m-6 0H4v-5M8 15h8M9 12h6M10.5 9h3"/>,
   menu:<><path d="M4 7h16M4 12h16M4 17h16"/></>,
   settings:<><path d="M19.0 10.3L21.5 10.6L21.5 13.4L19.0 13.7L18.2 15.7L19.7 17.7L17.7 19.7L15.7 18.2L13.7 19.0L13.4 21.5L10.6 21.5L10.3 19.0L8.3 18.2L6.3 19.7L4.3 17.7L5.8 15.7L5.0 13.7L2.5 13.4L2.5 10.6L5.0 10.3L5.8 8.3L4.3 6.3L6.3 4.3L8.3 5.8L10.3 5.0L10.6 2.5L13.4 2.5L13.7 5.0L15.7 5.8L17.7 4.3L19.7 6.3L18.2 8.3Z"/><circle cx="12" cy="12" r="3"/></>,
@@ -42,6 +58,9 @@ function Icon({name,size=20}:{name:string;size?:number}){
   wave:<><path d="M8 12V5a1.5 1.5 0 0 1 3 0v6-8a1.5 1.5 0 0 1 3 0v8-7a1.5 1.5 0 0 1 3 0v8-5a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-13 4L3 13a1.7 1.7 0 0 1 2.5-2L8 14"/></>,
   clap:<><path d="m5 11 4 7a6 6 0 0 0 10-6l-3-6a1.5 1.5 0 0 0-2.5 1L16 12 10 3a1.5 1.5 0 0 0-2.5 1L12 12 6 5a1.5 1.5 0 0 0-2 2l5 7-4-3a1.5 1.5 0 0 0-2 2l4 5M18 2l1 2m3 1-2 1"/></>,
   seat:<><path d="M5 12V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7M4 10v7h16v-7M6 17v4m12-4v4M4 13h16"/></>,
+  cards:<><rect x="7" y="4" width="12" height="16" rx="2"/><path d="m5 18-2-1L4 5l2-1"/><path className="queen-heart-fill" d="m13 16-3-3a1.7 1.7 0 0 1 3-1.4 1.7 1.7 0 0 1 3 1.4Z"/></>,
+  tarot:<><rect x="3.5" y="3.8" width="12" height="16" rx="2" transform="rotate(9 9.5 11.8)" fill="#a76f91"/><rect x="7" y="4" width="12" height="16" rx="2" fill="#785282"/><path d="M13 8l1.2 2.8L17 12l-2.8 1.2L13 16l-1.2-2.8L9 12l2.8-1.2Z"/></>,
+  trash:<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>,
   ticket:<path d="M3 6h18v3.5a2.5 2.5 0 0 0 0 5V18H3v-3.5a2.5 2.5 0 0 0 0-5ZM15 6v2.5m0 2.5v2m0 2.5V18"/>,
   door:<><path d="M4 21h16M6 21V3h12v18M12 12h1"/></>,
   enter:<path d="M13 4h6v16h-6M3 12h11m-4-4 4 4-4 4"/>,
@@ -52,38 +71,128 @@ function Icon({name,size=20}:{name:string;size?:number}){
  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]??paths.hall}</svg>;
 }
 function format(t:number){return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;}
+const HALL_OPTIONS=[{kind:'classic',label:'클래식 홀'},{kind:'jazz',label:'재즈 홀'}] as const;
+function hallHref(kind:HallKind){
+ const url=new URL(location.href);
+ if(kind==='jazz')url.searchParams.set('hall','jazz');
+ else url.searchParams.delete('hall');
+ return url.href;
+}
+function TablePromptClose({label,onClose}:{label:string;onClose:()=>void}){
+ return <button type="button" className="cafe-close table-prompt-close" aria-label={`${label} 안내 닫기`} onClick={onClose}>
+  <Icon name="close" size={15}/>
+ </button>;
+}
+function WishButton({world}:{world:World}){
+ const timer=useRef<ReturnType<typeof setTimeout>|null>(null);
+ const [holding,setHolding]=useState(false);
+ const cancel=()=>{
+  if(timer.current!==null)clearTimeout(timer.current);
+  timer.current=null;setHolding(false);
+ };
+ useEffect(()=>()=>{if(timer.current!==null)clearTimeout(timer.current);},[]);
+ const begin=()=>{
+  if(timer.current!==null||world.wishing)return;
+  setHolding(true);
+  timer.current=setTimeout(()=>{timer.current=null;setHolding(false);world.makeWish();},1000);
+ };
+ return <button className={'eat-ready wish-action'+(holding?' holding':'')} disabled={world.wishing}
+  aria-label="길게 눌러 소원 빌기" title="1초간 길게 눌러 소원 빌기"
+  onPointerDown={e=>{if(e.button!==0)return;e.currentTarget.setPointerCapture(e.pointerId);begin();}}
+  onPointerUp={cancel} onPointerCancel={cancel} onLostPointerCapture={cancel} onBlur={cancel}
+  onKeyDown={e=>{if((e.key===' '||e.key==='Enter')&&!e.repeat){e.preventDefault();begin();}}}
+  onKeyUp={e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();cancel();}}}
+  onContextMenu={e=>e.preventDefault()}
+  onClick={()=>{if(!world.wishing)world.onToast('꽃 버튼을 1초간 길게 눌러 소원을 빌어보세요.');}}>
+  <b aria-hidden="true">💐</b><span>{world.wishing?'소원 보내는 중':'소원 빌기'}</span>
+ </button>;
+}
+
 function App(){
  // The icon menu stays listed from the start; ☰ hides or shows it.
+ const [queenGameOpen,setQueenGameOpen]=useState(false);
+ const [wishTarotOpen,setWishTarotOpen]=useState(false);
+ const [dismissedTablePrompt,setDismissedTablePrompt]=useState<string|null>(null);
+ const closeWishTarot=useCallback(()=>setWishTarotOpen(false),[]);
+ const wishTarotButton=useRef<HTMLButtonElement>(null);
+ const wishTarotWasOpen=useRef(false);
+ const [programOpen,setProgramOpen]=useState(false);
  const [menu,setMenu]=useState(true);
+ const [hallPickerOpen,setHallPickerOpen]=useState(false);
+ const hallPicker=useRef<HTMLDivElement>(null),hallPickerButton=useRef<HTMLButtonElement>(null);
+ useEffect(()=>{
+  if(!hallPickerOpen)return;
+  const dismiss=(event:PointerEvent)=>{
+   if(event.target instanceof Node&&!hallPicker.current?.contains(event.target))setHallPickerOpen(false);
+  };
+  window.addEventListener('pointerdown',dismiss);
+  return ()=>window.removeEventListener('pointerdown',dismiss);
+ },[hallPickerOpen]);
  // Man/woman window shown in the lobby after entering; it closes once the visitor picks.
  const [conducting,setConducting]=useState(false);const closeConducting=useCallback(()=>setConducting(false),[]);
  const [lookPicker,setLookPicker]=useState(false);const [wardrobe,setWardrobe]=useState(false);
  const [app,setApp]=useState<{world:World;net:Presence;audio:ConcertAudio}|null>(null),[,redraw]=useState(0),[entered,setEntered]=useState(false),[settings,setSettings]=useState(false),[seats,setSeats]=useState(false),[musicExpanded,setMusicExpanded]=useState(false),[reactions,setReactions]=useState(false),[toast,setToast]=useState(''),[error,setError]=useState('');
  const [probeProgress,setProbeProgress]=useState(''),[probeReport,setProbeReport]=useState(''),[probeMessage,setProbeMessage]=useState('');
  const [iphonePending,setIphonePending]=useState(false);
- const iphoneBridge=import.meta.env.DEV&&import.meta.env.MODE==='iphone'&&['localhost','127.0.0.1'].includes(location.hostname);
+ const iphoneBridge=import.meta.env.DEV&&['localhost','127.0.0.1'].includes(location.hostname);
  const entering=useRef(false),initialHallRequested=useRef(false);
  const [initialHallReady,setInitialHallReady]=useState(false);
- const toastTimer=useRef(0),dialog=useRef<HTMLDialogElement>(null);
+ const toastTimer=useRef(0),dialog=useRef<HTMLDialogElement>(null),probeDetails=useRef<HTMLDetailsElement>(null),probeText=useRef<HTMLTextAreaElement>(null);
  useEffect(()=>{let world:World|undefined;const net=new Presence(),audio=new ConcertAudio(net.now);
   try{world=new World(document.getElementById('world')!,net,audio);const active=world;const update=()=>redraw(n=>n+1);const notify=(message:string)=>{setToast(message);clearTimeout(toastTimer.current);toastTimer.current=window.setTimeout(()=>setToast(''),3500);};
-   world.onChange=update;world.onToast=notify;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{world!.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onMoveBlocked=point=>active.correctMove(point);net.onRelocated=point=>active.finishHallMove(point);net.onStatus=()=>{if(net.status!=='connected')active.stopHallLoading();update();};net.onError=message=>{active.stopHallLoading();notify(message);};setApp({world,net,audio});
+   world.onQueenCardGame=()=>setQueenGameOpen(true);world.onProgramBook=()=>setProgramOpen(true);world.onChange=update;world.onToast=notify;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{world!.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onMoveBlocked=point=>active.correctMove(point);net.onRelocated=point=>active.finishHallMove(point);net.onStatus=()=>{if(net.status!=='connected')active.stopHallLoading();update();};net.onError=message=>{active.stopHallLoading();notify(message);};setApp({world,net,audio});
+   world.onWishTarot=()=>setWishTarotOpen(true);
    if(import.meta.env.DEV)Object.assign(window,{__concert:{world,net,audio}});
   }catch(e){failLoading();setError(e instanceof Error?e.message:'3D 화면을 열지 못했어요.');}
-  return ()=>{world?.destroy();net.destroy();audio.destroy();};
+  // Full-document hall links do not unmount React. Release the old hall before
+  // Safari keeps the document in its back/forward cache alongside the next one.
+  let released=false;
+  const release=()=>{if(released)return;released=true;net.destroy();audio.destroy();world?.destroy();};
+  const restore=(event:PageTransitionEvent)=>{if(event.persisted&&released)location.reload();};
+  window.addEventListener('pagehide',release);
+  window.addEventListener('pageshow',restore);
+  return ()=>{window.removeEventListener('pagehide',release);window.removeEventListener('pageshow',restore);release();};
  },[]);
  useEffect(()=>{const key=(e:KeyboardEvent)=>{const i=Number(e.code.replace('Digit',''))-1;if(!app||!entered||settings||!(i>=0&&i<GESTURES.length)||app.net.status!=='connected'||(e.target as HTMLElement)?.closest('input,textarea,select,dialog'))return;e.preventDefault();app.world.gestureAction(GESTURES[i].id);};window.addEventListener('keydown',key);return ()=>window.removeEventListener('keydown',key);},[app,entered,settings]);
  useEffect(()=>{if(settings){dialog.current?.showModal();app?.world.input.keys.clear();}else dialog.current?.close();},[settings,app]);
  const world=app?.world,net=app?.net,audio=app?.audio,p=audio?.playback,zone=world?.zone??'lobby',connected=net?.status==='connected',sitting=world?.pose==='sit';
- useEffect(()=>{if(zone!=='lobby')setWardrobe(false);},[zone]);
+ const atWishTarotTable=!!world?.atWishTarotTable;
+ const tableSeat=zone==='auditorium'&&sitting?world?.self?.seatId:null;
+ useEffect(()=>{setDismissedTablePrompt(null);},[tableSeat]);
+ const showTablePrompt=!!tableSeat&&dismissedTablePrompt!==tableSeat&&connected&&!world?.self?.dance&&!seats&&!settings&&!wardrobe&&!programOpen&&!queenGameOpen&&!wishTarotOpen&&!world?.photoMode;
+ const dismissTablePrompt=()=>setDismissedTablePrompt(tableSeat??null);
+ useEffect(()=>{if(!atWishTarotTable||!connected||world?.photoMode)setWishTarotOpen(false);},[atWishTarotTable,connected,world?.photoMode]);
+ useEffect(()=>{if(zone!=='lobby')setWardrobe(false);setProgramOpen(false);setQueenGameOpen(false);},[zone]);
  const closeSeats=useCallback(()=>setSeats(false),[]);
  const chooseMappedSeat=useCallback((id:string)=>{if(!world)return;if(world.zone==="lobby")world.chooseSeatFromLobby(id);else void world.chooseSeat(id,true);},[world]);
- useEffect(()=>{if(!world)return;world.uiObscured=(seats||settings||wardrobe)&&!probeProgress;if(world.uiObscured)world.input.keys.clear();return()=>{world.uiObscured=false;};},[world,seats,settings,wardrobe,probeProgress]);
+ useEffect(()=>{if(!world)return;world.uiObscured=(seats||settings||wardrobe||programOpen||queenGameOpen||wishTarotOpen)&&!probeProgress;if(world.uiObscured)world.input.keys.clear();return()=>{world.uiObscured=false;};},[world,seats,settings,wardrobe,programOpen,queenGameOpen,wishTarotOpen,probeProgress]);
+ useEffect(()=>{
+  if(wishTarotWasOpen.current&&!wishTarotOpen)wishTarotButton.current?.focus();
+  wishTarotWasOpen.current=wishTarotOpen;
+ },[wishTarotOpen]);
  // Start automatically once WebGL is ready; route only the initial visit to the hall.
  useEffect(()=>{if(!app||!app.world.ready||entering.current)return;entering.current=true;app.world.start();setEntered(true);app.net.connect();},[app,world?.ready]);
  useEffect(()=>{if(!world||!connected||!world.self)return;if(world.zone==='auditorium'){initialHallRequested.current=true;setInitialHallReady(true);return;}if(!initialHallRequested.current){initialHallRequested.current=true;reportInitialHallLoading(70,'공연장으로 들어가고 있어요');void world.changeZone();}},[world,connected,zone]);
- // Browsers require a real user gesture for sound even when visual entry is automatic.
- useEffect(()=>{if(!audio)return;const unlock=(event:PointerEvent)=>{if((event.target as Element)?.closest?.('button[aria-label^="소리"], [data-device-probe]'))return;void audio.unlock();};window.addEventListener('pointerdown',unlock,{once:true});return()=>window.removeEventListener('pointerdown',unlock);},[audio]);
+ // ConcertAudio handles gesture unlock and retries after browser autoplay blocks.
+ const copyProbeReport=()=>{
+  const showManualCopy=()=>{
+   if(probeDetails.current)probeDetails.current.open=true;
+   const field=probeText.current;
+   if(field){field.focus();field.select();field.setSelectionRange(0,field.value.length);}
+   setProbeMessage('결과가 선택됐어요. 길게 눌러 복사해 주세요.');
+  };
+  const copySelected=()=>{
+   if(!probeText.current)return false;
+   if(probeDetails.current)probeDetails.current.open=true;
+   const field=probeText.current;field.focus();field.select();field.setSelectionRange(0,field.value.length);
+   try{return document.execCommand('copy');}catch{return false;}
+  };
+  const copied=()=>setProbeMessage('진단 결과를 복사했습니다. 채팅에 붙여넣어 주세요.');
+  // iPhone LAN addresses use HTTP, where the asynchronous clipboard API may be absent.
+  if(!navigator.clipboard?.writeText){if(copySelected())copied();else showManualCopy();return;}
+  try{void navigator.clipboard.writeText(probeReport).then(copied,()=>{if(copySelected())copied();else showManualCopy();});}
+  catch{if(copySelected())copied();else showManualCopy();}
+ };
  const measureIPhone=async()=>{
   setIphonePending(true);
   setProbeReport('');
@@ -120,7 +229,7 @@ function App(){
   }
  },[world,audio]);
  useEffect(()=>{
-  if(!import.meta.env.DEV||import.meta.env.MODE!=='iphone'||!initialHallReady||
+  if(!import.meta.env.DEV||!initialHallReady||
    !new URLSearchParams(location.search).has('diag'))return;
   const probe={
    result:null as Awaited<ReturnType<typeof diagnose>>|null,
@@ -133,14 +242,36 @@ function App(){
  },[diagnose,initialHallReady]);
 
  return <>
+  {world?.photoMode&&<PhotoMode world={world}/>}
   <div className="vignette"/>
   {(world?.hallLoading&&initialHallReady)&&<div className="hall-loading" role="status" aria-live="polite" aria-busy="true"><div className="hall-loading-card"><span className="hall-loading-spinner" aria-hidden="true"/><h2>공연장으로 들어가고 있어요</h2><p>무대와 좌석을 준비하고 있어요. 잠시만 기다려 주세요.</p></div></div>}
 
   {entered&&<header className="topbar">
-   {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LOBBY':'pleee hall'}</span><span>{zone==='lobby'?'로비':'공연장'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ')??'입장 중'}</span></div>}
+   {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LOBBY':JAZZ_HALL?'pleee jazz':'pleee hall'}</span><span>{zone==='lobby'?'로비':'공연장'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ').replace('jazz-','재즈홀 ')??'입장 중'}</span></div>}
+   {queenGameOpen&&world&&<QueenCardGame onResult={won=>world.queenCardResult(won)} onClose={()=>setQueenGameOpen(false)}/>}
+   {wishTarotOpen&&atWishTarotTable&&connected&&<WishTarot onClose={closeWishTarot} onFlower={(card,image)=>{world?.receiveWishFlower(card,image);closeWishTarot();}}/>}
+   {programOpen&&p&&<ProgramBook playlist={program as Playlist} playback={p} onClose={()=>{setProgramOpen(false);world?.renderer.domElement.focus();}}/>}
    {zone==='auditorium'&&p&&<aside className={`now-playing ${(!world?.concertView||world?.pose==='walk'||window.innerWidth<700)&&!musicExpanded?'compact-music':''}`}><button className="music-summary" aria-label={musicExpanded?'음악 정보 접기':'음악 정보 펼치기'} aria-expanded={musicExpanded} onClick={()=>setMusicExpanded(v=>!v)}><Icon name="music" size={14}/><span>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</span><span>{musicExpanded?'−':'+'}</span></button><div className="music-details"><div className="now-label"><span className={`equalizer ${audio?.enabled&&p.playing?'active':''}`}><i/><i/><i/></span>{p.playing?(p.track.stage?'ON STAGE':'NOW PLAYING'):'잠시 후'}</div><h2>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</h2><p>{p.playing&&!p.track.stage?p.track.composer:`다음 곡: ${nextPiece(program as Playlist,p.index)?.title??''}`}{!p.playing&&` · ${Math.ceil(p.remaining)}초 후`}</p><div className="progress-track"><span style={{width:`${p.playing?p.offset/p.track.durationSeconds*100:0}%`}}/></div><div className="track-meta"><span>{audio?.state}</span><span>{format(p.offset)} / {format(p.track.durationSeconds)}</span></div></div></aside>}
    <nav className="tools" aria-label="음악당 설정">
-    <span className="tools-brand">플리</span>
+    <div className="hall-picker" ref={hallPicker} onKeyDown={event=>{
+     if(event.key!=='Escape'||!hallPickerOpen)return;
+     event.stopPropagation();
+     setHallPickerOpen(false);
+     hallPickerButton.current?.focus();
+    }}>
+     <button type="button" ref={hallPickerButton} className="tools-brand" aria-label="플리 공연장 선택" aria-expanded={hallPickerOpen} aria-controls="hall-choices" onClick={()=>{
+      if(!hallPickerOpen){setMusicExpanded(false);world?.input.keys.clear();}
+      setHallPickerOpen(!hallPickerOpen);
+     }}>플리 <span className="hall-picker-caret" aria-hidden="true"/></button>
+     <div id="hall-choices" className="hall-choices" role="group" aria-label="공연장 선택" hidden={!hallPickerOpen}>
+      {HALL_OPTIONS.map(({kind,label})=><a key={kind} href={hallHref(kind)} aria-current={kind===HALL_KIND?'page':undefined} onClick={event=>{
+       if(kind!==HALL_KIND)return;
+       event.preventDefault();
+       setHallPickerOpen(false);
+       hallPickerButton.current?.focus();
+      }}>{label}{kind===HALL_KIND&&<span>현재</span>}</a>)}
+     </div>
+    </div>
     {entered&&<span className="visitor-count" title={connected?'함께 있는 관객':'연결을 기다리고 있어요'}><span className={`connection ${connected?'online':''}`}/><Icon name="people" size={18}/>{net?.local?'혼자 감상':net?.state?.visitors.length??'—'}</span>}
     <button className="icon-button" aria-label={audio?.enabled?'소리 끄기':'소리 켜기'} onClick={()=>{audio?.toggle();redraw(n=>n+1);}}><Icon name={audio?.enabled?'sound':'mute'}/></button>
     {entered&&<button className={`icon-button menu-button ${menu?'active':''}`} aria-label="메뉴" aria-expanded={menu} aria-haspopup="menu" onClick={()=>setMenu(v=>!v)}><Icon name={menu?'close':'menu'}/></button>}
@@ -153,13 +284,15 @@ function App(){
 
    {menu&&<><nav className="icon-menu" role="menu" aria-label="음악당 메뉴" title="음악당 메뉴" onKeyDown={e=>{if(e.key==='Escape')setMenu(false);}}>
     {zone==='auditorium'?<>
-     <button role="menuitem" className="icon-menu-item" aria-label="좌석 고르기" title="좌석 고르기" onClick={()=>{world?.input.keys.clear();setSeats(true);}}><Icon name="ticket" size={20}/></button>
+     <button role="menuitem" className={`icon-menu-item ${world?.ridingTrain?'active':''}`} aria-label={world?.ridingTrain?'승강장에 내리기':'열차에 타기'} title={world?.ridingTrain?'승강장에 내리기':'열차에 타기'} disabled={!connected} onClick={()=>world?.toggleTrain()}><Icon name="train" size={20}/></button>
      <button role="menuitem" className="icon-menu-item" aria-label={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} title={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} onClick={()=>{world?.goToGallery();}}><Icon name={(world?.position.y??0)>8?'floor1':'floor2'} size={20}/></button>
      <button role="menuitem" className="icon-menu-item" aria-label="무대 앞으로 바로 이동" title="무대 앞으로 바로 이동" onClick={()=>world?.goToHallPoint('front')}><Icon name="front" size={20}/></button>
      <button role="menuitem" className="icon-menu-item" aria-label="공연장 뒤로 바로 이동" title="공연장 뒤로 바로 이동" onClick={()=>world?.goToHallPoint('rear')}><Icon name="back" size={20}/></button>
+     <button role="menuitem" className="icon-menu-item" aria-label={world?.openHall?'공연장으로 돌아가기':'우주 공간으로 전환'} title={world?.openHall?'공연장으로 돌아가기':'우주 공간으로 전환'} onClick={()=>world?.toggleOpenHall()}><Icon name={world?.openHall?'hall':'planet'} size={20}/></button>
      <span className="icon-menu-divider"/>
      <button role="menuitem" className={`icon-menu-item ${!world?.concertView?'active':''}`} aria-label="걷기 시점" title="걷기 시점" onClick={()=>{if(world?.concertView)world.toggleConcertView();}}><Icon name="walk" size={20}/></button>
-     <button role="menuitem" className={`icon-menu-item ${world?.concertView&&world?.hallOverview?'active':''}`} aria-label="홀 전체 보기" title="홀 전체 보기" onClick={()=>{if(!world?.concertView)world?.toggleConcertView();if(!world?.hallOverview)world?.toggleFraming();}}><Icon name="overview" size={20}/></button>
+     <button role="menuitem" className={`icon-menu-item ${world?.concertView&&world?.hallOverview?'active':''}`} aria-label="홀 전체 보기" title={world?.entranceViewLocked?"입구를 지나면 시점을 바꿀 수 있어요":"홀 전체 보기"} disabled={world?.entranceViewLocked} onClick={()=>world?.showHallOverview()}><Icon name="overview" size={20}/></button>
+     <button role="menuitem" className={`icon-menu-item ${world?.concertView&&!world?.hallOverview&&world?.stageLowView?'active':''}`} aria-label="무대 올려다보기" title="무대 올려다보기" disabled={world?.entranceViewLocked} onClick={()=>world?.setStageView(true)}><Icon name="stageLow" size={20}/></button>
      <span className="icon-menu-divider"/>
      <button role="menuitem" className="icon-menu-item" aria-label="로비로 나가기" title="로비로 나가기" onClick={()=>{world?.changeZone();}}><Icon name="exit" size={20}/></button>
     </>:<>
@@ -167,18 +300,57 @@ function App(){
      <span className="icon-menu-divider"/>
      <button role="menuitem" className="icon-menu-item" aria-label="공연장 들어가기" title="공연장 들어가기" onClick={()=>{world?.changeZone();}}><Icon name="enter" size={20}/></button>
     </>}
+    <button role="menuitem" className="icon-menu-item" aria-label="사진 모드" title="사진 모드" onClick={()=>{setHallPickerOpen(false);setReactions(false);world?.startPhotoMode();}}><Icon name="camera" size={20}/></button>
     <button role="menuitem" className="icon-menu-item" aria-label="설정" title="설정" onClick={()=>{setSettings(true);}}><Icon name="settings" size={20}/></button>
    </nav></>}
 
    {world?.cafeMenu&&<div className="cafe-menu" role="dialog" aria-label="카페"><button className="cafe-close" aria-label="닫기" onClick={()=>world.closeCafeMenu()}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div className="cafe-choices">{!world.coffee&&<button aria-label="커피 받기" onClick={()=>world.visitCafe('coffee')} disabled={!connected}><img src={coffeeIcon} alt="" aria-hidden="true"/></button>}{!world.macaron&&<button aria-label="마카롱 받기" onClick={()=>world.visitCafe('macaron')} disabled={!connected}><img src={macaronIcon} alt="" aria-hidden="true"/></button>}</div></div>}
-   <div className="bottom-center">{reactions&&<div className="reaction-panel" role="group" aria-label="리액션">{GESTURES.filter(g=>(g.id!=='drink'||world?.coffee)&&(g.id!=='eat'||world?.macaron)).map((g,n)=><button key={g.id} onClick={()=>{world?.gestureAction(g.id);setReactions(false);}} disabled={!connected}><b>{g.id==='drink'||g.id==='eat'?<img className="food-icon" src={g.id==='drink'?coffeeIcon:macaronIcon} alt="" aria-hidden="true"/>:GLYPH[g.id]}</b><span>{g.label}</span><kbd>{n+1}</kbd></button>)}</div>}{toast&&<div className="toast" role="status">{toast}</div>}<div className="actionbar" aria-label="음악당에서 할 일"><button onClick={()=>world?.gestureAction('wave')} disabled={!connected}><Icon name="wave"/><span>인사</span></button><button onClick={()=>world?.gestureAction('clap')} disabled={!connected}><Icon name="clap"/><span>박수</span></button><span className="divider"/><button className="primary-action" onClick={()=>{if(sitting)world?.stand();else if(zone==='lobby')world?.changeZone();else{world?.input.keys.clear();setSeats(true);}}} disabled={!connected}><Icon name={sitting?'seat':zone==='lobby'?'enter':'ticket'}/><span>{sitting?'일어나기':zone==='lobby'?'공연장 입장':'자리 앉기'}</span></button>{zone==='lobby'&&<button onClick={()=>world?.goToHallPoint('lobby')} disabled={!connected} aria-label="로비 가운데로 바로 이동"><Icon name="center"/><span>가운데</span></button>}{zone==='lobby'&&world?.macaron&&<button onClick={()=>world.gestureAction('eat')} disabled={!connected} aria-label="마카롱 먹기"><img className="food-icon" src={macaronIcon} alt="" aria-hidden="true"/><span>마카롱 먹기</span></button>}{zone==='lobby'&&world?.coffee&&<button onClick={()=>world.gestureAction('drink')} disabled={!connected} aria-label="커피 마시기"><img className="food-icon" src={coffeeIcon} alt="" aria-hidden="true"/><span>커피 마시기</span></button>}{zone==='auditorium'&&world?.candle&&<button className={'candle-action'+(world.candle==='on'?' lit':'')} aria-pressed={world.candle==='on'} aria-label={world.candle==='on'?'촛불 끄기':'촛불 켜기'} onClick={()=>{world.toggleCandle();redraw(n=>n+1);}}><Icon name="candle"/><span>촛불</span></button>}{zone==='auditorium'&&<button onClick={()=>{setReactions(false);setConducting(true);}} disabled={!connected} aria-label="지휘자 체험"><Icon name="conductor"/><span>지휘자 체험</span></button>}<span className="divider"/><button className={reactions?'active':''} aria-expanded={reactions} onClick={()=>setReactions(v=>!v)} disabled={!connected}><Icon name="react"/><span>리액션</span></button></div></div>
+   {showTablePrompt&&atWishTarotTable&&
+    <div className="cafe-menu wish-tarot-prompt">
+     <TablePromptClose label="별빛 타로" onClose={dismissTablePrompt}/>
+     <div className="cafe-choices"><button ref={wishTarotButton} aria-label="별빛 타로" aria-haspopup="dialog" onClick={()=>world?.openWishTarot()}>
+      <Icon name="tarot" size={30}/><b>별빛 타로</b>
+     </button></div>
+    </div>}
+   {showTablePrompt&&world?.atTeaTable&&!world.drink&&
+    <div className="cafe-menu queen-game-prompt tea-prompt"><TablePromptClose label="차 마시기" onClose={dismissTablePrompt}/><div className="cafe-choices">
+     <button aria-label="차 마시기" disabled={!connected} onClick={()=>world.orderDish('tea')}><b aria-hidden="true">🍵</b></button>
+    </div></div>}
+   {showTablePrompt&&world?.atQueenTable&&!world.queenWand.charges&&!world.queenWand.casting&&!world.queenWand.receiving&&
+    <div className="cafe-menu queen-game-prompt">
+     <TablePromptClose label="카드 게임" onClose={dismissTablePrompt}/>
+     <div className="cafe-choices"><button aria-label="하트 여왕 카드 게임" onClick={()=>world.openQueenCardGame()}>
+      <Icon name="cards" size={30}/><b>카드 게임</b>
+     </button></div>
+    </div>}
+   {world?.dishMenu&&world.atDinnerTable&&!(world.dish&&world.drink)&&<div className="cafe-menu dish-menu" role="dialog" aria-label="요리 고르기"><button className="cafe-close" aria-label="닫기" onClick={()=>world.closeDishMenu()}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div className="cafe-choices dish-choices">{DISHES.filter(d=>d.id!=='tea').map(d=><button key={d.id} aria-label={d.label} onClick={()=>world.orderDish(d.id)} disabled={!connected||!!(isDrink(d.id)?world.drink:world.dish)}><b aria-hidden="true">{d.glyph}</b><span>{d.label}</span></button>)}</div></div>}
+   {world&&<DanceControls world={world} exitIcon={<Icon name="exit" size={22}/>}/>}
+   {toast&&(world?.self?.dance)&&<div className="toast" role="status">{toast}</div>}<div className="bottom-center" style={world?.self?.dance?{display:'none'}:undefined}>{reactions&&<div className="reaction-panel" role="group" aria-label="리액션">{GESTURES.filter(g=>(g.id!=='drink'||world?.coffee)&&(g.id!=='eat'||world?.macaron)).map((g,n)=><button key={g.id} onClick={()=>{world?.gestureAction(g.id);setReactions(false);}} disabled={!connected}><b>{g.id==='drink'||g.id==='eat'?<img className="food-icon" src={g.id==='drink'?coffeeIcon:macaronIcon} alt="" aria-hidden="true"/>:GLYPH[g.id]}</b><span>{g.label}</span><kbd>{n+1}</kbd></button>)}</div>}{toast&&<div className="toast" role="status">{toast}</div>}{world?.showMirrorHint&&connected&&!seats&&!settings&&!wardrobe&&!programOpen&&!queenGameOpen&&!wishTarotOpen&&
+    <aside className="mirror-hint" aria-label="음악당 뒤편">
+     <p>오른쪽 계단 옆에 오래된 거울이 있어요.</p>
+     <button type="button" className="mirror-hint-close" aria-label="거울 안내 닫기" onClick={()=>world.dismissMirrorHint()}><Icon name="close" size={16}/></button>
+    </aside>}
+   {(world?.atDinnerTable&&(world.dish||world.drink)||world&&world.queenWand.charges>0 )&&
+    <div className="discard-actions">
+     {world?.atDinnerTable&&(world.dish||world.drink)&&<button className="dish-trash" aria-label="음식 모두 버리기" title="음식 모두 버리기" onClick={()=>world.clearDishes()} disabled={!connected}><Icon name="trash" size={18}/></button>}
+     {world&&world.queenWand.charges>0&&<button className="dish-trash" aria-label="하트 지팡이 버리기" title="하트 지팡이 버리기" onClick={()=>world.discardQueenWand()} disabled={world.queenWand.casting}><Icon name="trash" size={18}/></button>}
+
+    </div>}
+   <div className="actionbar" aria-label="음악당에서 할 일"><button onClick={()=>world?.gestureAction('wave')} disabled={!connected}><Icon name="wave"/><span>인사</span></button><button onClick={()=>world?.gestureAction('clap')} disabled={!connected}><Icon name="clap"/><span>박수</span></button><span className="divider"/><button className="primary-action" onClick={()=>{if(sitting)world?.stand();else if(zone==='lobby')world?.changeZone();else{world?.input.keys.clear();setSeats(true);}}} disabled={!connected}><Icon name={zone==='auditorium'?'ticket':sitting?'seat':'enter'}/><span>{sitting?'일어나기':zone==='lobby'?'공연장 입장':'자리 앉기'}</span></button>{world?.wishFlowerCard&&<WishButton world={world}/>}{zone==='lobby'&&<button onClick={()=>world?.goToHallPoint('lobby')} disabled={!connected} aria-label="로비 가운데로 바로 이동"><Icon name="center"/><span>가운데</span></button>}{zone==='lobby'&&world?.macaron&&<button className="eat-ready" onClick={()=>world.gestureAction('eat')} disabled={!connected} aria-label="마카롱 먹기"><img className="food-icon" src={macaronIcon} alt="" aria-hidden="true"/><span>마카롱 먹기</span></button>}{zone==='lobby'&&world?.coffee&&<button className="eat-ready" onClick={()=>world.gestureAction('drink')} disabled={!connected} aria-label="커피 마시기"><img className="food-icon" src={coffeeIcon} alt="" aria-hidden="true"/><span>커피 마시기</span></button>}{world?.atDinnerTable&&world.dish&&<button className="eat-ready" onClick={()=>world.gestureAction('eat')} disabled={!connected} aria-label={DISHES.find(d=>d.id===world.dish)!.label+' 먹기'}><b className="food-icon dish-icon" aria-hidden="true">{DISHES.find(d=>d.id===world.dish)!.glyph}</b><span>{DISHES.find(d=>d.id===world.dish)!.label} 먹기</span></button>}{world?.atDinnerTable&&world.drink&&<button className="eat-ready" onClick={()=>world.gestureAction('drink')} disabled={!connected||world.teaPouring} aria-label={world.drink==='tea'?(world.teaPouring?'차 따르는 중':'차 마시기'):DISHES.find(d=>d.id===world.drink)!.label+' 마시기'}><b className="food-icon dish-icon" aria-hidden="true">{DISHES.find(d=>d.id===world.drink)!.glyph}</b>{world.drink!=='tea'&&<span>{DISHES.find(d=>d.id===world.drink)!.label+' 마시기'}</span>}</button>}{world?.atDinnerTable&&!(world.dish&&world.drink)&&<button onClick={()=>world.openDishMenu()} disabled={!connected} aria-label="요리 고르기"><Icon name="dinner"/><span>식사</span></button>}{zone==='auditorium'&&world?.candle&&<button className={'candle-action'+(world.candle==='on'?' lit':'')} aria-pressed={world.candle==='on'} aria-label={world.candle==='on'?'촛불 끄기':'촛불 켜기'} onClick={()=>{world.toggleCandle();redraw(n=>n+1);}}><Icon name="candle"/><span>촛불</span></button>}{CONDUCTING_ENABLED&&zone==='auditorium'&&<button onClick={()=>{setReactions(false);setConducting(true);}} disabled={!connected||world?.entranceViewLocked} aria-label="지휘자 체험"><Icon name="conductor"/><span>지휘자 체험</span></button>}{zone==='auditorium'&&world&&<DanceStart world={world} disabled={!connected||world.ridingTrain||(sitting&&!world.self?.seatId)}><Icon name="dance"/><span>춤추기</span></DanceStart>}{world&&world.queenWand.charges>0&&<button className="eat-ready" aria-label={`하트 마법, ${world.queenWand.charges}회 남음`}
+    onClick={()=>world.castQueenWand()} disabled={world.queenWand.casting}>
+    <b className="wand-hearts" aria-hidden="true">{'♥'.repeat(world.queenWand.charges)}</b><span>하트 마법</span>
+   </button>}<span className="divider"/><button className={reactions?'active':''} aria-expanded={reactions} onClick={()=>setReactions(v=>!v)} disabled={!connected}><Icon name="react"/><span>리액션</span></button></div></div>
   </>}
   {conducting&&world&&<ConductingExperience world={world} onClose={closeConducting}/>}
   {probeProgress&&<div className="diagnostic-overlay" role="status"><p>{probeProgress}<br/><small>측정이 끝나면 이전 화면 설정으로 돌아갑니다.</small></p></div>}
   {toast&&!entered&&<div className="toast" role="status">{toast}</div>}
   {error&&<section className="fatal" role="alert"><h1>음악당을 열지 못했어요.</h1><p>WebGL을 지원하는 브라우저에서 다시 열어주세요.</p><small>{error}</small><button onClick={()=>location.reload()}>다시 열기</button></section>}
   {wardrobe&&world&&<Wardrobe look={world.visitorLook} selected={world.self?.outfit} onSelect={outfit=>world.setOutfit(outfit)} onClose={()=>setWardrobe(false)}/>}
-  <dialog ref={dialog} onCancel={()=>setSettings(false)} onClose={()=>setSettings(false)} className="settings-dialog"><div className="panel-heading"><div><span className="eyebrow">YOUR LITTLE CONCERT</span><h2>편안하게 감상하기</h2></div><button className="icon-button" aria-label="설정 닫기" onClick={()=>setSettings(false)}><Icon name="close"/></button></div><label className="setting-row"><span>음악 소리 <b>{Math.round((audio?.volume??1)*100)}</b><small>공연장에서 들리는 음량 (0~100)</small></span><input aria-label="음악 음량" type="range" min="0" max="100" value={Math.round((audio?.volume??1)*100)} onChange={e=>{if(audio)audio.volume=Number(e.target.value)/100;redraw(n=>n+1);}}/></label><label className="setting-row"><span>공간 소리 <b>{audio?.roomLevel??5}</b><small>로비와 공연장의 은은한 울림 (1~10, 5가 기본)</small></span><input aria-label="공간 소리" type="range" min="1" max="10" step="1" value={audio?.roomLevel??5} onChange={e=>{audio?.setRoomLevel(Number(e.target.value));redraw(n=>n+1);}}/></label><label className="setting-row"><span>내 캐릭터<small>다른 관객에게도 이렇게 보여요</small></span><select aria-label="내 캐릭터" value={world?.visitorLook??'man'} onChange={e=>{const look=e.target.value as 'man'|'woman';try{localStorage.setItem('garnier-look',look);}catch{}world?.setLook(look);redraw(n=>n+1);}}><option value="man">남자</option><option value="woman">여자</option></select></label><label className="setting-row"><span>화면 품질<small>{world?`${world.fps} FPS · ${world.renderer.domElement.width}×${world.renderer.domElement.height}`:'선명도를 선택할 수 있어요'}</small></span><select aria-label="화면 품질" value={world?.quality??"balanced"} onChange={e=>world?.setQuality(e.target.value)}><option value="balanced">균형 · {world?.mobile?'60':'30'}FPS</option><option value="sharp">선명하게 · 60FPS</option><option value="low">저발열 · {world?.mobile?'60':'30'}FPS</option></select></label><div className="settings-info"><Icon name="music" size={19}/><p>{p?.track.title}<br/>{p?.track.credit&&<><a href={p.track.credit.sourceUrl} target="_blank" rel="noreferrer">{p.track.credit.sourceName}</a> · <a href={p.track.credit.licenseUrl} target="_blank" rel="noreferrer">{p.track.credit.licenseName}</a></>}</p></div><p className="settings-info"><small>로비 천장 사진: <a href="https://commons.wikimedia.org/wiki/File:Ópera,_París,_Francia,_2022-10-31,_DD_54-56_HDR.jpg" target="_blank" rel="noreferrer">Diego Delso / Wikimedia Commons</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a> · 2048px·WebP 변환</small></p>{(import.meta.env.DEV&&(['localhost','127.0.0.1','[::1]'].includes(location.hostname)||new URLSearchParams(location.search).has('diag')))&&<section className="device-diagnostic">{iphoneBridge?<><button data-device-probe disabled={iphonePending} onClick={()=>void measureIPhone()}>연결된 아이폰 측정</button><p>USB로 연결된 아이폰에서 플리를 열고 FPS와 CPU·GPU 시간을 측정합니다.</p></>:<><button data-device-probe disabled={!entered||zone!=='auditorium'||!!probeProgress} onClick={()=>void diagnose()}>끊김 진단 · 최대 30초</button><p>{world?.mobile?'이 기기의 화면 설정으로 FPS와 CPU·GPU 시간을 측정합니다.':'iPhone 13 Pro 화면 조건에서 이 PC의 FPS와 CPU·GPU 시간을 측정합니다.'} 음악을 비교할 수 있을 때는 30초, 그 외에는 10초 동안 실행합니다.</p></>}{probeMessage&&<p role="status">{probeMessage}</p>}{probeReport&&<><button onClick={()=>{void Promise.resolve().then(()=>navigator.clipboard.writeText(probeReport)).then(()=>setProbeMessage('진단 결과를 복사했습니다. 채팅에 붙여넣어 주세요.')).catch(()=>setProbeMessage('아래 결과를 길게 눌러 복사해 주세요.'));}}>진단 결과 복사</button><details><summary>진단 결과 보기</summary><textarea aria-label="기기 진단 결과" readOnly value={probeReport}/></details></>}</section>}<div className="controls-copy">{net?.local&&<p>GitHub Pages 감상 버전 · 다른 관객과의 실시간 연결은 제공하지 않습니다.</p>}<p>바닥 클릭 / WASD / 방향키 — 이동</p><p>드래그 — 둘러보기 · 휠 / 두 손가락 — 거리 조절</p><p>좌석 클릭 — 앉기 · ESC — 일어나기</p></div></dialog>
+  <dialog ref={dialog} onCancel={()=>setSettings(false)} onClose={()=>setSettings(false)} className="settings-dialog"><div className="panel-heading"><div><span className="eyebrow">YOUR LITTLE CONCERT</span><h2>편안하게 감상하기</h2></div><button className="icon-button" aria-label="설정 닫기" onClick={()=>setSettings(false)}><Icon name="close"/></button></div><label className="setting-row"><span>음악 소리 <b>{Math.round((audio?.volume??1)*100)}</b><small>공연장에서 들리는 음량 (0~100)</small></span><input aria-label="음악 음량" type="range" min="0" max="100" value={Math.round((audio?.volume??1)*100)} onChange={e=>{if(audio)audio.volume=Number(e.target.value)/100;redraw(n=>n+1);}}/></label><label className="setting-row"><span>공간 소리 <b>{audio?.roomLevel??5}</b><small>로비와 공연장의 은은한 울림 (1~10, 5가 기본)</small></span><input aria-label="공간 소리" type="range" min="1" max="10" step="1" value={audio?.roomLevel??5} onChange={e=>{audio?.setRoomLevel(Number(e.target.value));redraw(n=>n+1);}}/></label><label className="setting-row"><span>내 캐릭터<small>다른 관객에게도 이렇게 보여요</small></span><select aria-label="내 캐릭터" value={world?.visitorLook??'man'} onChange={e=>{const look=e.target.value as 'man'|'woman';try{localStorage.setItem('garnier-look',look);}catch{}world?.setLook(look);redraw(n=>n+1);}}><option value="man">남자</option><option value="woman">여자</option></select></label><label className="setting-row"><span>화면 품질<small>{world?`${world.fps} FPS · ${world.renderer.domElement.width}×${world.renderer.domElement.height}`:'선명도를 선택할 수 있어요'}</small></span><select aria-label="화면 품질" value={world?.quality??"balanced"} onChange={e=>world?.setQuality(e.target.value)}><option value="balanced">균형 · {world?.mobile?'60':'30'}FPS</option><option value="sharp">선명하게 · 60FPS</option><option value="low">저발열 · {world?.mobile?'60':'30'}FPS</option></select></label><div className="settings-info"><Icon name="music" size={19}/><p>{p?.track.title}<br/>{p?.track.credit&&<><a href={p.track.credit.sourceUrl} target="_blank" rel="noreferrer">{p.track.credit.sourceName}</a> · {p.track.credit.artist&&<>{p.track.credit.artist} · </>} <a href={p.track.credit.licenseUrl} target="_blank" rel="noreferrer">{p.track.credit.licenseName}</a>{p.track.credit.changes&&<> · {p.track.credit.changes}</>}</>}</p></div><p className="settings-info"><small>로비 천장 사진: <a href="https://commons.wikimedia.org/wiki/File:Ópera,_París,_Francia,_2022-10-31,_DD_54-56_HDR.jpg" target="_blank" rel="noreferrer">Diego Delso / Wikimedia Commons</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a> · 2048px·WebP 변환</small></p>
+   {import.meta.env.DEV&&world&&<GalaxySettings world={world}/>}
+   <GalaxyCredits/>
+   <p className="settings-info"><small>행성 텍스처 · <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noreferrer">Solar System Scope</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a></small></p>
+   {import.meta.env.DEV&&<section className="device-diagnostic">{iphoneBridge?<><button data-device-probe disabled={iphonePending} onClick={()=>void measureIPhone()}>연결된 아이폰 측정</button><p>USB로 연결된 아이폰에서 플리를 열고 FPS와 CPU·GPU 시간을 측정합니다.</p></>:<><button data-device-probe disabled={!entered||zone!=='auditorium'||!!probeProgress} onClick={()=>void diagnose()}>끊김 진단 · 최대 30초</button><p>{world?.mobile?'이 기기의 화면 설정으로 FPS와 CPU·GPU 시간을 측정합니다.':'iPhone 13 Pro 화면 조건에서 이 PC의 FPS와 CPU·GPU 시간을 측정합니다.'} 음악을 비교할 수 있을 때는 30초, 그 외에는 10초 동안 실행합니다.</p></>}{probeMessage&&<p role="status">{probeMessage}</p>}{probeReport&&<><button onClick={copyProbeReport}>진단 결과 복사</button><details ref={probeDetails}><summary>진단 결과 보기</summary><textarea ref={probeText} aria-label="기기 진단 결과" readOnly value={probeReport}/></details></>}</section>}<div className="controls-copy">{net?.local&&<p>GitHub Pages 감상 버전 · 다른 관객과의 실시간 연결은 제공하지 않습니다.</p>}<p>바닥 클릭 / WASD / 방향키 — 이동</p><p>드래그 — 둘러보기 · 휠 / 두 손가락 — 거리 조절</p><p>좌석 클릭 — 앉기 · ESC — 일어나기</p></div></dialog>
  </>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);

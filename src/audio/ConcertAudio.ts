@@ -1,14 +1,38 @@
-import list from '../../content/playlist.json';
+import list from './playlist';
 import {playbackAt,type Playback,type Playlist} from '../../shared/timeline';
 import type {Zone} from '../../shared/venue';
 import {MediaSync} from './MediaSync';
 export class ConcertAudio{
  readonly media=new Audio();enabled=false;volume=1;zone:Zone='lobby';state='소리 꺼짐';
+ private wantsSound=true;
  private playingRequest=false;private unlocking=false;private lastId='';private cycle=-1;
  private sync=new MediaSync();private abort=new AbortController();private timer:ReturnType<typeof setInterval>;
  private doorLeak=0;
  private context:AudioContext|null=null;private filters:BiquadFilterNode[]=[];
  private musicGain:GainNode|null=null;private outputTarget=-1;
+ private analyser:AnalyserNode|null=null;
+ private spectrumTime=-Infinity;
+ private readonly frequencyData=new Float32Array(512);
+ private readonly waveform=new Float32Array(1024);
+ private readonly spectrum={volume:0,bands:new Float32Array(16)};
+ /** Read original music before room filters and the user's volume gain, at 20 Hz. */
+ musicSpectrum(time:number){
+  if(time-this.spectrumTime<.05)return this.spectrum;this.spectrumTime=time;
+  const a=this.analyser;
+  if(!a||this.context?.state!=='running'||this.media.paused||this.media.ended){this.spectrum.volume=0;this.spectrum.bands.fill(0);return this.spectrum;}
+  a.getFloatTimeDomainData(this.waveform);a.getFloatFrequencyData(this.frequencyData);
+  let sum=0;for(const v of this.waveform)sum+=v*v;
+  this.spectrum.volume=Math.min(1,Math.sqrt(sum/this.waveform.length)*4);
+  const binHz=this.context.sampleRate/a.fftSize;
+  for(let i=0;i<16;i++){
+   const lo=Math.max(1,Math.floor(50*Math.pow(240,i/16)/binHz));
+   const hi=Math.min(this.frequencyData.length,Math.max(lo+1,Math.ceil(50*Math.pow(240,(i+1)/16)/binHz)));
+   let power=0;for(let b=lo;b<hi;b++)power+=Math.pow(10,this.frequencyData[b]/10);
+   const db=10*Math.log10(Math.max(1e-12,power/Math.max(1,hi-lo)));
+   this.spectrum.bands[i]=Math.max(0,Math.min(1,(db+78)/52));
+  }
+  return this.spectrum;
+ }
  // Crossing the hall door switches the sound at once: muffled outside, full inside, with no fade.
 
  private lastMeow=-Infinity;
@@ -27,7 +51,11 @@ export class ConcertAudio{
  private prepareFilter(){
   if(this.context)return this.context.resume();
   const context=new AudioContext({latencyHint:'playback'}),source=context.createMediaElementSource(this.media);
-  this.context=context;let previous:AudioNode=source;
+  this.context=context;
+  this.analyser=context.createAnalyser();this.analyser.fftSize=1024;this.analyser.smoothingTimeConstant=.35;
+  source.connect(this.analyser);
+  // Keep the analyser on the audible path so it stays processed across suspend/resume.
+  let previous:AudioNode=this.analyser;
   // Two low-pass stages leave the bass audible through a closed door.
   for(let i=0;i<2;i++){const filter=context.createBiquadFilter();filter.type='lowpass';filter.Q.value=.707;filter.frequency.value=this.zone==='lobby'?450:22000;previous.connect(filter);previous=filter;this.filters.push(filter);}
   this.musicGain=context.createGain();this.musicGain.gain.value=0;previous.connect(this.musicGain);this.musicGain.connect(context.destination);
@@ -40,9 +68,12 @@ export class ConcertAudio{
   this.media.addEventListener('error',()=>{this.state='음원을 불러오지 못했어요';},opts);
   document.addEventListener('visibilitychange',()=>{this.sync.request();if(document.hidden)this.media.pause();},opts);
   // If the browser left the audio graph suspended, the next tap or key wakes it (music, door spill and lobby room tone all pass through it).
-  for(const type of ['pointerdown','keydown','touchend'])document.addEventListener(type,()=>{
-   if(!this.enabled||this.unlocking||document.hidden)return;
+  for(const type of ['pointerdown','keydown','touchend'])document.addEventListener(type,event=>{
+   if((event.target as Element)?.closest?.('button[aria-label^="소리"], [data-device-probe]'))return;
+   if(!this.wantsSound||document.hidden)return;
    if(this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});
+   if(this.unlocking)return;
+   if(!this.enabled){void this.unlock();return;}
    if(this.media.paused&&this.playback.playing&&!this.playback.track.stage)this.playMedia();
   },{...opts,capture:true});
   // Media playback does not depend on rendering frames arriving on time.
@@ -62,20 +93,43 @@ export class ConcertAudio{
   const c=this.context;if(!this.enabled||this.volume<=0||document.hidden||!c)return false;
   if(c.state!=='running')void c.resume().catch(()=>{});
   if(!this.clapBuffer){
-   this.clapBuffer=c.createBuffer(1,Math.ceil(c.sampleRate*.085),c.sampleRate);const data=this.clapBuffer.getChannelData(0);
-   for(let i=0;i<data.length;i++){const t=i/c.sampleRate;data[i]=(Math.random()*2-1)*Math.min(1,t/.0008)*Math.exp(-t*72);}
+   this.clapBuffer=c.createBuffer(1,Math.ceil(c.sampleRate*.14),c.sampleRate);const data=this.clapBuffer.getChannelData(0);
+   // Several close skin contacts give a handclap its crack.
+   let softened=0;
+   for(let i=0;i<data.length;i++){
+    const t=i/c.sampleRate,noise=Math.random()*2-1;softened+=.38*(noise-softened);
+    let contacts=0;
+    for(const [start,amount] of [[0,1],[.008,.58],[.019,.32]]){
+     const age=t-start;if(age>=0)contacts+=amount*Math.min(1,age/.0006)*Math.exp(-age*95);
+    }
+    data[i]=softened*contacts*.85;
+   }
    this.clapRoom=c.createBuffer(2,Math.ceil(c.sampleRate*.65),c.sampleRate);
    for(let channel=0;channel<2;channel++){const room=this.clapRoom.getChannelData(channel);for(let i=0;i<room.length;i++){const t=i/c.sampleRate;room[i]=t<.035?0:(Math.random()*2-1)*Math.exp(-t*9)*.055;}
     for(const [delay,level] of [[.055,.25],[.095,.13],[.16,.07]])room[Math.floor((delay+channel*.007)*c.sampleRate)]+=level;
    }
   }
-  for(const offset of [0,.43,.86]){
+  for(const [offset,rate,amount] of [[0,1,1],[.37,.95,.83],[.79,1.04,.94]]){
    const source=c.createBufferSource(),high=c.createBiquadFilter(),low=c.createBiquadFilter(),level=c.createGain(),room=c.createConvolver(),wet=c.createGain();
-   source.buffer=this.clapBuffer;high.type='highpass';high.frequency.value=650;low.type='lowpass';low.frequency.value=6500;level.gain.value=Math.min(1,this.volume*gain)*.85;room.buffer=this.clapRoom;room.normalize=false;wet.gain.value=this.zone==='auditorium'?.42:.24;
+   source.buffer=this.clapBuffer;source.playbackRate.value=rate;high.type='highpass';high.frequency.value=160;low.type='lowpass';low.frequency.value=5600;level.gain.value=Math.min(1,Math.max(0,this.volume*gain))*.85*amount;room.buffer=this.clapRoom;room.normalize=false;wet.gain.value=this.zone==='auditorium'?.42:.24;
    source.connect(high);high.connect(low);low.connect(level);level.connect(c.destination);level.connect(room);room.connect(wet);wet.connect(c.destination);
    source.start(c.currentTime+offset);source.onended=()=>window.setTimeout(()=>{for(const node of [source,high,low,level,room,wet])node.disconnect();},700);
   }
   return true;
+ }
+ /** A brief celebratory whistle, distinct from applause and generated without an audio download. */
+ bravo(gain=1){
+  const c=this.context;if(!this.enabled||this.volume<=0||document.hidden||!c)return false;
+  if(c.state!=='running')void c.resume().catch(()=>{});
+  const t=c.currentTime,voice=c.createOscillator(),vibrato=c.createOscillator(),depth=c.createGain(),level=c.createGain();
+  voice.type='sine';vibrato.frequency.value=6;depth.gain.value=12;
+  voice.frequency.setValueAtTime(880,t);voice.frequency.exponentialRampToValueAtTime(1568,t+.16);
+  voice.frequency.exponentialRampToValueAtTime(1397,t+.35);voice.frequency.exponentialRampToValueAtTime(1047,t+.65);
+  level.gain.setValueAtTime(0,t);level.gain.linearRampToValueAtTime(Math.min(1,Math.max(0,this.volume*gain))*.1,t+.045);
+  level.gain.setTargetAtTime(.0001,t+.35,.09);level.gain.linearRampToValueAtTime(0,t+.7);
+  vibrato.connect(depth);depth.connect(voice.frequency);voice.connect(level);level.connect(c.destination);
+  voice.start(t);vibrato.start(t);voice.stop(t+.72);vibrato.stop(t+.72);
+  voice.onended=()=>{for(const node of [voice,vibrato,depth,level])node.disconnect();};return true;
  }
  /** A short, soft cartoon meow; generated locally, with no extra file or download. */
  meow(){
@@ -97,13 +151,14 @@ export class ConcertAudio{
  }
  /** Return to the concert everyone else is hearing. */
  rejoin(){this.shift=0;this.lastId='';this.sync.request();}
- async unlock(){this.enabled=true;this.unlocking=true;this.media.src=this.mediaUrl(this.playback.track.url);this.lastId=this.playback.track.id;this.cycle=this.playback.cycle;this.media.volume=1;this.media.muted=false;this.sync.request();
+ async unlock(){if(this.unlocking)return false;this.wantsSound=true;this.enabled=true;this.unlocking=true;this.media.src=this.mediaUrl(this.playback.track.url);this.lastId=this.playback.track.id;this.cycle=this.playback.cycle;this.media.volume=1;this.media.muted=false;this.sync.request();
   // Start the audio graph and the media in the same tap: browsers only allow sound that begins inside the gesture.
-  try{const graph=this.prepareFilter(),playing=this.media.play();await graph;await playing;this.sync.request();this.state=this.zone==='lobby'?'공연장에서 음악이 시작돼요':'함께 감상 중';return true;}
+  try{const graph=this.prepareFilter(),playing=this.media.play();await Promise.all([graph,playing]);this.sync.request();this.state=this.zone==='lobby'?'공연장에서 음악이 시작돼요':'함께 감상 중';return true;}
   catch{this.enabled=false;this.state='소리를 켜주세요';return false;}finally{this.unlocking=false;}
  }
- toggle(){if(this.enabled){this.enabled=false;this.media.pause();this.state='소리 꺼짐';}else void this.unlock();}
- setZone(zone:Zone){const changed=zone!==this.zone;this.zone=zone;this.sync.request();
+ toggle(){if(this.enabled){this.wantsSound=false;this.enabled=false;this.media.pause();this.state='소리 꺼짐';}else void this.unlock();}
+ setZone(zone:Zone){const changed=zone!==this.zone;this.zone=zone;this.sync.request();this.spectrumTime=-Infinity;
+  if(this.enabled&&this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});
   if(!this.context)return;const t=this.context.currentTime,entering=zone==='auditorium';
   // The level and the door muffle switch together on the audio clock, in this order: going in, the muffle stays on
   // until the music is switched on; going out, the music is switched down first and the muffle comes on just after.

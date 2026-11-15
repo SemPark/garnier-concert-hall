@@ -1,9 +1,11 @@
 import * as T from 'three';
 import {box,cylinder,line} from './primitives';
+import {batchArchitectureSteps} from './batching';
+import {finishArchitecture} from './SurfaceMaterials';
 
 /** Static, batched evergreen branches and ornaments; only one local light for the whole tree. */
-export function buildChristmasTree(scene:T.Scene,x:number,z:number){
- const root=new T.Group();root.name='lobby-christmas-tree';root.position.set(x,0,z);scene.add(root);
+export function buildChristmasTree(scene:T.Scene,x:number,z:number,options:{y?:number;light?:boolean}={}){
+ const root=new T.Group();root.name='lobby-christmas-tree';root.position.set(x,options.y??0,z);scene.add(root);
  const gold=new T.MeshStandardMaterial({color:0xe1ba66,metalness:.85,roughness:.2});
  const silver=new T.MeshStandardMaterial({color:0xe6dccc,metalness:.92,roughness:.18});
  const red=new T.MeshStandardMaterial({color:0x9d172c,metalness:.5,roughness:.24});
@@ -82,13 +84,31 @@ export function buildChristmasTree(scene:T.Scene,x:number,z:number){
   box(root,[w,h,w],[px,.12+h/2,pz],i%2?0x762333:0xc9b185);
   box(root,[w+.01,.025,.055],[px,.13+h,pz],0xd5b26a);box(root,[.055,h+.025,w+.01],[px,.12+h/2,pz],0xd5b26a);
  }
- const light=new T.PointLight(0xffd49c,18,10,2);light.position.set(0,1.1,0);root.add(light);
+ // Every extra light costs each lit pixel, so the hall's trees go without their own.
+ if(options.light!==false){const light=new T.PointLight(0xffd49c,18,10,2);light.position.set(0,1.1,0);root.add(light);}
  root.traverse(o=>{o.userData.preserveSilhouette=true;});return root;
 }
 
+/** Batch in local coordinates so a single group transform can spin the entire tree. */
+export function* buildRotatingTreeSteps(){
+ const local=new T.Scene();
+ buildChristmasTree(local,0,0,{light:false});
+ finishArchitecture(local,[]);
+ yield* batchArchitectureSteps(local,[]);
+ const root=new T.Group();
+ root.name='stage-christmas-tree';
+ root.add(...local.children);
+ root.traverse(node=>{
+  if(!(node instanceof T.InstancedMesh)||!node.count||node.frustumCulled)return;
+  node.computeBoundingSphere();
+  node.frustumCulled=true;
+ });
+ return root;
+}
+
 /** Added after static batching: a suspended, faceted eight-point star with restrained bloom. */
-export function buildFloatingTreeStar(scene:T.Scene,x:number,z:number){
- const root=new T.Group();root.name='floating-christmas-star';root.position.set(x,9.25,z);scene.add(root);
+export function buildFloatingTreeStar(scene:T.Scene,x:number,z:number,options:{y?:number;light?:boolean}={}){
+ const baseY=9.25+(options.y??0),root=new T.Group();root.name='floating-christmas-star';root.position.set(x,baseY,z);scene.add(root);
  const positions:number[]=[],colors:number[]=[];
  const warm=new T.Color(0xffe7a5),pale=new T.Color(0xfff6da);
  for(const front of [1,-1])for(let i=0;i<16;i++){
@@ -107,6 +127,6 @@ export function buildFloatingTreeStar(scene:T.Scene,x:number,z:number){
   for(let i=0;i<8;i++){ctx.save();ctx.translate(128,128);ctx.rotate(i*Math.PI/4);const length=i%2?88:123,ray=ctx.createLinearGradient(0,0,length,0);ray.addColorStop(0,'rgba(255,246,214,.7)');ray.addColorStop(.18,'rgba(255,235,188,.4)');ray.addColorStop(1,'rgba(255,227,170,0)');ctx.fillStyle=ray;ctx.beginPath();ctx.moveTo(0,-2.2);ctx.lineTo(length,0);ctx.lineTo(0,2.2);ctx.fill();ctx.restore();}
   const raysMap=new T.CanvasTexture(raysCanvas);raysMap.colorSpace=T.SRGBColorSpace;const rays=new T.Sprite(new T.SpriteMaterial({map:raysMap,blending:T.AdditiveBlending,transparent:true,depthWrite:false,toneMapped:false,opacity:.7}));rays.scale.setScalar(3.5);root.add(rays);
  }
- const light=new T.PointLight(0xffe0a8,30,9,2);root.add(light);
- return {root,update(time:number){root.position.y=9.25+Math.sin(time*.85)*.12;star.rotation.y=time*.3;star.rotation.z=Math.sin(time*.6)*.055;if(halo)(halo.material as T.SpriteMaterial).opacity=.8+.12*Math.sin(time*1.1);}};
+ if(options.light!==false)root.add(new T.PointLight(0xffe0a8,30,9,2));
+ return {root,update(time:number){root.position.y=baseY+Math.sin(time*.85)*.12;star.rotation.y=time*.3;star.rotation.z=Math.sin(time*.6)*.055;if(halo)(halo.material as T.SpriteMaterial).opacity=.8+.12*Math.sin(time*1.1);}};
 }

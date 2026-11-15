@@ -4,7 +4,12 @@ import type {solidOcclusion} from '../scene/solidOcclusion';
 
 const MAX_LABELS=16;
 const REMOTE_RANGE_SQ=18*18;
-type NamedAvatar={avatar:Avatar;visitor:{name:string}};
+type NamedAvatar={avatar:Avatar;visitor:{name:string;pose?:string}};
+/** Just above a ghost's dome. A seated ghost sits 0.21 m forward of its seat and a little lower (see Ghosts). */
+export function ghostTop(root:T.Object3D,sitting:boolean,out:T.Vector3){
+ const forward=sitting?.21:0,yaw=root.rotation.y+Math.PI;
+ return out.set(root.position.x+Math.sin(yaw)*forward,root.position.y+(sitting?1.36:1.4)+.37+.03,root.position.z+Math.cos(yaw)*forward);
+}
 type LabelBounds={x:number;y:number;halfWidth:number};
 
 /** Reuse a small DOM pool so name tags add no WebGL draw calls. */
@@ -25,14 +30,15 @@ export class VisitorNames{
   const left=(innerWidth-width)/2,top=(innerHeight-height)/2;
   this.placed.length=0;
   camera.updateMatrixWorld();
-  const show=({avatar,visitor:{name}}:NamedAvatar,mine=false)=>{
+  const show=({avatar,visitor:{name,pose}}:NamedAvatar,mine=false)=>{const sitting=pose==='sit';
    if(!avatar.root.visible||!name)return;
-   avatar.head.getWorldPosition(this.anchor);
-   this.anchor.y+=.48*avatar.root.scale.y;
+   // Others are ghosts (head centre 1.4 m, dome top +0.37 m): the tag floats just above the dome.
+   if(mine){avatar.head.getWorldPosition(this.anchor);this.anchor.y+=.48*avatar.root.scale.y;}
+   else ghostTop(avatar.root,sitting===true,this.anchor);
    this.screen.copy(this.anchor).project(camera);
    if(Math.abs(this.screen.z)>1||Math.abs(this.screen.x)>1||Math.abs(this.screen.y)>1)return;
    if(occluded?.(camera.position,this.anchor,.1))return;
-   const halfWidth=Math.min(80,name.length*6+9+(mine?12:0));
+   const halfWidth=Math.min(80,name.length*6+11+(mine?10:0));
    const x=Math.round((this.screen.x+1)*width/2),y=Math.round((1-this.screen.y)*height/2);
    if(x<halfWidth||x>width-halfWidth||y<22)return;
    if(this.placed.some(p=>Math.abs(p.x-x)<p.halfWidth+halfWidth&&Math.abs(p.y-y)<22))return;

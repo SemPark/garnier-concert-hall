@@ -29,6 +29,10 @@ html,body{overscroll-behavior:none}
 .ticket-hall{position:absolute;box-sizing:border-box;border:2px solid #cdbb98;border-radius:8px;pointer-events:none}
 .ticket-rear-gallery{position:absolute;box-sizing:border-box;background:#e4d8c1;border-top:4px solid #bfa877;text-align:center;padding-top:60px;font-size:13px;color:#8c795d;pointer-events:none}.ticket-stage small{display:block;letter-spacing:2px;font-size:11px;margin:4px}.ticket-floor-title,.ticket-left-title,.ticket-right-title{position:absolute;font-size:16px;text-align:center}.ticket-floor-title{left:365px;width:70px}.ticket-left-title,.ticket-right-title{width:80px;font-size:13px;line-height:1.3}.ticket-row{position:absolute;left:266px;width:24px;line-height:21px;text-align:center;color:#93806a;font-size:10px;pointer-events:none}.ticket-seat{position:absolute;width:20px;height:22px;padding:0;border:1px solid #98664d;border-radius:5px 5px 3px 3px;background:#c39170;color:#fff!important;line-height:20px;font:10px/20px system-ui;cursor:pointer;box-shadow:inset 0 -3px #0002}.ticket-seat.balcony{background:#9b8c6c;border-color:#73664e}.ticket-seat.selected{background:#bf820c;outline:3px solid #e7b73b;z-index:2}.ticket-seat.mine{background:#32816e;border-color:#286855}.ticket-seat.occupied{background:#d3cec3;border-color:#bfb8aa;color:#a59b8d!important;box-shadow:none}.ticket-seat:focus-visible{outline:3px solid #213c7f}.ticket-entry{position:absolute;z-index:1;background:#f5f0e5;left:340px;width:120px;border:1px solid #bbaa8a;border-radius:6px;text-align:center;padding:8px;font-size:14px}.ticket-footer{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #d9cbb3}.ticket-footer strong{font-size:15px}.ticket-footer small{display:block;margin-top:5px;font-size:11px;color:#86745b}.ticket-confirm{background:#55402b;border:0;border-radius:9px;padding:13px 18px;color:#fff!important;cursor:pointer;white-space:nowrap}.ticket-confirm:disabled{opacity:.35;cursor:default}
 @media(max-width:600px){.ticket-dialog{width:100vw;height:100dvh;border:0;border-radius:0}.ticket-heading{padding:14px 16px}.ticket-toolbar{padding:10px 12px;flex-wrap:wrap}.ticket-footer{padding:12px}.ticket-footer small{max-width:180px;line-height:1.5}.ticket-confirm{font-size:12px;padding:12px}.ticket-legend{gap:9px}}
+.ticket-seat.ghost{display:grid;place-items:center;background:#545164;border-color:#413c53;cursor:default;opacity:1}
+.ticket-seat.ghost svg{width:15px;height:15px}
+.ticket-legend .ghost{display:inline-flex;align-items:center;gap:4px;color:#545164}
+.ticket-legend .ghost svg{width:13px;height:13px;border-radius:3px;padding:1px;box-sizing:border-box;background:#545164;color:#fff}
 
 /* Reaction panel: eight gestures above the action bar, number keys 1–8. */
 .reaction-panel{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:0 auto 10px;padding:9px;width:min(340px,calc(100vw - 32px));border:1px solid #dac08a40;border-radius:18px;background:var(--panel);pointer-events:auto}
@@ -317,8 +321,17 @@ body:has(.conducting-experience) .mobile-joystick{visibility:hidden;pointer-even
 
 .conducting-camera-area{position:absolute;inset:0;z-index:0;touch-action:none;cursor:grab}.conducting-camera-area:active{cursor:grabbing}.conducting-experience>header,.conducting-experience>.conducting-pad,.conducting-camera-help{position:relative;z-index:2}.conducting-camera-help{align-self:flex-end;display:flex;gap:12px;align-items:center;font-size:11px;background:#211b14c9;padding:8px 12px;border-radius:20px;max-width:90%}.conducting-camera-help span{pointer-events:none}.conducting-camera-help button{padding:7px 10px;font-size:12px}.conducting-instruction{position:relative;z-index:1;pointer-events:none}.conducting-pad{flex-shrink:0}@media(max-width:540px){.conducting-camera-help{align-self:center;max-width:100%;font-size:10px}.conducting-camera-help button{flex-shrink:0}}
 
-/* Plain wordmark beside the top-right controls. */
-.tools-brand{font-family:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:15px;font-weight:400;letter-spacing:0;padding:0 12px;color:var(--gold);white-space:nowrap}
+/* The top-right wordmark opens the hall selector. */
+.topbar .tools{position:relative}
+.topbar .tools:has(.tools-brand[aria-expanded=true]){z-index:21}
+.tools-brand{display:flex;align-items:center;gap:6px;min-height:35px;border-radius:18px;background:transparent;font-size:15px;padding:0 12px;color:var(--gold);white-space:nowrap}
+.tools-brand:hover,.tools-brand[aria-expanded=true]{background:#e8d4a61a}
+.hall-picker-caret{width:5px;height:5px;border-right:1px solid;border-bottom:1px solid;transform:translateY(-1px) rotate(45deg)}
+.hall-choices{position:absolute;top:calc(100% + 8px);right:0;width:164px;padding:5px;border:1px solid #d0b98b45;border-radius:15px;background:#211b16f5;box-shadow:0 8px 24px #0005;pointer-events:auto}
+.hall-choices a{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px;padding:0 11px;border-radius:10px;color:#f3e7cc;text-decoration:none;font-size:13px}
+.hall-choices a:hover,.hall-choices a:focus-visible,.hall-choices a[aria-current=page]{background:#e8d4a61a}
+.hall-choices a:focus-visible{outline:1px solid var(--gold);outline-offset:-1px}
+.hall-choices a span{color:var(--gold);font-size:10px}
 @media(max-width:540px){.tools-brand{font-size:13px;padding:0 8px}}
 
 /* Music and controls share one mobile header, with details opening below it. */
@@ -344,11 +357,11 @@ body:has(.conducting-experience) .mobile-joystick{visibility:hidden;pointer-even
 }
 
 .visitor-names{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-.visitor-names span{position:absolute;top:0;left:0;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 8px;border-radius:10px;background:#211b16cc;color:#fff0d5;font:500 12px/16px system-ui,sans-serif;text-shadow:0 1px 2px #0008}
+.visitor-names span{position:absolute;top:0;left:0;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 10px;border-radius:14px;background:#f3ebd9;color:#2a241d;font:600 12px/18px system-ui,sans-serif}
 
 #world:has(.probe-canvas){background:#151310}
 /* Your own name tag: light pill with a "나" badge. */
-.visitor-names span.self{display:flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;border-radius:14px;background:#f3ebd9;color:#2a241d;text-shadow:none;font-weight:600}
+.visitor-names span.self:not([hidden]){display:flex;align-items:center;gap:6px;padding:3px 10px 3px 3px;border-radius:14px;background:#f3ebd9;color:#2a241d;text-shadow:none;font-weight:600}
 .visitor-names span.self b{display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;background:#6f7458;color:#fff;font:600 10px/1 system-ui,sans-serif}
 /* Seat map zoom: a stacked +/− card and a separate whole-map button in the bottom-right corner. */
 .ticket-side-zoom,.ticket-zoom-level{display:none!important}
@@ -365,3 +378,143 @@ body:has(.conducting-experience) .mobile-joystick{visibility:hidden;pointer-even
 .ticket-viewport{touch-action:none}.ticket-touch-hint{position:absolute;z-index:6;top:12px;left:50%;transform:translateX(-50%);padding:9px 14px;border-radius:18px;background:#30291fee;color:#f7e9cd;font-size:12px;white-space:nowrap;pointer-events:none}
 .ticket-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:0}
 .ticket-row{left:155px;width:30px}
+
+.ticket-table{position:absolute;box-sizing:border-box;border-radius:50%;background:#efe6d6;border:1px solid #bbaa8a;color:#9a886d;font:10px/1 system-ui;display:flex;align-items:center;justify-content:center;pointer-events:none}
+
+.dish-choices{display:grid;grid-template-columns:repeat(3,auto);gap:8px}.dish-choices button{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:64px}.dish-choices b{font-size:26px;line-height:1.1;font-weight:400}.dish-choices span{font-size:11px}
+
+/* The eat button glows and nudges while a dish waits, so it is the obvious thing to press. */
+.actionbar button.eat-ready{position:relative;color:#ffe2a3;animation:eat-pulse 1.6s ease-in-out infinite}.actionbar button.eat-ready::after{content:'';position:absolute;inset:2px;border-radius:12px;box-shadow:0 0 0 2px #e8b75a,0 0 14px 3px #e8b75a99;pointer-events:none;animation:eat-glow 1.6s ease-in-out infinite}@keyframes eat-pulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}@keyframes eat-glow{0%,100%{opacity:.55}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.actionbar button.eat-ready,.actionbar button.eat-ready::after{animation:none}}
+.dish-icon{display:inline-flex;align-items:center;justify-content:center;font-size:20px;line-height:1;font-weight:400;width:22px;height:22px}
+
+/* Throw the table's food and drink away: a small round bin above the action bar. */
+.dish-trash{pointer-events:auto;width:40px;height:40px;padding:0;display:grid;place-items:center;border-radius:50%;background:var(--panel);border:1px solid #dac08a40;color:#cbbfa6;backdrop-filter:blur(14px)}.dish-trash:hover{background:#c6aa7022;color:#ffe7b3}
+
+.usher-speech {
+  position: fixed;
+  z-index: 3;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(232px, calc(100vw - 24px));
+  padding: 8px 12px;
+  border: 1px solid #a2875a;
+  border-radius: 8px;
+  background: #261b29;
+  color: #fff0d5;
+  box-shadow: 0 3px 12px #160c19a0;
+  font: 600 14px/1.5 system-ui, sans-serif;
+  text-align: center;
+  white-space: pre-line;
+  word-break: keep-all;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+}
+.usher-speech::after {
+  content: "";
+  position: absolute;
+  left: calc(50% + var(--tail-offset, 0px));
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  background: #261b29;
+  border-right: 1px solid #a2875a;
+  border-bottom: 1px solid #a2875a;
+  transform: translateX(-50%) rotate(45deg);
+}
+.usher-speech[hidden] { display: none; }
+
+@media (max-width: 600px) {
+  .usher-speech { max-width: min(175px, calc(100vw - 24px)); padding: 6px 9px; font-size: 12px; }
+}
+
+/* Keep the viewfinder and the exported canvas free of the usual interface. */
+body.photo-active #root > :not(.photo-mode),
+body.photo-active #world > :not(canvas){display:none!important}
+.photo-mode{position:fixed;inset:0;z-index:100;pointer-events:none;color:#f3e6ca}
+.photo-mode button,.photo-mode a,.photo-mode input{pointer-events:auto}
+.photo-mode button,.photo-mode a{border:1px solid #dcc49355;background:#231c14e8;color:inherit;border-radius:24px;padding:12px 18px;font:inherit;text-decoration:none;cursor:pointer}
+.photo-mode button:focus-visible,.photo-mode a:focus-visible{outline:2px solid #f5d991;outline-offset:3px}
+.photo-mode .photo-close{position:absolute;right:max(20px,env(safe-area-inset-right));top:max(20px,env(safe-area-inset-top));width:46px;height:46px;padding:0;font-size:28px;z-index:2}
+.photo-controls{position:absolute;bottom:max(20px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(470px,calc(100% - 32px));text-align:center;border-radius:24px;background:#211a13dc;padding:14px 20px;box-sizing:border-box}
+.photo-controls p{font-size:12px;margin:0 0 12px;color:#e5d8be}
+.photo-actions{display:grid;grid-template-columns:1fr 76px 1fr;align-items:center;gap:8px;margin-top:13px}
+.photo-actions>button:first-child{font-size:12px;padding:9px}
+.photo-mode .photo-shutter{width:64px;height:64px;justify-self:center;border:2px solid #f9edd5;background:transparent;padding:5px;border-radius:50%}
+.photo-shutter span{display:block;width:100%;height:100%;border-radius:50%;background:#f9edd5}
+.photo-shutter:disabled{opacity:.5}
+.photo-status{font-size:12px}
+.photo-preview{position:absolute;inset:0;background:#15120ff5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:70px 16px 24px;box-sizing:border-box;pointer-events:auto}
+.photo-preview img{display:block;max-width:100%;max-height:calc(100dvh - 205px);object-fit:contain;user-select:auto;-webkit-touch-callout:default}
+/* The gold card design is drawn into the photo itself (PhotoMode.tsx); the preview only rounds its corners. */
+.photo-preview img{border-radius:18px;box-shadow:0 18px 50px #0009}
+.photo-preview-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
+.photo-preview p{font-size:12px;margin:0;text-align:center;color:#ddcdb2}
+
+.photo-presets{display:flex;justify-content:center;gap:8px}
+.photo-mode .photo-presets button{padding:8px 20px;font-size:13px;background:transparent;border-color:transparent}
+.photo-mode .photo-presets button[aria-pressed="true"]{background:#e7ce98;color:#2b2117}
+
+.photo-controls{display:flex;align-items:center;justify-content:center;gap:14px;width:max-content;max-width:calc(100% - 24px);padding:8px 14px}
+.photo-controls .photo-guide{position:absolute;bottom:100%;left:0;right:0;margin-bottom:8px;text-shadow:0 1px 4px #000}
+.photo-actions{display:contents}
+.photo-mode .photo-presets button{padding:8px 12px;white-space:nowrap}
+.photo-mode .photo-shutter{width:54px;height:54px;flex-shrink:0}
+.photo-status:empty{display:none}
+.photo-status:not(:empty){position:absolute;bottom:100%;margin-bottom:28px}
+
+.queen-game-prompt{top:auto;bottom:clamp(105px,18vh,180px);transform:translateX(-50%);padding:6px}
+.queen-game-prompt .cafe-choices button{min-width:96px;color:#ffe6b6}
+.table-prompt-close{width:44px;height:44px;top:-22px;right:-22px;background:transparent;border:0}
+.table-prompt-close::before{content:"";position:absolute;inset:8px;background:#221c17;border:1px solid #dac08a66;border-radius:50%}
+.table-prompt-close svg{position:relative}
+.table-prompt-close:hover::before{background:#4c3e2d}
+
+.queen-heart-fill{fill:#ff536b;stroke:#ff536b}
+.actionbar button .wand-hearts{display:block;color:#ff6579;font:700 14px/1 system-ui;letter-spacing:1px}
+.discard-actions{display:flex;justify-content:center;gap:8px}
+.wish-flower-trash{width:54px;height:44px;grid-auto-flow:column;gap:3px;justify-content:center}
+.wish-flower-trash span{font-size:18px}
+
+.photo-mode .photo-wand{
+ min-width:44px;min-height:44px;padding:0 8px;flex-shrink:0;border-radius:12px;
+ color:#ff6579;background:#3b2430;border:1px solid #ff657980;
+ font:700 14px/1 system-ui;letter-spacing:1px;
+}
+.photo-mode .photo-wand:hover:enabled{background:#553140}
+
+.tea-prompt .cafe-choices button{min-width:76px;min-height:76px;padding:14px}.tea-prompt .cafe-choices button>b{font-size:38px;line-height:1}
+
+.wish-action{position:relative;touch-action:none;user-select:none;-webkit-touch-callout:none}
+.wish-action b{font-size:22px}
+.wish-action.holding{background:linear-gradient(#e9c77b33,#e9c77b33);box-shadow:inset 0 -3px #e9c77b}
+.ticket-table.story-table-symbol svg{width:56%;height:56%}
+.ticket-table.story-table-symbol.tarot{color:#624588;background:#eee4f5;border-color:#a48dbd}
+.ticket-table.story-table-symbol.queen{color:#982b44;background:#f4e1e4;border-color:#bf8693}
+.ticket-table.story-table-symbol.tea{color:#53633d;background:#e8ecd9;border-color:#939e77}
+
+.galaxy-settings{margin:18px 0;padding:0 12px;border:1px solid #a68c5b50;border-radius:6px}
+.galaxy-settings legend{padding:0 6px;color:var(--gold);font-size:11px}
+.galaxy-settings .setting-row{margin:12px 0}
+.settings-info.galaxy-credits{display:grid;gap:6px}
+
+.dance-controls{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:22;display:flex;align-items:center;gap:6px;width:max-content;padding:5px;border:1px solid #9b8552;border-radius:28px;background:#211d15f5}
+.dance-controls button{min-height:44px;padding:0 14px;border-radius:22px;background:transparent;color:#eadbb7;font-size:13px}
+.dance-controls :is(.dance-move,.dance-stop,.dance-npc){display:grid;place-items:center;width:44px;padding:0}
+.dance-controls .dance-move[aria-pressed="false"]:hover:enabled{background:#5b472c;color:#fff0cd}
+.dance-controls .dance-move[aria-pressed="true"]{background:#e3c37f;color:#312313;box-shadow:inset 0 0 0 1px #ffdfa0}
+.dance-controls .dance-npc{color:var(--gold);background:#67513155}
+.dance-controls .dance-npc:hover{background:#675131}
+.dance-exit{padding-inline-start:6px;border-inline-start:1px solid #ab946354}
+.dance-controls .dance-stop{background:#4f302b;color:#ffd9cb;box-shadow:inset 0 0 0 1px #b56b584f}
+.dance-controls .dance-stop:hover:enabled{background:#704036;color:#fff0e9}
+
+.actionbar button.dance-start{min-width:44px;min-height:44px;color:var(--gold)}
+
+.dance-moves{display:grid;grid-template-columns:repeat(6,44px);gap:4px}
+@media(max-width:420px){.dance-moves{grid-template-columns:repeat(3,44px)}}
+.mirror-hint{display:flex;align-items:center;gap:10px;max-width:100%;padding:3px 4px 3px 14px;border:1px solid #b69a603f;border-radius:16px;background:var(--panel);color:#efe1c4;text-align:left}
+.mirror-hint p{margin:0;font-size:12px;line-height:1.45}
+.mirror-hint button{min-height:44px;flex-shrink:0;border-radius:12px;background:transparent;color:var(--gold)}
+.mirror-hint-close{display:grid;place-items:center;width:44px}
+.mirror-hint button:hover{background:#c9a76f2b}

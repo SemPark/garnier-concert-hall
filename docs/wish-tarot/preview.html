@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+ <meta charset="UTF-8"/>
+ <meta name="viewport" content="width=device-width,initial-scale=1"/>
+ <title>PLEEE · 소원 타로 22장</title>
+ <style>
+  *{box-sizing:border-box}body{margin:0;background:#e9dfce;color:#302725;font-family:Georgia,'Apple SD Gothic Neo',serif}
+  main{max-width:1260px;margin:0 auto;padding:36px 44px}header{display:flex;justify-content:space-between;align-items:end;border-bottom:1px solid #b18a4b;padding-bottom:18px;margin-bottom:26px}
+  h1{font-size:28px;font-weight:500;margin:0}header p{font-size:13px;margin:0;color:#682c3c}section{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:24px}
+  figure{margin:0}figcaption{font-size:15px;line-height:1.7;text-align:center;margin:18px 0 0;word-break:keep-all}footer{margin-top:28px;text-align:center;font-size:12px;color:#756454}
+  .tarot-card-frame.is-ready{animation:none!important;box-shadow:0 8px 24px #34251a16}
+  @media(max-width:700px){main{padding:24px}header{display:block}header p{margin-top:12px}section{grid-template-columns:repeat(2,minmax(0,1fr))}}
+ </style>
+</head>
+<body>
+ <main><header><h1>PLEEE · 소원 타로</h1><p>메이저 아르카나 22장</p></header><section id="cards"></section></main>
+ <script type="module">
+  import React from 'react';
+  import {createRoot} from 'react-dom/client';
+  import {TarotCardFrame} from '/src/tarot/TarotCardFrame.tsx';
+  import {tarotDeck} from '/src/tarot/deck.ts';
+  import '/src/wishTarot.css';
+  createRoot(document.getElementById('cards')).render(tarotDeck.map(({card,src})=>React.createElement('figure',{key:card.id},
+   React.createElement(TarotCardFrame,{card,src,ready:true,onLoad:()=>{},onError:()=>{document.body.dataset.imageError='true';}}),
+   React.createElement('figcaption',null,card.interpretation),
+  )));
+ </script>
+</body>
+</html>

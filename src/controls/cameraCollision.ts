@@ -5,6 +5,6 @@ export function constrainCamera(origin:T.Vector3,desired:T.Vector3,walls:readonl
  direction.copy(desired).sub(origin);const length=direction.length();if(length<1e-6)return desired.clone();direction.divideScalar(length);
  right.crossVectors(direction,new T.Vector3(0,1,0));if(right.lengthSq()<1e-6)right.set(1,0,0);else right.normalize();
  let allowed=length;
- for(const [side,up]of [[0,0],[-1,0],[1,0],[0,-1],[0,1]]){offset.copy(right).multiplyScalar(side*radius);offset.y+=up*radius;from.copy(origin).add(offset);ray.set(from,direction);ray.far=length+radius;const hit=ray.intersectObjects(walls as T.Object3D[],false)[0];if(hit)allowed=Math.min(allowed,Math.max(.025,hit.distance-radius));}
+ for(const [side,up]of [[0,0],[-1,0],[1,0],[0,-1],[0,1]]){offset.copy(right).multiplyScalar(side*radius);offset.y+=up*radius;from.copy(origin).add(offset);ray.set(from,direction);ray.far=length+radius;const hit=ray.intersectObjects(walls as T.Object3D[],false).find(hit=>hit.point.y<=(hit.object.userData.openHallCutoff?.value??Infinity));if(hit)allowed=Math.min(allowed,Math.max(.025,hit.distance-radius));}
  return origin.clone().addScaledVector(direction,allowed);
 }

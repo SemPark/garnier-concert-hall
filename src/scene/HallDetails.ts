@@ -26,8 +26,8 @@ function haloMaterial(){
  const map=new T.DataTexture(data,n,n);map.needsUpdate=true;map.colorSpace=T.SRGBColorSpace;
  return halo=new T.SpriteMaterial({map,transparent:true,depthWrite:false,blending:T.AdditiveBlending,color:0xffc463,opacity:.35});
 }
-export function crystalChandelier(scene:T.Scene,x:number,z:number){
- const g=new T.Group();g.position.set(x,17.5,z);g.userData.landmark='crystal-chandelier';scene.add(g);
+export function crystalChandelier(scene:T.Scene,x:number,y:number,z:number){
+ const g=new T.Group();g.position.set(x,y,z);g.userData.landmark='crystal-chandelier';scene.add(g);
  cylinder(g,.018,H.height-21.44,[0,(H.height-21.44)/2+3.94,0],dark);
  const skin=new T.Mesh(silhouette,crystalMaterial());skin.userData.fullDetail=true;skin.userData.crystalSilhouette=true;g.add(skin);
  for(const [r,y]of [[.45,3.94],[1.23,1.08],[.83,.3]]){const rim=new T.Mesh(ring,material(light,.6,.28));rim.rotation.x=Math.PI/2;rim.scale.set(r,r,1);rim.position.y=y;rim.userData.fullDetail=true;g.add(rim);}

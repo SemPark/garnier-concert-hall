@@ -12,7 +12,8 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "test:integration": "node --import tsx tests/integration.ts",
     "preview": "wrangler dev --ip 127.0.0.1 --port 8787",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "dev:motion": "vite --open /motion-lab.html"
   },
   "dependencies": {
     "react": "19.3.1",

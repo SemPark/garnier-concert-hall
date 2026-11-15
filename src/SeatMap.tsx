@@ -1,13 +1,29 @@
 import {memo,useEffect,useLayoutEffect,useRef,useState} from 'react';
-import {SEATS,SEAT_GRADES,seatGrade,seatLabel,seatNumber,type Seat} from '../shared/venue';
+import {DINNER_TABLES,NPC_SEATS,SEATS,SEAT_GRADES,TABLE_RADIUS,seatGrade,seatLabel,seatNumber,type Seat} from '../shared/venue';
 import type {SeatClaim} from '../shared/protocol';
-import {seatMapPosition,seatMapRowY,SEAT_MAP_SIZE,SEAT_MAP_PARTS as M,mapX} from './seatMapLayout';
+import {QUEEN_SEAT,TAROT_HOST_SEAT,TEA_TABLE} from '../shared/storyGuestSeats';
+import {seatMapPosition,SEAT_MAP_SIZE,SEAT_MAP_PARTS as M,mapX,mapY,SEAT_MAP_SCALE} from './seatMapLayout';
+const TABLE_PX=TABLE_RADIUS*SEAT_MAP_SCALE;
+const visibleGrades=SEAT_GRADES.filter(grade=>[...SEATS,...NPC_SEATS].some(seat=>seatGrade(seat)===grade));
+
+const storyTableSymbols:Partial<Record<number,{label:string;theme:string;path:string}>>={
+ [TAROT_HOST_SEAT.row]:{label:'별빛 타로',theme:'tarot',path:'M9.5 21h5V11h-5v10ZM12 11V9m0-6.5c1.6 1.8 2.2 3 2.2 4a2.2 2.2 0 0 1-4.4 0c0-1 .6-2.2 2.2-4Z'},
+ [QUEEN_SEAT.row]:{label:'하트 여왕 카드 게임',theme:'queen',path:'M12 20S3 14.5 3 8.8a4.5 4.5 0 0 1 9-1 4.5 4.5 0 0 1 9 1C21 14.5 12 20 12 20Z'},
+ [TEA_TABLE]:{label:'모자장수의 차',theme:'tea',path:'M4 9h13v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5Zm13 1h2a2 2 0 0 1 0 4h-2M3 21h16M8 6c-2-2 2-2 0-4m5 4c-2-2 2-2 0-4'},
+};
+
+function GhostSeatIcon(){
+ return <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+  <path fill="currentColor" fillRule="evenodd" d="M2 7a6 6 0 1 1 12 0v7l-3-2-3 2-3-2-3 2V7Zm4.75.5a1 1 0 1 0-2 0 1 1 0 0 0 2 0Zm4.5 0a1 1 0 1 0-2 0 1 1 0 0 0 2 0Z"/>
+ </svg>;
+}
+
 export const SeatMap=memo(function SeatMap({open,claims,selfId,connected,onClose,onChoose}:{open:boolean;claims:Record<string,SeatClaim>;selfId:string;connected:boolean;onClose:()=>void;onChoose:(id:string)=>void}){
  const [prepared,setPrepared]=useState(0);
  const [showZoomHint,setShowZoomHint]=useState(false);
  const [measured,setMeasured]=useState(false),[selected,setSelected]=useState<Seat|null>(null),[zoom,setZoom]=useState(1),[fit,setFit]=useState(.5);
  const viewport=useRef<HTMLDivElement>(null),dialog=useRef<HTMLDialogElement>(null);
- // Prepare the hidden map in small tasks once, instead of remounting 440 buttons on every visit.
+ // Prepare visitor seats in small tasks once, rather than remounting the map on every visit.
  useEffect(()=>{if(prepared>=SEATS.length)return;const timer=setTimeout(()=>setPrepared(n=>Math.min(SEATS.length,n+32)),24);return()=>clearTimeout(timer);},[prepared]);
  useEffect(()=>{if(!open){dialog.current?.close();setShowZoomHint(false);return;}setShowZoomHint(true);const hintTimer=setTimeout(()=>setShowZoomHint(false),3500);setSelected(null);setZoom(1);dialog.current?.showModal();const el=viewport.current!;const resize=new ResizeObserver(()=>{if(el.clientWidth<40||el.clientHeight<40)return;setFit(Math.min((el.clientWidth-20)/SEAT_MAP_SIZE.width,(el.clientHeight-20)/SEAT_MAP_SIZE.height));setMeasured(true);});resize.observe(el);return()=>{clearTimeout(hintTimer);resize.disconnect();};},[open]);
  const zoomRef=useRef(zoom);zoomRef.current=zoom;
@@ -43,8 +59,8 @@ export const SeatMap=memo(function SeatMap({open,claims,selfId,connected,onClose
  // Opens showing the whole hall (zoom 1 = the full map fits); zoom in from there.
  const scale=fit*zoom,available=selected&&(!claims[selected.id]||claims[selected.id].visitorId===selfId);
  return <dialog ref={dialog} className="ticket-dialog" onCancel={e=>{e.preventDefault();onClose();}} aria-label="전체 좌석 선택">
-  <div className="ticket-heading"><div><h2>나의 자리</h2><p>전체 {SEATS.length}석</p></div><button autoFocus onClick={onClose} aria-label="좌석 선택 닫기">✕</button></div>
-  <div className="ticket-toolbar"><div className="ticket-legend">{SEAT_GRADES.map(g=><span key={g} className={`grade grade-${g}`}><i/>{g}석</span>)}<span className="selected">● 선택</span><span className="mine">● 내 자리</span><span className="occupied">● 이용 중</span></div></div>
+  <div className="ticket-heading"><div><h2>나의 자리</h2><p>관객용 좌석 {SEATS.length}석</p></div><button autoFocus onClick={onClose} aria-label="좌석 선택 닫기">✕</button></div>
+  <div className="ticket-toolbar"><div className="ticket-legend">{visibleGrades.map(g=><span key={g} className={`grade grade-${g}`}><i/>{g}석</span>)}<span className="selected">● 선택</span><span className="mine">● 내 자리</span><span className="occupied">● 이용 중</span><span className="ghost"><GhostSeatIcon/>유령 착석</span></div></div>
   <div className="ticket-map-area">
    {showZoomHint&&<div className="ticket-touch-hint" role="status">두 손가락으로 확대·축소할 수 있어요</div>}
    {/* Zoom stack in the bottom-right corner: zoom in / out together, the whole-map view below. */}
@@ -57,9 +73,20 @@ export const SeatMap=memo(function SeatMap({open,claims,selfId,connected,onClose
    </div>
   <div className="ticket-viewport" ref={viewport}><div className="ticket-scroll" style={{width:SEAT_MAP_SIZE.width*scale,height:SEAT_MAP_SIZE.height*scale}}><div className="ticket-map" style={{width:SEAT_MAP_SIZE.width,height:SEAT_MAP_SIZE.height,transform:`scale(${scale})`}}>
    <div className="ticket-hall" style={M.hall}/><div className="ticket-stage" style={M.stage}>무 대 <small>오케스트라</small></div>
-   <span className="ticket-aisle" style={{left:mapX(5.5)-6,top:seatMapRowY(1),height:M.floorBottom-seatMapRowY(1)}}>통로</span>
-   <span className="ticket-cross-aisle" style={{top:(seatMapRowY(10)+seatMapRowY(11))/2+5}}>가로 통로</span>
-   {Array.from({length:20},(_,i)=><span className="ticket-row" key={i} style={{top:seatMapRowY(i+1)}}>{i+1}열</span>)}
+   {DINNER_TABLES.map(table=>{
+    const symbol=storyTableSymbols[table.id];
+    return <span className={`ticket-table${symbol?` story-table-symbol ${symbol.theme}`:''}`} key={table.id}
+     style={{left:mapX(table.x)-TABLE_PX,top:mapY(table.z)-TABLE_PX,width:TABLE_PX*2,height:TABLE_PX*2}}>
+     {symbol?<svg viewBox="0 0 24 24" role="img" aria-label={symbol.label} focusable="false">
+      <path d={symbol.path} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+     </svg>:table.id}
+    </span>;
+   })}
+   {NPC_SEATS.map(seat=>{
+    const {x,y}=seatMapPosition(seat);
+    const label=`${seatGrade(seat)}석 ${seatLabel(seat)} · 유령 착석`;
+    return <button key={seat.id} type="button" className="ticket-seat ghost" style={{left:x,top:y}} disabled aria-label={label} title={label}><GhostSeatIcon/></button>;
+   })}
    {SEATS.slice(0,prepared).map(s=>{const claim=claims[s.id],mine=!!claim&&claim.visitorId===selfId,occupied=!!claim&&!mine,pos=seatMapPosition(s);return <button key={s.id} className={`ticket-seat ${s.level} grade-${seatGrade(s)} ${selected?.id===s.id?'selected':mine?'mine':occupied?'occupied':''}`} style={{left:pos.x,top:pos.y}} disabled={!connected||occupied} aria-label={`${seatGrade(s)}석 ${seatLabel(s)}${occupied?' 이용 중':mine?' 내 자리':''}`} aria-pressed={selected?.id===s.id} title={`${seatGrade(s)}석 · ${seatLabel(s)}`} onClick={()=>setSelected(s)}>{seatNumber(s)}</button>;})}
   </div></div></div></div>
   <div className="ticket-footer"><div><strong>{selected?`${seatGrade(selected)}석 · ${seatLabel(selected)}`:'원하는 좌석을 선택하세요'}</strong><small>{selected?.level==='balcony'?'뒤쪽 문으로 나가 복도 계단을 올라 2층 좌석에 앉습니다.':'확대 후 지도를 밀어 좌석을 선택할 수 있어요.'}</small></div><button className="ticket-confirm" disabled={!available||!connected} onClick={()=>{if(selected){onChoose(selected.id);onClose();}}}>이 좌석으로 이동</button></div>

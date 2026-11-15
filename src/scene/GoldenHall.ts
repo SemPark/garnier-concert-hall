@@ -9,7 +9,7 @@ import * as T from 'three';
 import {buildHallPracticalLights,hallPanelSconce,hallDoorHeaderLight,hallFlatCeilingLight} from './HallLighting';
 import {finishBuild} from './buildBudget';
 import {wallWithOpenings,box,cylinder,sphere,line,text,material} from './primitives';
-import {GOLDEN_HALL as H} from '../../shared/goldenHall';
+import {GOLDEN_HALL as H,HALL_CHANDELIERS} from '../../shared/goldenHall';
 import {STAGE,STAGE_FLOOR} from '../orchestra/layout';
 import {crystalChandelier,paintedCeiling,friezeMaterial} from './HallDetails';
 import {WALL_DATUM,WALL_LEVELS,buildPerimeterCornices,buildPerimeterFriezes} from './HallWallBands';
@@ -332,13 +332,23 @@ export function rearFacade(scene:T.Scene){
  // Gilded beam under the gallery front, and warm lamps in the shadowed standing area beneath.
  for(const [z,xs]of [[2.2,[-10.5,-5.25,0,5.25,10.5]],[WALL_DATUM.rear-46,[-5.25,0,5.25]]] as const)for(const x of xs)hallFlatCeilingLight(g,x,7.86,z);
  // The two side doors are closed; the centre door is the foyer entrance.
- for(const x of [-doorX,doorX]){timberDoor(g,x,.15,3.8,6.4,.35);hallImage(g,'relief',3.8,.7,x,7.1,.65);}
+ for (const x of [-doorX,doorX]) {
+  const door = timberDoor(g,x,.15,3.8,6.4,.35);
+  hallImage(g,'relief',3.8,.7,x,7.1,.65);
+  // The positive world-X door is beside the mirror on the rear landing.
+  if (x !== -doorX) continue;
+  const target = new T.Mesh(new T.PlaneGeometry(3.8,6.4),new T.MeshBasicMaterial({visible:false}));
+  target.position.set(0,3.2,.46);
+  target.userData.walkSurface = true;
+  target.userData.galleryEntrance = true;
+  door.add(target);
+ }
  for(const x of [0]){
   const door=timberDoor(g,x,.15,3.8,6.4,.35);
   door.userData.rearMainDoor=true;door.traverse(o=>{o.userData.fullDetail=true;});
   box(g,[3.9,.72,.08],[x,7.1,.65],P.light);box(g,[3.72,.55,.05],[x,7.1,.71],0x32261d);if(typeof document!=='undefined')text(g,'pleee lobby',3.2,[x,7.1,.75],'#e7c77a');
  }
- const rail=new T.Group();rail.position.set(0,H.balconyHeight,GALLERY_BRIDGE.minZ+.4);rail.rotation.y=Math.PI;scene.add(rail);balustrade(rail,25);
+ const rail=new T.Group();rail.position.set(0,H.balconyHeight,GALLERY_BRIDGE.minZ+.4);rail.rotation.y=Math.PI;rail.userData.landmark='gallery-rail';scene.add(rail);balustrade(rail,25);
  // Only near-camera decoration cuts away; the structural hall shell remains solid.
  g.traverse(o=>{if(o instanceof T.Mesh){if(!Array.isArray(o.material)&&(o.material.userData.woodTone&&o.material.userData.woodTone!=='door'||o.material instanceof T.MeshLambertMaterial&&[0x3a281c,0x7a5634,0x2c1f16,0x9a6a3f,0x3e3025].includes(o.material.color.getHex())))o.material=woodMaterial('wall-panel');if(!o.userData.wallSurface)o.userData.cameraOccluder=true;o.userData.fullDetail=true;}});return g;
 }
@@ -419,7 +429,7 @@ export function* buildGoldenHallSteps(scene:T.Scene){
  cameraWalls.push(...rearScreens(scene));rearCornice(scene);
  buildPerimeterCornices(scene);buildPerimeterFriezes(scene,friezeMaterial());
  buildFrontWindows(scene);yield;buildOrgan(scene);yield;paintedCeiling(scene);yield;
- for(const x of [-7.4,7.4])for(const z of [-20,-7,6,19,32,45]){crystalChandelier(scene,x,z);yield;}
+ for(const {x,y,z} of HALL_CHANDELIERS){crystalChandelier(scene,x,y,z);yield;}
  buildHallPracticalLights(scene);
  const stageLight=new T.SpotLight(0xffd5a4,185,42,1.05,.8,1.5);stageLight.position.set(0,18,-8);stageLight.target.position.set(0,1,-20);scene.add(stageLight,stageLight.target);
  rearFacade(scene);
