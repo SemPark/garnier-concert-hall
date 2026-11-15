@@ -1,5 +1,5 @@
 import * as T from 'three';
-import {box,cylinder,text} from './primitives';
+import {box,cylinder} from './primitives';
 import {PROGRAM_BOOK} from '../../shared/programBook';
 
 function coverLettering() {
@@ -23,7 +23,6 @@ export function buildProgramBook(scene:T.Scene,targets:T.Object3D[]){
  const root=new T.Group(),spot=PROGRAM_BOOK;
  root.name='끝나지 않는 공연 프로그램';root.position.set(spot.x,0,spot.z);root.rotation.y=-Math.PI/8;
  scene.add(root);
- const label=text(root,'눌러서 펼치기',1.6,[0,2.05,0],'#ffe7ae');label.userData.programBook=true;targets.push(label);
  cylinder(root,.28,.08,[0,.04,0],0xa77c3f);
  cylinder(root,.055,1.05,[0,.58,0],0xa77c3f);
  const book=new T.Group();book.position.y=1.2;book.rotation.x=-Math.PI*.26;root.add(book);
@@ -36,5 +35,5 @@ export function buildProgramBook(scene:T.Scene,targets:T.Object3D[]){
  const target=new T.Mesh(new T.BoxGeometry(.82,1.05,.2),new T.MeshBasicMaterial({visible:false}));
  target.userData.programBook=true;book.add(target);targets.push(target);
  root.traverse(o=>{o.userData.fullDetail=true;o.userData.preserveSilhouette=true;});
- return {root,dispose(){for(const mesh of [label,lettering]){mesh.material.map?.dispose();mesh.material.dispose();}}};
+ return {root,dispose(){lettering.material.map?.dispose();lettering.material.dispose();}};
 }
