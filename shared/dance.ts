@@ -128,9 +128,9 @@ export function dancePose(v:Visitor,now:number,jazz=false){
  const x=center?center.x+Math.sin(orbitAngle)*radius*sign:v.x;
  const z=center?center.z+Math.cos(orbitAngle)*radius*sign:v.z;
  const spread=.12+near*.32;
- // After the greeting, hold the hands in front so both faces remain readable from the opening camera.
- const screenFacing=center?smooth((age-.65)/.50):0;
- const contact=(side:number)=>spread*side*(1-screenFacing*.52)-.31*screenFacing;
+ // After the greeting, open the stance and shift both grip points forward.
+ const openStance=center?smooth((age-.65)/.50):0;
+ const contact=(side:number)=>spread*side*(1-openStance*.52)-.31*openStance;
  const grip=(side:number)=>center?{
   x:center.x+Math.cos(orbitAngle)*contact(side),
   y:center.y+1.08+jumpLift*.5,
@@ -177,9 +177,10 @@ export function dancePose(v:Visitor,now:number,jazz=false){
  const headPitch=-.36*greeting-.40*farewell;
  const soloYaw=d.joinSpot?Math.atan2(v.x-d.joinSpot.x,v.z-d.joinSpot.z):v.yaw;
  const swing=Math.sin(phase+.55)*stepping*(center?.18:jazz?.63:.49);
- const towardPartner=(Math.PI/2-(Math.PI/2-.69)*screenFacing)*(1-formation);
+ const towardPartner=(Math.PI/2-(Math.PI/2-.69)*openStance)*(1-formation);
  const partnerYaw=partnerRoutineYaw(orbitAngle)-sign*towardPartner;
- const headYaw=sign*towardPartner*screenFacing*(1-gripRelease)*(1-settle);
+ const gripWeight=hold*(1-gripRelease)*(1-formation);
+ const headYaw=-sign*(Math.PI/2-towardPartner)*gripWeight;
  let yaw=d.stop?.yaw??((center?partnerYaw:soloYaw)+spinAngle);
  if(d.stop?.faceYaw!==undefined){
   const delta=d.stop.faceYaw-yaw;
@@ -198,7 +199,7 @@ export function dancePose(v:Visitor,now:number,jazz=false){
   lean:step*(center?(jazz?.12:.085):(jazz?.23:.17)),
   step,swing,handsUp,handsSway,reach,floss,flossSwing,flossHip,flossCross,badLean,badLower,badPop,shimmy,hop,
   captain,captainSide,captainSeconds,
-  bow,headPitch,headYaw,hold:hold*(1-gripRelease)*(1-formation),
+  bow,headPitch,headYaw,hold:gripWeight,
   hand:grip(-sign),rightHand:grip(sign)};
 }
 /** Each client derives the same ghost from its human partner's room state. */

@@ -248,11 +248,12 @@ test('partners bow down, release both hands for a solo turn, then only the jump 
  assert.equal(spinDuration,1350);
  const gap=(now:number)=>{const p=dancePose(a,now),q=dancePose(b,now);return Math.hypot(p.x-q.x,p.z-q.z);};
  const near=spinStart+232,far=spinStart+580;
- const cameraFacing=partnerRoutineYaw(b.dance!.angle!);
- for(const visitor of [a,b]){
-  const p=dancePose(visitor,near);
-  assert.ok(Math.cos(p.yaw+p.headYaw-cameraFacing)>.9999);
- }
+ const assertLookAtPartner=(p:ReturnType<typeof dancePose>,q:ReturnType<typeof dancePose>)=>{
+  const target=Math.atan2(p.x-q.x,p.z-q.z);
+  assert.ok(Math.cos(p.yaw+p.headYaw-target)>.9999);
+ };
+ assertLookAtPartner(dancePose(a,near),dancePose(b,near));
+ assertLookAtPartner(dancePose(b,near),dancePose(a,near));
  assert.ok(gap(far)-gap(near)>.4);
  assert.equal(dancePose(a,near).hold,1);
  assert.equal(dancePose(a,far).hold,1);
@@ -277,6 +278,8 @@ test('partners bow down, release both hands for a solo turn, then only the jump 
  assert.ok(jumping.bob>.2);
  assert.equal(standing.hop,0);
  assert.equal(standing.hold,1);
+ assertLookAtPartner(standing,jumping);
+ assertLookAtPartner(jumping,standing);
  assert.deepEqual(standing.rightHand,jumping.hand);
  assert.deepEqual(standing.hand,jumping.rightHand);
  assert.ok(Math.abs(Math.sin((standing.yaw-dancePose(a,jumpStart).yaw)/2))>.99);

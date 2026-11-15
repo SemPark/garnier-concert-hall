@@ -510,7 +510,7 @@ export class World{
  }
  get spaceVisible(){return this.openHall||(this.venues.auditorium?.scene.userData.openHallProgress??0)>0;}
  toggleOpenHall(){
-  if(!import.meta.env.DEV||this.zone!=='auditorium')return;
+  if(this.zone!=='auditorium')return;
   const scene=this.venue.scene,upper=scene.userData.upperArchitecture;
   if(!upper)return;
   this.openHall=!this.openHall;
