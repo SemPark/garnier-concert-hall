@@ -1,3 +1,4 @@
+import {danceArmDirection,type DancePose} from './DancePose';
 import {buildTeaCup} from '../character/TeaCup';
 import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -11,7 +12,7 @@ import type {NpcPose} from './NpcBehavior';
 import {GHOST_SURFACE} from './GhostSurface';
 
 /** One ghost to draw this frame: where it is, which way it faces, and a stable id for its colour and rhythm. */
-export type GhostSpot={x:number;y:number;z:number;yaw:number;id:string;sitting:boolean;
+export type GhostSpot={dance?:DancePose;x:number;y:number;z:number;yaw:number;id:string;sitting:boolean;
  teaGuest?:TeaGuest;
  costume?:GhostCostume;
  behavior?:NpcPose;
@@ -76,12 +77,21 @@ void main(){
   float k=smoothstep(0.,.1,-.66-p.y);p.z=p.z*mix(1.,.6,k)+.22*k;n=normalize(mix(n,vec3(0.,-.3,1.),k*.4));
  }
  if(aArm!=0.){
-  vec3 pivot=vec3(aArm*.28,-.12,0.);vec3 d=p-pivot;
+  vec3 pivot=mod(floor(flags/128.),2.)>.5?vec3(aArm*.31,-.12,.02):vec3(aArm*.28,-.12,0.);vec3 d=p-pivot;
   float sw=walk*aArm*.5*sin(uTime*9.+seed*6.),c=cos(sw),s=sin(sw);d.yz=mat2(c,s,-s,c)*d.yz;n.yz=mat2(c,s,-s,c)*n.yz;
   // Turn the arm from where it rests to where the pose points it.
-  vec3 rest=normalize(vec3(aArm*.172,-.675,.717)),to=aArm<0.?aLeft:aRight,axis=cross(rest,to);float sn=length(axis),cs=dot(rest,to);
+  vec3 rest=normalize(vec3(aArm*.172,-.675,.717)),to=aArm<0.?aLeft:aRight;
+  if(mod(floor(flags/128.),2.)>.5)d*=length(to);
+  to=normalize(to);
+  vec3 axis=cross(rest,to);float sn=length(axis),cs=dot(rest,to);
   if(sn>1e-4){axis/=sn;d=d*cs+cross(axis,d)*sn+axis*dot(axis,d)*(1.-cs);n=n*cs+cross(axis,n)*sn+axis*dot(axis,n)*(1.-cs);}
   p=pivot+d;
+ }
+ // Floss shifts the lower sheet under the shoulders without dragging the face or arms along.
+ if(aHead.z!=0.&&aArm==0.){
+  float hip=clamp((-.18-position.y)/.40,0.,1.);
+  p.x+=aHead.z*hip*hip*(3.-2.*hip);
+  n.y+=n.x*aHead.z*6.*hip*(1.-hip)/.40;
  }
  // Head motion is independent of the shoulders and seated body.
  float headWeight=(1.-step(.5,abs(aArm)))*smoothstep(-.18,0.,position.y);
@@ -159,6 +169,7 @@ void main(){
 
 type Batch={mesh:T.InstancedMesh;glow:T.InstancedBufferAttribute;seed:T.InstancedBufferAttribute;left:T.InstancedBufferAttribute;right:T.InstancedBufferAttribute;body:T.InstancedBufferAttribute;head:T.InstancedBufferAttribute;used:number};
 /** Where the ghost's arms rest (see body()), and the people's shoulders their hand targets are measured from. */
+const DANCE_X=new T.Vector3(1,0,0),DANCE_Z=new T.Vector3(0,0,1),DANCE_SHOULDER=new T.Vector3(.31,-.12,.02);
 const REST=[-1,1].map(s=>new T.Vector3(s*.172,-.675,.717).normalize()),SHOULDER_X=.16,SHOULDER_Y=.99;
 
 const GOLD=new T.MeshBasicMaterial({color:0xe6bf5a}),FEATHER=new T.MeshBasicMaterial({color:0xefe6d2,side:T.DoubleSide});
@@ -228,6 +239,7 @@ export class Ghosts{
  private time={value:0};
  private near:Batch;private far:Batch;
  private updatedAt=-Infinity;private frustum=new T.Frustum();private projection=new T.Matrix4();private sphere=new T.Sphere();
+ private danceShoulder=new T.Vector3();
  private angels:ReturnType<typeof angelKit>[]=[];private tableware:ReturnType<typeof tableware>[]=[];private l=new T.Vector3();private r=new T.Vector3();private b=new T.Vector3();private head=new T.Vector3();private d=new T.Vector3();private hand=new T.Vector3();private qa=new T.Quaternion();private qb=new T.Quaternion();private m=new T.Matrix4();private q=new T.Quaternion();private up=new T.Vector3(0,1,0);private v=new T.Vector3();private s=new T.Vector3(1,1,1);
  constructor(private scene:T.Scene){
   const mat=(face:number)=>new T.ShaderMaterial({uniforms:{uTime:this.time,uFace:{value:face}},vertexShader:vertex,fragmentShader:fragment});
@@ -271,11 +283,45 @@ export class Ghosts{
    // it drapes over the front edge (see the vertex shader).
    if(g.sitting){this.s.set(1,1,1);this.v.set(g.x+Math.sin(g.yaw)*SEAT_FORWARD,g.y+SEATED_HEAD,g.z+Math.cos(g.yaw)*SEAT_FORWARD);}
    else{this.s.set(1,1,1);this.v.set(g.x,g.y+STANDING_HEAD,g.z);}if(!this.frustum.intersectsSphere(this.sphere.set(this.v,g.teaGuest||g.costume?1.9:1)))continue;
-   const h=hash(g.id),glow=g.npc?NPC_GLOW:GLOWS[h%GLOWS.length],seed=(h>>>8)%1000/1000+(g.sitting?32:0)+(g.npc&&(!g.behavior||g.teaGuest)?0:64)+(g.walking&&!g.sitting?128:0)+(g.costume==='vesper'||g.costume==='candra'?256:0)+(g.costume==='white-rabbit'?512:0)+(g.costume==='phantom'?1024:0)+(g.costume==='queen'?2048:0),distance=this.v.distanceTo(camera.position),far=distance>14;
+   const h=hash(g.id),glow=g.npc?NPC_GLOW:GLOWS[h%GLOWS.length],seed=(h>>>8)%1000/1000+(g.sitting?32:0)+(g.npc&&(!g.behavior||g.teaGuest)?0:64)+(g.walking&&!g.sitting?128:0)+(g.costume==='vesper'||g.costume==='candra'?256:0)+(g.costume==='white-rabbit'?512:0)+(g.costume==='phantom'?1024:0)+(g.costume==='queen'?2048:0)+(g.dance?4096:0),distance=this.v.distanceTo(camera.position),far=distance>14;
    if(g.costume==='phantom'){this.s.set(.96,1.22,.96);this.v.y+=.16;}
    this.m.compose(this.v,this.q.setFromAxisAngle(this.up,g.yaw),this.s);
    this.b.set(0,0,0);this.head.set(0,0,0);
-   if(g.teaGuest){
+   if(g.dance){
+    const pose=g.dance;
+    const partnerHop=pose.hand?pose.hop:0;
+    this.l.copy(REST[0]).applyAxisAngle(DANCE_X,pose.swing+pose.reach+partnerHop*.65);
+    this.r.copy(REST[1]).applyAxisAngle(DANCE_X,-pose.swing+pose.reach+partnerHop*.65);
+    const captainShift=pose.captainSide*pose.captain;
+    this.b.set(pose.bow+pose.badPop*.22,pose.lean+pose.shimmy*.13-pose.handsSway*pose.handsUp*.23+pose.badLean*.24+captainShift*.025,
+     -pose.shimmy*.34-pose.flossHip*.16-captainShift*.035);
+    this.head.set(-pose.headPitch-pose.badPop*.17,pose.headYaw+pose.flossHip*.10,-pose.flossHip*.18);
+    if(pose.badLean>0){
+     this.d.set(.30,-.25-pose.badLower*.60,.92).normalize().applyAxisAngle(DANCE_X,-pose.badPop*.25);
+     this.l.lerp(this.d,pose.badLean).normalize();
+    }
+    if(pose.captain>0){
+     this.l.lerp(danceArmDirection(this.d,pose,1).applyAxisAngle(this.up,Math.PI),pose.captain);
+     this.r.lerp(danceArmDirection(this.d,pose,-1).applyAxisAngle(this.up,Math.PI),pose.captain);
+    }else if(pose.handsUp>0||pose.floss>0||(pose.hop>0&&!pose.hand)){
+     const blend=pose.handsUp||pose.floss||Math.sqrt(pose.hop);
+     this.l.lerp(danceArmDirection(this.d,pose,1).applyAxisAngle(this.up,Math.PI).normalize(),blend).normalize();
+     this.r.lerp(danceArmDirection(this.d,pose,-1).applyAxisAngle(this.up,Math.PI).normalize(),blend).normalize();
+    }
+    if(pose.hand&&pose.rightHand){
+     for(const [arm,side,point,weight] of [[this.r,1,pose.hand,pose.hold],[this.l,-1,pose.rightHand,pose.hold]] as const){
+      if(weight<=0)continue;
+      this.hand.set(point.x,point.y,point.z).sub(this.v).applyAxisAngle(this.up,-g.yaw);
+      this.hand.y+=.7;
+      this.hand.applyAxisAngle(DANCE_X,-pose.bow);
+      this.hand.applyAxisAngle(DANCE_Z,-pose.lean);
+      this.hand.y-=.7;
+      this.d.copy(this.hand).sub(this.danceShoulder.set(DANCE_SHOULDER.x*side,DANCE_SHOULDER.y,DANCE_SHOULDER.z));
+      const reach=this.d.length();
+      arm.lerp(this.d.normalize(),weight).normalize().multiplyScalar(1+(reach/.475-1)*weight);
+     }
+    }
+   }else if(g.teaGuest){
     let guest=this.teaGuests.get(g.teaGuest);
     if(!guest){guest=buildTeaGuest(g.teaGuest);this.teaGuests.set(g.teaGuest,guest);this.scene.add(guest.root,guest.cup);}
     const age=g.age??0;
@@ -338,6 +384,7 @@ export class Ghosts{
      }
     }
     this.b.set(pose.lean+lean+pose.headPitch*.5*w,-(pose.sway+pose.headRoll*.5)*w,pose.turn+(pose.turn?pose.headYaw:0));
+    if(g.gesture==='wave')this.head.x=pose.headPitch*.65;
    }else{this.l.copy(REST[0]);this.r.copy(REST[1]);}
    if(g.behavior&&!g.teaGuest){
     const p=g.behavior;

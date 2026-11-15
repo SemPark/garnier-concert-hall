@@ -183,12 +183,16 @@ export class HallMirror{
   return true;
  }
  setVisitor(avatar:T.Object3D|null,spot:GhostSpot|null){this.avatar=avatar;this.spot=spot;}
- updateStandingMarker(time:number,occupied:boolean){
-  const phase=this.reduced?.35:(time%2.4)/2.4;
-  this.standingRing.material.opacity=occupied?.48:.86;
-  this.standingRipple.visible=!occupied;
-  this.standingRipple.scale.setScalar(1+phase*.55);
-  this.standingRipple.material.opacity=.55*(1-phase)**1.5;
+ updateStandingMarker(time:number,occupied:boolean,distance:number){
+  const nearby=1-T.MathUtils.smoothstep(distance,2.2,6);
+  this.standingRing.visible=this.standingIcon.visible=occupied||nearby>.01;
+  this.standingRing.material.opacity=occupied?.48:.74*nearby;
+  this.standingRipple.visible=!occupied&&!this.reduced&&nearby>.01;
+  if(this.standingRipple.visible){
+   const phase=(time%3.2)/3.2;
+   this.standingRipple.scale.setScalar(1+phase*.42);
+   this.standingRipple.material.opacity=nearby*.30*(1-phase)**1.5;
+  }
  }
  dispose(){
   this.standingMarker.removeFromParent();

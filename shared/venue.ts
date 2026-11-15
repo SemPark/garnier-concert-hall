@@ -1,3 +1,4 @@
+import type {DanceState} from './dance';
 import {PROGRAM_BOOK} from './programBook';
 import {hasStoryGuest} from './storyGuestSeats';
 import {isMagicChair,MAGIC_CHAIR_TRAVEL} from './magicChairConfig';
@@ -23,7 +24,7 @@ export const isLook=(v:unknown):v is Look=>v==='man'||v==='woman';
 function appearanceSeed(id:string){let hash=2166136261;for(const ch of id)hash=Math.imul(hash^ch.charCodeAt(0),16777619);return hash>>>0;}
 /** Independent skin, look and hair choices, stable for the same visitor on every screen. */
 export function visitorVariant(v:{id:string;look?:Look}){const seed=appearanceSeed(v.id),look=v.look??(seed&4?'woman':'man');return (seed&3)+(look==='woman'?4:0)+((seed>>>8)&7)*8;}
-export type Visitor={trainSeat?:number;id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronBites?:number;macaronEmptyAt?:number;dish?:Dish;dishBites?:number;dishEmptyAt?:number;drink?:'coffee'|'wine'|'tea';drinkSips?:number;teaReadyAt?:number;drinkEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
+export type Visitor={dance?:DanceState;trainSeat?:number;id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronBites?:number;macaronEmptyAt?:number;dish?:Dish;dishBites?:number;dishEmptyAt?:number;drink?:'coffee'|'wine'|'tea';drinkSips?:number;teaReadyAt?:number;drinkEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
 export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
 // Dinner-show floor: round tables with chairs all around (the theatre rows are kept in theatreSeating.ts).
@@ -66,7 +67,7 @@ export function seatLabel(s:Seat){if(s.id.startsWith('box-'))return `1층 ${s.x<
 /** The parterre runs right up to the stage lip (stage front is z -9.5). */
 export const STAGE_APRON_Z=-9.2;
 /** Jump points: stage front and rear of the hall, the middle of the rear gallery (2F), and the middle of the lobby floor. */
-export const HALL_DESTINATIONS={front:{x:0,y:PARTERRE.floor,z:-8.6},rear:{x:0,y:0,z:48.8},upper:{x:0,y:STAIR_DOORS.height,z:46},lobby:{x:0,y:0,z:25.5}} as const;
+export const HALL_DESTINATIONS={front:{x:0,y:PARTERRE.floor,z:-8.6},rear:{x:0,y:0,z:47.7},upper:{x:0,y:STAIR_DOORS.height,z:46},lobby:{x:0,y:0,z:25.5}} as const;
 export type HallDestination=keyof typeof HALL_DESTINATIONS;
 export const DESTINATION_ZONE:Record<HallDestination,'auditorium'|'lobby'>={front:'auditorium',rear:'auditorium',upper:'auditorium',lobby:'lobby'};
 export const isHallDestination=(v:unknown):v is HallDestination=>typeof v==='string'&&Object.hasOwn(HALL_DESTINATIONS,v);

@@ -1,8 +1,8 @@
 import * as T from 'three';
 import {ICONS,type Icon} from './villager';
 
-const COLS=3,ROWS=2;
-const GLYPHS:Record<Icon,{text:string;color:string}>={heart:{text:'♥',color:'#e0485f'},bang:{text:'!',color:'#e8862a'},sparkle:{text:'✦',color:'#d9a426'},zz:{text:'Zz',color:'#5b7fc4'},dots:{text:'…',color:'#7a6f62'},note:{text:'♪',color:'#9a5cc0'}};
+const COLS=3,ROWS=Math.ceil(ICONS.length/COLS);
+const GLYPHS:Record<Icon,{text:string;color:string}>={danceNote:{text:'♪',color:'#d9b967'},heart:{text:'♥',color:'#e0485f'},bang:{text:'!',color:'#e8862a'},sparkle:{text:'✦',color:'#d9a426'},zz:{text:'Zz',color:'#5b7fc4'},dots:{text:'…',color:'#7a6f62'},note:{text:'♪',color:'#9a5cc0'}};
 /** World height of an icon at close range. */
 export const ICON_SIZE=.5;
 /** Far icons keep growing on screen up to this factor so reactions read from the balcony. */
@@ -13,7 +13,7 @@ function atlas(){
  const cell=128,canvas=document.createElement('canvas');canvas.width=cell*COLS;canvas.height=cell*ROWS;const c=canvas.getContext('2d');if(!c)return null;
  ICONS.forEach((icon,i)=>{const x=(i%COLS)*cell+cell/2,y=Math.floor(i/COLS)*cell+cell/2,g=GLYPHS[icon];
   // Bubble and tail as one outline, so no seam line crosses the tail.
-  const r=cell*.36,gap=Math.asin(10/r);c.fillStyle='#fffaf0';c.strokeStyle='#5a4632';c.lineWidth=5;c.lineJoin='round';c.beginPath();c.arc(x,y-4,r,Math.PI/2+gap,Math.PI/2-gap+Math.PI*2);c.lineTo(x,y+cell*.44);c.closePath();c.fill();c.stroke();
+  const r=cell*.36,gap=Math.asin(10/r);if(icon!=='danceNote'){c.fillStyle='#fffaf0';c.strokeStyle='#5a4632';c.lineWidth=5;c.lineJoin='round';c.beginPath();c.arc(x,y-4,r,Math.PI/2+gap,Math.PI/2-gap+Math.PI*2);c.lineTo(x,y+cell*.44);c.closePath();c.fill();c.stroke();}
   c.fillStyle=g.color;c.font=`bold ${g.text.length>1?48:62}px Arial, sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(g.text,x,y-2);
  });
  const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;return texture;

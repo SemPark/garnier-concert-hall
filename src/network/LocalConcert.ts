@@ -1,3 +1,4 @@
+import {isDanceCommand,handleDance,expireDance,finishDance} from '../../shared/dance';
 import {serveTea} from '../../shared/tea';
 import {isDish,isDrink,DISH_BITES} from '../../shared/dishes';
 import {RESTING_CHAIR,updateMagicChairs,MAGIC_CHAIR_ID} from '../../shared/magicChair';
@@ -15,10 +16,14 @@ export class LocalConcert{
  readonly visitor:Visitor={id:newId(),name:visitorName(),color:PALETTE[0],zone:'lobby',...SPAWN.lobby,yaw:0,pose:'idle',seatId:null,gesture:null,gestureAt:0};
  private magicChair={...RESTING_CHAIR};
  private seats:Snapshot['seats']={};private revision=0;private reservationRequest='';
- snapshot():Snapshot{if(this.visitor.dishEmptyAt&&Date.now()>=this.visitor.dishEmptyAt){delete this.visitor.dish;delete this.visitor.dishBites;delete this.visitor.dishEmptyAt;}if(this.visitor.drinkEmptyAt&&Date.now()>=this.visitor.drinkEmptyAt){delete this.visitor.drink;delete this.visitor.drinkSips;delete this.visitor.drinkEmptyAt;delete this.visitor.teaReadyAt;}this.magicChair=updateMagicChairs(this.magicChair,[this.visitor],this.seats,Date.now());if(this.visitor.macaronEmptyAt&&Date.now()>=this.visitor.macaronEmptyAt){delete this.visitor.macaron;delete this.visitor.macaronBites;delete this.visitor.macaronEmptyAt;}if(this.visitor.coffeeEmptyAt&&Date.now()>=this.visitor.coffeeEmptyAt){delete this.visitor.coffee;delete this.visitor.coffeeSips;delete this.visitor.coffeeEmptyAt;}return {magicChair:this.magicChair,revision:++this.revision,visitors:[{...this.visitor}],seats:structuredClone(this.seats),serverNow:Date.now(),roomId:'혼자 감상'};}
+ snapshot():Snapshot{expireDance([this.visitor],Date.now());if(this.visitor.dishEmptyAt&&Date.now()>=this.visitor.dishEmptyAt){delete this.visitor.dish;delete this.visitor.dishBites;delete this.visitor.dishEmptyAt;}if(this.visitor.drinkEmptyAt&&Date.now()>=this.visitor.drinkEmptyAt){delete this.visitor.drink;delete this.visitor.drinkSips;delete this.visitor.drinkEmptyAt;delete this.visitor.teaReadyAt;}this.magicChair=updateMagicChairs(this.magicChair,[this.visitor],this.seats,Date.now());if(this.visitor.macaronEmptyAt&&Date.now()>=this.visitor.macaronEmptyAt){delete this.visitor.macaron;delete this.visitor.macaronBites;delete this.visitor.macaronEmptyAt;}if(this.visitor.coffeeEmptyAt&&Date.now()>=this.visitor.coffeeEmptyAt){delete this.visitor.coffee;delete this.visitor.coffeeSips;delete this.visitor.coffeeEmptyAt;}return {magicChair:this.magicChair,revision:++this.revision,visitors:[{...this.visitor}],seats:structuredClone(this.seats),serverNow:Date.now(),roomId:'혼자 감상'};}
  private release(){const v=this.visitor;delete v.dish;delete v.dishBites;delete v.dishEmptyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;delete v.teaReadyAt;const seat=v.loungeSeatId?LOUNGE_SEATS.find(s=>s.id===v.loungeSeatId):SEATS.find(s=>s.id===v.seatId);if(v.pose==='sit'&&seat)Object.assign(v,seat.approach);if(v.trainSeat!==undefined){Object.assign(v,TRAIN_EXIT);delete v.trainSeat;}this.seats={};v.seatId=null;v.loungeSeatId=null;v.pose='idle';}
  send(msg:ClientMessage):boolean{
   const v=this.visitor;
+  expireDance([v],Date.now());
+  if(isDanceCommand(msg))return !handleDance(v,[v],msg,Date.now());
+  if(v.dance&&msg.type==='move')return false;
+  if(v.dance&&['zone','hallMove','trainBoard','reserve','release'].includes(msg.type))finishDance(v,[v],Date.now(),true);
   switch(msg.type){
    case 'trainLeave':if(v.trainSeat===undefined)return false;this.release();v.yaw=0;return true;
    case 'trainBoard':

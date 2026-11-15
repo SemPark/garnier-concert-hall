@@ -3,6 +3,7 @@ import * as T from 'three';
 const base=(import.meta.env?.BASE_URL??'/')+'textures/space/';
 export const SPACE_ORBIT_CENTER=new T.Vector3(0,10,10);
 const PLANET_ORBIT_SECONDS=720;
+const SATURN_SPIN_SECONDS=42;
 
 // Unequal angular gaps and elevations keep every side populated without a ring-like grid.
 // Separate the largest silhouettes; distances control their apparent size from the hall.
@@ -11,12 +12,17 @@ const PLANETS=[
  {name:'venus',radius:6.2,yaw:231,elevation:23,distance:83,tilt:.08,detail:24,spinPeriod:-100},
  {name:'mars',radius:4.1,yaw:124,elevation:17,distance:80,tilt:.22,detail:24,spinPeriod:56},
  {name:'jupiter',radius:18,yaw:18,elevation:29,distance:105,tilt:.16,detail:48,spinPeriod:105},
- {name:'saturn',radius:9,yaw:177,elevation:37,distance:94,tilt:-.3,detail:48,spinPeriod:42},
+ {name:'saturn',radius:9,yaw:177,elevation:37,distance:94,detail:48,spinPeriod:SATURN_SPIN_SECONDS},
  {name:'uranus',radius:8,yaw:73,elevation:40,distance:96,tilt:-.35,detail:24,spinPeriod:-59},
  {name:'neptune',radius:10,yaw:283,elevation:19,distance:94,tilt:.34,detail:24,spinPeriod:51},
 ] as const;
 const SATURN_RING_INNER=11.25;
 const SATURN_RING_OUTER=18;
+const SATURN_RING_TILT=T.MathUtils.degToRad(34);
+const SATURN_RING_OPENING=T.MathUtils.degToRad(15);
+const SATURN_SCREEN_DIAGONAL=new T.Vector3(Math.cos(SATURN_RING_TILT),Math.sin(SATURN_RING_TILT),0);
+const SATURN_LIGHT=new T.Vector3(-.35,.65,1).applyAxisAngle(new T.Vector3(0,0,1),-SATURN_RING_TILT)
+ .applyAxisAngle(new T.Vector3(1,0,0),-SATURN_RING_OPENING).normalize();
 
 /** Real planetary maps on low-poly spheres, with baked vertex lighting and no extra lights. */
 export class SpacePlanets {
@@ -24,13 +30,23 @@ export class SpacePlanets {
  private textures:T.Texture[]=[];
  private materials:T.MeshBasicMaterial[]=[];
  private readonly loader=new T.TextureLoader();
+ private readonly saturn:T.Group;
+ private readonly saturnRing:T.Mesh;
+ private readonly saturnView=new T.Vector3();
+ private readonly saturnCenter=new T.Vector3();
+ private readonly saturnTangent=new T.Vector3();
+ private readonly saturnAxis=new T.Vector3();
+ private readonly saturnForward=new T.Vector3();
+ private readonly saturnBasis=new T.Matrix4();
+ private readonly cameraRotation=new T.Quaternion();
+ private readonly orbitRotation=new T.Quaternion();
  private seconds=0;
  constructor(scene:T.Scene){
   this.root.name='space-planets';this.root.visible=false;
   this.root.position.copy(SPACE_ORBIT_CENTER);
   scene.add(this.root);
   const planet=(spec:typeof PLANETS[number])=>{
-   const {name,radius,yaw,elevation,distance,tilt,detail,spinPeriod}=spec;
+   const {name,radius,yaw,elevation,distance,detail,spinPeriod}=spec;
    const group=new T.Group();
    group.name=name;
    const azimuth=T.MathUtils.degToRad(yaw),altitude=T.MathUtils.degToRad(elevation);
@@ -39,13 +55,13 @@ export class SpacePlanets {
     Math.sin(altitude),
     -Math.cos(azimuth)*Math.cos(altitude),
    ).multiplyScalar(distance);
-   group.rotation.z=tilt;
+   if(name!=='saturn')group.rotation.z=spec.tilt;
    this.root.add(group);
    const geometry=new T.SphereGeometry(radius,detail,detail===48?32:16),normals=geometry.getAttribute('normal');
    const colors=new Float32Array(normals.count*3),n=new T.Vector3();
-   // Keep the hall-facing hemisphere readable at every orbital position.
-   const light=new T.Vector3(-Math.sin(azimuth),.65,Math.cos(azimuth))
-    .applyAxisAngle(new T.Vector3(0,0,1),-tilt).normalize();
+   // Keep Saturn lit from the same side of the view and the other planets lit from the hall.
+   const light=name==='saturn'?SATURN_LIGHT:new T.Vector3(-Math.sin(azimuth),.65,Math.cos(azimuth))
+    .applyQuaternion(group.quaternion.clone().invert()).normalize();
    for(let i=0;i<normals.count;i++){
     n.fromBufferAttribute(normals,i);
     const shade=.055+.945*Math.max(0,n.dot(light));
@@ -55,7 +71,7 @@ export class SpacePlanets {
    const material=new T.MeshBasicMaterial({vertexColors:true,fog:false});
    group.add(this.texturedMesh(geometry,material,name+'.jpg',spinPeriod));return group;
   };
-  const saturn=PLANETS.map(planet).find(group=>group.name==='saturn')!;
+  this.saturn=PLANETS.map(planet).find(group=>group.name==='saturn')!;
   const rings=new T.RingGeometry(SATURN_RING_INNER,SATURN_RING_OUTER,80);
   const positions=rings.getAttribute('position'),uv=rings.getAttribute('uv');
   const ringWidth=SATURN_RING_OUTER-SATURN_RING_INNER;
@@ -63,14 +79,29 @@ export class SpacePlanets {
    const radius=Math.hypot(positions.getX(i),positions.getY(i));
    uv.setXY(i,(radius-SATURN_RING_INNER)/ringWidth,.5);
   }
+  // The sphere's equator and ring both lie in the tilted group's local XZ plane.
+  rings.rotateX(-Math.PI/2);
   const material=new T.MeshBasicMaterial({side:T.DoubleSide,alphaTest:.15,fog:false});
-  const mesh=this.texturedMesh(rings,material,'saturn-ring.png');
-  // Tilt away from the hall's viewing angle so the ring reads as a wide ellipse.
-  const ringNormal=saturn.position.clone().setY(0).normalize().multiplyScalar(-Math.tan(T.MathUtils.degToRad(20)));
-  ringNormal.y=1;
-  ringNormal.applyAxisAngle(new T.Vector3(0,0,1),-saturn.rotation.z).normalize();
-  mesh.quaternion.setFromUnitVectors(new T.Vector3(0,0,1),ringNormal);
-  saturn.add(mesh);
+  this.saturnRing=this.texturedMesh(rings,material,'saturn-ring.png');
+  this.saturn.add(this.saturnRing);
+ }
+ frameSaturn(camera:T.Camera){
+  if(!this.root.visible)return;
+  // Keep the 3D equator's presentation relative to the observer as Saturn orbits.
+  this.saturn.getWorldPosition(this.saturnCenter);
+  camera.getWorldQuaternion(this.cameraRotation);
+  camera.getWorldPosition(this.saturnView).sub(this.saturnCenter).normalize()
+   .applyQuaternion(this.cameraRotation.invert());
+  const view=this.saturnView;
+  if(view.z<=0)return;
+  const tangent=this.saturnTangent.copy(SATURN_SCREEN_DIAGONAL).addScaledVector(view,-view.dot(SATURN_SCREEN_DIAGONAL)).normalize();
+  const axis=this.saturnAxis.crossVectors(view,tangent).multiplyScalar(Math.cos(SATURN_RING_OPENING))
+   .addScaledVector(view,Math.sin(SATURN_RING_OPENING));
+  this.saturnForward.crossVectors(tangent,axis);
+  this.saturnBasis.makeBasis(tangent,axis,this.saturnForward);
+  this.root.getWorldQuaternion(this.orbitRotation).invert();
+  this.saturn.quaternion.setFromRotationMatrix(this.saturnBasis).premultiply(this.cameraRotation.invert())
+   .premultiply(this.orbitRotation);
  }
  private texturedMesh(geometry:T.BufferGeometry,material:T.MeshBasicMaterial,file:string,spinPeriod?:number){
   const mesh=new T.Mesh(geometry,material);
@@ -99,6 +130,8 @@ export class SpacePlanets {
  orbit(seconds:number){
   if(!this.root.visible)return;
   this.seconds=seconds;
+  // A positive texture offset moves surface features toward decreasing local longitude.
+  this.saturnRing.rotation.y=-T.MathUtils.euclideanModulo(seconds/SATURN_SPIN_SECONDS,1)*Math.PI*2;
   this.root.rotation.y=T.MathUtils.euclideanModulo(seconds,PLANET_ORBIT_SECONDS)/PLANET_ORBIT_SECONDS*Math.PI*2;
  }
  update(progress:number){

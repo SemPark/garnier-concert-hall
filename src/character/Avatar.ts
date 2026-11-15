@@ -13,10 +13,19 @@ import {greetingTarget,poseVillager,type CameraFacing,type Icon} from './village
 import type {Gesture} from '../../shared/gestures';
 export type Instrument='violin'|'viola'|'cello'|'bass'|'harp'|'piano'|'celesta'|'flute'|'piccolo'|'oboe'|'english-horn'|'clarinet'|'bass-clarinet'|'bassoon'|'contrabassoon'|'horn'|'trumpet'|'trombone'|'tuba'|'bass-drum'|'snare'|'cymbals'|'sleigh-bells'|'triangle'|'chimes'|'gong'|'timpani'|'xylophone'|'marimba'|'vibraphone'|'alto-sax'|'tenor-sax'|'bari-sax'|'guitar'|'drum-kit'|'conductor';
 export type HairStyle='short'|'long';
-type Arm={shoulder:T.Group;hand:T.Group};
+type Arm={shoulder:T.Group;hand:T.Group;elbow?:T.Group;sleeve?:T.Mesh;captainSleeve?:T.BufferGeometry};
 export const PERCUSSION:readonly Instrument[]=['bass-drum','snare','cymbals','sleigh-bells','triangle','chimes','gong','timpani','xylophone','marimba','vibraphone'];
 const ARM_LENGTH=.4,HIP=new T.Vector3(0,.55,0),DOWN=new T.Vector3(0,-1,0);
+const THIGH_LENGTH=.25,SHIN_LENGTH=.24;
+const LEG_REACH=THIGH_LENGTH+SHIN_LENGTH;
+const danceFeet=[new T.Vector3(),new T.Vector3()],danceShoulders=new T.Vector3(),danceTilt=new T.Vector3();
+const ankleDirection=new T.Vector3(),kneeDirection=new T.Vector3(),thighDirection=new T.Vector3(),inverseBody=new T.Quaternion();
+export const AVATAR_HEAD_HEIGHT=1.318;
 const SHOULDER_X=.16,SHOULDER_Y=.99;
+export {ARM_LENGTH as DANCE_ARM_LENGTH,SHOULDER_X as DANCE_SHOULDER_X,SHOULDER_Y as DANCE_SHOULDER_Y};
+const captainAim=new T.Vector3(),captainElbow=new T.Vector3(),captainOutside=new T.Vector3();
+const captainRotation=new T.Quaternion(),captainForearm=new T.Quaternion();
+const CAPTAIN_UPPER=.216,CAPTAIN_LOWER=.203;
 /** Seconds into the eat gesture when the macaron reaches the mouth and half of it goes. */
 const MACARON_BITE_AT=1.5;
 const shadowGeometry=new T.CircleGeometry(.36,20),shadowMaterial=new T.MeshBasicMaterial({color:0x18100a,transparent:true,opacity:.2,depthWrite:false});
@@ -41,7 +50,81 @@ function garmentPatch(parent:T.Group,torso:T.Mesh,w:number,h:number,x:number,y:n
 }
 // Rounded arm ends tuck into the body instead of showing a flat cut or a ball joint.
 export const FLOOR_INSTRUMENTS=new Set<Instrument>(['cello','bass','harp','piano','celesta','timpani','bass-drum','gong','snare','chimes','xylophone','marimba','vibraphone','drum-kit']);
-const armGeometry=new T.CapsuleGeometry(.066,ARM_LENGTH-.13,4,10);
+const SLEEVE_RADIUS=.066;
+const armGeometry=new T.CapsuleGeometry(SLEEVE_RADIUS,ARM_LENGTH-.13,4,10);
+const SLEEVE_CENTER_Y=-(ARM_LENGTH-.06)/2;
+const captainSleeveRest=new T.CapsuleGeometry(SLEEVE_RADIUS,ARM_LENGTH-.13,4,10,12);
+const sleevePoint=new T.Vector3(),sleeveNormal=new T.Vector3(),sleeveCenter=new T.Vector3();
+const bentSleeveCenter=new T.Vector3(),sleeveBend=new T.Quaternion();
+
+/** Deform one continuous sleeve around the elbow while preserving each ring's radius. */
+function bendCaptainSleeve(geometry:T.BufferGeometry,elbow:T.Quaternion,lengthScale:number){
+ const rest=captainSleeveRest.getAttribute('position');
+ const restNormals=captainSleeveRest.getAttribute('normal');
+ const positions=geometry.getAttribute('position');
+ const normals=geometry.getAttribute('normal');
+ for(let i=0;i<rest.count;i++){
+  const fromElbow=(rest.getY(i)+SLEEVE_CENTER_Y+CAPTAIN_UPPER)*lengthScale;
+  const blend=1-T.MathUtils.smoothstep(fromElbow,-SLEEVE_RADIUS,SLEEVE_RADIUS);
+  sleeveBend.identity().slerp(elbow,blend);
+  sleeveCenter.set(0,fromElbow,0);
+  bentSleeveCenter.copy(sleeveCenter).applyQuaternion(elbow);
+  sleeveCenter.lerp(bentSleeveCenter,blend);
+  sleevePoint.set(rest.getX(i),0,rest.getZ(i)).applyQuaternion(sleeveBend).add(sleeveCenter);
+  sleeveNormal.fromBufferAttribute(restNormals,i).applyQuaternion(sleeveBend);
+  positions.setXYZ(i,sleevePoint.x,sleevePoint.y-CAPTAIN_UPPER*lengthScale-SLEEVE_CENTER_Y,sleevePoint.z);
+  normals.setXYZ(i,sleeveNormal.x,sleeveNormal.y,sleeveNormal.z);
+ }
+ positions.needsUpdate=true;
+ normals.needsUpdate=true;
+}
+const BAD_ELBOW_START=.10,BAD_ELBOW_ARC=.14;
+const badBendAxis=new T.Vector3(0,0,1),badPitchAxis=new T.Vector3(1,0,0);
+const badShoulderTarget=new T.Quaternion(),badShoulderCorrection=new T.Quaternion(),badHandTarget=new T.Vector3();
+
+function badArmPose(upper:T.Vector3,out:T.Vector3,elbowDegrees:number){
+ const up=upper.normalize().negate();
+ out.projectOnPlane(up).normalize();
+ const shoulder=new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(out,up,new T.Vector3().crossVectors(out,up)));
+ const angle=T.MathUtils.degToRad(elbowDegrees),hand=new T.Vector3(0,-ARM_LENGTH,0);
+ bendBadSleeve(hand,angle);
+ return {shoulder,angle,hand};
+}
+const badArmHigh=badArmPose(new T.Vector3(.60,-.58,-.55),new T.Vector3(.71,.21,.66),110);
+const badArmLow=badArmPose(new T.Vector3(.27,-.88,-.40),new T.Vector3(.87,.03,.49),70);
+let badSleeveGeometry:T.CapsuleGeometry|undefined;
+
+/** Round the existing sleeve around the BAD pose's elbow, in shoulder-local space. */
+function bendBadSleeve(point:T.Vector3,elbowAngle:number){
+ const offset=-point.y-BAD_ELBOW_START;
+ const arc=T.MathUtils.clamp(offset,0,BAD_ELBOW_ARC);
+ const angle=arc/BAD_ELBOW_ARC*elbowAngle,c=Math.cos(angle),s=Math.sin(angle);
+ const radius=BAD_ELBOW_ARC/elbowAngle,straight=offset-arc;
+ point.set(point.x*c+radius*(c-1)-straight*s,-BAD_ELBOW_START-radius*s-straight*c-point.x*s,point.z);
+ return angle;
+}
+
+function createBadSleeve(){
+ const geometry=new T.CapsuleGeometry(.066,ARM_LENGTH-.13,4,10,10);
+ prepareClothContact(geometry,'sleeve');
+ const positions=geometry.getAttribute('position'),normals=geometry.getAttribute('normal');
+ const point=new T.Vector3(),normal=new T.Vector3();
+ geometry.morphAttributes.position=[];
+ geometry.morphAttributes.normal=[];
+ for(const pose of [badArmHigh,badArmLow]){
+  const bentPositions=positions.clone(),bentNormals=normals.clone();
+  for(let i=0;i<positions.count;i++){
+   point.fromBufferAttribute(positions,i).y+=SLEEVE_CENTER_Y;
+   const angle=bendBadSleeve(point,pose.angle);
+   normal.fromBufferAttribute(normals,i).applyAxisAngle(badBendAxis,-angle);
+   bentPositions.setXYZ(i,point.x,point.y-SLEEVE_CENTER_Y,point.z);
+   bentNormals.setXYZ(i,normal.x,normal.y,normal.z);
+  }
+  geometry.morphAttributes.position.push(bentPositions);
+  geometry.morphAttributes.normal.push(bentNormals);
+ }
+ return geometry;
+}
 // A short, chubby index finger for the hush gesture.
 const forkBiteGeometry=new T.IcosahedronGeometry(.028,1);
 const fingerGeometry=new T.CapsuleGeometry(.024,.07,4,8);
@@ -108,10 +191,10 @@ export class Avatar{
  readonly appearance:'woman'|'man';readonly hair:HairStyle;
  readonly root=new T.Group();readonly body=new T.Group();readonly head=new T.Group();readonly eyes=new T.Group();
  readonly leftArm=new T.Group();readonly rightArm=new T.Group();readonly leftHand=new T.Group();readonly rightHand=new T.Group();
- readonly finger:T.Mesh;readonly leftLeg=new T.Group();readonly rightLeg=new T.Group();private readonly knees:T.Group[]=[];readonly instrument=new T.Group();phase=0;instrumentType?:Instrument;
+ readonly finger:T.Mesh;readonly leftLeg=new T.Group();readonly rightLeg=new T.Group();private readonly knees:T.Group[]=[];private readonly shoes:T.Mesh[]=[];readonly instrument=new T.Group();phase=0;instrumentType?:Instrument;
  /** Head-top icon of the current gesture, for the emote layer. */
  icon:Icon|null=null;iconAlpha=0;
- private sitAmount=0;private left:Arm;private right:Arm;
+ private sitAmount=0;private left:Arm;private right:Arm;private danceFeetPosed=false;
  private direction=new T.Vector3();private armRotation=new T.Quaternion();private hipOffset=new T.Vector3();private tilt=new T.Euler();
  readonly variant:number;readonly skirt:T.Mesh|null;
  constructor(color=0x252733,instrument?:Instrument,variant=0,readonly outfit?:Outfit){this.variant=variant;
@@ -123,7 +206,7 @@ export class Avatar{
   if(this.appearance==='man')box(this.body,[.075,.06,.045],[0,.96,-.1775],0xa23c3c);else sphere(this.body,.04,[0,.97,-.16],0xe8b647);
   // Big round head with dot eyes, catch-lights, blush and a button nose.
   cylinder(this.body,.08,.02,[0,1.005,0],skin).userData.facePart='neck';
-  this.head.position.y=1.318;// Lower the head into the neckline for both appearances.
+  this.head.position.y=AVATAR_HEAD_HEIGHT;// Lower the head into the neckline for both appearances.
   const skull=new T.Mesh(faceGeometry,material(skin));skull.position.y=.03;skull.scale.set(.37,.345,.35);skull.userData.lowDetail=faceFarGeometry;this.head.add(skull);// Blush and mouth sit on this surface, not in front of it.
   paintFace(this.head,this.eyes);
   sphere(this.head,.04,[0,-.075,faceSurfaceZ(0,-.075)-.015],0xe8a77f).scale.set(.035,.025,.023);
@@ -140,7 +223,7 @@ export class Avatar{
   for(const [side,arm]of [[-1,this.left],[1,this.right]] as const){
    // Arms start inside the torso, so the top of the arm is buried in the body instead of hanging beside it.
    arm.shoulder.position.set(side*SHOULDER_X,SHOULDER_Y,0);arm.shoulder.add(arm.hand);arm.hand.position.y=-ARM_LENGTH;
-   const limb=new T.Mesh(armGeometry,material(color));limb.position.y=-(ARM_LENGTH-.06)/2;limb.userData.clothContact='sleeve';arm.shoulder.add(limb);
+   const limb=new T.Mesh(armGeometry,material(color));limb.position.y=SLEEVE_CENTER_Y;limb.userData.clothContact='sleeve';arm.shoulder.add(limb);
    sphere(arm.hand,.082,[0,0,0],skin).scale.set(.082,.088,.078);
   }
   // Hidden by zero scale (not visibility) so batched musicians never show it.
@@ -150,8 +233,9 @@ export class Avatar{
    // Everyone has a knee, so visitors and musicians alike sit with their shins down in front of the chair.
    {const r=wearsSkirt?.065:.085,colour=wearsSkirt?skin:0x242329,knee=new T.Group();
     // Same overall length as the straight leg (foot at −0.49); a round knee like the shoulders hides the joint.
-    dress(cylinder(hip,r,.25,[0,-.125,0],colour));knee.position.set(0,-.25,0);hip.add(knee);this.knees.push(knee);
-    dress(sphere(knee,r,[0,0,0],colour));dress(cylinder(knee,r,.2,[0,-.1,0],colour));sphere(knee,.12,[0,-.24,-.045],0x2b2422).scale.set(.11,.075,.155);}
+    dress(cylinder(hip,r,THIGH_LENGTH,[0,-THIGH_LENGTH/2,0],colour));knee.position.y=-THIGH_LENGTH;hip.add(knee);this.knees.push(knee);
+    dress(sphere(knee,r,[0,0,0],colour));dress(cylinder(knee,r,.2,[0,-.1,0],colour));
+    const shoe=sphere(knee,.12,[0,-SHIN_LENGTH,-.045],0x2b2422);shoe.scale.set(.11,.075,.155);this.shoes.push(shoe);}
   }
   // Existing materials share a broad character fill; cloth, skin and hair keep distinct responses.
   this.head.traverse(o=>{if(o instanceof T.Mesh&&!Array.isArray(o.material))o.material=frontLitMaterial(o.material,o.userData.hairPart?'hair':'head');});
@@ -165,7 +249,158 @@ export class Avatar{
   if(instrument){buildInstrument(instrument,this.instrument,this.leftHand,this.rightHand);if(FLOOR_INSTRUMENTS.has(instrument)){this.root.add(this.instrument);this.instrument.userData.floorAnchored=true;if(instrument==='cello')this.instrument.position.y=.64;}if(instrument==='conductor'||JAZZ_HALL&&instrument==='piano')santaHat(this.head);/* the big band's leader plays the piano */}
  }
  /** Orchestra bodies are settled once; only the head and rigid arms need live transforms. */
+ disposeDanceSleeves(){
+  this.left.captainSleeve?.dispose();
+  this.right.captainSleeve?.dispose();
+ }
+
  settlePose(sitting:boolean){this.sitAmount=sitting?1:0;this.update(0,0,sitting,false,null,10,0);for(const group of [this.head,this.leftArm,this.rightArm])group.userData.animated=true;}
+ /** Shift the pelvis under the shoulders while both feet take weight on the floor. */
+ poseFlossHips(sway:number,weight:number){
+  this.captureDanceFeet(weight);
+  danceShoulders.set(0,this.leftArm.position.y,0).applyQuaternion(this.body.quaternion);
+  this.body.rotateY(-sway*.24);
+  this.body.rotateZ(sway*.34);
+  this.body.position.add(danceShoulders.sub(danceTilt.set(0,this.leftArm.position.y,0).applyQuaternion(this.body.quaternion)));
+  this.body.position.x+=sway*.045;
+  this.body.position.y-=weight*(.05+.026*Math.abs(sway));
+  this.head.rotation.z-=sway*.28;
+  this.head.rotation.y+=sway*.17;
+  this.plantDanceFeet(weight);
+ }
+
+ poseJointedArm(side:-1|1,target:T.Vector3,elbowGuide:T.Vector3,wristRoll:number,wristWeight:number,weight:number,lengthScale=1){
+  const arm=side<0?this.left:this.right;
+  if(!arm.elbow){
+   arm.sleeve=arm.shoulder.children.find(child=>child instanceof T.Mesh) as T.Mesh;
+   const elbow=new T.Group();
+   elbow.position.y=-CAPTAIN_UPPER;
+   arm.elbow=elbow;
+   arm.shoulder.add(elbow);
+   arm.captainSleeve=captainSleeveRest.clone();
+   prepareClothContact(arm.captainSleeve,'sleeve');
+   for(const name of ['position','normal']){
+    const attribute=arm.captainSleeve.getAttribute(name);
+    if(attribute instanceof T.BufferAttribute)attribute.setUsage(T.DynamicDrawUsage);
+   }
+   arm.captainSleeve.userData.bentSleeve=true;
+   // A conservative bound fits both the straight and bent sleeve.
+   arm.captainSleeve.boundingSphere=new T.Sphere(new T.Vector3(),ARM_LENGTH+SLEEVE_RADIUS);
+  }
+
+  const elbow=arm.elbow;
+  const upper=CAPTAIN_UPPER*lengthScale,lower=CAPTAIN_LOWER*lengthScale;
+  elbow.position.y=-upper;
+  const sleeve=arm.sleeve!;
+  if(sleeve.geometry!==arm.captainSleeve){
+   sleeve.geometry=arm.captainSleeve!;
+   sleeve.updateMorphTargets();
+  }
+  if(arm.hand.parent!==elbow)elbow.add(arm.hand);
+
+  // Solve the elbow from two fixed lengths and the direction it should bend.
+  captainAim.copy(DOWN).multiplyScalar(ARM_LENGTH).applyQuaternion(arm.shoulder.quaternion)
+   .lerp(captainOutside.copy(target).sub(arm.shoulder.position),weight);
+  const distance=captainAim.length();
+  const reach=T.MathUtils.clamp(distance,.13,upper+lower-.00001);
+  captainAim.divideScalar(Math.max(distance,.001));
+  const along=(upper**2-lower**2+reach**2)/(2*reach);
+  const bend=Math.sqrt(Math.max(0,upper**2-along**2));
+  captainOutside.copy(elbowGuide).projectOnPlane(captainAim).normalize();
+  captainElbow.copy(captainAim).multiplyScalar(along).addScaledVector(captainOutside,bend);
+
+  captainRotation.setFromUnitVectors(DOWN,captainOutside.copy(captainElbow).normalize());
+  captainAim.multiplyScalar(reach).sub(captainElbow).normalize();
+  captainForearm.setFromUnitVectors(DOWN,captainAim);
+  arm.shoulder.quaternion.copy(captainRotation);
+  elbow.quaternion.copy(captainRotation.invert()).multiply(captainForearm);
+  bendCaptainSleeve(sleeve.geometry,elbow.quaternion,lengthScale);
+  arm.hand.position.set(0,-lower,0);
+  arm.hand.rotation.set(.28*Math.sin(wristRoll)*wristWeight*weight,.9*Math.cos(wristRoll)*wristWeight*weight,0);
+ }
+
+ poseCaptain(side:number,weight:number){
+  this.captureDanceFeet(weight);
+  this.body.rotateY(-side*.035*weight);
+  this.body.rotateX(-.07*weight);
+  this.body.position.x+=side*.022*weight;
+  this.body.position.y-=(.05-.018*Math.abs(side))*weight;
+  this.head.rotation.y+=side*.11*weight;
+  this.plantDanceFeet(weight);
+ }
+
+ poseBad(lean:number,lower:number,pop:number){
+  this.captureDanceFeet(lean,-.065);
+  danceShoulders.copy(HIP).applyQuaternion(this.body.quaternion);
+  this.body.rotateZ(-lean*.24);
+  this.body.rotateX(-pop*.22);
+  this.body.position.add(danceShoulders.sub(danceTilt.copy(HIP).applyQuaternion(this.body.quaternion)));
+  this.body.position.y-=lean*.035;
+  this.head.rotation.z-=lean*.12;
+  this.head.rotation.x+=pop*.17;
+  // Let the skirt hang over the knees while the torso snaps forward.
+  if(this.skirt)this.skirt.rotation.x=pop*.25;
+  this.plantDanceFeet(lean);
+
+  const sleeve=this.rightArm.children.find(child=>child instanceof T.Mesh) as T.Mesh;
+  badSleeveGeometry??=createBadSleeve();
+  if(sleeve.geometry!==badSleeveGeometry){sleeve.geometry=badSleeveGeometry;sleeve.updateMorphTargets();}
+  const morph=sleeve.morphTargetInfluences!;
+  morph[0]=lean*(1-lower);
+  morph[1]=lean*lower;
+  badShoulderTarget.copy(badArmHigh.shoulder).slerp(badArmLow.shoulder,lower);
+  // The chest hits behind the arm while the hand follows its slower path downward.
+  badShoulderTarget.premultiply(badShoulderCorrection.setFromAxisAngle(badPitchAxis,pop*.25));
+  this.rightArm.quaternion.slerp(badShoulderTarget,lean);
+  this.rightHand.position.lerp(badHandTarget.copy(badArmHigh.hand).lerp(badArmLow.hand,lower),lean);
+ }
+
+ private captureDanceFeet(weight:number,rightDepth=0){
+  this.danceFeetPosed=true;
+  for(const [i,leg] of [this.leftLeg,this.rightLeg].entries()){
+   danceFeet[i].set(0,-LEG_REACH,0).applyQuaternion(leg.quaternion).add(leg.position)
+    .applyQuaternion(this.body.quaternion).add(this.body.position);
+   danceFeet[i].lerp(danceTilt.set(i===0?-.16:.16,.06,i===0?0:rightDepth),weight);
+  }
+ }
+
+ /** Offline motion targets in root-local coordinates; reuse the existing fixed-length leg IK. */
+ poseCapturedFeet(left:T.Vector3,right:T.Vector3,weight=1){
+  this.captureDanceFeet(0);
+  danceFeet[0].lerp(left,weight);
+  danceFeet[1].lerp(right,weight);
+  this.plantDanceFeet(weight);
+ }
+
+ private plantDanceFeet(weight:number){
+  const legs=[this.leftLeg,this.rightLeg];
+  // Lower enough to keep the leg on the far side from pulling its foot off the floor.
+  let drop=0;
+  for(const [i,leg] of legs.entries()){
+   danceTilt.copy(leg.position).applyQuaternion(this.body.quaternion).add(this.body.position).sub(danceFeet[i]);
+   const verticalReach=Math.sqrt(Math.max(0,LEG_REACH**2-danceTilt.x**2-danceTilt.z**2));
+   drop=Math.max(drop,danceTilt.y-verticalReach);
+  }
+  this.body.position.y-=drop;
+  inverseBody.copy(this.body.quaternion).invert();
+  for(const [i,leg] of legs.entries()){
+   // Solve the existing two leg segments toward the planted ankle, bending the knee forward.
+   ankleDirection.copy(danceFeet[i]).sub(this.body.position).applyQuaternion(inverseBody).sub(leg.position);
+   const reach=T.MathUtils.clamp(ankleDirection.length(),.025,LEG_REACH-.0001);
+   ankleDirection.normalize();
+   const along=(reach*reach+THIGH_LENGTH**2-SHIN_LENGTH**2)/(2*reach);
+   kneeDirection.set(0,0,-1).addScaledVector(ankleDirection,ankleDirection.z).normalize();
+   thighDirection.copy(ankleDirection).multiplyScalar(along).addScaledVector(kneeDirection,Math.sqrt(THIGH_LENGTH**2-along**2));
+   leg.quaternion.setFromUnitVectors(DOWN,kneeDirection.copy(thighDirection).normalize());
+   ankleDirection.multiplyScalar(reach).sub(thighDirection).normalize().applyQuaternion(this.armRotation.copy(leg.quaternion).invert());
+   this.knees[i].quaternion.setFromUnitVectors(DOWN,ankleDirection);
+   const shoe=this.shoes[i];
+   shoe.quaternion.copy(this.body.quaternion).multiply(leg.quaternion).multiply(this.knees[i].quaternion).invert();
+   shoe.quaternion.slerp(this.armRotation.identity(),1-weight);
+   shoe.position.set(0,0,-.045).applyQuaternion(shoe.quaternion);
+   shoe.position.y-=SHIN_LENGTH;
+  }
+ }
  /** Each arm is one rigid piece: rotate only at the shoulder, never stretch or bend. */
  private aimAt(arm:Arm,x:number,y:number,z:number,weight=1){this.direction.set(x,y,z).sub(arm.shoulder.position).normalize();this.armRotation.setFromUnitVectors(DOWN,this.direction);arm.shoulder.quaternion.slerp(this.armRotation,weight);}
  /** Reach for the cat's actual head in world space, regardless of the approach direction. */
@@ -189,11 +424,20 @@ export class Avatar{
  diningBite:number|null=null;
  /** Holding the dinner wine glass (only while sipping); it drinks exactly like the lobby coffee. */
  holdingWine=false;private wineGlass?:T.Group;private faceFront?:number;private fork?:T.Group;private forkBite?:T.Mesh;
- update(time:number,speed:number,sitting:boolean,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60,cameraFacing?:CameraFacing){
+ update(time:number,speed:number,sitting:boolean|number,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60,cameraFacing?:CameraFacing,keepCaptainJoints=false){
+  if(!keepCaptainJoints)for(const arm of [this.left,this.right]){
+   if(arm.hand.parent===arm.shoulder)continue;
+   arm.shoulder.add(arm.hand);
+   arm.hand.quaternion.identity();
+   arm.sleeve!.geometry=armGeometry;
+   arm.sleeve!.updateMorphTargets();
+  }
+  this.head.position.y=AVATAR_HEAD_HEIGHT;
   this.rightHand.position.set(0,-ARM_LENGTH,0);this.leftHand.position.set(0,-ARM_LENGTH,0);
-  const leftSleeve=this.leftArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;if(leftSleeve){leftSleeve.scale.y=1;leftSleeve.position.y=-(ARM_LENGTH-.06)/2;}
-  const sleeve=this.rightArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;if(sleeve){sleeve.scale.y=1;sleeve.position.y=-(ARM_LENGTH-.06)/2;}
-  const t=time+this.phase,play=performing?1:0,type=this.instrumentType;this.sitAmount=T.MathUtils.damp(this.sitAmount,sitting?1:0,12,dt);
+  const leftSleeve=this.leftArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;if(leftSleeve){leftSleeve.scale.y=1;leftSleeve.position.y=SLEEVE_CENTER_Y;leftSleeve.morphTargetInfluences?.fill(0);}
+  const sleeve=this.rightArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;
+  if(sleeve){sleeve.scale.y=1;sleeve.position.y=SLEEVE_CENTER_Y;sleeve.morphTargetInfluences?.fill(0);}
+  const t=time+this.phase,play=performing?1:0,type=this.instrumentType;this.sitAmount=typeof sitting==='number'?sitting:T.MathUtils.damp(this.sitAmount,sitting?1:0,12,dt);
   const pose=poseVillager({time,speed,sit:this.sitAmount,music:performing,musician:!!type,gesture,age:gestureAge,cameraFacing},this.phase),sit=pose.sit;
   if(this.trainPassenger&&gesture==='wave'&&pose.left){
    const [x,y,z]=pose.left;pose.right=[-x,y,z];pose.left=null;pose.sway=-pose.sway;pose.headRoll=-pose.headRoll;
@@ -207,7 +451,10 @@ export class Avatar{
   if(!type&&gesture==='shh'){
    leftReach=T.MathUtils.smoothstep(turn??0,.02,.24);rightReach=1-leftReach;
   }
-  // Keep the original shoulder anchors fixed; gestures rotate the single-piece sleeves.
+  // Restore dance reach before applying the ordinary gesture pose.
+  this.leftArm.scale.setScalar(1);
+  this.rightArm.scale.setScalar(1);
+  // Keep the sleeve attached to the original shoulder through every gesture.
   this.leftArm.position.set(-SHOULDER_X,SHOULDER_Y,0);
   this.rightArm.position.set(SHOULDER_X,SHOULDER_Y,0);
   // At the dinner table the body leans in to reach the middle of the plate, then sits back up as the fork rises.
@@ -225,6 +472,11 @@ export class Avatar{
   const splay=type==='cello'?.75*sit:0;
   for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const){hip.position.set(-sign*.115*Math.cos(pose.turn),.55,-sign*.115*Math.sin(pose.turn));hip.rotation.order='YXZ';hip.rotation.set(T.MathUtils.lerp(pose.swing*.5*sign,Math.PI/2,sit)+pose.lean*(1-sit),splay*sign-pose.turn,-pose.sway);}
   // Seated, the knees bend so the shins hang straight down in front of the chair.
+  if(this.danceFeetPosed){
+   for(const knee of this.knees)knee.rotation.set(0,0,0);
+   for(const shoe of this.shoes){shoe.quaternion.identity();shoe.position.set(0,-SHIN_LENGTH,-.045);}
+   this.danceFeetPosed=false;
+  }
   for(const knee of this.knees)knee.rotation.x=-Math.PI/2*sit;
   // Resting arms are held out on a diagonal (less when seated).
   const spread=T.MathUtils.lerp(.42,.16,sit);
@@ -364,7 +616,11 @@ export class Avatar{
    }
   }
   // Mittens stay rounded and tools keep their body-space orientation.
-  for(const arm of [this.left,this.right])arm.hand.quaternion.copy(arm.shoulder.quaternion).invert();
+  for(const arm of [this.left,this.right]){
+   arm.hand.quaternion.copy(arm.shoulder.quaternion);
+   if(arm.hand.parent===arm.elbow)arm.hand.quaternion.multiply(arm.elbow.quaternion);
+   arm.hand.quaternion.invert();
+  }
  }
 }
 

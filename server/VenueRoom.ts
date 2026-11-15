@@ -1,3 +1,4 @@
+import {isDanceCommand,handleDance,finishDance,expireDance,DANCE_END_MS} from '../shared/dance';
 import {serveTea} from '../shared/tea';
 import {RESTING_CHAIR,updateMagicChairs,MAGIC_CHAIR_ID} from '../shared/magicChair';
 import {onTrainDeck,TRAIN_EXIT,TRAIN_PLATFORM,TRAIN_SEATS} from '../shared/encoreTrain';
@@ -91,7 +92,8 @@ export class VenueRoom extends DurableObject<Env>{
   const b=this.ctx.storage.sql.exec<{next:number|null}>('SELECT MIN(until) AS next FROM sessions WHERE until IS NOT NULL').one().next;
   let idle=Infinity;for(const {ws,a:attachment} of this.active())if(attachment.visitor.zone==='lobby'){if(!attachment.lastActivity){attachment.lastActivity=Date.now();ws.serializeAttachment(attachment);}idle=Math.min(idle,attachment.lastActivity+30000);}
   const empty=Math.min(Infinity,...this.active().map(({a})=>Math.min(a.visitor.coffeeEmptyAt??Infinity,a.visitor.macaronEmptyAt??Infinity,a.visitor.dishEmptyAt??Infinity,a.visitor.drinkEmptyAt??Infinity)));
-  const next=Math.min(a??Infinity,b??Infinity,idle,empty);if(Number.isFinite(next))await this.ctx.storage.setAlarm(Math.max(Date.now()+10,next));else await this.ctx.storage.deleteAlarm();
+  const danceDeadline=Math.min(Infinity,...this.active().map(({a})=>a.visitor.dance?.endingAt===undefined?Infinity:a.visitor.dance.endingAt+DANCE_END_MS));
+  const next=Math.min(a??Infinity,b??Infinity,idle,empty,danceDeadline);if(Number.isFinite(next))await this.ctx.storage.setAlarm(Math.max(Date.now()+10,next));else await this.ctx.storage.deleteAlarm();
  }
  private expire(){const now=Date.now();
   const expired=this.ctx.storage.sql.exec<{id:string}>('SELECT id FROM sessions WHERE until IS NOT NULL AND until<=?',now).toArray();for(const {id} of expired)this.release(id);
@@ -141,6 +143,27 @@ export class VenueRoom extends DurableObject<Env>{
   if(msg.type==='clock'){if(Number.isFinite(msg.sentAt))this.send(ws,{type:'clock',sentAt:msg.sentAt,serverNow:now});return;}
   if(msg.type==='sync'){this.send(ws,{type:'state',state:this.snapshot(this.roomId(),ws)});return;}
   if(msg.type==='activity'){a.lastActivity=now;ws.serializeAttachment(a);await this.schedule();return;}
+  const danceCommand=isDanceCommand(msg);
+  if(v.dance&&(msg.type==='move'||msg.type==='gesture'))return;
+  if(danceCommand||v.dance){
+   const dancers=this.active(),all=dancers.map(({a})=>a.visitor);
+   const selfIndex=all.findIndex(p=>p.id===v.id);if(selfIndex>=0)all[selfIndex]=v;
+   const persistDancers=()=>{for(const item of dancers){
+    // Preserve this message's rate-limit and activity counters on the sending socket.
+    if(item.a.visitor.id===v.id)item.ws.serializeAttachment(a);
+    else item.ws.serializeAttachment(item.a);
+   }};
+   if(isDanceCommand(msg)){
+    a.lastActivity=now;
+    const error=handleDance(v,all,msg,now);
+    persistDancers();
+    if(error)this.send(ws,{type:'error',message:error});
+    this.broadcast();await this.schedule();return;
+   }
+   if(['zone','hallMove','trainBoard','reserve','loungeSit','release'].includes(msg.type)){
+    finishDance(v,all,now,true);persistDancers();
+   }
+  }
   if(msg.type==='move'){
    if(!walkable(v.zone,{x:msg.x,y:msg.y??0,z:msg.z})||!Number.isFinite(msg.yaw)||!['idle','walk'].includes(msg.pose))return;
    // A generous per-packet allowance accommodates interpolation and mobile pauses.
@@ -235,10 +258,12 @@ export class VenueRoom extends DurableObject<Env>{
  async webSocketError(ws:WebSocket){await this.disconnected(ws);}
  private async disconnected(ws:WebSocket){const a=this.attachment(ws);if(!a)return;ws.serializeAttachment(null);
   if(this.active().some(x=>x.a.visitor.id===a.visitor.id))return;
+  const dancers=this.active();finishDance(a.visitor,dancers.map(({a})=>a.visitor),Date.now());delete a.visitor.dance;for(const item of dancers)item.ws.serializeAttachment(item.a);
   this.ctx.storage.sql.exec('UPDATE sessions SET visitor=?,until=? WHERE id=?',JSON.stringify(a.visitor),Date.now()+GRACE_MS,a.visitor.id);this.broadcast();await this.schedule();
  }
  async alarm(){
   this.expire();const now=Date.now();
+  const dancers=this.active();expireDance(dancers.map(({a})=>a.visitor),now);for(const {ws,a} of dancers)ws.serializeAttachment(a);
   for(const {ws,a} of this.active())if(a.visitor.macaronEmptyAt&&now>=a.visitor.macaronEmptyAt){delete a.visitor.macaron;delete a.visitor.macaronBites;delete a.visitor.macaronEmptyAt;ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(a.visitor),a.visitor.id);}
   for(const {ws,a} of this.active())if(a.visitor.dishEmptyAt&&now>=a.visitor.dishEmptyAt||a.visitor.drinkEmptyAt&&now>=a.visitor.drinkEmptyAt){const v=a.visitor;if(v.dishEmptyAt&&now>=v.dishEmptyAt){delete v.dish;delete v.dishBites;delete v.dishEmptyAt;}if(v.drinkEmptyAt&&now>=v.drinkEmptyAt){delete v.teaReadyAt;delete v.drink;delete v.drinkSips;delete v.drinkEmptyAt;}ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(v),v.id);}
   for(const {ws,a} of this.active())if(a.visitor.coffeeEmptyAt&&now>=a.visitor.coffeeEmptyAt){const v=a.visitor;delete v.coffee;delete v.coffeeSips;delete v.coffeeEmptyAt;ws.serializeAttachment(a);this.ctx.storage.sql.exec('UPDATE sessions SET visitor=? WHERE id=?',JSON.stringify(v),v.id);}

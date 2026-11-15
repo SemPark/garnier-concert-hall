@@ -93,6 +93,7 @@ export class HallTransition {
   }
  }
  configureGalaxies(settings:GalaxySettings){this.galaxies?.configure(settings);}
+ frameSaturn(camera:T.Camera){this.planets?.frameSaturn(camera);}
  update(dt:number,concertSeconds=0){
   this.planets?.orbit(concertSeconds);
   this.galaxies?.animate(concertSeconds);

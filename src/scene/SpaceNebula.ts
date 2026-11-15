@@ -89,8 +89,8 @@ export class SpaceNebula {
      float cavity=1.0-smoothstep(0.43,0.63,broad-curls*0.18);
      float threads=pow(clamp(1.0-abs(2.0*fine-1.0),0.0,1.0),8.0);
      if(shape>1.5){
-      gas=mix(vec3(0.015,0.035,0.12),vec3(0.035,0.28,0.23),smoothstep(0.25,0.69,broad));
-      gas=mix(gas,vec3(0.16,0.11,0.25),purple*0.55);
+      gas=mix(vec3(0.023,0.012,0.15),vec3(0.16,0.055,0.55),smoothstep(0.25,0.69,broad));
+      gas=mix(gas,vec3(0.31,0.04,0.54),purple*0.58);
      }else if(shape>0.5){
       gas=mix(vec3(0.035,0.012,0.10),vec3(0.34,0.065,0.15),smoothstep(0.25,0.69,broad));
       gas=mix(gas,vec3(0.12,0.12,0.32),purple*0.65);
@@ -101,16 +101,21 @@ export class SpaceNebula {
      dustColor*=1.0-fissures*0.76;
      float rim=exp(-abs(height)*48.0)*smoothstep(0.30,0.65,curls);
      float glow=exp(-abs(height)*15.0)*(0.10+0.36*threads);
-     vec3 warm=mix(vec3(0.58,0.17,0.08),vec3(1.0,0.78,0.42),relief);
+     vec3 rimColor=mix(vec3(0.58,0.17,0.08),vec3(1.0,0.78,0.42),relief);
+     vec3 threadColor=vec3(0.035,0.07,0.095);
+     float rimLight=0.34*rim+0.15*glow;
      if(shape>1.5){
-      dustColor=mix(vec3(0.008,0.015,0.027),vec3(0.07,0.15,0.14),relief)*(1.0-fissures*0.76);
-      warm=mix(vec3(0.15,0.35,0.38),vec3(0.77,0.90,0.81),relief);
+      // Indigo gas surrounds magenta filaments with pale lavender crests.
+      dustColor=mix(vec3(0.022,0.008,0.05),vec3(0.23,0.035,0.35),relief)*(1.0-fissures*0.76);
+      rimColor=mix(vec3(1.0,0.025,0.38),vec3(0.90,0.63,1.0),smoothstep(0.43,0.73,relief));
+      rimLight=0.92*rim+0.48*glow+0.16*fissures*wisps*cavity;
+      threadColor=vec3(0.13,0.045,0.30);
      }else if(shape>0.5){
       dustColor=mix(vec3(0.024,0.007,0.019),vec3(0.20,0.07,0.08),relief)*(1.0-fissures*0.76);
-      warm=mix(vec3(0.52,0.16,0.15),vec3(0.95,0.60,0.42),relief);
+      rimColor=mix(vec3(0.52,0.16,0.15),vec3(0.95,0.60,0.42),relief);
      }
-     vec3 color=mix(gas,dustColor,dust*0.82)+warm*(0.34*rim+0.15*glow);
-     color+=vec3(0.035,0.07,0.095)*threads*wisps*cavity;
+     vec3 color=mix(gas,dustColor,dust*0.82)+rimColor*rimLight;
+     color+=threadColor*threads*wisps*cavity;
      float outskirts=smoothstep(0.18,0.59,broad+0.18*curls);
      float opacity=max((0.10+wisps*0.42)*cavity,dust*0.72+rim*0.3);
      opacity*=halo*boundary*outskirts;
@@ -123,7 +128,7 @@ export class SpaceNebula {
   const placements=[
    {name:'space-nebula',position:[-54,62,-109],scale:1,roll:-.10,seed:0,shape:0},
    {name:'space-nebula-rose',position:[119,84,24],scale:1.08,roll:.32,seed:17.3,shape:1},
-   {name:'space-nebula-teal',position:[-63,72,118],scale:.86,roll:-.38,seed:43.7,shape:2},
+   {name:'space-nebula-indigo',position:[-63,72,118],scale:.86,roll:-.38,seed:43.7,shape:2},
   ];
   for(const [index,placement] of placements.entries()){
    const cloudMaterial=index===0?material:material.clone();

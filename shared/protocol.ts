@@ -1,3 +1,4 @@
+import type {DanceCommand} from './dance';
 import type {MagicChairState} from './magicChair';
 import type {Dish} from './dishes';
 import type {Outfit} from './wardrobe';
@@ -20,6 +21,7 @@ export function applyDelta(state:Snapshot,delta:Delta):Snapshot|null{
  return {magicChair:delta.magicChair??state.magicChair,revision:delta.revision,visitors,seats,serverNow:delta.serverNow,roomId:state.roomId};
 }
 export type ClientMessage=
+ |DanceCommand
  |{type:'trainBoard';seat?:number;direct?:true;fromMenu?:true}
  |{type:'trainLeave'}
  |{type:'move';x:number;y?:number;z:number;yaw:number;pose:Pose}

@@ -1,7 +1,7 @@
 import {gestureSeconds,type Gesture} from '../../shared/gestures';
 
 /** Head-top icons, in atlas order. */
-export const ICONS=['heart','bang','sparkle','zz','dots','note'] as const;
+export const ICONS=['heart','bang','sparkle','zz','dots','note','danceNote'] as const;
 export type Icon=typeof ICONS[number];
 export const GESTURE_ICON:Record<Gesture,Icon|null>={wave:null,clap:'note',bravo:'bang',ovation:null,bow:null,moved:'heart',shh:'dots',doze:'zz',drink:null,eat:null};
 
