@@ -2,6 +2,7 @@ import * as T from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Playback } from '../../shared/timeline';
 import { TRAIN_PLATFORM } from '../../shared/encoreTrain';
+import { CameraFade } from './CameraFade';
 
 const TAU = Math.PI * 2;
 const REWIND = 1.4;
@@ -106,6 +107,7 @@ export class EncoreClock {
   readonly root = new T.Group();
   private readonly rings: T.Group[] = [];
   private readonly pendulums: T.Group[] = [];
+  private readonly pendulumFades: CameraFade[] = [];
   private readonly hand = new T.Group();
   private readonly geometries = new Set<T.BufferGeometry>();
   private readonly materials: T.Material[] = [];
@@ -206,6 +208,15 @@ export class EncoreClock {
     this.geometries.add(this.sparks.geometry);
     this.materials.push(this.sparks.material);
     scene.add(this.root);
+    for(const pendulum of this.pendulums){
+      const fade=new CameraFade(pendulum);
+      for(const part of pendulum.children)if(part instanceof T.Mesh)fade.add(part);
+      this.pendulumFades.push(fade);
+    }
+  }
+
+  fadeObstructions(eye:T.Vector3,focus:T.Vector3,maxDistance:number,seconds:number){
+    for(const fade of this.pendulumFades)fade.update(eye,focus,maxDistance,seconds);
   }
 
   setEnvironment(texture: T.Texture | null) {
@@ -256,5 +267,5 @@ export class EncoreClock {
     return Math.PI;
   }
 
-  dispose(){this.root.removeFromParent();this.geometries.forEach(g=>g.dispose());this.materials.forEach(m=>m.dispose());this.dial.dispose();}
+  dispose(){this.pendulumFades.forEach(fade=>fade.dispose());this.root.removeFromParent();this.geometries.forEach(g=>g.dispose());this.materials.forEach(m=>m.dispose());this.dial.dispose();}
 }

@@ -1,11 +1,12 @@
 import {defineConfig} from 'vite';
 import {iphoneProbeBridge} from './scripts/iphone-probe';
 import {liveStyles} from './scripts/live-styles';
+import {galaxyPresetEditor} from './scripts/galaxy-presets';
 export default defineConfig(({mode})=>{
  const iphone=mode==='iphone';
  return {
   base:mode==='pages'?'/garnier-concert-hall/':'/',
-  plugins:[iphoneProbeBridge(),liveStyles(),{
+  plugins:[iphoneProbeBridge(),liveStyles(),galaxyPresetEditor(),{
    name:'reject-disabled-development-socket',
    configureServer(server){
     server.httpServer?.on('upgrade',(request,socket)=>{

@@ -127,6 +127,22 @@ button.brand .brand-sub{font-size:12px;letter-spacing:1px;color:#f3e7cc;margin-t
 @media(max-height:620px){.icon-menu{gap:2px}.icon-menu-item{width:35px;height:35px}}
 @media(max-height:620px) and (max-width:540px){.icon-menu-item{width:32px;height:32px}}
 @media(pointer:coarse){.icon-menu{backdrop-filter:none;background:#29231def}}
+.view-mode-options{
+ position:fixed;inset:auto;margin:0;right:var(--view-mode-right,76px);
+ top:clamp(8px,var(--view-mode-top,85px),calc(100dvh - 146px));
+ width:max-content;max-width:calc(100vw - var(--view-mode-right,76px) - 8px);
+ max-height:calc(100dvh - 16px);overflow:auto;padding:5px;
+ border:1px solid #d0b98b45;border-radius:16px;background:#29231df5;
+ color:#f3e7cc;box-shadow:0 6px 18px #0004;
+}
+.view-mode-options button{
+ display:flex;align-items:center;gap:9px;width:100%;min-height:42px;
+ padding:6px 10px;border-radius:11px;background:none;text-align:left;font-size:13px;
+}
+.view-mode-options svg{flex:none;color:var(--gold)}
+.view-mode-options button:enabled:hover,.view-mode-options button[aria-pressed="true"]{background:#d3bc8733}
+.view-mode-options button:focus-visible{outline-offset:-3px}
+.icon-menu-item:has(+ .view-mode-options:popover-open){background:#d3bc8733}
 .look-picker{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:auto;text-align:center;padding:26px 34px 28px;background:var(--panel);border:1px solid #c7ad784d;border-radius:12px;box-shadow:0 8px 40px #0006}.look-picker>span{font-family:Georgia,serif;font-size:10px;letter-spacing:2px;color:var(--gold)}.look-picker h2{font:400 18px 'Noto Serif KR',Georgia,serif;margin:12px 0 20px;white-space:nowrap}.look-choice{display:flex;justify-content:center;gap:10px}.look-choice button{min-width:86px;padding:11px 20px;border-radius:999px;border:1px solid #d6bd8966;background:#1f1b17a6;color:#f1e8d5;font-size:13px}.look-choice button:hover,.look-choice button.active{background:#d6bd89;color:#29231b;border-color:#d6bd89}
 
 /* Music card sits right under the logo; action messages sit just above the bottom bar. */
@@ -496,6 +512,10 @@ body.photo-active #world > :not(canvas){display:none!important}
 .galaxy-settings{margin:18px 0;padding:0 12px;border:1px solid #a68c5b50;border-radius:6px}
 .galaxy-settings legend{padding:0 6px;color:var(--gold);font-size:11px}
 .galaxy-settings .setting-row{margin:12px 0}
+.galaxy-preset-actions{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.galaxy-preset-actions button{padding:7px 10px;border:1px solid #a68c5b50;border-radius:8px;background:#c6aa7020;color:#f3e7cc;font-size:12px}
+.galaxy-preset-actions button:enabled:hover{background:#c6aa7038}
+.galaxy-preset-actions p{flex-basis:100%;margin:3px 0 0;color:var(--muted);font-size:12px}
 .settings-info.galaxy-credits{display:grid;gap:6px}
 
 .dance-controls{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:22;display:flex;align-items:center;gap:6px;width:max-content;padding:5px;border:1px solid #9b8552;border-radius:28px;background:#211d15f5}

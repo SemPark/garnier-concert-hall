@@ -62,9 +62,10 @@ export class HallMirror{
  private readonly glass:Reflector;
  private readonly ghostsScene=new T.Scene();
  private readonly ghosts=new Ghosts(this.ghostsScene);
- private avatar:T.Object3D|null=null;
  private spot:GhostSpot|null=null;
+ private capturePending=false;
  private updatedAt=-Infinity;
+ private renderedYaw=NaN;
  private readonly reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
  private readonly reflectionEye = new T.PerspectiveCamera();
  private readonly reflectionSource = new T.PerspectiveCamera();
@@ -124,22 +125,41 @@ export class HallMirror{
    uniforms.uTime.value=this.reduced?0:now/1000;
    const distance=this.spot?Math.hypot(this.spot.x-this.root.position.x,this.spot.z-this.root.position.z):Infinity;
    // Use the visitor's distance so zooming the camera out cannot hide the reflection.
-   const nearby = !!this.avatar && distance < 10;
-   uniforms.uPresence.value = nearby ? T.MathUtils.smoothstep(10-distance,0,3) : 0;
-   if(!this.spot||!nearby||now-this.updatedAt<1000/24)return;
-   this.updatedAt=now;
-   if (!(camera instanceof T.PerspectiveCamera)||!this.cropToGlass(camera)) return;
+   if(!this.spot||distance>=10||!(camera instanceof T.PerspectiveCamera)){
+    uniforms.uPresence.value=0;
+    this.updatedAt=-Infinity;
+    return;
+   }
    // Reflect the actual viewer across the glass plane. The ghost keeps the
    // visitor's world position and pose, including lateral movement and distance.
    this.glass.getWorldPosition(this.planePoint);
    this.glass.getWorldDirection(this.normal);
    this.plane.setFromNormalAndCoplanarPoint(this.normal,this.planePoint);
+   camera.getWorldPosition(this.lookTarget);
+   const planeDistance=this.plane.distanceToPoint(this.lookTarget);
+   if(planeDistance<=0){
+    uniforms.uPresence.value=0;
+    this.updatedAt=-Infinity;
+    return;
+   }
+   const sameView=this.reflectionSource.matrixWorld.equals(camera.matrixWorld)
+    &&this.reflectionEye.projectionMatrix.equals(camera.projectionMatrix);
+   if(!this.capturePending&&sameView&&this.spot.yaw===this.renderedYaw&&now-this.updatedAt<1000/24)return;
+   if(!this.cropToGlass(camera)){
+    uniforms.uPresence.value=0;
+    this.updatedAt=-Infinity;
+    return;
+   }
+   uniforms.uPresence.value=T.MathUtils.smoothstep(10-distance,0,3);
+   this.updatedAt=now;
+   this.renderedYaw=this.spot.yaw;
    const eye = this.reflectionEye.copy(camera);
-   eye.position.addScaledVector(this.normal,-2*this.plane.distanceToPoint(camera.position));
+   eye.position.copy(this.lookTarget).addScaledVector(this.normal,-2*planeDistance);
+   eye.up.set(0,1,0).transformDirection(camera.matrixWorld).reflect(this.normal);
    camera.getWorldDirection(this.direction).reflect(this.normal);
    eye.lookAt(this.lookTarget.copy(eye.position).add(this.direction));
    eye.updateMatrixWorld();
-   this.ghosts.update([this.spot],eye,now);
+   this.ghosts.update([this.spot],eye,now,this.reduced,true);
    renderer.getClearColor(this.clearColor);
    const clearAlpha = renderer.getClearAlpha();
    try {
@@ -182,7 +202,7 @@ export class HallMirror{
   this.reflectionSource.projectionMatrix.premultiply(this.crop);
   return true;
  }
- setVisitor(avatar:T.Object3D|null,spot:GhostSpot|null){this.avatar=avatar;this.spot=spot;}
+ setVisitor(spot:GhostSpot|null,capturePending:boolean){this.spot=spot;this.capturePending=capturePending;}
  updateStandingMarker(time:number,occupied:boolean,distance:number){
   const nearby=1-T.MathUtils.smoothstep(distance,2.2,6);
   this.standingRing.visible=this.standingIcon.visible=occupied||nearby>.01;

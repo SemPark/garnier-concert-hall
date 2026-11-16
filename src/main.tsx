@@ -56,7 +56,6 @@ function Icon({name,size=20}:{name:string;size?:number}){
   close:<path d="m6 6 12 12M6 18 18 6"/>,
   music:<><path d="M9 18V5l11-2v13M9 8l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="16" rx="3" ry="2"/></>,
   wave:<><path d="M8 12V5a1.5 1.5 0 0 1 3 0v6-8a1.5 1.5 0 0 1 3 0v8-7a1.5 1.5 0 0 1 3 0v8-5a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-13 4L3 13a1.7 1.7 0 0 1 2.5-2L8 14"/></>,
-  clap:<><path d="m5 11 4 7a6 6 0 0 0 10-6l-3-6a1.5 1.5 0 0 0-2.5 1L16 12 10 3a1.5 1.5 0 0 0-2.5 1L12 12 6 5a1.5 1.5 0 0 0-2 2l5 7-4-3a1.5 1.5 0 0 0-2 2l4 5M18 2l1 2m3 1-2 1"/></>,
   seat:<><path d="M5 12V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7M4 10v7h16v-7M6 17v4m12-4v4M4 13h16"/></>,
   cards:<><rect x="7" y="4" width="12" height="16" rx="2"/><path d="m5 18-2-1L4 5l2-1"/><path className="queen-heart-fill" d="m13 16-3-3a1.7 1.7 0 0 1 3-1.4 1.7 1.7 0 0 1 3 1.4Z"/></>,
   tarot:<><rect x="3.5" y="3.8" width="12" height="16" rx="2" transform="rotate(9 9.5 11.8)" fill="#a76f91"/><rect x="7" y="4" width="12" height="16" rx="2" fill="#785282"/><path d="M13 8l1.2 2.8L17 12l-2.8 1.2L13 16l-1.2-2.8L9 12l2.8-1.2Z"/></>,
@@ -106,6 +105,40 @@ function WishButton({world}:{world:World}){
   onClick={()=>{if(!world.wishing)world.onToast('꽃 버튼을 1초간 길게 눌러 소원을 빌어보세요.');}}>
   <b aria-hidden="true">💐</b><span>{world.wishing?'소원 보내는 중':'소원 빌기'}</span>
  </button>;
+}
+
+function ViewModeMenu({world}:{world:World}){
+ const trigger=useRef<HTMLButtonElement>(null);
+ const options=useRef<HTMLDivElement>(null);
+ const select=(action:()=>void)=>{
+  action();
+  options.current?.hidePopover();
+  trigger.current?.focus();
+ };
+ const modes=[
+  {icon:'walk',label:'걷기 시점',active:!world.concertView,disabled:world.entranceViewLocked&&world.concertView,
+   action:()=>{if(world.concertView)world.toggleConcertView();}},
+  {icon:'overview',label:'홀 전체 보기',active:world.concertView&&world.hallOverview,disabled:world.entranceViewLocked,
+   action:()=>world.showHallOverview()},
+  {icon:'stageLow',label:'무대 올려다보기',active:world.concertView&&!world.hallOverview&&world.stageLowView,disabled:world.entranceViewLocked,
+   action:()=>world.setStageView(true)},
+ ];
+ return <>
+  <button ref={trigger} role="menuitem" className="icon-menu-item" aria-label="보기 모드" title="보기 모드"
+   popoverTarget="view-mode-options" onClick={event=>{
+    const bounds=event.currentTarget.getBoundingClientRect();
+    options.current?.style.setProperty('--view-mode-top',`${bounds.top}px`);
+    options.current?.style.setProperty('--view-mode-right',`${document.documentElement.clientWidth-bounds.left+10}px`);
+   }}>
+   <Icon name="overview" size={20}/>
+  </button>
+  <div ref={options} id="view-mode-options" className="view-mode-options" popover="auto" role="group" aria-label="보기 모드">
+   {modes.map(({icon,label,active,disabled,action})=><button key={icon} type="button" aria-pressed={active}
+    title={disabled?'입구를 지나면 시점을 바꿀 수 있어요':undefined} disabled={disabled} onClick={()=>select(action)}>
+    <Icon name={icon} size={20}/><span>{label}</span>
+   </button>)}
+  </div>
+ </>;
 }
 
 function App(){
@@ -282,7 +315,7 @@ function App(){
    {!connected&&<div className="connection-banner" role="status">{net?.status==='connecting'?'음악당의 문을 여는 중이에요…':'연결이 잠시 끊겼어요. 다시 연결하고 있습니다.'}</div>}
    {connected&&zone==='lobby'&&lookPicker&&<div className="look-picker" role="dialog" aria-label="내 캐릭터 고르기"><span>YOUR CHARACTER</span><h2>내 캐릭터를 골라주세요</h2><div className="look-choice">{(["man","woman"] as const).map(v=><button key={v} className={world?.visitorLook===v?"active":""} onClick={()=>{try{localStorage.setItem('garnier-look',v);}catch{}if(world?.visitorLook!==v)world?.setLook(v);setLookPicker(false);}}>{v==="man"?"남자":"여자"}</button>)}</div></div>}
 
-   {menu&&<><nav className="icon-menu" role="menu" aria-label="음악당 메뉴" title="음악당 메뉴" onKeyDown={e=>{if(e.key==='Escape')setMenu(false);}}>
+   {menu&&<><nav className="icon-menu" role="menu" aria-label="음악당 메뉴" title="음악당 메뉴" onKeyDown={e=>{if(e.key==='Escape'&&!e.currentTarget.querySelector('.view-mode-options:popover-open'))setMenu(false);}}>
     {zone==='auditorium'?<>
      <button role="menuitem" className={`icon-menu-item ${world?.ridingTrain?'active':''}`} aria-label={world?.ridingTrain?'승강장에 내리기':'열차에 타기'} title={world?.ridingTrain?'승강장에 내리기':'열차에 타기'} disabled={!connected} onClick={()=>world?.toggleTrain()}><Icon name="train" size={20}/></button>
      <button role="menuitem" className="icon-menu-item" aria-label={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} title={(world?.position.y??0)>8?'1층으로 내려가기':'2층으로 올라가기'} onClick={()=>{world?.goToGallery();}}><Icon name={(world?.position.y??0)>8?'floor1':'floor2'} size={20}/></button>
@@ -290,9 +323,7 @@ function App(){
      <button role="menuitem" className="icon-menu-item" aria-label="공연장 뒤로 바로 이동" title="공연장 뒤로 바로 이동" onClick={()=>world?.goToHallPoint('rear')}><Icon name="back" size={20}/></button>
      <button role="menuitem" className="icon-menu-item" aria-label={world?.openHall?'공연장으로 돌아가기':'우주 공간으로 전환'} title={world?.openHall?'공연장으로 돌아가기':'우주 공간으로 전환'} onClick={()=>world?.toggleOpenHall()}><Icon name={world?.openHall?'hall':'planet'} size={20}/></button>
      <span className="icon-menu-divider"/>
-     <button role="menuitem" className={`icon-menu-item ${!world?.concertView?'active':''}`} aria-label="걷기 시점" title="걷기 시점" onClick={()=>{if(world?.concertView)world.toggleConcertView();}}><Icon name="walk" size={20}/></button>
-     <button role="menuitem" className={`icon-menu-item ${world?.concertView&&world?.hallOverview?'active':''}`} aria-label="홀 전체 보기" title={world?.entranceViewLocked?"입구를 지나면 시점을 바꿀 수 있어요":"홀 전체 보기"} disabled={world?.entranceViewLocked} onClick={()=>world?.showHallOverview()}><Icon name="overview" size={20}/></button>
-     <button role="menuitem" className={`icon-menu-item ${world?.concertView&&!world?.hallOverview&&world?.stageLowView?'active':''}`} aria-label="무대 올려다보기" title="무대 올려다보기" disabled={world?.entranceViewLocked} onClick={()=>world?.setStageView(true)}><Icon name="stageLow" size={20}/></button>
+     {world&&<ViewModeMenu world={world}/>}
      <span className="icon-menu-divider"/>
      <button role="menuitem" className="icon-menu-item" aria-label="로비로 나가기" title="로비로 나가기" onClick={()=>{world?.changeZone();}}><Icon name="exit" size={20}/></button>
     </>:<>
@@ -336,7 +367,7 @@ function App(){
      {world&&world.queenWand.charges>0&&<button className="dish-trash" aria-label="하트 지팡이 버리기" title="하트 지팡이 버리기" onClick={()=>world.discardQueenWand()} disabled={world.queenWand.casting}><Icon name="trash" size={18}/></button>}
 
     </div>}
-   <div className="actionbar" aria-label="음악당에서 할 일"><button onClick={()=>world?.gestureAction('wave')} disabled={!connected}><Icon name="wave"/><span>인사</span></button><button onClick={()=>world?.gestureAction('clap')} disabled={!connected}><Icon name="clap"/><span>박수</span></button><span className="divider"/><button className="primary-action" onClick={()=>{if(sitting)world?.stand();else if(zone==='lobby')world?.changeZone();else{world?.input.keys.clear();setSeats(true);}}} disabled={!connected}><Icon name={zone==='auditorium'?'ticket':sitting?'seat':'enter'}/><span>{sitting?'일어나기':zone==='lobby'?'공연장 입장':'자리 앉기'}</span></button>{world?.wishFlowerCard&&<WishButton world={world}/>}{zone==='lobby'&&<button onClick={()=>world?.goToHallPoint('lobby')} disabled={!connected} aria-label="로비 가운데로 바로 이동"><Icon name="center"/><span>가운데</span></button>}{zone==='lobby'&&world?.macaron&&<button className="eat-ready" onClick={()=>world.gestureAction('eat')} disabled={!connected} aria-label="마카롱 먹기"><img className="food-icon" src={macaronIcon} alt="" aria-hidden="true"/><span>마카롱 먹기</span></button>}{zone==='lobby'&&world?.coffee&&<button className="eat-ready" onClick={()=>world.gestureAction('drink')} disabled={!connected} aria-label="커피 마시기"><img className="food-icon" src={coffeeIcon} alt="" aria-hidden="true"/><span>커피 마시기</span></button>}{world?.atDinnerTable&&world.dish&&<button className="eat-ready" onClick={()=>world.gestureAction('eat')} disabled={!connected} aria-label={DISHES.find(d=>d.id===world.dish)!.label+' 먹기'}><b className="food-icon dish-icon" aria-hidden="true">{DISHES.find(d=>d.id===world.dish)!.glyph}</b><span>{DISHES.find(d=>d.id===world.dish)!.label} 먹기</span></button>}{world?.atDinnerTable&&world.drink&&<button className="eat-ready" onClick={()=>world.gestureAction('drink')} disabled={!connected||world.teaPouring} aria-label={world.drink==='tea'?(world.teaPouring?'차 따르는 중':'차 마시기'):DISHES.find(d=>d.id===world.drink)!.label+' 마시기'}><b className="food-icon dish-icon" aria-hidden="true">{DISHES.find(d=>d.id===world.drink)!.glyph}</b>{world.drink!=='tea'&&<span>{DISHES.find(d=>d.id===world.drink)!.label+' 마시기'}</span>}</button>}{world?.atDinnerTable&&!(world.dish&&world.drink)&&<button onClick={()=>world.openDishMenu()} disabled={!connected} aria-label="요리 고르기"><Icon name="dinner"/><span>식사</span></button>}{zone==='auditorium'&&world?.candle&&<button className={'candle-action'+(world.candle==='on'?' lit':'')} aria-pressed={world.candle==='on'} aria-label={world.candle==='on'?'촛불 끄기':'촛불 켜기'} onClick={()=>{world.toggleCandle();redraw(n=>n+1);}}><Icon name="candle"/><span>촛불</span></button>}{CONDUCTING_ENABLED&&zone==='auditorium'&&<button onClick={()=>{setReactions(false);setConducting(true);}} disabled={!connected||world?.entranceViewLocked} aria-label="지휘자 체험"><Icon name="conductor"/><span>지휘자 체험</span></button>}{zone==='auditorium'&&world&&<DanceStart world={world} disabled={!connected||world.ridingTrain||(sitting&&!world.self?.seatId)}><Icon name="dance"/><span>춤추기</span></DanceStart>}{world&&world.queenWand.charges>0&&<button className="eat-ready" aria-label={`하트 마법, ${world.queenWand.charges}회 남음`}
+   <div className="actionbar" aria-label="음악당에서 할 일"><button onClick={()=>world?.gestureAction('wave')} disabled={!connected}><Icon name="wave"/><span>인사</span></button><span className="divider"/><button className="primary-action" onClick={()=>{if(sitting)world?.stand();else if(zone==='lobby')world?.changeZone();else{world?.input.keys.clear();setSeats(true);}}} disabled={!connected}><Icon name={zone==='auditorium'?'ticket':sitting?'seat':'enter'}/><span>{sitting?'일어나기':zone==='lobby'?'공연장 입장':'자리 앉기'}</span></button>{world?.wishFlowerCard&&<WishButton world={world}/>}{zone==='lobby'&&<button onClick={()=>world?.goToHallPoint('lobby')} disabled={!connected} aria-label="로비 가운데로 바로 이동"><Icon name="center"/><span>가운데</span></button>}{zone==='lobby'&&world?.macaron&&<button className="eat-ready" onClick={()=>world.gestureAction('eat')} disabled={!connected} aria-label="마카롱 먹기"><img className="food-icon" src={macaronIcon} alt="" aria-hidden="true"/><span>마카롱 먹기</span></button>}{zone==='lobby'&&world?.coffee&&<button className="eat-ready" onClick={()=>world.gestureAction('drink')} disabled={!connected} aria-label="커피 마시기"><img className="food-icon" src={coffeeIcon} alt="" aria-hidden="true"/><span>커피 마시기</span></button>}{world?.atDinnerTable&&world.dish&&<button className="eat-ready" onClick={()=>world.gestureAction('eat')} disabled={!connected} aria-label={DISHES.find(d=>d.id===world.dish)!.label+' 먹기'}><b className="food-icon dish-icon" aria-hidden="true">{DISHES.find(d=>d.id===world.dish)!.glyph}</b><span>{DISHES.find(d=>d.id===world.dish)!.label} 먹기</span></button>}{world?.atDinnerTable&&world.drink&&<button className="eat-ready" onClick={()=>world.gestureAction('drink')} disabled={!connected||world.teaPouring} aria-label={world.drink==='tea'?(world.teaPouring?'차 따르는 중':'차 마시기'):DISHES.find(d=>d.id===world.drink)!.label+' 마시기'}><b className="food-icon dish-icon" aria-hidden="true">{DISHES.find(d=>d.id===world.drink)!.glyph}</b>{world.drink!=='tea'&&<span>{DISHES.find(d=>d.id===world.drink)!.label+' 마시기'}</span>}</button>}{world?.atDinnerTable&&!(world.dish&&world.drink)&&<button onClick={()=>world.openDishMenu()} disabled={!connected} aria-label="요리 고르기"><Icon name="dinner"/><span>식사</span></button>}{zone==='auditorium'&&world?.candle&&<button className={'candle-action'+(world.candle==='on'?' lit':'')} aria-pressed={world.candle==='on'} aria-label={world.candle==='on'?'촛불 끄기':'촛불 켜기'} onClick={()=>{world.toggleCandle();redraw(n=>n+1);}}><Icon name="candle"/><span>촛불</span></button>}{CONDUCTING_ENABLED&&zone==='auditorium'&&<button onClick={()=>{setReactions(false);setConducting(true);}} disabled={!connected||world?.entranceViewLocked} aria-label="지휘자 체험"><Icon name="conductor"/><span>지휘자 체험</span></button>}{zone==='auditorium'&&world&&<DanceStart world={world} disabled={!connected||world.ridingTrain||(sitting&&!world.self?.seatId)}><Icon name="dance"/><span>춤추기</span></DanceStart>}{world&&world.queenWand.charges>0&&<button className="eat-ready" aria-label={`하트 마법, ${world.queenWand.charges}회 남음`}
     onClick={()=>world.castQueenWand()} disabled={world.queenWand.casting}>
     <b className="wand-hearts" aria-hidden="true">{'♥'.repeat(world.queenWand.charges)}</b><span>하트 마법</span>
    </button>}<span className="divider"/><button className={reactions?'active':''} aria-expanded={reactions} onClick={()=>setReactions(v=>!v)} disabled={!connected}><Icon name="react"/><span>리액션</span></button></div></div>

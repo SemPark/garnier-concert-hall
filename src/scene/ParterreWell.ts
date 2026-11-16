@@ -3,6 +3,7 @@ import * as T from 'three';
 import {PARTERRE as P} from '../../shared/parterre';
 import {box,cylinder} from './primitives';
 import {woodMaterial,applyWoodSurface,hallImage} from './HallTextures';
+import {cameraFadeGroup} from './CameraFade';
 
 let marble:T.MeshStandardMaterial|undefined;
 /** Restrained, fine ivory veins on warm charcoal marble; one shared 256px map. */
@@ -57,18 +58,19 @@ export function buildParterreWell(scene:T.Scene){
   }
   for(const z of P.sideStairZ){
    deck(z-P.sideStairWidth/2,z+P.sideStairWidth/2,P.sideFront+P.sideStairRun);
+   const flight=cameraFadeGroup(root);
    const run=P.sideStairRun/P.steps,rise=height/P.steps;
    for(let i=0;i<P.steps;i++){
     const top=P.floor+(i+1)*rise,x=P.sideFront+(i+.5)*run;
     // Solid timber beneath each tread closes both exposed sides, flush with the platform cheek.
     const supportHeight=top-.085-P.floor;
-    const support=box(root,[run,supportHeight,P.sideStairWidth],[side*x,P.floor+supportHeight/2,z],0x5d3824);support.material=woodMaterial('stage-side');support.userData.landmark='side-box-stair-solid';
-    const tread=box(root,[run+.01,.085,P.sideStairWidth],[side*x,top-.0425,z],0x805734);applyWoodSurface(tread,'walnut');tread.userData.landmark='side-box-step';tread.userData.walkSurface=true;
-    box(root,[.04,rise,P.sideStairWidth],[side*(P.sideFront+i*run),top-rise/2,z],0x5d3824).material=woodMaterial('stage-side');
+    const support=box(flight,[run,supportHeight,P.sideStairWidth],[side*x,P.floor+supportHeight/2,z],0x5d3824);support.material=woodMaterial('stage-side');support.userData.landmark='side-box-stair-solid';
+    const tread=box(flight,[run+.01,.085,P.sideStairWidth],[side*x,top-.0425,z],0x805734);applyWoodSurface(tread,'walnut');tread.userData.landmark='side-box-step';tread.userData.walkSurface=true;
+    box(flight,[.04,rise,P.sideStairWidth],[side*(P.sideFront+i*run),top-rise/2,z],0x5d3824).material=woodMaterial('stage-side');
    }
    // Full-height cheeks close the triangular opening between the treads and the level deck.
    for(const edge of [-1,1]){
-    const cheek=new T.Group();cheek.position.set(side*(P.sideFront+P.sideStairRun/2),0,z+edge*(P.sideStairWidth/2+.10));cheek.rotation.y=edge<0?Math.PI:0;cheek.userData.landmark='side-box-stair-cheek';root.add(cheek);panel(cheek,P.sideStairRun);
+    const cheek=new T.Group();cheek.position.set(side*(P.sideFront+P.sideStairRun/2),0,z+edge*(P.sideStairWidth/2+.10));cheek.rotation.y=edge<0?Math.PI:0;cheek.userData.landmark='side-box-stair-cheek';flight.add(cheek);panel(cheek,P.sideStairRun);
    }
 
   }
@@ -78,11 +80,12 @@ export function buildParterreWell(scene:T.Scene){
  }
  const apron=new T.Group();apron.position.z=P.front+.12;apron.userData.landmark='stage-marble-apron';root.add(apron);panel(apron,30.4);
  const run=(P.stairBack-P.stairFront)/P.steps,rise=height/P.steps;
+ const rearFlight=cameraFadeGroup(root);
  for(let i=0;i<P.steps;i++){
   const top=P.floor+(i+1)*rise,z=P.stairFront+(i+.5)*run;
-  const step=box(root,[P.stairHalfWidth*2,.10,run+.005],[0,top-.05,z],0x6b4429);applyWoodSurface(step,'walnut');step.userData.landmark='parterre-rear-step';
-  box(root,[P.stairHalfWidth*2,rise-.02,.055],[0,top-rise/2,P.stairFront+i*run+.025],0x3d2a1e).material=woodMaterial('stage-side');
-  box(root,[P.stairHalfWidth*2,.025,.035],[0,top+.003,P.stairFront+i*run+.035],0x9f7644).material=woodMaterial('frame');
+  const step=box(rearFlight,[P.stairHalfWidth*2,.10,run+.005],[0,top-.05,z],0x6b4429);applyWoodSurface(step,'walnut');step.userData.landmark='parterre-rear-step';
+  box(rearFlight,[P.stairHalfWidth*2,rise-.02,.055],[0,top-rise/2,P.stairFront+i*run+.025],0x3d2a1e).material=woodMaterial('stage-side');
+  box(rearFlight,[P.stairHalfWidth*2,.025,.035],[0,top+.003,P.stairFront+i*run+.035],0x9f7644).material=woodMaterial('frame');
  }
  // The raised rear landing remains at the entrances' original elevation.
  const landing=box(root,[32,.14,52-P.stairBack],[0,-.085,(52+P.stairBack)/2],0x5c412d);landing.material=woodMaterial('walnut');

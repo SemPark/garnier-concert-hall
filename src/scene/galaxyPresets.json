@@ -1,0 +1,14 @@
+{
+  "desktop": {
+    "count": 18,
+    "size": 0.8,
+    "brightness": 0.19,
+    "resolution": "mobile"
+  },
+  "mobile": {
+    "count": 18,
+    "size": 0.8,
+    "brightness": 0.19,
+    "resolution": "mobile"
+  }
+}

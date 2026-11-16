@@ -32,10 +32,9 @@ export function glowTexture(inner:number,outer:number){
  texture.minFilter=T.LinearMipmapLinearFilter;texture.generateMipmaps=true;texture.needsUpdate=true;
  return texture;
 }
-/** A six-sided wax stick (reads as round at candle size): 18 triangles instead of 32. Standing candles drop the bottom
- * face, which rests on the floor; floating ones, seen from below, keep it. */
-function candleGeometry(bottom:boolean){
- const g=new T.CylinderGeometry(.075,.075,1,6);if(bottom)return g;
+/** Six-sided wax body with the hidden bottom face removed. */
+function candleGeometry(){
+ const g=new T.CylinderGeometry(.075,.075,1,6);
  // Cylinder groups: 0 sides, 1 top, 2 bottom.
  const keep=g.groups.slice(0,2),index=g.index!.array,kept:number[]=[];for(const grp of keep)for(let i=grp.start;i<grp.start+grp.count;i++)kept.push(index[i]);
  g.setIndex(kept);g.clearGroups();return g;
@@ -124,7 +123,7 @@ export function buildCandlelight(scene:T.Scene){
  const candles:{x:number;y:number;z:number;h:number}[]=[];
  for(const c of clusters)for(let i=0;i<c.n;i++){const a=rnd()*Math.PI*2,d=Math.sqrt(rnd())*c.r;candles.push({x:c.x+Math.cos(a)*d,y:c.y,z:c.z+Math.sin(a)*d,h:.12+rnd()*.3});}
  // Wax bodies.
- const body=new T.InstancedMesh(candleGeometry(false),new T.MeshLambertMaterial({color:0xfff2d6,emissive:0xffb648,emissiveIntensity:1.15}),candles.length);
+ const body=new T.InstancedMesh(candleGeometry(),new T.MeshLambertMaterial({color:0xfff2d6,emissive:0xffb648,emissiveIntensity:1.15}),candles.length);
  const m=new T.Matrix4(),q=new T.Quaternion();candles.forEach((c,i)=>{m.compose(new T.Vector3(c.x,c.y+c.h/2,c.z),q,new T.Vector3(1,c.h,1));body.setMatrixAt(i,m);});root.add(body);
  // Flames, one bright point per candle.
  const flamePos=new Float32Array(candles.length*3);candles.forEach((c,i)=>flamePos.set([c.x,c.y+c.h+.05,c.z],i*3));
@@ -172,29 +171,6 @@ export function buildCandlelight(scene:T.Scene){
  scene.traverse(o=>{const l=o as T.SpotLight;if(!l.isLight)return;l.updateMatrix();l.updateMatrixWorld(true);if(l.target){l.target.updateMatrix();l.target.updateMatrixWorld(true);}});
  // The centre fill is permanently disabled; omit it from GPU light loops entirely.
  for(const light of lights)if(light.intensity===0)light.removeFromParent();
- // No flicker on lights, halos or flames: the bloom is computed at a fraction of the screen resolution, so any swing in
- // brightness, or a bright point moving quickly, makes blocky glow pop on and off along nearby gilded edges.
- // Keep the original height distribution and drift, with slightly wider spacing.
- const columns=9,rows=16,floatAmplitude=1.25;
- const floating=Array.from({length:columns*rows},(_,i)=>{
-  const x=((i%columns+.5+(rnd()-.5)*.56)/columns-.5)*24;
-  const heightRank=rnd();
-  const z=-6+(Math.floor(i/columns)+.5+(rnd()-.5)*.56)/rows*46;
-  const distanceFromStage=T.MathUtils.smoothstep(z,-6,10);
-  const baseHeight=T.MathUtils.lerp(7.8,4.5,distanceFromStage);
-  const previousPeak=T.MathUtils.lerp(14.88,11.28,distanceFromStage);
-  const extraHeight=previousPeak-baseHeight-floatAmplitude-3.9;
-  const heightVariation=heightRank*3.9+T.MathUtils.smoothstep(heightRank,1/3,1)*extraHeight;
-  return {x,y:baseHeight+heightVariation,z,h:.22+rnd()*.18,phase:rnd()*Math.PI*2,speed:.24+rnd()*.22};
- });
- const floatBody=new T.InstancedMesh(candleGeometry(true),body.material as T.Material,floating.length);floatBody.frustumCulled=false;
- const floatFlame=new Float32Array(floating.length*3),floatGeometry=new T.BufferGeometry();floatGeometry.setAttribute('position',new T.BufferAttribute(floatFlame,3));
- const floatPoints=new T.Points(floatGeometry,flame.material as T.PointsMaterial),floatHalo=new T.Points(floatGeometry,new T.PointsMaterial({map:glowTexture(.6,.3),size:1.3,transparent:true,depthWrite:false,blending:T.AdditiveBlending,color:0xffc463,opacity:.75,fog:false}));
- floatPoints.frustumCulled=floatHalo.frustumCulled=false;floatPoints.renderOrder=floatHalo.renderOrder=2;root.add(floatBody,floatHalo,floatPoints);
- const place=(t:number)=>{floating.forEach((c,i)=>{const y=c.y+Math.sin(t*c.speed+c.phase)*floatAmplitude;m.compose(new T.Vector3(c.x,y+c.h/2,c.z),q,new T.Vector3(1,c.h,1));floatBody.setMatrixAt(i,m);floatFlame.set([c.x,y+c.h+.06,c.z],i*3);});
-  floatBody.instanceMatrix.needsUpdate=true;floatGeometry.getAttribute('position').needsUpdate=true;};
- place(0);let placedAt=0;
- floatPoints.onBeforeRender=()=>{const t=performance.now()/1000;if(t-placedAt<1/30)return;placedAt=t;place(t);};// 30 updates a second are plenty for a slow drift
  root.traverse(o=>{o.userData.fullDetail=true;});
  return root;
 }

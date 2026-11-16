@@ -7,6 +7,7 @@ import {keepFrontLight} from '../character/characterLight';
 import {prepareInstanceMorph} from './instanceMorph';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {finishBuild} from './buildBudget';
+import {CameraFade} from './CameraFade';
 import {detailedMaterial} from './primitives';
 import {coarseGeometry,detailDistance,LOD_NEAR} from './lodGeometry';
 const restoredSphere=new T.SphereGeometry(1,16,12);
@@ -55,10 +56,11 @@ function collect(groups:Map<string,BatchGroup>,mesh:T.Mesh){
  const key=mesh.geometry.uuid+'/'+(mesh.castShadow?'shadow/':'unshadowed/')+(mesh.userData.fullDetail?'full/':'adaptive/')+(mesh.userData.preserveSilhouette?'persistent/':'')+(lit?JSON.stringify([mat.type,mat instanceof T.MeshStandardMaterial?mat.roughness:0,mat instanceof T.MeshStandardMaterial?mat.metalness:0,mat.emissive.getHex(),mat.emissiveIntensity,mat.transparent,mat.opacity,mat.depthWrite,mat.side,mat.userData.characterLight??'']):mat.uuid);
  let group=groups.get(key);if(!group){const material=lit?mat.clone():mat;keepFrontLight(mat,material);if(lit)(material as Lit).color.setHex(0xffffff);group={material,objects:[],colors:lit};groups.set(key,group);}group.objects.push(mesh);
 }
-function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=false){
+function createLOD(scene:T.Scene,group:BatchGroup,dynamic:boolean,partition=false,fade?:CameraFade){
  const geometry=group.objects[0].geometry,fullDetail=!!group.objects[0].userData.fullDetail,lowGeometry=fullDetail?geometry:(group.objects[0].userData.lowDetail as T.BufferGeometry|undefined)??coarseGeometry(geometry);
  const make=(g:T.BufferGeometry)=>{const batch=new T.InstancedMesh(g,group.material,group.objects.length);batch.instanceMatrix.setUsage(dynamic?T.DynamicDrawUsage:T.StaticDrawUsage);batch.matrixAutoUpdate=false;batch.frustumCulled=false;batch.castShadow=!dynamic&&group.objects[0].castShadow;batch.receiveShadow=true;prepareInstanceMorph(batch);scene.add(batch);return batch;};
  const high=make(geometry),low=lowGeometry===geometry?high:make(lowGeometry);
+ fade?.add(high);if(low!==high)fade?.add(low);
  geometry.computeBoundingSphere();
  const items:Item[]=group.objects.map(mesh=>({mesh,matrix:mesh.matrixWorld.clone(),center:geometry.boundingSphere!.center.clone().applyMatrix4(mesh.matrixWorld),radius:geometry.boundingSphere!.radius*mesh.matrixWorld.getMaxScaleOnAxis(),limit:fullDetail||mesh.userData.preserveSilhouette?Infinity:detailDistance(mesh),min:mesh.userData.lodMin??0,color:group.colors?(mesh.material as Lit).color.clone():null,level:0,shown:false,occluder:mesh.userData.occluderBox??(mesh.userData.cameraOccluder?new T.Box3().setFromObject(mesh).expandByScalar(.12):undefined)}));
  // Parts were collected actor by actor. Keep that compact order; an unchanged actor's
@@ -190,15 +192,27 @@ export function* batchArchitectureSteps(scene:T.Scene,exclude:T.Object3D[]){
  scene.traverse(o=>{if(!o.userData.occluderGroup)return;const box=new T.Box3().setFromObject(o).expandByScalar(.12);o.traverse(m=>{m.userData.occluderBox=box;});});
  scene.userData.removedBuriedTriangles=removeBuriedFaces(scene,protectedObjects);
  const bounds=new T.Box3(),size=new T.Vector3(),center=new T.Vector3();
- scene.traverse(o=>{if(!(o instanceof T.Mesh)||o instanceof T.InstancedMesh||protectedObjects.has(o))return;
+ const fadeGroups=new Map<CameraFade,Map<string,BatchGroup>>(),fadeForMesh=new Map<T.Object3D,CameraFade>();
+ scene.traverse(root=>{
+  if(!root.userData.cameraFade)return;
+  const fade=new CameraFade(root);
+  fadeGroups.set(fade,new Map());
+  root.traverse(object=>fadeForMesh.set(object,fade));
+ });
+ scene.userData.cameraFades=[...fadeGroups.keys()];
+ scene.traverse(o=>{if(!(o instanceof T.Mesh)||o instanceof T.InstancedMesh)return;
+  const fade=fadeForMesh.get(o);
+  if(protectedObjects.has(o)){fade?.add(o);return;}
   bounds.setFromObject(o).getSize(size);bounds.getCenter(center);
   o.castShadow=Math.max(size.x,size.y,size.z)<12&&center.y<20&&!Array.isArray(o.material)&&!o.material.transparent&&o.material.visible;
-  collect(groups,o);
+  collect(fade?fadeGroups.get(fade)!:groups,o);
  });
- mergeStaticCells(groups);
- mergeByFinish(groups);
  const updates:ReturnType<typeof createLOD>[]=[];
- for(const group of groups.values()){updates.push(createLOD(scene,group,false,true));for(const mesh of group.objects)mesh.removeFromParent();yield;}
+ for(const [fade,partition] of [[undefined,groups] as const,...fadeGroups]){
+  mergeStaticCells(partition);
+  mergeByFinish(partition);
+  for(const group of partition.values()){updates.push(createLOD(scene,group,false,true,fade));for(const mesh of group.objects)mesh.removeFromParent();yield;}
+ }
  scene.traverse(o=>{if(!protectedObjects.has(o)){o.updateMatrix();o.matrixAutoUpdate=false;}});
  const eye=new T.Vector3(Infinity,Infinity,Infinity),rotation=new T.Quaternion(),projection=new T.Matrix4();
  scene.userData.showArchitectureForShadow=()=>{for(const update of updates)update();eye.set(Infinity,Infinity,Infinity);};

@@ -10,6 +10,7 @@ import {magicChairPose} from '../shared/magicChair';
 import {onTrainDeck,TRAIN_DECK,TRAIN_PLATFORM,TRAIN_PERIOD} from '../shared/encoreTrain';
 import {EncoreTrain} from './scene/EncoreTrain';
 import {EncoreClock} from './scene/EncoreClock';
+import type {CameraFade} from './scene/CameraFade';
 import {MusicLights} from './scene/MusicLights';
 import {StageFireworks} from './scene/StageFireworks';
 import {HallDust} from './scene/HallDust';
@@ -437,7 +438,7 @@ export class World{
   this.input.touchMove.x=this.input.touchMove.z=0;
   this.introUntil=0;
   document.body.classList.add('photo-active');
-  this.resetPhotoView();
+  this.setPhotoComposition(this.mirrorView?'current':'recommended');
  }
  resetPhotoView(){this.setPhotoComposition('recommended');}
  setPhotoComposition(composition:'recommended'|'current'){
@@ -924,13 +925,20 @@ export class World{
  }
  private visitorDancePose(visitor:Visitor,now:number){
   const pose=dancePose(visitor,now,JAZZ_HALL);
+  const mirror=this.venues.auditorium?.mirror;
+  if(mirror&&visitor.zone==='auditorium'&&!visitor.dance?.center&&!pose.chair
+   &&mirror.standingPoint.distanceToSquared(this.mirrorDanceAnchor.set(visitor.x,visitor.y??0,visitor.z))<.29**2){
+   pose.yaw=mirror.root.rotation.y;
+  }
   if(pose.chair){
    const chair=magicChairPose(visitor.seatId,this.net.state?.magicChair,now);
    pose.x+=chair.x;pose.z+=chair.z;pose.yaw+=chair.turn;
   }
   return pose;
  }
+ private readonly mirrorDanceAnchor=new T.Vector3();
  private frameDanceCamera(visitor:Visitor){
+  if(this.mirrorView)return;
   const dance=visitor.dance!;
   const facing=this.visitorDancePose(visitor,this.net.now()).yaw;
   // The camera sits in the direction the avatar's local -Z points.
@@ -1175,6 +1183,13 @@ export class World{
   if(this.conducting.active){const look=new T.Vector3(CONDUCTOR.x,STAGE_FLOOR+1.3,CONDUCTOR.z),rear=new T.Vector3(Math.sin(this.conducting.angle+(this.reduced?0:this.conducting.pan))*(CONDUCTOR.z-STAGE.back-1),STAGE_FLOOR+5.2+this.conducting.height,CONDUCTOR.z-Math.cos(this.conducting.angle+(this.reduced?0:this.conducting.pan))*(CONDUCTOR.z-STAGE.back-1));return {position:look.clone().lerp(rear,this.conducting.zoom),look};}
   const sitting=this.cameraSeatAmount,baseY=1.05+.10*sitting+this.position.y,look=new T.Vector3(this.position.x,baseY,this.position.z-1.5),d=this.cameraDistance;
   if(!this.entered){const t=this.reduced?0:performance.now()/1000;return {look:new T.Vector3(Math.sin(t*.1)*.1,8.2,35.8),position:new T.Vector3(Math.sin(t*.12)*.32,7.5+Math.sin(t*.09)*.09,20.8+Math.cos(t*.1)*.14)};}
+  if(this.mirrorView&&!this.firstPerson&&this.zone==='auditorium'&&this.venue.mirror){
+   const point=this.venue.mirror.standingPoint;
+   const origin=point.clone().add(new T.Vector3(0,1.2,0));
+   const look=point.clone().add(new T.Vector3(.95,1.48,0));
+   const desired=point.clone().add(new T.Vector3(-3.85,3.2,-.85));
+   return {look,position:constrainCamera(origin,desired,this.venue.cameraWalls)};
+  }
   const dance=this.self?.dance;
   if(dance){
    const center=dance.center?new T.Vector3(dance.center.x,dance.center.y,dance.center.z):this.position.clone();
@@ -1211,13 +1226,6 @@ export class World{
    const view=center.clone().sub(position).applyAxisAngle(new T.Vector3(0,1,0),this.cameraYaw),right=new T.Vector3().crossVectors(view,new T.Vector3(0,1,0)).normalize();
    view.applyAxisAngle(right,-(this.cameraPitch-.13));
    return {look:position.clone().add(view),position};
-  }
-  if(this.mirrorView&&!this.firstPerson&&this.zone==='auditorium'&&this.venue.mirror){
-   const point=this.venue.mirror.standingPoint;
-   const origin=point.clone().add(new T.Vector3(0,1.2,0));
-   const look=point.clone().add(new T.Vector3(.95,1.48,0));
-   const desired=point.clone().add(new T.Vector3(-3.85,3.2,-.85));
-   return {look,position:constrainCamera(origin,desired,this.venue.cameraWalls)};
   }
   const framingAngle=Math.atan(Math.tan(T.MathUtils.degToRad(this.camera.fov/2))/3);
   if(this.firstPerson){
@@ -1363,6 +1371,7 @@ export class World{
   this.venue.usher?.update(now/1000,dt,this.reduced);
   this.venue.cat?.update(now/1000,this.entered?this.position:new T.Vector3(Infinity,0,0),this.reduced,[...this.remotes.values()].filter(r=>r.visitor.zone===this.zone).flatMap(r=>[r.visitor,r.avatar.root.position]));
   if(this.ridingTrain&&this.encoreTrain){this.seatedTarget=null;this.yaw=this.encoreTrain.seat(this.self!.trainSeat!,this.position);}
+  let reflectedDance:GhostSpot['dance'];
   if(this.avatar){
    const clock=this.net.now(),gestureAge=(clock-this.gestureAt)/1000;
    const sip=this.zone==='auditorium'&&this.gesture==='drink'&&gestureAge<gestureSeconds('drink');
@@ -1399,7 +1408,10 @@ export class World{
    const dancer=this.danceVisitor;
    const dance=dancer?.dance?this.visitorDancePose(dancer,clock):null;
    this.avatar.update(clock/1000,speed,dance?.chair?1-dance.chairStand:seated,music,dance?.chair?null:gesture,gestureAge,dt,cameraFacing,!!dance?.captain);
-   if(dance)poseDancingAvatar(this.avatar,dance);
+   if(dance){
+    poseDancingAvatar(this.avatar,dance);
+    reflectedDance=dance;
+   }
    if(this.wishFlowerCard){
     const leftTable=this.wishFlowerSeat!==null&&(!this.atWishTarotTable||this.self?.seatId!==this.wishFlowerSeat);
     if(leftTable){this.wishFlowerSeat=null;this.npcBehavior.cancelWishFlower();}
@@ -1508,7 +1520,14 @@ export class World{
   this.camera.position.lerp(f.position,smooth);if(origin&&this.cameraLocked){this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));}this.venue.scene.userData.cameraFocus=this.entered?(firstPerson?f.position:this.concertView?f.look:localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin):null;this.look.lerp(f.look,smooth);this.camera.lookAt(this.look);if(this.avatar&&this.entered&&(this.zone==='lobby'||!this.concertView)){const head=this.position.clone();head.y+=1.1;this.avatar.root.visible=!firstPerson&&this.camera.position.distanceTo(head)>.7;}if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}for(const object of this.venue.overviewHidden)object.visible=!this.concertView;if(this.conducting.active&&this.avatar)this.avatar.root.visible=false;if(this.photoMode&&this.avatar)this.avatar.root.visible=this.photoComposition==='current'?this.photoOriginal.avatarVisible:true;const submitStart=this.diagnosticActive?performance.now():0;if(!this.diagnosticActive||this.diagnosticMode==='normal'){
    this.diagnosticGpu?.begin(now);
    try{
-   this.venue.mirror?.setVisitor(this.avatar?.root??null,this.entered&&this.self?{x:this.position.x,y:this.position.y,z:this.position.z,yaw:this.yaw+Math.PI,id:this.self.id,sitting:this.pose==='sit',walking:this.pose==='walk',gesture:this.gesture,age:(this.net.now()-this.gestureAt)/1000}:null);
+   const reflectedAvatar=this.avatar?.root;
+   this.venue.mirror?.setVisitor(this.entered&&this.self&&reflectedAvatar?{
+    x:reflectedAvatar.position.x,y:reflectedAvatar.position.y,z:reflectedAvatar.position.z,
+    // Reflect the rendered avatar's orientation without any separate camera-facing adjustment.
+    yaw:reflectedAvatar.rotation.y+Math.PI,id:this.self.id,
+    dance:reflectedDance,sitting:reflectedDance?reflectedDance.chair&&reflectedDance.chairStand<.5:this.pose==='sit',
+    mirrorAvatar:this.avatar??undefined,walking:this.pose==='walk',gesture:this.gesture,age:(this.net.now()-this.gestureAt)/1000,
+   }:null,!!this.photoCapture);
    if(this.entered)this.venue.portrait?.update(this.renderer,this.camera,this.position,now);
    const namedAvatar=this.demoAvatar??this.avatar;
    const self=this.entered&&this.self&&namedAvatar&&!(this.zone==='auditorium'&&this.concertView&&!this.demoAvatar)?{avatar:namedAvatar,visitor:this.self}:null;
@@ -1524,6 +1543,13 @@ export class World{
     if(wasReceiving&&!this.queenWand.receiving)this.onChange();
    }
    if(timings)timings.crowdBatch=performance.now()-crowdStart;
+   const avatarFocus=!firstPerson&&!this.concertView&&!this.photoMode
+    ?this.venue.scene.userData.cameraFocus as T.Vector3|null: null;
+   const fadeFocus=avatarFocus??this.look,fadeDistance=avatarFocus?Infinity:5;
+   for(const fade of this.venue.scene.userData.cameraFades as CameraFade[]??[]){
+    fade.update(this.camera.position,fadeFocus,fadeDistance,dt);
+   }
+   if(hallActive)this.encoreClock?.fadeObstructions(this.camera.position,fadeFocus,fadeDistance,dt);
    if(hallActive&&this.spaceVisible)this.venue.scene.userData.hallTransition?.frameSaturn(this.camera);
    characterFrontLight.value=this.venue===this.venues.lobby?FRONT_LIGHT.lobby:FRONT_LIGHT.auditorium;this.renderer.toneMappingExposure=this.venue===this.venues.lobby?LOBBY_EXPOSURE:1;
     if(this.lightingPass)this.lightingPass.render(this.venue.scene,this.camera,timings);
@@ -1542,5 +1568,5 @@ export class World{
   if(timings)this.onDiagnosticFrame?.(timings);
   if(now-this.lastUI>500){this.lastUI=now;this.onChange();}
  };
- destroy(){if(this.disposed)return;this.avatar?.disposeDanceSleeves();this.danceCircles.dispose();this.disposed=true;this.queenWand.dispose();this.venues.auditorium?.scene.userData.hallTransition?.dispose();this.endPhotoMode();this.venues.auditorium?.programBook?.dispose();this.venues.auditorium?.storyTableProps?.dispose();this.encoreTrain?.dispose();this.encoreClock?.dispose();this.musicLights?.dispose();this.fireworks?.dispose();this.hallDust?.dispose();this.venues.auditorium?.mirror?.dispose();this.venues.auditorium?.portrait?.dispose();this.venues.auditorium?.usher?.dispose();this.conductEffect?.dispose();this.activityEvents.abort();clearTimeout(this.hallLoadingTimeout);this.releaseLoadingCallbacks();cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues))v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});this.lightingPass?.dispose();this.environment.dispose();this.renderer.dispose();this.renderer.forceContextLoss();this.renderer.domElement.remove();this.visitorNames.dispose();}
+ destroy(){if(this.disposed)return;this.avatar?.disposeDanceSleeves();this.danceCircles.dispose();this.disposed=true;this.queenWand.dispose();this.venues.auditorium?.scene.userData.hallTransition?.dispose();this.endPhotoMode();this.venues.auditorium?.programBook?.dispose();this.venues.auditorium?.storyTableProps?.dispose();this.encoreTrain?.dispose();this.encoreClock?.dispose();this.musicLights?.dispose();this.fireworks?.dispose();this.hallDust?.dispose();this.venues.auditorium?.mirror?.dispose();this.venues.auditorium?.portrait?.dispose();this.venues.auditorium?.usher?.dispose();this.conductEffect?.dispose();this.activityEvents.abort();clearTimeout(this.hallLoadingTimeout);this.releaseLoadingCallbacks();cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues)){for(const fade of v.scene.userData.cameraFades as CameraFade[]??[])fade.dispose();v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});}this.lightingPass?.dispose();this.environment.dispose();this.renderer.dispose();this.renderer.forceContextLoss();this.renderer.domElement.remove();this.visitorNames.dispose();}
 }

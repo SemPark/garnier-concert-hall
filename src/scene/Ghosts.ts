@@ -10,9 +10,11 @@ import {buildTeaGuest,type TeaGuest} from './GhostTeaParty';
 import {buildGhostCostume,type GhostCostume} from './GhostCostumes';
 import type {NpcPose} from './NpcBehavior';
 import {GHOST_SURFACE} from './GhostSurface';
+import type {Avatar} from '../character/Avatar';
 
 /** One ghost to draw this frame: where it is, which way it faces, and a stable id for its colour and rhythm. */
 export type GhostSpot={dance?:DancePose;x:number;y:number;z:number;yaw:number;id:string;sitting:boolean;
+ mirrorAvatar?:Avatar;
  teaGuest?:TeaGuest;
  costume?:GhostCostume;
  behavior?:NpcPose;
@@ -270,9 +272,9 @@ export class Ghosts{
   this.d.set(-(target[0]+side*SHOULDER_X),target[1]-SHOULDER_Y,-target[2]).normalize();
   out.applyQuaternion(this.qb.identity().slerp(this.qa.setFromUnitVectors(out,this.d),Math.min(1,weight)));
  }
- update(ghosts:Iterable<GhostSpot>,camera:T.Camera,now=performance.now(),reducedMotion=false){
+ update(ghosts:Iterable<GhostSpot>,camera:T.Camera,now=performance.now(),reducedMotion=false,force=false){
   this.time.value=now/1000;
-  if(now-this.updatedAt<1000/30)return;this.updatedAt=now;
+  if(!force&&now-this.updatedAt<1000/30)return;this.updatedAt=now;
   camera.updateMatrixWorld();this.frustum.setFromProjectionMatrix(this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
   for(const b of [this.near,this.far])b.used=0;let angels=0,holding=0;const time=now/1000;
   this.queenGivingWand=false;
@@ -283,7 +285,7 @@ export class Ghosts{
    // it drapes over the front edge (see the vertex shader).
    if(g.sitting){this.s.set(1,1,1);this.v.set(g.x+Math.sin(g.yaw)*SEAT_FORWARD,g.y+SEATED_HEAD,g.z+Math.cos(g.yaw)*SEAT_FORWARD);}
    else{this.s.set(1,1,1);this.v.set(g.x,g.y+STANDING_HEAD,g.z);}if(!this.frustum.intersectsSphere(this.sphere.set(this.v,g.teaGuest||g.costume?1.9:1)))continue;
-   const h=hash(g.id),glow=g.npc?NPC_GLOW:GLOWS[h%GLOWS.length],seed=(h>>>8)%1000/1000+(g.sitting?32:0)+(g.npc&&(!g.behavior||g.teaGuest)?0:64)+(g.walking&&!g.sitting?128:0)+(g.costume==='vesper'||g.costume==='candra'?256:0)+(g.costume==='white-rabbit'?512:0)+(g.costume==='phantom'?1024:0)+(g.costume==='queen'?2048:0)+(g.dance?4096:0),distance=this.v.distanceTo(camera.position),far=distance>14;
+   const h=hash(g.id),glow=g.npc?NPC_GLOW:GLOWS[h%GLOWS.length],seed=(h>>>8)%1000/1000+(g.sitting?32:0)+(g.npc&&(!g.behavior||g.teaGuest)?0:64)+(g.walking&&!g.sitting&&!g.mirrorAvatar?128:0)+(g.costume==='vesper'||g.costume==='candra'?256:0)+(g.costume==='white-rabbit'?512:0)+(g.costume==='phantom'?1024:0)+(g.costume==='queen'?2048:0)+(g.dance?4096:0),distance=this.v.distanceTo(camera.position),far=distance>14;
    if(g.costume==='phantom'){this.s.set(.96,1.22,.96);this.v.y+=.16;}
    this.m.compose(this.v,this.q.setFromAxisAngle(this.up,g.yaw),this.s);
    this.b.set(0,0,0);this.head.set(0,0,0);
@@ -293,9 +295,11 @@ export class Ghosts{
     this.l.copy(REST[0]).applyAxisAngle(DANCE_X,pose.swing+pose.reach+partnerHop*.65);
     this.r.copy(REST[1]).applyAxisAngle(DANCE_X,-pose.swing+pose.reach+partnerHop*.65);
     const captainShift=pose.captainSide*pose.captain;
-    this.b.set(pose.bow+pose.badPop*.22,pose.lean+pose.shimmy*.13-pose.handsSway*pose.handsUp*.23+pose.badLean*.24+captainShift*.025,
-     -pose.shimmy*.34-pose.flossHip*.16-captainShift*.035);
-    this.head.set(-pose.headPitch-pose.badPop*.17,pose.headYaw+pose.flossHip*.10,-pose.flossHip*.18);
+    // The ghost faces +Z, so the half-turn from the avatar's frame reverses pitch and roll but preserves yaw.
+    const roll=-(pose.lean+pose.shimmy*.13-pose.handsSway*pose.handsUp*.23)+pose.badLean*.24-captainShift*.025;
+    const turn=pose.shimmy*.34-pose.flossHip*.16-captainShift*.035;
+    this.b.set(pose.bow+pose.badPop*.22,roll,turn);
+    this.head.set(-pose.headPitch-pose.badPop*.17,pose.headYaw-pose.shimmy*.22+pose.flossHip*.10,-pose.flossHip*.18);
     if(pose.badLean>0){
      this.d.set(.30,-.25-pose.badLower*.60,.92).normalize().applyAxisAngle(DANCE_X,-pose.badPop*.25);
      this.l.lerp(this.d,pose.badLean).normalize();
@@ -313,8 +317,9 @@ export class Ghosts{
       if(weight<=0)continue;
       this.hand.set(point.x,point.y,point.z).sub(this.v).applyAxisAngle(this.up,-g.yaw);
       this.hand.y+=.7;
-      this.hand.applyAxisAngle(DANCE_X,-pose.bow);
-      this.hand.applyAxisAngle(DANCE_Z,-pose.lean);
+      this.hand.applyAxisAngle(DANCE_X,-this.b.x);
+      this.hand.applyAxisAngle(this.up,-turn);
+      this.hand.applyAxisAngle(DANCE_Z,-roll);
       this.hand.y-=.7;
       this.d.copy(this.hand).sub(this.danceShoulder.set(DANCE_SHOULDER.x*side,DANCE_SHOULDER.y,DANCE_SHOULDER.z));
       const reach=this.d.length();
@@ -434,6 +439,22 @@ export class Ghosts{
      .55*(g.behavior?.flame??1)*(reducedMotion?1:1+.12*Math.sin(time*4.1));
     if(costume.lantern)costume.lantern.material.color.setHex(0xffe3ac).multiplyScalar(1.18*(g.behavior?.light??1));
     if(costume.lanternGlow)costume.lanternGlow.material.uniforms.strength.value=.45*(g.behavior?.light??1);
+   }
+   if(g.mirrorAvatar){
+    const avatar=g.mirrorAvatar;
+    if(g.gesture==='ovation'){
+     // The reflected root already includes the standing turn. Use the actual
+     // local torso and head rotations instead of replaying the remote turn.
+     const {x:pitch,y:yaw,z:roll}=avatar.body.rotation;
+     this.b.set(-pitch,-roll,yaw);
+     this.head.set(-avatar.head.rotation.x,avatar.head.rotation.y,0);
+    }
+    // Read the posed hands in torso space. A half-turn swaps the model's local
+    // arm sides; the reflector itself handles the optical reflection.
+    this.l.copy(avatar.rightHand.position).applyQuaternion(avatar.rightArm.quaternion)
+     .applyAxisAngle(this.up,Math.PI).normalize();
+    this.r.copy(avatar.leftHand.position).applyQuaternion(avatar.leftArm.quaternion)
+     .applyAxisAngle(this.up,Math.PI).normalize();
    }
    this.put(far?this.far:this.near,this.m,glow,seed);
   }
