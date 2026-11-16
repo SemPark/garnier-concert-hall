@@ -30,7 +30,10 @@ const GLYPH:Record<Gesture,string>={wave:'〜',clap:'♪',bravo:'!',ovation:'↶
 
 function Icon({name,size=20}:{name:string;size?:number}){
  const paths:Record<string,React.ReactNode>={
-  dance:<><circle cx="14" cy="4" r="2"/><path d="m13 8-4 4-5-3m9-1 4 3 4-4m-8 1-2 7-5 6m5-6 5 1 2 5"/></>,
+  dance:<g fill="currentColor" stroke="none" transform="translate(1 1) scale(.043)">
+   <circle cx="252" cy="74" r="45"/>
+   <path d="M195 0q5 0 13 7t3 15l-30 49q-5 10 0 20l16 30q10 19 26 19h40q13 0 23-12l23-27q14-16 21-35l20-50q4-10 13-7l12 5q11 5 7 18l-19 51q-6 16-18 31l-39 50q-8 11-2 24l26 51q16 31 11 57l-50 202q-4 14-16 14h-21q-11 0-9-11l28-124 7-59q1-5-4-2l-57 53q-15 14-21 34l-22 93q-4 16-17 16h-20q-13 0-10-13l32-123q5-20 18-35l54-60q5-5 1-15L147 100q-8-15 0-28l37-63q5-9 11-9Z"/>
+  </g>,
   train:<><rect x="5" y="3" width="14" height="15" rx="4"/><path d="M5 10h14M9 3v7M15 3v7M7 21l2-3m8 3-2-3"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></>,
   camera:<><path d="M3 7h4l2-3h6l2 3h4v13H3Z"/><circle cx="12" cy="13" r="4"/></>,
   hall:<><path d="m3 8 9-5 9 5M3 21h18M5 10v8m5-8v8m4-8v8m5-8v8M3 8h18"/></>,
