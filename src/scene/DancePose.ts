@@ -4,7 +4,7 @@ import * as T from 'three';
 import {AVATAR_HEAD_HEIGHT,DANCE_ARM_LENGTH,DANCE_SHOULDER_X,DANCE_SHOULDER_Y,type Avatar} from '../character/Avatar';
 import {CAPTAIN_MOVE_MS,type dancePose} from '../../shared/dance';
 export type DancePose=ReturnType<typeof dancePose>;
-const down=new T.Vector3(0,-1,0),target=new T.Vector3(),shoulder=new T.Vector3(),direction=new T.Vector3(),rest=new T.Quaternion();
+const down=new T.Vector3(0,-1,0),target=new T.Vector3(),shoulder=new T.Vector3(),direction=new T.Vector3();
 const elbowGuide=new T.Vector3(),nextHand=new T.Vector3();
 const CAPTAIN_REACH=.419;
 const PHRASE_BLEND=.18;
@@ -92,7 +92,7 @@ export function danceArmDirection(out:T.Vector3,pose:DancePose,side:-1|1){
  return out.set(side*Math.cos(sweep)*reach,-drop,-Math.sin(sweep)*reach);
 }
 
-/** Aim the existing shoulder toward the shared contact point, using the existing arm length. */
+/** Bend the elbows toward each shared contact without resizing the arms or hands. */
 export function poseDancingAvatar(avatar:Avatar,pose:DancePose){
  avatar.root.position.set(pose.x,pose.y+pose.bob,pose.z);
  avatar.root.rotation.y=pose.yaw;
@@ -166,18 +166,12 @@ export function poseDancingAvatar(avatar:Avatar,pose:DancePose){
    arm.quaternion.setFromUnitVectors(down,target);
   }
  }
- if(pose.hand&&pose.rightHand){
+ if(pose.hand&&pose.rightHand&&pose.hold>0){
   avatar.root.updateMatrixWorld(true);
-  for(const [arm,point,weight] of [[avatar.leftArm,pose.hand,pose.hold],[avatar.rightArm,pose.rightHand,pose.hold]] as const){
-   if(weight<=0)continue;
+  for(const [side,point] of [[-1,pose.hand],[1,pose.rightHand]] as const){
    target.set(point.x,point.y,point.z);
    avatar.body.worldToLocal(target);
-   direction.copy(target).sub(shoulder.copy(arm.position));
-   const reach=direction.length();
-   direction.normalize();
-   arm.scale.setScalar(1+(reach/.4-1)*weight);
-   rest.copy(arm.quaternion);
-   arm.quaternion.setFromUnitVectors(down,direction).slerp(rest,1-weight);
+   avatar.poseJointedArm(side,target,elbowGuide.set(side*.25,-1,0),0,0,pose.hold);
   }
  }
 }

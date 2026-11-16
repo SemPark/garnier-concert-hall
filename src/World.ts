@@ -1594,7 +1594,7 @@ export class World{
    const dancer=this.danceVisitor;
    const dance=dancer?.dance?this.visitorDancePose(dancer,clock):null;
    const lunarSwing=lunarPose?Math.sin(Math.PI*this.lunarStride)*.86:undefined;
-   this.avatar.update(clock/1000,speed,dance?.chair?1-dance.chairStand:seated,music,dance?.chair?null:gesture,gestureAge,dt,cameraFacing,!!dance?.captain,lunarSwing);
+   this.avatar.update(clock/1000,speed,dance?.chair?1-dance.chairStand:seated,music,dance?.chair?null:gesture,gestureAge,dt,cameraFacing,!!(dance?.captain||dance?.hold),lunarSwing);
    if(dance){
     poseDancingAvatar(this.avatar,dance);
     reflectedDance=dance;

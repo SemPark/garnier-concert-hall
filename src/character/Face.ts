@@ -55,10 +55,42 @@ const highlights=[-1,1].map(side=>ellipse(side*.103,.008,.012,.014,true,-.006,1,
 const cheekShapes=[-1,1].map(side=>ellipse(side*.22,-.095,.065,.035));
 const smileShape=smile();
 const vocalShape=ellipse(0,-.153,.052,.032,true,-.151,2,20,.19);
+const beautyMark=ellipse(-.137,-.118,.010,.010,false,-.118,1,12);
+const vocalBrows=[-1,1].map(side=>{
+ const points:number[]=[],indices:number[]=[],steps=20;
+ for(let i=0;i<=steps;i++){
+  const t=i/steps;
+  const outward=side<0?1-t:t;
+  const x=side*.125+(t-.5)*.145;
+  const arch=4*outward*(1-outward);
+  const y=.073+.024*arch-.034*outward**2;
+  const roundRoot=Math.sqrt(T.MathUtils.smoothstep(outward,0,.18));
+  const taper=(1-T.MathUtils.smoothstep(outward,.44,1))**.70;
+  const halfWidth=.0006+.0054*roundRoot*taper;
+  for(const offset of [-halfWidth,halfWidth]){
+   points.push(x,y+offset,faceSurfaceZ(x,y+offset)-.002);
+  }
+  if(i<steps){
+   const a=i*2;
+   indices.push(a,a+1,a+2,a+1,a+3,a+2);
+  }
+ }
+ const geometry=new T.BufferGeometry();
+ geometry.setAttribute('position',new T.Float32BufferAttribute(points,3));
+ geometry.setIndex(indices);
+ geometry.computeVertexNormals();
+ return geometry;
+});
 const lipstick=ink.clone();
-lipstick.color.setHex(0x9c2341);
+lipstick.color.setHex(0xa91c32);
+const browInk=ink.clone();
+browInk.color.setHex(0x765026);
 export function paintFace(head:T.Group,eyes:T.Group,vocalist=false){
  const add=(parent:T.Group,geometry:T.BufferGeometry,material:T.Material,part:string)=>{const mesh=new T.Mesh(geometry,material);mesh.userData.facePart=part;mesh.userData.surfaceDecal=true;parent.add(mesh);return mesh;};
  head.add(eyes);for(let i=0;i<2;i++){add(eyes,eyeShapes[i],ink,'eye');add(eyes,highlights[i],white,'eye-highlight');add(head,cheekShapes[i],blush,'blush');}
+ if(vocalist){
+  add(head,beautyMark,ink,'beauty-mark');
+  for(const brow of vocalBrows)add(head,brow,browInk,'eyebrow');
+ }
  return add(head,vocalist?vocalShape:smileShape,vocalist?lipstick:ink,'mouth');
 }

@@ -53,7 +53,7 @@ for(const room of ['hall-97','jazz-97']){
   assert.equal(grounded.hold,1);
   assert.deepEqual(grounded.hand,airborne.rightHand);
   const launch=dancePose(b.self,secondJump-jumpDuration/2);
-  assert.ok(Math.hypot(airborne.x-launch.x,airborne.z-launch.z)>.85);
+  assert.ok(Math.hypot(airborne.x-launch.x,airborne.z-launch.z)>.7);
   a.send({type:'move',x:0,y:0,z:46,yaw:0,pose:'walk'});await sleep(150);assert.equal(a.self.x,-.6,'movement locked');
   a.send({type:'danceStart',style:'bad'});
   await until(()=>a.self.dance?.style==='bad'&&b.self.dance?.style==='bad','shared solo routine');

@@ -124,19 +124,20 @@ export function dancePose(v:Visitor,now:number,jazz=false){
  const prepWeight=spin&&center?smooth(spinBeat/.12)*(1-smooth((spinBeat-.78)/.22)):0;
  const prepNear=1-smooth((spinBeat-.12)/.20);
  const near=normalNear+(prepNear-normalNear)*prepWeight;
- const defaultRadius=DANCE_RADIUS+.04+(1-near)*.22;
- const radius=defaultRadius+(.77-defaultRadius)*formation;
+ const openStance=center?smooth((age-.65)/.50):0;
+ const freeRadius=DANCE_RADIUS+.04+(1-near)*.22;
+ const heldRadius=.36+(1-near)*.065;
+ const sideBySide=Math.max(formation,gripRelease);
+ const contactRadius=heldRadius+(freeRadius-heldRadius)*(1-openStance*(1-sideBySide));
+ const radius=contactRadius+(.77-contactRadius)*formation;
  const x=center?center.x+Math.sin(orbitAngle)*radius*sign:v.x;
  const z=center?center.z+Math.cos(orbitAngle)*radius*sign:v.z;
- // Ease from the greeting into two separate handholds, even at the farthest step.
- const openStance=center?smooth((age-.65)/.50):0;
- const greetingSpread=.12+near*.32;
- const openSpread=.24+near*.10;
- const spread=greetingSpread+(openSpread-greetingSpread)*openStance;
- const contact=(side:number)=>spread*side-.22*openStance;
+ // The hands open sideways on the inward step and come together on the retreat.
+ const spread=.15+near*.17-jumpLift*.04;
+ const contact=(side:number)=>spread*side;
  const grip=(side:number)=>center?{
   x:center.x+Math.cos(orbitAngle)*contact(side),
-  y:center.y+1.08+jumpLift*.5,
+  y:center.y+1.015+jumpLift*.5,
   z:center.z-Math.sin(orbitAngle)*contact(side)
  }:null;
  const motion=smooth(age/.35)*(1-settle)*chairMove;
@@ -177,10 +178,11 @@ export function dancePose(v:Visitor,now:number,jazz=false){
  const greeting=Math.sin(Math.PI*smooth(age/(center?1.15:1.2)))*(1-settle);
  const farewell=Math.sin(Math.PI*(pairedFarewell?smooth((ending-.40)/.54):release));
  const bow=(center?.24:.18)*greeting+.19*farewell;
+ const gripLean=center?.043*(1-near)*openStance*(1-sideBySide):0;
  const headPitch=-.36*greeting-.40*farewell;
  const soloYaw=d.joinSpot?Math.atan2(v.x-d.joinSpot.x,v.z-d.joinSpot.z):v.yaw;
  const swing=Math.sin(phase+.55)*stepping*(center?.18:jazz?.63:.49);
- const towardPartner=(Math.PI/2-(Math.PI/2-.69)*openStance)*(1-formation);
+ const towardPartner=Math.PI/2*(1-formation);
  const partnerYaw=partnerRoutineYaw(orbitAngle)-sign*towardPartner;
  const gripWeight=hold*(1-gripRelease)*(1-formation);
  const headYaw=-sign*(Math.PI/2-towardPartner)*gripWeight;
@@ -199,10 +201,10 @@ export function dancePose(v:Visitor,now:number,jazz=false){
   chair,chairStand,
   yaw,
   bob:center?lift:hop*.19,
-  lean:step*(center?(jazz?.12:.085):(jazz?.23:.17)),
+  lean:step*(center?.034:(jazz?.23:.17)),
   step,swing,handsUp,handsSway,reach,floss,flossSwing,flossHip,flossCross,badLean,badLower,badPop,shimmy,hop,
   captain,captainSide,captainSeconds,
-  bow,headPitch,headYaw,hold:gripWeight,
+  bow:bow+gripLean,headPitch,headYaw,hold:gripWeight,
   hand:grip(-sign),rightHand:grip(sign)};
 }
 /** Each client derives the same ghost from its human partner's room state. */

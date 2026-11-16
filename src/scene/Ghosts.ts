@@ -83,10 +83,21 @@ void main(){
   float sw=walk*aArm*.5*sin(uTime*9.+seed*6.),c=cos(sw),s=sin(sw);d.yz=mat2(c,s,-s,c)*d.yz;n.yz=mat2(c,s,-s,c)*n.yz;
   // Turn the arm from where it rests to where the pose points it.
   vec3 rest=normalize(vec3(aArm*.172,-.675,.717)),to=aArm<0.?aLeft:aRight;
-  if(mod(floor(flags/128.),2.)>.5)d*=length(to);
+  bool dancing=mod(floor(flags/128.),2.)>.5;
+  float reach=clamp(length(to),.05,1.);
+  float along=dot(d,rest);
   to=normalize(to);
   vec3 axis=cross(rest,to);float sn=length(axis),cs=dot(rest,to);
   if(sn>1e-4){axis/=sn;d=d*cs+cross(axis,d)*sn+axis*dot(axis,d)*(1.-cs);n=n*cs+cross(axis,n)*sn+axis*dot(axis,n)*(1.-cs);}
+  if(dancing){
+   // A shorter hand target bends the sleeve at its midpoint instead of narrowing it.
+   float armLength=.475;
+   float u=clamp(along/armLength,0.,1.);
+   vec3 elbow=vec3(0.,-1.,0.)+to*to.y;
+   elbow/=max(.001,length(elbow));
+   float bend=sqrt(1.-reach*reach);
+   d+=to*(along*(reach-1.))+elbow*(armLength*bend*min(u,1.-u));
+  }
   p=pivot+d;
  }
  // Floss shifts the lower sheet under the shoulders without dragging the face or arms along.

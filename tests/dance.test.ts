@@ -179,7 +179,7 @@ test('an available spot admits only one partner',()=>{
  assert.ok(handleDance(visitor,[...all,visitor],{type:'danceJoin',targetId:b.id},11001));
  assert.equal(visitor.dance,undefined);
 });
-test('accept shares center, time and roles and yields repeatable facing poses',()=>{const {a,b,all}=pair();assert.ok(clearDanceSpace(a,b,all));assert.equal(handleDance(a,all,{type:'danceJoin',targetId:b.id},11000),null);assert.equal(a.dance!.startedAt,b.dance!.startedAt);for(const age of [0,2000,5000,9000,15000,25000]){const p=dancePose(a,14000+age),q=dancePose(b,14000+age);assert.ok(Math.hypot(p.x-q.x,p.z-q.z)>=.87&&Math.hypot(p.x-q.x,p.z-q.z)<=1.33);assert.deepEqual(p.hand,q.rightHand);assert.deepEqual(p.rightHand,q.hand);assert.deepEqual(p,dancePose(structuredClone(a),14000+age));}});
+test('accept shares center, time and roles and yields repeatable facing poses',()=>{const {a,b,all}=pair();assert.ok(clearDanceSpace(a,b,all));assert.equal(handleDance(a,all,{type:'danceJoin',targetId:b.id},11000),null);assert.equal(a.dance!.startedAt,b.dance!.startedAt);for(const age of [0,2000,5000,9000,15000,25000]){const p=dancePose(a,14000+age),q=dancePose(b,14000+age);assert.ok(Math.hypot(p.x-q.x,p.z-q.z)>=.71&&Math.hypot(p.x-q.x,p.z-q.z)<=.86);assert.deepEqual(p.hand,q.rightHand);assert.deepEqual(p.rightHand,q.hand);assert.deepEqual(p,dancePose(structuredClone(a),14000+age));}});
 test('shared routines release the grip and play the solo choreography in sync',()=>{
  for(const useNpc of [false,true])for(const [style,field] of [['step','captain'],['bad','badLean'],['clap','floss'],['shimmy','shimmy']] as const){
   const {a,b,all}=pair();
@@ -237,7 +237,7 @@ test('joining requires standing inside the front spot on the same floor',()=>{
  }
 });
 test('occupied dance space is refused',()=>{const {a,b,all}=pair();all.push(guest('c',0));assert.ok(handleDance(a,all,{type:'danceJoin',targetId:b.id},11000));assert.equal(a.dance,undefined);});
-test('both partner handholds stay apart through near and far steps with a visitor or a ghost',()=>{
+test('partners open on the near step and close on the far step with fixed arm segments',()=>{
  for(const ghost of [false,true]){
   const {a,b,all}=pair();
   const join=ghost?{type:'danceJoinNpc'} as const:{type:'danceJoin',targetId:b.id} as const;
@@ -245,20 +245,35 @@ test('both partner handholds stay apart through near and far steps with a visito
   assert.equal(handleDance(host,ghost?[b]:all,join,11000),null);
   const partner=ghost?danceNpc(host)!:b;
   const avatar=new Avatar(),leftHand=new T.Vector3(),rightHand=new T.Vector3();
-  for(const jazz of [false,true])for(let age=1150;age<5000;age+=35){
-   const time=host.dance!.startedAt+age;
-   const p=dancePose(host,time,jazz),q=dancePose(partner,time,jazz);
-   assert.equal(p.hold,1);
-   assert.deepEqual(p.hand,q.rightHand);
-   assert.deepEqual(p.rightHand,q.hand);
-   avatar.update(0,0,false,false);
-   poseDancingAvatar(avatar,p);
-   avatar.leftHand.getWorldPosition(leftHand);
-   avatar.rightHand.getWorldPosition(rightHand);
-   assert.ok(leftHand.distanceTo(rightHand)>=.47,'mittens remain visibly apart');
-   avatar.root.worldToLocal(leftHand);
-   avatar.root.worldToLocal(rightHand);
-   assert.ok(rightHand.x-leftHand.x>.26,'arms open across the body without crossing');
+  const size=new T.Vector3(),one=new T.Vector3(1,1,1),elbow=new T.Vector3(),shoulder=new T.Vector3();
+  for(const jazz of [false,true]){
+   let minGap=Infinity,maxGap=0,nearSpan=0,farSpan=0;
+   for(let age=1150;age<5000;age+=35){
+    const time=host.dance!.startedAt+age;
+    const p=dancePose(host,time,jazz),q=dancePose(partner,time,jazz);
+    assert.equal(p.hold,1);
+    assert.deepEqual(p.hand,q.rightHand);
+    assert.deepEqual(p.rightHand,q.hand);
+    avatar.update(0,0,false,false);
+    poseDancingAvatar(avatar,p);
+    avatar.leftHand.getWorldPosition(leftHand);
+    avatar.rightHand.getWorldPosition(rightHand);
+    for(const [hand,arm,position] of [[avatar.leftHand,avatar.leftArm,leftHand],[avatar.rightHand,avatar.rightArm,rightHand]] as const){
+     hand.getWorldScale(size);
+     assert.ok(size.distanceToSquared(one)<1e-12,'mittens keep their original size');
+     hand.parent!.getWorldPosition(elbow);
+     arm.getWorldPosition(shoulder);
+     assert.ok(Math.abs(elbow.distanceTo(shoulder)-.216)<1e-9);
+     assert.ok(Math.abs(elbow.distanceTo(position)-.203)<1e-9);
+    }
+    const span=leftHand.distanceTo(rightHand),gap=Math.hypot(p.x-q.x,p.z-q.z);
+    if(gap<minGap){minGap=gap;nearSpan=span;}
+    if(gap>maxGap){maxGap=gap;farSpan=span;}
+    avatar.root.worldToLocal(leftHand);
+    avatar.root.worldToLocal(rightHand);
+    assert.ok(rightHand.x-leftHand.x>.24,'hands keep their sides');
+   }
+   assert.ok(nearSpan>.60&&farSpan<.35,'the near step opens and the far step closes');
   }
  }
 });
@@ -269,9 +284,9 @@ test('the real avatar hand stays on the shared contact throughout the turn',()=>
  for(const v of [a,b])for(let age=2000;age<26000;age+=137){
   const p=dancePose(v,v.dance!.startedAt+age);avatar.update(0,0,false,false,null,10,1/30);poseDancingAvatar(avatar,p);
   avatar.root.updateMatrixWorld(true);avatar.leftHand.getWorldPosition(hand);
-  assert.ok(hand.distanceTo(new T.Vector3(p.hand!.x,p.hand!.y,p.hand!.z))<1e-6);
+  assert.ok(hand.distanceTo(new T.Vector3(p.hand!.x,p.hand!.y,p.hand!.z))<.025);
   avatar.rightHand.getWorldPosition(hand);
-  assert.ok(hand.distanceTo(new T.Vector3(p.rightHand!.x,p.rightHand!.y,p.rightHand!.z))<1e-6);
+  assert.ok(hand.distanceTo(new T.Vector3(p.rightHand!.x,p.rightHand!.y,p.rightHand!.z))<.025);
  }
 });
 test('partners bow down, release both hands for a solo turn, then only the jump initiator lifts',()=>{
@@ -290,7 +305,7 @@ test('partners bow down, release both hands for a solo turn, then only the jump 
  };
  assertLookAtPartner(dancePose(a,near),dancePose(b,near));
  assertLookAtPartner(dancePose(b,near),dancePose(a,near));
- assert.ok(gap(far)-gap(near)>.4);
+ assert.ok(gap(far)-gap(near)>.1);
  assert.equal(dancePose(a,near).hold,1);
  assert.equal(dancePose(a,far).hold,1);
  const turnStart=far+110,turnEnd=turnStart+418;
@@ -321,7 +336,7 @@ test('partners bow down, release both hands for a solo turn, then only the jump 
  assert.ok(Math.abs(Math.sin((standing.yaw-dancePose(a,jumpStart).yaw)/2))>.99);
  const launch=dancePose(b,jumpStart);
  assert.ok(Math.abs(Math.sin((jumping.yaw-launch.yaw)/2))>.99);
- assert.ok(Math.hypot(jumping.x-launch.x,jumping.z-launch.z)>.88);
+ assert.ok(Math.hypot(jumping.x-launch.x,jumping.z-launch.z)>.7);
  assert.equal(dancePose(b,jumpStart+jumpDuration).bob,0);
  assert.ok(dancePose(b,peak+jumpDuration).bob>.2);
  finishDance(a,all,peak+jumpDuration);
