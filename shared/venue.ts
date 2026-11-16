@@ -67,7 +67,7 @@ export function seatLabel(s:Seat){if(s.id.startsWith('box-'))return `1층 ${s.x<
 /** The parterre runs right up to the stage lip (stage front is z -9.5). */
 export const STAGE_APRON_Z=-9.2;
 /** Jump points: stage front and rear of the hall, the middle of the rear gallery (2F), and the middle of the lobby floor. */
-export const HALL_DESTINATIONS={front:{x:0,y:PARTERRE.floor,z:-8.6},rear:{x:0,y:0,z:47.7},upper:{x:0,y:STAIR_DOORS.height,z:46},lobby:{x:0,y:0,z:25.5}} as const;
+export const HALL_DESTINATIONS={front:{x:0,y:PARTERRE.floor,z:-8.6},rear:{x:.85,y:0,z:47.7},upper:{x:0,y:STAIR_DOORS.height,z:46},lobby:{x:0,y:0,z:25.5}} as const;
 export type HallDestination=keyof typeof HALL_DESTINATIONS;
 export const DESTINATION_ZONE:Record<HallDestination,'auditorium'|'lobby'>={front:'auditorium',rear:'auditorium',upper:'auditorium',lobby:'lobby'};
 export const isHallDestination=(v:unknown):v is HallDestination=>typeof v==='string'&&Object.hasOwn(HALL_DESTINATIONS,v);

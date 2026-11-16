@@ -1,0 +1,160 @@
+{
+  "name": "야경",
+  "version": "jazz-nightscape-v1",
+  "epochMs": 0,
+  "tracks": [
+    {
+      "id": "jazz-convergence",
+      "title": "Convergence",
+      "composer": "Jeff Martin",
+      "url": "/api/audio/jazz-convergence.mp3",
+      "durationSeconds": 366.968163,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Convergence_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Convergence_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.431519
+    },
+    {
+      "id": "jazz-sunk-in-dars",
+      "title": "Sunk in Dars",
+      "composer": "Tyler Kuebler",
+      "url": "/api/audio/jazz-sunk-in-dars.mp3",
+      "durationSeconds": 411.742041,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sunk_in_Dars_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Sunk_in_Dars_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.457088
+    },
+    {
+      "id": "jazz-stole-back-my-soul",
+      "title": "Stole Back My Soul",
+      "composer": "Alan Baylock",
+      "url": "/api/audio/jazz-stole-back-my-soul.mp3",
+      "durationSeconds": 495.830204,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Stole_Back_My_Soul_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Stole_Back_My_Soul_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.389045
+    },
+    {
+      "id": "jazz-intensities-in-ten-cities",
+      "title": "Intensities in Ten Cities",
+      "composer": "Alan Baylock",
+      "url": "/api/audio/jazz-intensities-in-ten-cities.mp3",
+      "durationSeconds": 453.12,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Intensities_in_Ten_Cities_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Intensities_in_Ten_Cities_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.436516
+    },
+    {
+      "id": "jazz-trombone-detritus",
+      "title": "Trombone Detritus",
+      "composer": "Ben Patterson",
+      "url": "/api/audio/jazz-trombone-detritus.mp3",
+      "durationSeconds": 407.666939,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Trombone_Detritus_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Trombone_Detritus_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.431519
+    },
+    {
+      "id": "jazz-underground",
+      "title": "Underground",
+      "composer": "Tyler Kuebler",
+      "url": "/api/audio/jazz-underground.mp3",
+      "durationSeconds": 537.730612,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Underground_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Underground_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.47863
+    },
+    {
+      "id": "jazz-peekaboo",
+      "title": "Peekaboo",
+      "composer": "Shades of Blue",
+      "url": "/api/audio/jazz-peekaboo.mp3",
+      "durationSeconds": 388.063107,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Peekaboo_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Peekaboo_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3#Licensing",
+        "artist": "Shades of Blue",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.683912
+    },
+    {
+      "id": "jazz-kuri",
+      "title": "Kuri",
+      "composer": "Shades of Blue",
+      "url": "/api/audio/jazz-kuri.mp3",
+      "durationSeconds": 265.705556,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Kuri_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Kuri_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3#Licensing",
+        "artist": "Shades of Blue",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 1.0
+    },
+    {
+      "id": "jazz-scarecrow",
+      "title": "Scarecrow",
+      "composer": "Shades of Blue",
+      "url": "/api/audio/jazz-scarecrow.mp3",
+      "durationSeconds": 257.659841,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Scarecrow_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Scarecrow_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3#Licensing",
+        "artist": "Shades of Blue",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.668344
+    }
+  ]
+}

@@ -129,7 +129,7 @@ button.brand .brand-sub{font-size:12px;letter-spacing:1px;color:#f3e7cc;margin-t
 @media(pointer:coarse){.icon-menu{backdrop-filter:none;background:#29231def}}
 .view-mode-options{
  position:fixed;inset:auto;margin:0;right:var(--view-mode-right,76px);
- top:clamp(8px,var(--view-mode-top,85px),calc(100dvh - 146px));
+ top:clamp(8px,var(--view-mode-top,85px),calc(100dvh - 188px));
  width:max-content;max-width:calc(100vw - var(--view-mode-right,76px) - 8px);
  max-height:calc(100dvh - 16px);overflow:auto;padding:5px;
  border:1px solid #d0b98b45;border-radius:16px;background:#29231df5;
@@ -143,6 +143,13 @@ button.brand .brand-sub{font-size:12px;letter-spacing:1px;color:#f3e7cc;margin-t
 .view-mode-options button:enabled:hover,.view-mode-options button[aria-pressed="true"]{background:#d3bc8733}
 .view-mode-options button:focus-visible{outline-offset:-3px}
 .icon-menu-item:has(+ .view-mode-options:popover-open){background:#d3bc8733}
+.broadcast-exit{
+ position:fixed;bottom:max(20px,env(safe-area-inset-bottom));right:clamp(16px,3vw,32px);
+ display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 15px;border-radius:24px;
+ border:1px solid #d0b98b50;background:var(--panel);color:#f1e8d5;font-size:12px;
+}
+.broadcast-exit:hover{background:#423528}
+body:has(.broadcast-exit) .bottom-center{visibility:hidden}
 .look-picker{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:auto;text-align:center;padding:26px 34px 28px;background:var(--panel);border:1px solid #c7ad784d;border-radius:12px;box-shadow:0 8px 40px #0006}.look-picker>span{font-family:Georgia,serif;font-size:10px;letter-spacing:2px;color:var(--gold)}.look-picker h2{font:400 18px 'Noto Serif KR',Georgia,serif;margin:12px 0 20px;white-space:nowrap}.look-choice{display:flex;justify-content:center;gap:10px}.look-choice button{min-width:86px;padding:11px 20px;border-radius:999px;border:1px solid #d6bd8966;background:#1f1b17a6;color:#f1e8d5;font-size:13px}.look-choice button:hover,.look-choice button.active{background:#d6bd89;color:#29231b;border-color:#d6bd89}
 
 /* Music card sits right under the logo; action messages sit just above the bottom bar. */
@@ -339,15 +346,17 @@ body:has(.conducting-experience) .mobile-joystick{visibility:hidden;pointer-even
 
 /* The top-right wordmark opens the hall selector. */
 .topbar .tools{position:relative}
-.topbar .tools:has(.tools-brand[aria-expanded=true]){z-index:21}
+.topbar:has(.tools-brand[aria-expanded=true]),.topbar .tools:has(.tools-brand[aria-expanded=true]){z-index:21}
 .tools-brand{display:flex;align-items:center;gap:6px;min-height:35px;border-radius:18px;background:transparent;font-size:15px;padding:0 12px;color:var(--gold);white-space:nowrap}
 .tools-brand:hover,.tools-brand[aria-expanded=true]{background:#e8d4a61a}
 .hall-picker-caret{width:5px;height:5px;border-right:1px solid;border-bottom:1px solid;transform:translateY(-1px) rotate(45deg)}
-.hall-choices{position:absolute;top:calc(100% + 8px);right:0;width:164px;padding:5px;border:1px solid #d0b98b45;border-radius:15px;background:#211b16f5;box-shadow:0 8px 24px #0005;pointer-events:auto}
-.hall-choices a{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px;padding:0 11px;border-radius:10px;color:#f3e7cc;text-decoration:none;font-size:13px}
+.hall-choices{position:absolute;top:calc(100% + 8px);right:0;width:184px;padding:5px;border:1px solid #d0b98b45;border-radius:15px;background:#211b16f5;box-shadow:0 8px 24px #0005;pointer-events:auto}
+.hall-choices :is(a,button){display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:40px;padding:0 11px;border-radius:10px;color:#f3e7cc;text-decoration:none;font-size:13px}
 .hall-choices a:hover,.hall-choices a:focus-visible,.hall-choices a[aria-current=page]{background:#e8d4a61a}
 .hall-choices a:focus-visible{outline:1px solid var(--gold);outline-offset:-1px}
-.hall-choices a span{color:var(--gold);font-size:10px}
+.hall-choices button{width:100%;background:none;text-align:left}
+.hall-choices :is(a,button) span{color:var(--gold);font-size:10px;white-space:nowrap}
+.now-playing .next-track{margin-top:5px}
 @media(max-width:540px){.tools-brand{font-size:13px;padding:0 8px}}
 
 /* Music and controls share one mobile header, with details opening below it. */
@@ -538,3 +547,6 @@ body.photo-active #world > :not(canvas){display:none!important}
 .mirror-hint button{min-height:44px;flex-shrink:0;border-radius:12px;background:transparent;color:var(--gold)}
 .mirror-hint-close{display:grid;place-items:center;width:44px}
 .mirror-hint button:hover{background:#c9a76f2b}
+
+.setting-toggle{background:#322b22;color:#e1cda4;border:1px solid #8d785545;padding:7px 10px;border-radius:3px;font-size:11px;min-width:54px}
+.visitor-names[hidden]{display:none}

@@ -1,0 +1,183 @@
+{
+  "name": "황금빛 가을",
+  "version": "classical-autumn-v1",
+  "epochMs": 0,
+  "tracks": [
+    {
+      "id": "autumn-vivaldi-autumn-1",
+      "title": "비발디 — 사계 가을 1악장",
+      "composer": "안토니오 비발디",
+      "url": "/api/audio/autumn-vivaldi-autumn-1.mp3",
+      "durationSeconds": 329.337211,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Modena_Chamber_Orchestra_-_Vivaldi's_Autumn%2C_RV_293_-_I._Allegro.ogg",
+        "licenseName": "PDM-owner",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "The Modena Chamber Orchestra",
+        "changes": "Wikimedia Ogg Vorbis 원본을 MP3로 변환 · 원본 게시본은 음높이를 20센트 내림"
+      }
+    },
+    {
+      "id": "autumn-vivaldi-autumn-2",
+      "title": "비발디 — 사계 가을 2악장",
+      "composer": "안토니오 비발디",
+      "url": "/api/audio/autumn-vivaldi-autumn-2.mp3",
+      "durationSeconds": 200.702948,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Modena_Chamber_Orchestra_-_Vivaldi's_Autumn%2C_RV_293_-_II._Adagio_molto.ogg",
+        "licenseName": "PDM-owner",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "The Modena Chamber Orchestra",
+        "changes": "Wikimedia Ogg Vorbis 원본을 MP3로 변환 · 원본 게시본은 음높이를 20센트 내림"
+      }
+    },
+    {
+      "id": "autumn-vivaldi-autumn-3",
+      "title": "비발디 — 사계 가을 3악장",
+      "composer": "안토니오 비발디",
+      "url": "/api/audio/autumn-vivaldi-autumn-3.mp3",
+      "durationSeconds": 202.37898,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Modena_Chamber_Orchestra_-_Vivaldi's_Autumn%2C_RV_293_-_III._Allegro.ogg",
+        "licenseName": "PDM-owner",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "The Modena Chamber Orchestra",
+        "changes": "Wikimedia Ogg Vorbis 원본을 MP3로 변환 · 원본 게시본은 음높이를 20센트 내림"
+      }
+    },
+    {
+      "id": "autumn-grieg-morning",
+      "title": "그리그 — 아침의 기분",
+      "composer": "에드바르 그리그",
+      "url": "/api/audio/autumn-grieg-morning.mp3",
+      "durationSeconds": 229.183042,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Musopen_-_Morning.ogg",
+        "licenseName": "Public Domain (Musopen)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Musopen_-_Morning.ogg#Licensing",
+        "artist": "Czech National Symphony Orchestra (Musopen Symphony Orchestra)",
+        "changes": "Wikimedia Ogg Vorbis 원본을 MP3로 변환"
+      }
+    },
+    {
+      "id": "autumn-brahms-symphony-3",
+      "title": "브람스 — 교향곡 3번 3악장",
+      "composer": "요하네스 브람스",
+      "url": "/api/audio/autumn-brahms-symphony-3.mp3",
+      "durationSeconds": 369.998367,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Brahms%2C_Symphony_No._3_in_F_Major%2C_Op._90_-_III._Poco_allegretto.ogg",
+        "licenseName": "CC0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "artist": "Musopen Symphony Orchestra",
+        "changes": "Wikimedia Ogg Vorbis 원본을 MP3로 변환"
+      }
+    },
+    {
+      "id": "autumn-mendelssohn-hebrides",
+      "title": "멘델스존 — 헤브리디스 서곡",
+      "composer": "펠릭스 멘델스존",
+      "url": "/api/audio/autumn-mendelssohn-hebrides.mp3",
+      "durationSeconds": 682.608,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mendelssohn_-_Hebrides_Overture_Fingal's_Cave.ogg",
+        "licenseName": "PDM-owner",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "Musopen Symphony Orchestra",
+        "changes": "Wikimedia Ogg Vorbis 원본을 MP3로 변환"
+      }
+    },
+    {
+      "id": "autumn-mendelssohn-scottish",
+      "title": "멘델스존 — 스코틀랜드 교향곡 3악장",
+      "composer": "펠릭스 멘델스존",
+      "url": "/api/audio/autumn-mendelssohn-scottish.mp3",
+      "durationSeconds": 571.950542,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Musopen_Symphony_Orchestra_-_Mendelssohn's_Symphony_No._3_in_A_minor%2C_Op._56%2C_MWV_N_18_-_III._Adagio.ogg",
+        "licenseName": "PDM-owner",
+        "licenseUrl": "https://creativecommons.org/publicdomain/mark/1.0/",
+        "artist": "Musopen Symphony Orchestra",
+        "changes": "Wikimedia Ogg Vorbis 원본을 MP3로 변환"
+      }
+    },
+    {
+      "id": "autumn-grieg-aase",
+      "title": "그리그 — 오제의 죽음",
+      "composer": "에드바르 그리그",
+      "url": "/api/audio/autumn-grieg-aase.mp3",
+      "durationSeconds": 273.737143,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Peer_Gynt_Suite_No._1%2C_Op._46_-_II._Aase's_Death.ogg",
+        "licenseName": "CC0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "artist": "Musopen Symphony Orchestra",
+        "changes": "Wikimedia Ogg Vorbis 원본을 MP3로 변환"
+      }
+    },
+    {
+      "id": "autumn-mendelssohn-italian",
+      "title": "멘델스존 — 이탈리아 교향곡 2악장",
+      "composer": "펠릭스 멘델스존",
+      "url": "/api/audio/autumn-mendelssohn-italian.mp3",
+      "durationSeconds": 347.928,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mendelssohn%2C_Symphony_No._4_in_A_Major%2C_Op._90_'Italian'_-_II._Andante_con_moto.ogg",
+        "licenseName": "CC0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "artist": "Musopen Symphony Orchestra",
+        "changes": "Wikimedia Ogg Vorbis 원본을 MP3로 변환"
+      }
+    },
+    {
+      "id": "autumn-grieg-anitra",
+      "title": "그리그 — 아니트라의 춤",
+      "composer": "에드바르 그리그",
+      "url": "/api/audio/autumn-grieg-anitra.mp3",
+      "durationSeconds": 239.688,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Grieg%2C_Peer_Gynt_Suite_No._1%2C_Op._46_-_III._Anitra's_Dance.ogg",
+        "licenseName": "CC0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "artist": "Musopen Symphony Orchestra",
+        "changes": "Wikimedia Ogg Vorbis 원본을 MP3로 변환"
+      }
+    },
+    {
+      "id": "autumn-grieg-mountain-king",
+      "title": "그리그 — 산왕의 궁전에서",
+      "composer": "에드바르 그리그",
+      "url": "/api/audio/autumn-grieg-mountain-king.mp3",
+      "durationSeconds": 154.091021,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Musopen_-_In_the_Hall_Of_The_Mountain_King.ogg",
+        "licenseName": "Public Domain (Musopen)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Musopen_-_In_the_Hall_Of_The_Mountain_King.ogg#Licensing",
+        "artist": "Czech National Symphony Orchestra (Musopen Symphony Orchestra)",
+        "changes": "Wikimedia Ogg Vorbis 원본을 MP3로 변환"
+      }
+    }
+  ]
+}

@@ -10,8 +10,8 @@ import {DISHES,isDrink} from '../shared/dishes';
 import {reportLoading,reportInitialHallLoading,failLoading} from './loading';
 import {Wardrobe} from './Wardrobe';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
-import program from './audio/playlist';
-import {nextPiece,type Playlist} from '../shared/timeline';
+import {CONCERT_OPTIONS,HALL_ID,INITIAL_PLAYLIST,LOBBY_ENABLED,OPEN_INITIAL_PICKER,PLAYLISTS,type ConcertOption} from './audio/playlist';
+import {nextPiece} from '../shared/timeline';
 import {createRoot} from 'react-dom/client';
 import {World} from './World';
 import {GalaxySettings,GalaxyCredits} from './GalaxySettings';
@@ -20,7 +20,7 @@ import {ConcertAudio} from './audio/ConcertAudio';
 import {SeatMap} from './SeatMap';
 import './style.css';
 import {runDeviceProbe} from './diagnostics/DeviceProbe';
-import {HALL_KIND,JAZZ_HALL,type HallKind} from '../shared/hallKind';
+import {JAZZ_HALL} from '../shared/hallKind';
 /** Conducting is available with the classical orchestra. */
 const CONDUCTING_ENABLED=!JAZZ_HALL;
 import {GESTURES,type Gesture} from '../shared/gestures';
@@ -70,12 +70,22 @@ function Icon({name,size=20}:{name:string;size?:number}){
  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]??paths.hall}</svg>;
 }
 function format(t:number){return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;}
-const HALL_OPTIONS=[{kind:'classic',label:'클래식 홀'},{kind:'jazz',label:'재즈 홀'}] as const;
-function hallHref(kind:HallKind){
+const HALL_AUDIO_KEY='pleee-hall-audio';
+function concertHref({hallId,playlistId}:ConcertOption){
  const url=new URL(location.href);
- if(kind==='jazz')url.searchParams.set('hall','jazz');
+ if(hallId==='jazz')url.searchParams.set('hall','jazz');
  else url.searchParams.delete('hall');
+ url.searchParams.set('playlist',playlistId);
  return url.href;
+}
+function takeHallAudioIntent(){
+ try{
+  const intent=sessionStorage.getItem(HALL_AUDIO_KEY);
+  sessionStorage.removeItem(HALL_AUDIO_KEY);
+  if(intent===INITIAL_PLAYLIST+':play')return 'play';
+  if(intent===INITIAL_PLAYLIST+':mute')return 'mute';
+ }catch{/* storage can be unavailable in private contexts */}
+ return null;
 }
 function TablePromptClose({label,onClose}:{label:string;onClose:()=>void}){
  return <button type="button" className="cafe-close table-prompt-close" aria-label={`${label} 안내 닫기`} onClick={onClose}>
@@ -107,7 +117,7 @@ function WishButton({world}:{world:World}){
  </button>;
 }
 
-function ViewModeMenu({world}:{world:World}){
+function ViewModeMenu({world,onBroadcast}:{world:World;onBroadcast:()=>void}){
  const trigger=useRef<HTMLButtonElement>(null);
  const options=useRef<HTMLDivElement>(null);
  const select=(action:()=>void)=>{
@@ -116,12 +126,14 @@ function ViewModeMenu({world}:{world:World}){
   trigger.current?.focus();
  };
  const modes=[
-  {icon:'walk',label:'걷기 시점',active:!world.concertView,disabled:world.entranceViewLocked&&world.concertView,
-   action:()=>{if(world.concertView)world.toggleConcertView();}},
-  {icon:'overview',label:'홀 전체 보기',active:world.concertView&&world.hallOverview,disabled:world.entranceViewLocked,
+  {icon:'walk',label:'걷기 시점',active:!world.broadcastView&&!world.concertView,disabled:world.entranceViewLocked&&world.concertView&&!world.broadcastView,
+   action:()=>{if(world.concertView)world.toggleConcertView();else world.stopBroadcastView();}},
+  {icon:'overview',label:'홀 전체 보기',active:!world.broadcastView&&world.concertView&&world.hallOverview,disabled:world.entranceViewLocked,
    action:()=>world.showHallOverview()},
-  {icon:'stageLow',label:'무대 올려다보기',active:world.concertView&&!world.hallOverview&&world.stageLowView,disabled:world.entranceViewLocked,
+  {icon:'stageLow',label:'무대 올려다보기',active:!world.broadcastView&&world.concertView&&!world.hallOverview&&world.stageLowView,disabled:world.entranceViewLocked,
    action:()=>world.setStageView(true)},
+  {icon:'camera',label:'방송용 카메라',active:world.broadcastView,disabled:!world.canStartBroadcast&&!world.broadcastView,
+   action:()=>{world.toggleBroadcastView();if(world.broadcastView)onBroadcast();}},
  ];
  return <>
   <button ref={trigger} role="menuitem" className="icon-menu-item" aria-label="보기 모드" title="보기 모드"
@@ -134,7 +146,7 @@ function ViewModeMenu({world}:{world:World}){
   </button>
   <div ref={options} id="view-mode-options" className="view-mode-options" popover="auto" role="group" aria-label="보기 모드">
    {modes.map(({icon,label,active,disabled,action})=><button key={icon} type="button" aria-pressed={active}
-    title={disabled?'입구를 지나면 시점을 바꿀 수 있어요':undefined} disabled={disabled} onClick={()=>select(action)}>
+    title={disabled&&icon!=='camera'?'입구를 지나면 시점을 바꿀 수 있어요':undefined} disabled={disabled} onClick={()=>select(action)}>
     <Icon name={icon} size={20}/><span>{label}</span>
    </button>)}
   </div>
@@ -151,7 +163,7 @@ function App(){
  const wishTarotWasOpen=useRef(false);
  const [programOpen,setProgramOpen]=useState(false);
  const [menu,setMenu]=useState(true);
- const [hallPickerOpen,setHallPickerOpen]=useState(false);
+ const [hallPickerOpen,setHallPickerOpen]=useState(OPEN_INITIAL_PICKER);
  const hallPicker=useRef<HTMLDivElement>(null),hallPickerButton=useRef<HTMLButtonElement>(null);
  useEffect(()=>{
   if(!hallPickerOpen)return;
@@ -171,9 +183,20 @@ function App(){
  const entering=useRef(false),initialHallRequested=useRef(false);
  const [initialHallReady,setInitialHallReady]=useState(false);
  const toastTimer=useRef(0),dialog=useRef<HTMLDialogElement>(null),probeDetails=useRef<HTMLDetailsElement>(null),probeText=useRef<HTMLTextAreaElement>(null);
- useEffect(()=>{let world:World|undefined;const net=new Presence(),audio=new ConcertAudio(net.now);
+ useEffect(()=>{
+  let world:World|undefined;
+  const intent=takeHallAudioIntent();
+  const net=new Presence(),audio=new ConcertAudio(net.now,INITIAL_PLAYLIST,intent!=='mute');
+  let startedSelectedAudio=false;
   try{world=new World(document.getElementById('world')!,net,audio);const active=world;const update=()=>redraw(n=>n+1);const notify=(message:string)=>{setToast(message);clearTimeout(toastTimer.current);toastTimer.current=window.setTimeout(()=>setToast(''),3500);};
-   world.onQueenCardGame=()=>setQueenGameOpen(true);world.onProgramBook=()=>setProgramOpen(true);world.onChange=update;world.onToast=notify;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{world!.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onMoveBlocked=point=>active.correctMove(point);net.onRelocated=point=>active.finishHallMove(point);net.onStatus=()=>{if(net.status!=='connected')active.stopHallLoading();update();};net.onError=message=>{active.stopHallLoading();notify(message);};setApp({world,net,audio});
+   world.onChange=()=>{
+    if(!startedSelectedAudio&&intent==='play'&&active.zone==='auditorium'){
+     startedSelectedAudio=true;
+     void audio.unlock();
+    }
+    update();
+   };
+   world.onQueenCardGame=()=>setQueenGameOpen(true);world.onProgramBook=()=>setProgramOpen(true);world.onToast=notify;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{active.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onMoveBlocked=point=>active.correctMove(point);net.onRelocated=point=>active.finishHallMove(point);net.onStatus=()=>{if(net.status!=='connected')active.stopHallLoading();update();};net.onError=message=>{active.stopHallLoading();notify(message);};setApp({world,net,audio});
    world.onWishTarot=()=>setWishTarotOpen(true);
    if(import.meta.env.DEV)Object.assign(window,{__concert:{world,net,audio}});
   }catch(e){failLoading();setError(e instanceof Error?e.message:'3D 화면을 열지 못했어요.');}
@@ -189,6 +212,8 @@ function App(){
  useEffect(()=>{const key=(e:KeyboardEvent)=>{const i=Number(e.code.replace('Digit',''))-1;if(!app||!entered||settings||!(i>=0&&i<GESTURES.length)||app.net.status!=='connected'||(e.target as HTMLElement)?.closest('input,textarea,select,dialog'))return;e.preventDefault();app.world.gestureAction(GESTURES[i].id);};window.addEventListener('keydown',key);return ()=>window.removeEventListener('keydown',key);},[app,entered,settings]);
  useEffect(()=>{if(settings){dialog.current?.showModal();app?.world.input.keys.clear();}else dialog.current?.close();},[settings,app]);
  const world=app?.world,net=app?.net,audio=app?.audio,p=audio?.playback,zone=world?.zone??'lobby',connected=net?.status==='connected',sitting=world?.pose==='sit';
+ const program=audio?.playlist;
+ const next=p&&program?nextPiece(program,p.index):null;
  const atWishTarotTable=!!world?.atWishTarotTable;
  const tableSeat=zone==='auditorium'&&sitting?world?.self?.seatId:null;
  useEffect(()=>{setDismissedTablePrompt(null);},[tableSeat]);
@@ -276,6 +301,7 @@ function App(){
 
  return <>
   {world?.photoMode&&<PhotoMode world={world}/>}
+  {world?.broadcastView&&<button className="broadcast-exit" type="button" autoFocus onClick={()=>world.stopBroadcastView()}><Icon name="close" size={16}/>방송 보기 종료</button>}
   <div className="vignette"/>
   {(world?.hallLoading&&initialHallReady)&&<div className="hall-loading" role="status" aria-live="polite" aria-busy="true"><div className="hall-loading-card"><span className="hall-loading-spinner" aria-hidden="true"/><h2>공연장으로 들어가고 있어요</h2><p>무대와 좌석을 준비하고 있어요. 잠시만 기다려 주세요.</p></div></div>}
 
@@ -283,26 +309,42 @@ function App(){
    {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LOBBY':JAZZ_HALL?'pleee jazz':'pleee hall'}</span><span>{zone==='lobby'?'로비':'공연장'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ').replace('jazz-','재즈홀 ')??'입장 중'}</span></div>}
    {queenGameOpen&&world&&<QueenCardGame onResult={won=>world.queenCardResult(won)} onClose={()=>setQueenGameOpen(false)}/>}
    {wishTarotOpen&&atWishTarotTable&&connected&&<WishTarot onClose={closeWishTarot} onFlower={(card,image)=>{world?.receiveWishFlower(card,image);closeWishTarot();}}/>}
-   {programOpen&&p&&<ProgramBook playlist={program as Playlist} playback={p} onClose={()=>{setProgramOpen(false);world?.renderer.domElement.focus();}}/>}
-   {zone==='auditorium'&&p&&<aside className={`now-playing ${(!world?.concertView||world?.pose==='walk'||window.innerWidth<700)&&!musicExpanded?'compact-music':''}`}><button className="music-summary" aria-label={musicExpanded?'음악 정보 접기':'음악 정보 펼치기'} aria-expanded={musicExpanded} onClick={()=>setMusicExpanded(v=>!v)}><Icon name="music" size={14}/><span>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</span><span>{musicExpanded?'−':'+'}</span></button><div className="music-details"><div className="now-label"><span className={`equalizer ${audio?.enabled&&p.playing?'active':''}`}><i/><i/><i/></span>{p.playing?(p.track.stage?'ON STAGE':'NOW PLAYING'):'잠시 후'}</div><h2>{p.playing?p.track.title:`곧 이어서 — ${nextPiece(program as Playlist,p.index)?.title??''}`}</h2><p>{p.playing&&!p.track.stage?p.track.composer:`다음 곡: ${nextPiece(program as Playlist,p.index)?.title??''}`}{!p.playing&&` · ${Math.ceil(p.remaining)}초 후`}</p><div className="progress-track"><span style={{width:`${p.playing?p.offset/p.track.durationSeconds*100:0}%`}}/></div><div className="track-meta"><span>{audio?.state}</span><span>{format(p.offset)} / {format(p.track.durationSeconds)}</span></div></div></aside>}
+   {programOpen&&p&&program&&<ProgramBook playlist={program} playback={p} onClose={()=>{setProgramOpen(false);world?.renderer.domElement.focus();}}/>}
+   {zone==='auditorium'&&p&&<aside className={`now-playing ${(!world?.concertView||world?.pose==='walk'||window.innerWidth<700)&&!musicExpanded?'compact-music':''}`}><button className="music-summary" aria-label={musicExpanded?'음악 정보 접기':'음악 정보 펼치기'} aria-expanded={musicExpanded} onClick={()=>setMusicExpanded(v=>!v)}><Icon name="music" size={14}/><span>{p.playing?p.track.title:`곧 이어서 — ${next?.title??''}`}</span><span>{musicExpanded?'−':'+'}</span></button><div className="music-details"><div className="now-label"><span className={`equalizer ${audio?.enabled&&p.playing?'active':''}`}><i/><i/><i/></span>{p.playing?(p.track.stage?'ON STAGE':'NOW PLAYING'):'잠시 후'}</div><h2>{p.playing?p.track.title:`곧 이어서 — ${next?.title??''}`}</h2><p>{p.playing&&!p.track.stage?p.track.composer:`다음 곡: ${next?.title??''}`}{!p.playing&&` · ${Math.ceil(p.remaining)}초 후`}</p>{p.playing&&!p.track.stage&&next&&<p className="next-track">다음 곡: {next.title}</p>}<div className="progress-track"><span style={{width:`${p.playing?p.offset/p.track.durationSeconds*100:0}%`}}/></div><div className="track-meta"><span>{audio?.state}</span><span>{format(p.offset)} / {format(p.track.durationSeconds)}</span></div></div></aside>}
    <nav className="tools" aria-label="음악당 설정">
-    <div className="hall-picker" ref={hallPicker} onKeyDown={event=>{
+    <div className="hall-picker" data-concert-picker ref={hallPicker} onKeyDown={event=>{
      if(event.key!=='Escape'||!hallPickerOpen)return;
      event.stopPropagation();
      setHallPickerOpen(false);
      hallPickerButton.current?.focus();
     }}>
-     <button type="button" ref={hallPickerButton} className="tools-brand" aria-label="플리 공연장 선택" aria-expanded={hallPickerOpen} aria-controls="hall-choices" onClick={()=>{
+     <button type="button" ref={hallPickerButton} className="tools-brand" aria-label="플리 공연 선택" aria-expanded={hallPickerOpen} aria-controls="hall-choices" onClick={()=>{
       if(!hallPickerOpen){setMusicExpanded(false);world?.input.keys.clear();}
       setHallPickerOpen(!hallPickerOpen);
      }}>플리 <span className="hall-picker-caret" aria-hidden="true"/></button>
-     <div id="hall-choices" className="hall-choices" role="group" aria-label="공연장 선택" hidden={!hallPickerOpen}>
-      {HALL_OPTIONS.map(({kind,label})=><a key={kind} href={hallHref(kind)} aria-current={kind===HALL_KIND?'page':undefined} onClick={event=>{
-       if(kind!==HALL_KIND)return;
-       event.preventDefault();
-       setHallPickerOpen(false);
-       hallPickerButton.current?.focus();
-      }}>{label}{kind===HALL_KIND&&<span>현재</span>}</a>)}
+     <div id="hall-choices" className="hall-choices" role="group" aria-label="공연 선택" hidden={!hallPickerOpen}>
+      {CONCERT_OPTIONS.map(option=>{
+       if(!PLAYLISTS[option.playlistId]){
+        return <button key={option.playlistId} type="button" disabled>
+         {option.label}<span>준비 중</span>
+        </button>;
+       }
+       const current=option.playlistId===(audio?.playlistId??INITIAL_PLAYLIST);
+       const href=concertHref(option);
+       return <a key={option.playlistId} href={href} aria-current={current?'page':undefined} onClick={event=>{
+        if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+        if(option.hallId!==HALL_ID){
+         try{sessionStorage.setItem(HALL_AUDIO_KEY,option.playlistId+(audio?.soundRequested===false?':mute':':play'));}catch{/* the sound control remains available */}
+         return;
+        }
+        event.preventDefault();
+        audio?.selectPlaylist(option.playlistId);
+        if(location.href!==href)history.replaceState(history.state,'',href);
+        setHallPickerOpen(false);
+        hallPickerButton.current?.focus();
+        redraw(n=>n+1);
+       }}>{option.label}{current&&<span>현재</span>}</a>;
+      })}
      </div>
     </div>
     {entered&&<span className="visitor-count" title={connected?'함께 있는 관객':'연결을 기다리고 있어요'}><span className={`connection ${connected?'online':''}`}/><Icon name="people" size={18}/>{net?.local?'혼자 감상':net?.state?.visitors.length??'—'}</span>}
@@ -323,9 +365,9 @@ function App(){
      <button role="menuitem" className="icon-menu-item" aria-label="공연장 뒤로 바로 이동" title="공연장 뒤로 바로 이동" onClick={()=>world?.goToHallPoint('rear')}><Icon name="back" size={20}/></button>
      <button role="menuitem" className="icon-menu-item" aria-label={world?.openHall?'공연장으로 돌아가기':'우주 공간으로 전환'} title={world?.openHall?'공연장으로 돌아가기':'우주 공간으로 전환'} onClick={()=>world?.toggleOpenHall()}><Icon name={world?.openHall?'hall':'planet'} size={20}/></button>
      <span className="icon-menu-divider"/>
-     {world&&<ViewModeMenu world={world}/>}
+     {world&&<ViewModeMenu world={world} onBroadcast={()=>setMenu(false)}/>}
      <span className="icon-menu-divider"/>
-     <button role="menuitem" className="icon-menu-item" aria-label="로비로 나가기" title="로비로 나가기" onClick={()=>{world?.changeZone();}}><Icon name="exit" size={20}/></button>
+     {LOBBY_ENABLED&&<button role="menuitem" className="icon-menu-item" aria-label="로비로 나가기" title="로비로 나가기" onClick={()=>{world?.changeZone();}}><Icon name="exit" size={20}/></button>}
     </>:<>
      <button role="menuitem" className="icon-menu-item" aria-label="로비 가운데로 바로 이동" title="로비 가운데로 바로 이동" onClick={()=>world?.goToHallPoint('lobby')}><Icon name="center" size={20}/></button>
      <span className="icon-menu-divider"/>
@@ -377,7 +419,7 @@ function App(){
   {toast&&!entered&&<div className="toast" role="status">{toast}</div>}
   {error&&<section className="fatal" role="alert"><h1>음악당을 열지 못했어요.</h1><p>WebGL을 지원하는 브라우저에서 다시 열어주세요.</p><small>{error}</small><button onClick={()=>location.reload()}>다시 열기</button></section>}
   {wardrobe&&world&&<Wardrobe look={world.visitorLook} selected={world.self?.outfit} onSelect={outfit=>world.setOutfit(outfit)} onClose={()=>setWardrobe(false)}/>}
-  <dialog ref={dialog} onCancel={()=>setSettings(false)} onClose={()=>setSettings(false)} className="settings-dialog"><div className="panel-heading"><div><span className="eyebrow">YOUR LITTLE CONCERT</span><h2>편안하게 감상하기</h2></div><button className="icon-button" aria-label="설정 닫기" onClick={()=>setSettings(false)}><Icon name="close"/></button></div><label className="setting-row"><span>음악 소리 <b>{Math.round((audio?.volume??1)*100)}</b><small>공연장에서 들리는 음량 (0~100)</small></span><input aria-label="음악 음량" type="range" min="0" max="100" value={Math.round((audio?.volume??1)*100)} onChange={e=>{if(audio)audio.volume=Number(e.target.value)/100;redraw(n=>n+1);}}/></label><label className="setting-row"><span>공간 소리 <b>{audio?.roomLevel??5}</b><small>로비와 공연장의 은은한 울림 (1~10, 5가 기본)</small></span><input aria-label="공간 소리" type="range" min="1" max="10" step="1" value={audio?.roomLevel??5} onChange={e=>{audio?.setRoomLevel(Number(e.target.value));redraw(n=>n+1);}}/></label><label className="setting-row"><span>내 캐릭터<small>다른 관객에게도 이렇게 보여요</small></span><select aria-label="내 캐릭터" value={world?.visitorLook??'man'} onChange={e=>{const look=e.target.value as 'man'|'woman';try{localStorage.setItem('garnier-look',look);}catch{}world?.setLook(look);redraw(n=>n+1);}}><option value="man">남자</option><option value="woman">여자</option></select></label><label className="setting-row"><span>화면 품질<small>{world?`${world.fps} FPS · ${world.renderer.domElement.width}×${world.renderer.domElement.height}`:'선명도를 선택할 수 있어요'}</small></span><select aria-label="화면 품질" value={world?.quality??"balanced"} onChange={e=>world?.setQuality(e.target.value)}><option value="balanced">균형 · {world?.mobile?'60':'30'}FPS</option><option value="sharp">선명하게 · 60FPS</option><option value="low">저발열 · {world?.mobile?'60':'30'}FPS</option></select></label><div className="settings-info"><Icon name="music" size={19}/><p>{p?.track.title}<br/>{p?.track.credit&&<><a href={p.track.credit.sourceUrl} target="_blank" rel="noreferrer">{p.track.credit.sourceName}</a> · {p.track.credit.artist&&<>{p.track.credit.artist} · </>} <a href={p.track.credit.licenseUrl} target="_blank" rel="noreferrer">{p.track.credit.licenseName}</a>{p.track.credit.changes&&<> · {p.track.credit.changes}</>}</>}</p></div><p className="settings-info"><small>로비 천장 사진: <a href="https://commons.wikimedia.org/wiki/File:Ópera,_París,_Francia,_2022-10-31,_DD_54-56_HDR.jpg" target="_blank" rel="noreferrer">Diego Delso / Wikimedia Commons</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a> · 2048px·WebP 변환</small></p>
+  <dialog ref={dialog} onCancel={()=>setSettings(false)} onClose={()=>setSettings(false)} className="settings-dialog"><div className="panel-heading"><div><span className="eyebrow">YOUR LITTLE CONCERT</span><h2>편안하게 감상하기</h2></div><button className="icon-button" aria-label="설정 닫기" onClick={()=>setSettings(false)}><Icon name="close"/></button></div><label className="setting-row"><span>음악 소리 <b>{Math.round((audio?.volume??1)*100)}</b><small>공연장에서 들리는 음량 (0~100)</small></span><input aria-label="음악 음량" type="range" min="0" max="100" value={Math.round((audio?.volume??1)*100)} onChange={e=>{if(audio)audio.volume=Number(e.target.value)/100;redraw(n=>n+1);}}/></label><label className="setting-row"><span>공간 소리 <b>{audio?.roomLevel??5}</b><small>로비와 공연장의 은은한 울림 (1~10, 5가 기본)</small></span><input aria-label="공간 소리" type="range" min="1" max="10" step="1" value={audio?.roomLevel??5} onChange={e=>{audio?.setRoomLevel(Number(e.target.value));redraw(n=>n+1);}}/></label><label className="setting-row"><span>내 캐릭터<small>다른 관객에게도 이렇게 보여요</small></span><select aria-label="내 캐릭터" value={world?.visitorLook??'man'} onChange={e=>{const look=e.target.value as 'man'|'woman';try{localStorage.setItem('garnier-look',look);}catch{}world?.setLook(look);redraw(n=>n+1);}}><option value="man">남자</option><option value="woman">여자</option></select></label><div className="setting-row"><span>캐릭터 이름<small>내 이름과 다른 관객의 이름을 표시해요</small></span><button type="button" className="setting-toggle" aria-label="캐릭터 이름 표시" aria-pressed={world?.showVisitorNames??true} onClick={()=>world?.setShowVisitorNames(!world.showVisitorNames)}>{world?.showVisitorNames!==false?"켜짐":"꺼짐"}</button></div><label className="setting-row"><span>화면 품질<small>{world?`${world.fps} FPS · ${world.renderer.domElement.width}×${world.renderer.domElement.height}`:'선명도를 선택할 수 있어요'}</small></span><select aria-label="화면 품질" value={world?.quality??"balanced"} onChange={e=>world?.setQuality(e.target.value)}><option value="balanced">균형 · {world?.mobile?'60':'30'}FPS</option><option value="sharp">선명하게 · 60FPS</option><option value="low">저발열 · {world?.mobile?'60':'30'}FPS</option></select></label><div className="settings-info"><Icon name="music" size={19}/><p>{p?.track.title}<br/>{p?.track.credit&&<><a href={p.track.credit.sourceUrl} target="_blank" rel="noreferrer">{p.track.credit.sourceName}</a> · {p.track.credit.artist&&<>{p.track.credit.artist} · </>} <a href={p.track.credit.licenseUrl} target="_blank" rel="noreferrer">{p.track.credit.licenseName}</a>{p.track.credit.changes&&<> · {p.track.credit.changes}</>}</>}</p></div><p className="settings-info"><small>로비 천장 사진: <a href="https://commons.wikimedia.org/wiki/File:Ópera,_París,_Francia,_2022-10-31,_DD_54-56_HDR.jpg" target="_blank" rel="noreferrer">Diego Delso / Wikimedia Commons</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a> · 2048px·WebP 변환</small></p>
    {import.meta.env.DEV&&world&&<GalaxySettings world={world}/>}
    <GalaxyCredits/>
    <p className="settings-info"><small>행성 텍스처 · <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noreferrer">Solar System Scope</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a></small></p>

@@ -25,7 +25,17 @@ function stringBody(g:T.Group,size:number){
 }
 export function buildInstrument(type:Instrument,g:T.Group,leftHand:T.Group,rightHand:T.Group){
  g.userData.instrument=type;
- if(['violin','viola','cello','bass'].includes(type)){
+ if(type==='vocals'){
+  g.position.set(-.16,0,-.44);
+  cylinder(g,.145,.029,[0,.015,0],ebony);
+  cylinder(g,.014,1.12,[0,.574,0],0x51474a);
+  cylinder(g,.025,.085,[0,1.102,0],silver);
+  const grille=new T.Mesh(new T.CapsuleGeometry(.049,.072,5,16),material(0x969692,.62,.32));
+  grille.position.y=1.2;grille.scale.set(1.18,1,.78);grille.rotation.x=.16;g.add(grille);
+  for(const y of [1.158,1.179,1.2,1.221,1.242]){
+   box(g,[.086,.009,.072],[0,y,.001],ebony).rotation.x=.16;
+  }
+ }else if(['violin','viola','cello','bass'].includes(type)){
   const small=type==='violin'||type==='viola',size=type==='violin'?.42:type==='viola'?.5:type==='cello'?.83:1.07;
   stringBody(g,size);g.position.set(small?-.12:type==='bass'?-.24:.025,small?1.05:type==='cello'?.51:.74,small?-.4:-.38);if(small){g.position.set(-.14,1.04,-.30);g.rotation.set(1.47,0,2.1);}else{g.rotation.x=-.07;g.rotation.z=.16;cylinder(g,.012,type==='cello'?.23:.15,[0,-size*.5-.1,0],silver);}
   const bow=new T.Group();if(!(JAZZ_HALL&&type==='bass'))rightHand.add(bow);// a jazz bass is plucked

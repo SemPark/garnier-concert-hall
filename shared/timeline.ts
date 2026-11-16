@@ -3,8 +3,8 @@
  * the staged opening (murmur, tuning, entrance) and closing bow are kept for later but not scheduled.
  */
 export type Stage='quiet'|'murmur'|'tuning'|'entrance'|'applause'|'farewell';
-export type Track={id:string;title:string;composer:string;url:string;durationSeconds:number;gapAfterSeconds:number;stage?:Stage;work?:string;credit?:{sourceName:string;sourceUrl:string;licenseName:string;licenseUrl:string;artist?:string;changes?:string}};
-export type Playlist={version:string;epochMs:number;tracks:Track[]};
+export type Track={id:string;title:string;composer:string;url:string;durationSeconds:number;gapAfterSeconds:number;gain?:number;stage?:Stage;work?:string;credit?:{sourceName:string;sourceUrl:string;licenseName:string;licenseUrl:string;artist?:string;changes?:string}};
+export type Playlist={name?:string;version:string;epochMs:number;tracks:Track[]};
 export type Playback={track:Track;index:number;offset:number;playing:boolean;remaining:number;cycle:number};
 export function playbackAt(list:Playlist,now:number):Playback{
  if(!Number.isFinite(now)||!Number.isFinite(list.epochMs)||!list.tracks.length)throw new Error('Invalid playlist or clock');

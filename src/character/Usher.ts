@@ -1,9 +1,10 @@
 import * as T from 'three';
 import {Avatar} from './Avatar';
+import {SPAWN} from '../../shared/venue';
 import {box,cylinder,sphere,text} from '../scene/primitives';
 
 /** Entrance usher: a ghost who keeps a human shape and greets everyone like an old friend. */
-export const USHER={x:-1.1,z:44.5,faceZ:47};
+export const USHER={x:-.73,z:44.75};
 export const USHER_LINES={welcome:'어서 오세요. 또 처음 뵙네요.',ask:'저도 이 공연이 끝나는 건\n본 적이 없네요.'};
 export class Usher{
  readonly avatar=new Avatar(0x5e1624,undefined,0);
@@ -44,7 +45,7 @@ export class Usher{
   this.speech.setAttribute('role','status');
   this.speech.setAttribute('aria-live','polite');
   this.speech.hidden=true;
-  a.root.position.set(USHER.x,y,USHER.z);a.root.rotation.y=Math.atan2(USHER.x,USHER.z-USHER.faceZ);
+  a.root.position.set(USHER.x,y,USHER.z);a.root.rotation.y=Math.atan2(USHER.x-SPAWN.auditorium.x,USHER.z-SPAWN.auditorium.z);
   const hit=new T.Mesh(new T.CylinderGeometry(.45,.45,1.8,8),new T.MeshBasicMaterial({visible:false}));hit.position.y=.9;hit.userData.usher=true;a.root.add(hit);this.targets.push(hit);
   scene.add(a.root);
  }
@@ -58,7 +59,7 @@ export class Usher{
   this.speech.hidden=true;
   if(!visible||time>this.speechUntil)return;
   if(!this.speech.isConnected)canvas.parentElement?.append(this.speech);
-  this.avatar.head.getWorldPosition(this.anchor);this.anchor.y+=.64;
+  this.avatar.head.getWorldPosition(this.anchor);this.anchor.y+=.69;
   camera.updateMatrixWorld();
   this.screen.copy(this.anchor).project(camera);
   if(Math.abs(this.screen.z)>1||Math.abs(this.screen.x)>1||Math.abs(this.screen.y)>1)return;

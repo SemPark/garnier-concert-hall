@@ -1,9 +1,14 @@
 import {defineConfig} from 'vite';
+import {statSync} from 'node:fs';
+import warmth from './content/playlist-jazz-warmth.json';
+import nightscape from './content/playlist-jazz-nightscape.json';
 import {iphoneProbeBridge} from './scripts/iphone-probe';
 import {liveStyles} from './scripts/live-styles';
 import {galaxyPresetEditor} from './scripts/galaxy-presets';
 export default defineConfig(({mode})=>{
  const iphone=mode==='iphone';
+ const audioReady=(list:typeof warmth|typeof nightscape)=>list.tracks.length===9
+  &&list.tracks.every(track=>statSync('public'+track.url.replace(/^\/api/,''),{throwIfNoEntry:false})?.isFile());
  return {
   base:mode==='pages'?'/garnier-concert-hall/':'/',
   plugins:[iphoneProbeBridge(),liveStyles(),galaxyPresetEditor(),{
@@ -14,7 +19,10 @@ export default defineConfig(({mode})=>{
     });
    },
   }],
-  define:{'import.meta.env.VITE_STATIC_PREVIEW':JSON.stringify(mode==='pages'?'true':'false'),'import.meta.env.VITE_PRESENCE_ORIGIN':JSON.stringify(mode==='pages'?'https://garnier-concert-hall.cleansam7.workers.dev':'')},
+  define:{
+   'import.meta.env.VITE_JAZZ_WARMTH_READY':JSON.stringify(String(audioReady(warmth))),
+   'import.meta.env.VITE_JAZZ_NIGHTSCAPE_READY':JSON.stringify(String(audioReady(nightscape))),
+   'import.meta.env.VITE_STATIC_PREVIEW':JSON.stringify(mode==='pages'?'true':'false'),'import.meta.env.VITE_PRESENCE_ORIGIN':JSON.stringify(mode==='pages'?'https://garnier-concert-hall.cleansam7.workers.dev':'')},
   // Vite reloads the page when its development socket reconnects after backgrounding.
   server:{host:iphone?'0.0.0.0':'127.0.0.1',port:iphone?5174:5173,strictPort:true,ws:false,proxy:{'/api':{target:`http://127.0.0.1:${iphone?8788:8787}`,ws:true}}},
   build:{target:'es2022',chunkSizeWarningLimit:750},

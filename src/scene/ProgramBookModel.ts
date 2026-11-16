@@ -21,7 +21,7 @@ function coverLettering() {
 /** One closed folio; the readable pages use the accessible DOM dialog, not dozens of meshes. */
 export function buildProgramBook(scene:T.Scene,targets:T.Object3D[]){
  const root=new T.Group(),spot=PROGRAM_BOOK;
- root.name='끝나지 않는 공연 프로그램';root.position.set(spot.x,0,spot.z);root.rotation.y=-Math.PI/8;
+ root.name='끝나지 않는 공연 프로그램';root.position.set(spot.x,0,spot.z);root.rotation.y=Math.PI/12;
  scene.add(root);
  cylinder(root,.28,.08,[0,.04,0],0xa77c3f);
  cylinder(root,.055,1.05,[0,.58,0],0xa77c3f);

@@ -25,7 +25,10 @@ export class VisitorNames{
   host.append(this.layer);
  }
 
+ setVisible(visible:boolean){this.layer.hidden=!visible;}
+
  update(camera:T.Camera,self:NamedAvatar|null,visitors:Iterable<NamedAvatar>,occluded?:ReturnType<typeof solidOcclusion>,viewport?:{width:number;height:number}){
+  if(this.layer.hidden)return;
   const {width,height}=viewport??{width:innerWidth,height:innerHeight};
   const left=(innerWidth-width)/2,top=(innerHeight-height)/2;
   this.placed.length=0;
