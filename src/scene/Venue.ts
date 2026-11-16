@@ -44,6 +44,7 @@ import {buildCandleTable} from './CandleCarry';
 import {buildGoldenHallSteps,timberDoor} from './GoldenHall';
 import {woodMaterial,applyWoodSurface,hallImage,hallImageMaterial} from './HallTextures';
 import {batchArchitectureSteps,batchCharactersSteps} from './batching';
+import {cameraFadeGroup} from './CameraFade';
 import {EmoteLayer} from '../character/EmoteLayer';
 export type Venue={storyTableProps:ReturnType<typeof buildStoryTableProps>|null;programBook?:ReturnType<typeof buildProgramBook>;magicChair?:MagicChairs;treeStar:ReturnType<typeof buildFloatingTreeStar>|null;cat:LobbyCat|null;usher:Usher|null;mirror:HallMirror|null;portrait:HallPortrait|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
 
@@ -225,10 +226,10 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
  buildLobbyDetails(scene);
  // Balcony floors for both tiers.
  for(const y of [A.balconyY,tier2]){for(const side of [-1,1])box(scene,[D,.45,len],[side*(W-D/2),y-.22,midZ],stone);box(scene,[inner*2,.45,D],[0,y-.22,A.back-D/2],stone);box(scene,[inner*2,.45,D],[0,y-.22,A.front+D/2],stone);}
- const rail=(x1:number,z1:number,y1:number,x2:number,z2:number,y2:number,lamps=false,bal=redMarble)=>{
+ const rail=(x1:number,z1:number,y1:number,x2:number,z2:number,y2:number,lamps=false,bal=redMarble,parent:T.Object3D=scene)=>{
   const n=Math.max(1,Math.round(Math.hypot(x2-x1,z2-z1)/.36));
-  for(let i=0;i<=n;i++){const t=i/n;cylinder(scene,bal===redMarble?.06:.09,.78,[x1+(x2-x1)*t,y1+(y2-y1)*t+.47,z1+(z2-z1)*t],bal);}
-  line(scene,new T.Vector3(x1,y1+.93,z1),new T.Vector3(x2,y2+.93,z2),.11,onyx);line(scene,new T.Vector3(x1,y1+.06,z1),new T.Vector3(x2,y2+.06,z2),.12,stone);
+  for(let i=0;i<=n;i++){const t=i/n;cylinder(parent,bal===redMarble?.06:.09,.78,[x1+(x2-x1)*t,y1+(y2-y1)*t+.47,z1+(z2-z1)*t],bal);}
+  line(parent,new T.Vector3(x1,y1+.93,z1),new T.Vector3(x2,y2+.93,z2),.11,onyx);line(parent,new T.Vector3(x1,y1+.06,z1),new T.Vector3(x2,y2+.06,z2),.12,stone);
 
  };
  const B=LOBBY_BRANCH;
@@ -238,33 +239,36 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
  for(const y of [A.balconyY,tier2]){const bal=y===tier2?0xe3d2ac:redMarble;if(y===A.balconyY){rail(-inner,A.back-D,y,-S.branchInner,A.back-D,y,false,bal);rail(S.branchInner,A.back-D,y,inner,A.back-D,y,false,bal);}else rail(-inner,A.back-D,y,inner,A.back-D,y,false,bal);rail(-inner,A.front+D,y,inner,A.front+D,y,y===A.balconyY,bal);}
  // Central flight stays inside its rails, keeping both side aisles clear.
  const step=S.rise/S.steps,d=(S.flightEnd-S.flightStart)/S.steps,lh=S.branchInner;
+ const mainFlight=cameraFadeGroup(scene);
  for(let i=0;i<S.steps;i++){const top=(i+1)*step,w=S.flightHalf*2,z=S.flightStart+(i+.5)*d;
-  const tread=box(scene,[w,top,d],[0,top/2,z],stepStone);tread.userData.landmark='grand-stair-step';tread.material=surfaceMaterial('stone',stepStone);}
- const landing=box(scene,[lh*2,S.rise,S.landingEnd-S.flightEnd],[0,S.rise/2,(S.flightEnd+S.landingEnd)/2],stepStone);landing.userData.landmark='grand-stair-landing';landing.material=surfaceMaterial('stone',stepStone);
- for(const side of [-1,1])box(scene,[lh-S.flightHalf,S.rise,.3],[side*(lh+S.flightHalf)/2,S.rise/2,S.flightEnd-.15],stone);
+  const tread=box(mainFlight,[w,top,d],[0,top/2,z],stepStone);tread.userData.landmark='grand-stair-step';tread.material=surfaceMaterial('stone',stepStone);}
+ const landingGroup=cameraFadeGroup(scene);
+ const landing=box(landingGroup,[lh*2,S.rise,S.landingEnd-S.flightEnd],[0,S.rise/2,(S.flightEnd+S.landingEnd)/2],stepStone);landing.userData.landmark='grand-stair-landing';landing.material=surfaceMaterial('stone',stepStone);
+ for(const side of [-1,1])box(landingGroup,[lh-S.flightHalf,S.rise,.3],[side*(lh+S.flightHalf)/2,S.rise/2,S.flightEnd-.15],stone);
  buildLobbyEntrance(scene,cameraWalls,walkTargets);
  // Straight outward flights meet the first gallery flush, with one uninterrupted rail per edge.
  for(const side of [-1,1]){
   const tread=(B.endX-B.startX)/B.steps,rise=(A.balconyY-S.rise)/B.steps;
+  const branch=cameraFadeGroup(scene);
   for(let i=0;i<B.steps;i++){
    const top=S.rise+(i+1)*rise;
-   box(scene,[tread,.32,B.width],[side*(B.startX+(i+.5)*tread),top-.16,B.z],stepStone).material=surfaceMaterial('stone',stepStone);
+   box(branch,[tread,.32,B.width],[side*(B.startX+(i+.5)*tread),top-.16,B.z],stepStone).material=surfaceMaterial('stone',stepStone);
   }
-  for(const edge of [-1,1])rail(side*B.startX,B.z+edge*B.width/2,S.rise,side*B.endX,B.z+edge*B.width/2,A.balconyY);
-  rail(side*(S.flightHalf+.06),S.flightStart,0,side*(S.flightHalf+.06),S.flightEnd,S.rise,true);
+  for(const edge of [-1,1])rail(side*B.startX,B.z+edge*B.width/2,S.rise,side*B.endX,B.z+edge*B.width/2,A.balconyY,false,redMarble,branch);
+  const mainRail=cameraFadeGroup(scene);
+  rail(side*(S.flightHalf+.06),S.flightStart,0,side*(S.flightHalf+.06),S.flightEnd,S.rise,true,redMarble,mainRail);
   // Continuous landing returns join the main newel to the outward flight, without spanning the walking route.
-  rail(side*(S.flightHalf+.06),S.flightEnd,S.rise,side*B.startX,S.flightEnd,S.rise);
-  rail(side*B.startX,S.flightEnd,S.rise,side*B.startX,B.z-B.width/2,S.rise);
+  rail(side*(S.flightHalf+.06),S.flightEnd,S.rise,side*B.startX,S.flightEnd,S.rise,false,redMarble,mainRail);
+  rail(side*B.startX,S.flightEnd,S.rise,side*B.startX,B.z-B.width/2,S.rise,false,redMarble,mainRail);
+  // Identical round newels at both ends of each main handrail.
+  for(const [z,base]of [[S.flightStart,0],[S.flightEnd,S.rise]]){
+   const x=side*(S.flightHalf+.06);
+   cylinder(mainRail,.29,.17,[x,base+.085,z],stoneDark);
+   cylinder(mainRail,.22,1.45,[x,base+.9,z],stone);
+   cylinder(mainRail,.3,.13,[x,base+1.68,z],LOBBY_PALETTE.light);
+   classicalLamp(scene,x,base+1.98,z);
+  }
   if(side===1){buildChristmasTree(scene,LOBBY_CHRISTMAS_TREE.x,LOBBY_CHRISTMAS_TREE.z);}
- }
-
- // Identical round newels at both ends of each main handrail.
- for(const side of [-1,1])for(const [z,base]of [[S.flightStart,0],[S.flightEnd,S.rise]]){
-  const x=side*(S.flightHalf+.06);
-  cylinder(scene,.29,.17,[x,base+.085,z],stoneDark);
-  cylinder(scene,.22,1.45,[x,base+.9,z],stone);
-  cylinder(scene,.3,.13,[x,base+1.68,z],LOBBY_PALETTE.light);
-  classicalLamp(scene,x,base+1.98,z);
  }
  // Smooth click surfaces cover each flight and the complete first gallery ring.
  const hit=new T.MeshBasicMaterial({visible:false,side:T.DoubleSide});
