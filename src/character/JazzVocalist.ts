@@ -2,7 +2,7 @@ import * as T from 'three';
 import {material,sphere} from '../scene/primitives';
 
 export const JAZZ_DRESS_COLOR=0xbd1639;
-export const JAZZ_BLONDE=0xf1c977;
+export const JAZZ_BLONDE=0xe9cd92;
 
 export function buildJazzGown(body:T.Group,color:number,skin:number){
  const profile=[
@@ -25,34 +25,48 @@ export function buildJazzGown(body:T.Group,color:number,skin:number){
  body.add(gown);
  const shoulders=sphere(body,.18,[0,.977,.008],skin);
  shoulders.scale.set(.184,.05,.111);
- // A diagonal sash follows the bodice to one shoulder.
- const sash=new T.CatmullRomCurve3([
-  new T.Vector3(-.105,.79,-.109),new T.Vector3(.027,.866,-.153),
-  new T.Vector3(.122,.967,-.111),new T.Vector3(.146,1.014,.005),
-  new T.Vector3(.124,.964,.119),
- ]);
- body.add(new T.Mesh(new T.TubeGeometry(sash,20,.021,8,false),material(0xe04455)));
 }
 
 type HairPoint=[number,number,number];
 
-/** Sweep a rounded lock that tapers into the crown and curls back toward the jaw. */
-function hairWave(head:T.Group,points:HairPoint[],radius:number,color:number){
- const curve=new T.CatmullRomCurve3(points.map(point=>new T.Vector3(...point)));
- const segments=24,sides=10;
- const geometry=new T.TubeGeometry(curve,segments,radius,sides);
- const vertices=geometry.getAttribute('position');
- const center=new T.Vector3(),vertex=new T.Vector3();
- for(let ring=0;ring<=segments;ring++){
-  const t=ring/segments;
-  curve.getPointAt(t,center);
-  const fullness=.12+.88*Math.sin(Math.PI*t)**.65;
+/** Loft one continuous lock between its outer silhouette and the hairline. */
+function hairWave(head:T.Group,outer:HairPoint[],inner:HairPoint[],depth:number,color:number){
+ const curve=(points:HairPoint[])=>new T.CatmullRomCurve3(points.map(point=>new T.Vector3(...point)));
+ const silhouette=curve(outer),hairline=curve(inner);
+ const rows=48,sides=40,positions:number[]=[],indices:number[]=[];
+ const mirrored=outer[outer.length-1][0]<outer[0][0];
+ const a=new T.Vector3(),b=new T.Vector3(),point=new T.Vector3();
+ const rearJoinZ=-.120;
+
+ for(let row=0;row<=rows;row++){
+  const t=row/rows;
+  silhouette.getPoint(t,a);
+  hairline.getPoint(t,b);
+  const thickness=depth*Math.sin(Math.PI*t)**.48;
+  const joinWeight=T.MathUtils.smoothstep(t,0,.055)*(1-T.MathUtils.smoothstep(t,.62,.94));
   for(let side=0;side<=sides;side++){
-   const index=ring*(sides+1)+side;
-   vertex.fromBufferAttribute(vertices,index).sub(center).multiplyScalar(fullness).add(center);
-   vertices.setXYZ(index,vertex.x,vertex.y,vertex.z);
+   const angle=side/sides*2*Math.PI;
+   const profile=Math.sin(angle);
+   const across=(1-Math.cos(angle))*.5;
+   point.copy(a).lerp(b,across);
+   // Longitudinal grooves run from the narrow part to the curled-under end.
+   const grain=.007*Math.cos(2*Math.PI*(6*across+.08*Math.sin(2*Math.PI*t)));
+   if(profile>=0)point.z-=profile*thickness*(1+grain/depth);
+   else{
+    // The hidden half of the lock reaches back into the crown along a shared depth.
+    const reach=Math.max(thickness,(rearJoinZ-point.z)*joinWeight);
+    point.z-=profile*reach;
+   }
+   positions.push(point.x,point.y,point.z);
+   if(row===rows||side===sides)continue;
+   const i=row*(sides+1)+side,j=i+sides+1;
+   if(mirrored)indices.push(i,i+1,j,j,i+1,j+1);
+   else indices.push(i,j,i+1,j,j+1,i+1);
   }
  }
+ const geometry=new T.BufferGeometry();
+ geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));
+ geometry.setIndex(indices);
  geometry.computeVertexNormals();
  const wave=new T.Mesh(geometry,material(color));
  wave.userData.hairPart='wave';
@@ -60,12 +74,26 @@ function hairWave(head:T.Group,points:HairPoint[],radius:number,color:number){
 }
 
 export function styleJazzHair(head:T.Group){
- // The deep side part sends a broad wave over the forehead and a smaller roll to the other side.
- hairWave(head,[[.16,.38,-.15],[.055,.402,-.25],[-.16,.345,-.28],[-.326,.18,-.249],[-.379,.005,-.156],[-.377,-.155,-.128],[-.302,-.226,-.151]],.109,0xffe1a1);
- hairWave(head,[[.16,.378,-.136],[.29,.315,-.15],[.385,.165,-.151],[.407,.004,-.157],[.369,-.141,-.158],[.285,-.191,-.16]],.096,0xfada8c);
- for(const side of [-1,1]){
-  hairWave(head,[[side*.33,.195,.099],[side*.398,.042,.101],[side*.378,-.153,.054],[side*.33,-.235,-.024],[side*.279,-.219,-.13]],.106,0xf3cd7d);
- }
+ // The broad fan arches over the forehead and flows into the cheek-level curl.
+ hairWave(head,[
+  [-.169,.216,-.348],[-.136,.438,-.287],[.084,.534,-.263],[.326,.463,-.249],
+  [.45,.315,-.219],[.50,.124,-.163],[.478,-.065,-.155],[.395,-.226,-.138],
+  [.33,-.305,-.129],[.239,-.261,-.132],
+ ],[
+  [-.147,.207,-.35],[-.058,.231,-.363],[.046,.257,-.373],[.174,.244,-.362],
+  [.263,.171,-.332],[.287,.081,-.291],[.305,-.068,-.25],[.256,-.18,-.213],
+  [.264,-.249,-.171],[.239,-.261,-.132],
+ ],.105,0xffe5b4);
+ // The smaller fan rises from the same part before sweeping toward the other cheek.
+ hairWave(head,[
+  [-.171,.216,-.348],[-.205,.384,-.279],[-.305,.411,-.247],[-.395,.306,-.227],
+  [-.46,.167,-.17],[-.479,-.015,-.144],[-.443,-.163,-.148],[-.363,-.268,-.121],
+  [-.239,-.246,-.125],
+ ],[
+  [-.181,.209,-.35],[-.209,.224,-.353],[-.255,.228,-.348],[-.285,.181,-.322],
+  [-.316,.09,-.28],[-.316,-.031,-.242],[-.321,-.147,-.225],[-.283,-.216,-.175],
+  [-.239,-.246,-.125],
+ ],.095,0xf7dca6);
  for(const side of [-1,1]){
   const stud=sphere(head,.024,[side*.315,-.088,-.127],0xe8b64e);
   stud.userData.facePart='earring';

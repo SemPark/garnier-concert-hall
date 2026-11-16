@@ -10,10 +10,11 @@ import {buildTeaGuest,type TeaGuest} from './GhostTeaParty';
 import {buildGhostCostume,type GhostCostume} from './GhostCostumes';
 import type {NpcPose} from './NpcBehavior';
 import {GHOST_SURFACE} from './GhostSurface';
-import type {Avatar} from '../character/Avatar';
+import {AVATAR_HEAD_HEIGHT,type Avatar} from '../character/Avatar';
 
 /** One ghost to draw this frame: where it is, which way it faces, and a stable id for its colour and rhythm. */
 export type GhostSpot={dance?:DancePose;x:number;y:number;z:number;yaw:number;id:string;sitting:boolean;
+ danceHands?:{left:T.Vector3;right:T.Vector3};
  mirrorAvatar?:Avatar;
  teaGuest?:TeaGuest;
  costume?:GhostCostume;
@@ -31,6 +32,9 @@ const GLOWS=[0xffd24a,0xff6fa8,0xb38cff,0x6cf2a0].map(c=>new T.Color(c));
 const STANDING_HEAD=1.4,SEATED_HEAD=1.36;
 /** Bottom of the sheet below the head centre (a short body). */
 const BOTTOM=-.72;
+const GHOST_ARM_RADIUS=.095,GHOST_ARM_SHAFT=.32,GHOST_ARM_CENTER=.22;
+const GHOST_ARM_CAP=GHOST_ARM_CENTER+GHOST_ARM_SHAFT/2;
+const MITTEN_CLEARANCE=GHOST_ARM_RADIUS+.088;
 /** Seated ghosts sit this far forward of the seat centre so their back (0.41 m deep) stays in front of the backrest. */
 const SEAT_FORWARD=.21;
 const NPC_GLOW=new T.Color(0x4fa8ff);
@@ -48,7 +52,7 @@ function body(segments:number,domeRings:number,armSides:number){
  const parts:T.BufferGeometry[]=[g];
  // Arms like the visitors' (no hands): half the sleeve sunk into the side so only a half-round shows at the shoulder,
  // reaching forward a little, slightly open.
- for(const s of [-1,1]){const arm=new T.CapsuleGeometry(.095,.32,Math.max(2,armSides-4),armSides);arm.translate(0,-.22,0);arm.rotateX(-.8);arm.rotateZ(s*.25);arm.translate(s*(R-.06),-.12,.02);parts.push(arm);}
+ for(const s of [-1,1]){const arm=new T.CapsuleGeometry(GHOST_ARM_RADIUS,GHOST_ARM_SHAFT,Math.max(2,armSides-4),armSides);arm.translate(0,-GHOST_ARM_CENTER,0);arm.rotateX(-.8);arm.rotateZ(s*.25);arm.translate(s*(R-.06),-.12,.02);parts.push(arm);}
  // aArm: 0 body, -1/1 left/right arm, so the shader can swing the arms from the shoulder.
  parts.forEach((part,i)=>{part.deleteAttribute('uv');part.setAttribute('aArm',new T.Float32BufferAttribute(new Array(part.attributes.position.count).fill(i===0?0:i===1?-1:1),1));});
  const merged=mergeGeometries(parts)!;merged.computeVertexNormals();return merged;
@@ -70,8 +74,9 @@ void main(){
  vPhantom=mod(floor(flags/32.),2.);
  vQueen=mod(floor(flags/64.),2.)*(1.-abs(aArm));
  vRabbitCloth=mod(floor(flags/16.),2.)*(1.-abs(aArm));
- // Real visitors move only as their person does: no idle float or flutter, steps while walking.
- float idle=(1.-visitor)*(1.-vPhantom);
+ float dancing=mod(floor(flags/128.),2.);
+ // Dancing ghosts follow the shared pose without an additional idle float.
+ float idle=(1.-visitor)*(1.-vPhantom)*(1.-dancing);
  vec3 p=position;vec3 n=normal;
  // Object-headed guests keep their sheet and arms, capped under the collar.
  if(objectHead>.5&&aArm==0.&&p.y>0.){p.y=0.;n=vec3(0.,1.,0.);}float below=clamp((-p.y-.4)/.3,0.,1.)*(1.-seated);
@@ -79,11 +84,10 @@ void main(){
   float k=smoothstep(0.,.1,-.66-p.y);p.z=p.z*mix(1.,.6,k)+.22*k;n=normalize(mix(n,vec3(0.,-.3,1.),k*.4));
  }
  if(aArm!=0.){
-  vec3 pivot=mod(floor(flags/128.),2.)>.5?vec3(aArm*.31,-.12,.02):vec3(aArm*.28,-.12,0.);vec3 d=p-pivot;
+  vec3 pivot=dancing>.5?vec3(aArm*.31,-.12,.02):vec3(aArm*.28,-.12,0.);vec3 d=p-pivot;
   float sw=walk*aArm*.5*sin(uTime*9.+seed*6.),c=cos(sw),s=sin(sw);d.yz=mat2(c,s,-s,c)*d.yz;n.yz=mat2(c,s,-s,c)*n.yz;
   // Turn the arm from where it rests to where the pose points it.
   vec3 rest=normalize(vec3(aArm*.172,-.675,.717)),to=aArm<0.?aLeft:aRight;
-  if(mod(floor(flags/128.),2.)>.5)d*=length(to);
   to=normalize(to);
   vec3 axis=cross(rest,to);float sn=length(axis),cs=dot(rest,to);
   if(sn>1e-4){axis/=sn;d=d*cs+cross(axis,d)*sn+axis*dot(axis,d)*(1.-cs);n=n*cs+cross(axis,n)*sn+axis*dot(axis,n)*(1.-cs);}
@@ -242,6 +246,7 @@ export class Ghosts{
  private near:Batch;private far:Batch;
  private updatedAt=-Infinity;private frustum=new T.Frustum();private projection=new T.Matrix4();private sphere=new T.Sphere();
  private danceShoulder=new T.Vector3();
+ private handForward=new T.Vector3();private handOutside=new T.Vector3();
  private angels:ReturnType<typeof angelKit>[]=[];private tableware:ReturnType<typeof tableware>[]=[];private l=new T.Vector3();private r=new T.Vector3();private b=new T.Vector3();private head=new T.Vector3();private d=new T.Vector3();private hand=new T.Vector3();private qa=new T.Quaternion();private qb=new T.Quaternion();private m=new T.Matrix4();private q=new T.Quaternion();private up=new T.Vector3(0,1,0);private v=new T.Vector3();private s=new T.Vector3(1,1,1);
  constructor(private scene:T.Scene){
   const mat=(face:number)=>new T.ShaderMaterial({uniforms:{uTime:this.time,uFace:{value:face}},vertexShader:vertex,fragmentShader:fragment});
@@ -272,6 +277,41 @@ export class Ghosts{
   this.d.set(-(target[0]+side*SHOULDER_X),target[1]-SHOULDER_Y,-target[2]).normalize();
   out.applyQuaternion(this.qb.identity().slerp(this.qa.setFromUnitVectors(out,this.d),Math.min(1,weight)));
  }
+ private danceHandDirection(point:{x:number;y:number;z:number},yaw:number,side:number,out:T.Vector3){
+  out.set(point.x,point.y,point.z).sub(this.v).applyAxisAngle(this.up,-yaw);
+  out.y+=.7;
+  out.applyAxisAngle(DANCE_X,-this.b.x).applyAxisAngle(this.up,-this.b.z).applyAxisAngle(DANCE_Z,-this.b.y);
+  out.y-=.7;
+  return out.sub(this.danceShoulder.set(DANCE_SHOULDER.x*side,DANCE_SHOULDER.y,DANCE_SHOULDER.z));
+ }
+
+ private touchDanceHands(hands:NonNullable<GhostSpot['danceHands']>,yaw:number,weight:number){
+  // Move the ghost back along the dance axis so the fixed-length sleeves reach the mittens at their tips.
+  const forward=this.handForward.set(0,0,1)
+   .applyAxisAngle(DANCE_X,-this.b.x).applyAxisAngle(this.up,-this.b.z).applyAxisAngle(DANCE_Z,-this.b.y);
+  const clearance=GHOST_ARM_CAP+MITTEN_CLEARANCE;
+  let shift=Infinity;
+  for(const [point,side] of [[hands.left,-1],[hands.right,1]] as const){
+   const direction=this.danceHandDirection(point,yaw,side,this.d);
+   const along=direction.dot(forward);
+   const perpendicular=direction.lengthSq()-along*along;
+   shift=Math.min(shift,Math.sqrt(Math.max(0,clearance*clearance-perpendicular))-along);
+  }
+  const stepBack=T.MathUtils.clamp(shift,-.10,.27)*weight;
+  this.v.x-=Math.sin(yaw)*stepBack;
+  this.v.z-=Math.cos(yaw)*stepBack;
+  for(const [arm,point,side] of [[this.l,hands.left,-1],[this.r,hands.right,1]] as const){
+   const direction=this.danceHandDirection(point,yaw,side,this.d);
+   const distance=direction.length();
+   if(distance<1e-6)continue;
+   direction.divideScalar(distance);
+   // Angle the rounded cap to touch the mitten surface without putting the shaft through it.
+   const cos=T.MathUtils.clamp((distance*distance+GHOST_ARM_CAP**2-MITTEN_CLEARANCE**2)/(2*distance*GHOST_ARM_CAP),0,1);
+   const outside=this.handOutside.set(side,0,0).projectOnPlane(direction).normalize();
+   direction.multiplyScalar(cos).addScaledVector(outside,Math.sqrt(1-cos*cos));
+   arm.lerp(direction,weight).normalize();
+  }
+ }
  update(ghosts:Iterable<GhostSpot>,camera:T.Camera,now=performance.now(),reducedMotion=false,force=false){
   this.time.value=now/1000;
   if(!force&&now-this.updatedAt<1000/30)return;this.updatedAt=now;
@@ -284,7 +324,7 @@ export class Ghosts{
    // Heads at the visitors' head height. Seated, that leaves only the last 0.1 m of sheet below the cushion (0.63 m);
    // it drapes over the front edge (see the vertex shader).
    if(g.sitting){this.s.set(1,1,1);this.v.set(g.x+Math.sin(g.yaw)*SEAT_FORWARD,g.y+SEATED_HEAD,g.z+Math.cos(g.yaw)*SEAT_FORWARD);}
-   else{this.s.set(1,1,1);this.v.set(g.x,g.y+STANDING_HEAD,g.z);}if(!this.frustum.intersectsSphere(this.sphere.set(this.v,g.teaGuest||g.costume?1.9:1)))continue;
+   else{this.s.set(1,1,1);this.v.set(g.x,g.y+(g.dance?AVATAR_HEAD_HEIGHT:STANDING_HEAD),g.z);}if(!this.frustum.intersectsSphere(this.sphere.set(this.v,g.teaGuest||g.costume?1.9:1)))continue;
    const h=hash(g.id),glow=g.npc?NPC_GLOW:GLOWS[h%GLOWS.length],seed=(h>>>8)%1000/1000+(g.sitting?32:0)+(g.npc&&(!g.behavior||g.teaGuest)?0:64)+(g.walking&&!g.sitting&&!g.mirrorAvatar?128:0)+(g.costume==='vesper'||g.costume==='candra'?256:0)+(g.costume==='white-rabbit'?512:0)+(g.costume==='phantom'?1024:0)+(g.costume==='queen'?2048:0)+(g.dance?4096:0),distance=this.v.distanceTo(camera.position),far=distance>14;
    if(g.costume==='phantom'){this.s.set(.96,1.22,.96);this.v.y+=.16;}
    this.m.compose(this.v,this.q.setFromAxisAngle(this.up,g.yaw),this.s);
@@ -312,18 +352,13 @@ export class Ghosts{
      this.l.lerp(danceArmDirection(this.d,pose,1).applyAxisAngle(this.up,Math.PI).normalize(),blend).normalize();
      this.r.lerp(danceArmDirection(this.d,pose,-1).applyAxisAngle(this.up,Math.PI).normalize(),blend).normalize();
     }
-    if(pose.hand&&pose.rightHand){
+    if(g.danceHands&&pose.hold>0){
+     this.touchDanceHands(g.danceHands,g.yaw,pose.hold);
+     this.m.setPosition(this.v);
+    }else if(pose.hand&&pose.rightHand){
      for(const [arm,side,point,weight] of [[this.r,1,pose.hand,pose.hold],[this.l,-1,pose.rightHand,pose.hold]] as const){
       if(weight<=0)continue;
-      this.hand.set(point.x,point.y,point.z).sub(this.v).applyAxisAngle(this.up,-g.yaw);
-      this.hand.y+=.7;
-      this.hand.applyAxisAngle(DANCE_X,-this.b.x);
-      this.hand.applyAxisAngle(this.up,-turn);
-      this.hand.applyAxisAngle(DANCE_Z,-roll);
-      this.hand.y-=.7;
-      this.d.copy(this.hand).sub(this.danceShoulder.set(DANCE_SHOULDER.x*side,DANCE_SHOULDER.y,DANCE_SHOULDER.z));
-      const reach=this.d.length();
-      arm.lerp(this.d.normalize(),weight).normalize().multiplyScalar(1+(reach/.475-1)*weight);
+      arm.lerp(this.danceHandDirection(point,g.yaw,side,this.d).normalize(),weight).normalize();
      }
     }
    }else if(g.teaGuest){

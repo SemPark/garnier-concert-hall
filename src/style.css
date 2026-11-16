@@ -539,6 +539,7 @@ body.photo-active #world > :not(canvas){display:none!important}
 .dance-controls .dance-stop:hover:enabled{background:#704036;color:#fff0e9}
 
 .actionbar button.dance-start{min-width:44px;min-height:44px;color:var(--gold)}
+.actionbar button.dance-start svg{color:#ffe092}
 
 .dance-moves{display:grid;grid-template-columns:repeat(6,44px);gap:4px}
 @media(max-width:420px){.dance-moves{grid-template-columns:repeat(3,44px)}}

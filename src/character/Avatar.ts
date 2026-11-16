@@ -162,11 +162,23 @@ function buildLongHair(cols:number,dome:number,hang:number,bob=false){
   // 0 behind the head, 1 beside the ears, then 1 again toward the face where the hair tucks in.
   const side=smoothstep(turn,.7,1.35),face=smoothstep(turn,1.75,2.4);
   const back=bob?.44+.022*Math.cos(phi*5):.7+.045*Math.cos(phi*5);
-  const length=lerp(lerp(back,.38,side),.22,face);
+  const length=lerp(lerp(back,.38,side),bob?.035:.22,face);
+  const frontLift=bob?.135*face:0;
+  const temple=bob?smoothstep(turn,1.2,1.63)*(1-smoothstep(turn,1.83,2.4)):0;
   // Spread: a slight fullness at ear height and a gentle taper to the ends. Above the face the dome simply carries
   // on round into the head, like the men's cap, so the forehead line has no brim.
   const spread=(t:number)=>lerp(1+.02*(1-Math.cos(Math.min(t/.3,1)*Math.PI))-.16*(t/length)**2,Math.sqrt(Math.max(0,1-(t/ry)**2)),face);
-  const put=(k:number,y:number)=>positions.push(sx*rx*k,y,cz+sz*rz*k);
+  const put=(k:number,y:number)=>{
+   const atHairline=1-smoothstep(y,cy,cy+ry);
+   // Bring the bob forward at the temples, underneath the front waves.
+   const templeForward=.17*temple*(.53*k+.47*atHairline);
+   const height=y+frontLift*atHairline;
+   const depth=cz+sz*rz*k-templeForward;
+   // Across the forehead the rear volume meets both waves at one depth.
+   // Tuck only the bottom of that edge into the head.
+   const frontEdge=-.272+.076*(1-smoothstep(height,.25,.33));
+   positions.push(sx*rx*k,height,bob?Math.max(depth,frontEdge):depth);
+  };
   const start=positions.length;
   for(let i=0;i<=dome;i++){const th=i/dome*Math.PI/2;put(Math.sin(th),cy+ry*Math.cos(th));}
   for(let i=1;i<=hang;i++){const t=length*i/hang;put(spread(t),cy-t);}
@@ -179,13 +191,14 @@ function buildLongHair(cols:number,dome:number,hang:number,bob=false){
  }
  // Leave out triangles buried inside the skull (the hair's tuck above the forehead): they can never be seen.
  const buried=(v:number)=>(positions[v*3]/.37)**2+((positions[v*3+1]-.03)/.345)**2+(positions[v*3+2]/.35)**2<.97;
- const face=(a:number,b:number,c:number)=>{if(!(buried(a)&&buried(b)&&buried(c)))index.push(a,b,c);};
+ const face=(a:number,b:number,c:number)=>{if(bob||!(buried(a)&&buried(b)&&buried(c)))index.push(a,b,c);};
  for(let j=0;j<cols;j++)for(let i=0;i<ring-1;i++){const a=j*ring+i,b=a+ring;face(a,a+1,b);face(b,a+1,b+1);}
  const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));geometry.setIndex(index);return fitHairToFace(geometry);
 }
 // Far-away listeners get a coarser copy of the same shape.
 const longHairGeometry=buildLongHair(24,7,8),longHairFar=buildLongHair(12,4,4);
 const bobGeometry=buildLongHair(28,8,7,true),bobFar=buildLongHair(14,4,4,true);
+
 /** Index finger seat on the right mitten: thumb side, toward the face, rising above the knuckles. */
 export const FINGER_OFFSET=[-.035,.105,-.045] as const;
 /** In the jazz hall the trumpets stand on the back tier, as a big band's do. */
@@ -238,7 +251,7 @@ export class Avatar{
   for(const [side,arm]of [[-1,this.left],[1,this.right]] as const){
    // Arms start inside the torso, so the top of the arm is buried in the body instead of hanging beside it.
    arm.shoulder.position.set(side*SHOULDER_X,SHOULDER_Y,0);arm.shoulder.add(arm.hand);arm.hand.position.y=-ARM_LENGTH;
-   const limb=new T.Mesh(armGeometry,material(vocalist?skin:color));limb.position.y=SLEEVE_CENTER_Y;if(!vocalist)limb.userData.clothContact='sleeve';arm.shoulder.add(limb);
+   const limb=new T.Mesh(armGeometry,material(vocalist?skin:color));limb.position.y=SLEEVE_CENTER_Y;if(!vocalist)limb.userData.clothContact='sleeve';arm.shoulder.add(limb);arm.sleeve=limb;
    sphere(arm.hand,.082,[0,0,0],skin).scale.set(.082,.088,.078);
   }
   // Hidden by zero scale (not visibility) so batched musicians never show it.
@@ -288,7 +301,6 @@ export class Avatar{
  poseJointedArm(side:-1|1,target:T.Vector3,elbowGuide:T.Vector3,wristRoll:number,wristWeight:number,weight:number,lengthScale=1){
   const arm=side<0?this.left:this.right;
   if(!arm.elbow){
-   arm.sleeve=arm.shoulder.children.find(child=>child instanceof T.Mesh) as T.Mesh;
    const elbow=new T.Group();
    elbow.position.y=-CAPTAIN_UPPER;
    arm.elbow=elbow;
@@ -440,8 +452,8 @@ export class Avatar{
  diningBite:number|null=null;
  /** Holding the dinner wine glass (only while sipping); it drinks exactly like the lobby coffee. */
  holdingWine=false;private wineGlass?:T.Group;private faceFront?:number;private fork?:T.Group;private forkBite?:T.Mesh;
- update(time:number,speed:number,sitting:boolean|number,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60,cameraFacing?:CameraFacing,keepCaptainJoints=false,lunarSwing?:number){
-  if(!keepCaptainJoints)for(const arm of [this.left,this.right]){
+ update(time:number,speed:number,sitting:boolean|number,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60,cameraFacing?:CameraFacing,keepArmJoints=false,lunarSwing?:number){
+  if(!keepArmJoints)for(const arm of [this.left,this.right]){
    if(arm.hand.parent===arm.shoulder)continue;
    arm.shoulder.add(arm.hand);
    arm.hand.quaternion.identity();

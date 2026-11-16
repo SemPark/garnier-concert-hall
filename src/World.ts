@@ -376,18 +376,25 @@ export class World{
  setQuality(quality:string){this.quality=quality==='low'?'low':quality==='sharp'?'sharp':'balanced';this.lightingPass?.setSamples(msaaSamples(this.quality));try{localStorage.setItem('concert-quality',this.quality);}catch{}this.resize();this.onChange();}
  get venue(){return this.zone==='auditorium'?this.ensureHall():this.venues.lobby;}
  private *remoteAvatars(){for(const r of this.remotes.values())yield r.avatar;}
+ private readonly danceHands={left:new T.Vector3(),right:new T.Vector3()};
  /** Everyone but the viewer is a ghost (ghosts face +z, people face -z, hence the half turn) (each viewer sees only themself as a person). */
  private *ghostSpots():Generator<GhostSpot>{
   const now=this.net.now();
+  const partnerId=this.self?.dance?.partnerId;
+  const hands=partnerId&&this.avatar?this.danceHands:undefined;
+  if(hands&&this.avatar){
+   this.avatar.leftHand.getWorldPosition(hands.left);
+   this.avatar.rightHand.getWorldPosition(hands.right);
+  }
   for(const npc of this.danceNpcs){
    if(npc.zone!==this.zone)continue;
    const dance=dancePose(npc,now,JAZZ_HALL);
-   yield {x:dance.x,y:dance.y+dance.bob,z:dance.z,yaw:dance.yaw+Math.PI,id:npc.id,sitting:false,npc:true,dance};
+   yield {x:dance.x,y:dance.y+dance.bob,z:dance.z,yaw:dance.yaw+Math.PI,id:npc.id,sitting:false,npc:true,dance,danceHands:npc.id===partnerId?hands:undefined};
   }
   for(const r of this.remotes.values()){
    if(r.visitor.zone!==this.zone)continue;
    const a=r.avatar.root,dance=r.visitor.dance?this.visitorDancePose(r.visitor,now):null;
-   if(dance){yield {x:dance.x,y:dance.y+dance.bob,z:dance.z,yaw:dance.yaw+Math.PI,id:r.visitor.id,sitting:dance.chair&&dance.chairStand<.5,dance};continue;}
+   if(dance){yield {x:dance.x,y:dance.y+dance.bob,z:dance.z,yaw:dance.yaw+Math.PI,id:r.visitor.id,sitting:dance.chair&&dance.chairStand<.5,dance,danceHands:r.visitor.id===partnerId?hands:undefined};continue;}
    const chair=magicChairPose(r.visitor.pose==='sit'?r.visitor.seatId:null,this.net.state?.magicChair,now);
    if(a.visible)yield {x:a.position.x+chair.x,y:a.position.y,z:a.position.z+chair.z,yaw:a.rotation.y+Math.PI+chair.turn,id:r.visitor.id,sitting:r.visitor.pose==='sit',walking:a.position.distanceToSquared(this.poseCenter.set(r.visitor.x,r.visitor.y??0,r.visitor.z))>.0025,drink:r.visitor.drink,bite:r.visitor.dish?BITE_COLOUR[r.visitor.dish]:undefined,...visitorGhostGesture(r.visitor,now)};
   }
