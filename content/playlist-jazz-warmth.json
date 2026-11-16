@@ -1,0 +1,160 @@
+{
+  "name": "온기",
+  "version": "jazz-warmth-v1",
+  "epochMs": 0,
+  "tracks": [
+    {
+      "id": "jazz-its-a-brand-new-day",
+      "title": "It's a Brand New Day",
+      "composer": "Steve Erickson",
+      "url": "/api/audio/jazz-its-a-brand-new-day.mp3",
+      "durationSeconds": 316.447347,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:It's_a_Brand_New_Day_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:It's_a_Brand_New_Day_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.47863
+    },
+    {
+      "id": "jazz-little-dreamer-big-dreams",
+      "title": "Little Dreamer, Big Dreams",
+      "composer": "Ben Patterson",
+      "url": "/api/audio/jazz-little-dreamer-big-dreams.mp3",
+      "durationSeconds": 355.239184,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Little_Dreamer%2C_Big_Dreams_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Little_Dreamer%2C_Big_Dreams_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.39355
+    },
+    {
+      "id": "jazz-blues-for-mundy",
+      "title": "Blues for Mundy",
+      "composer": "Rick Whitehead",
+      "url": "/api/audio/jazz-blues-for-mundy.mp3",
+      "durationSeconds": 278.413061,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Blues_for_Mundy_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Blues_for_Mundy_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note · Ernie Hensley",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.484172
+    },
+    {
+      "id": "jazz-sakura",
+      "title": "Sakura",
+      "composer": "Traditional",
+      "url": "/api/audio/jazz-sakura.mp3",
+      "durationSeconds": 353.854694,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Sakura_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Sakura_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note",
+        "changes": "원본 MP3 · 재생 게인만 적용"
+      },
+      "gain": 0.375837
+    },
+    {
+      "id": "jazz-arirang",
+      "title": "Arirang",
+      "composer": "Traditional",
+      "url": "/api/audio/jazz-arirang.mp3",
+      "durationSeconds": 457.900408,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Arirang_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Arirang_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note",
+        "changes": "원본 MP3 · 재생 게인만 적용"
+      },
+      "gain": 0.562341
+    },
+    {
+      "id": "jazz-hickory-and-twine",
+      "title": "Hickory and Twine",
+      "composer": "Alan Baylock",
+      "url": "/api/audio/jazz-hickory-and-twine.mp3",
+      "durationSeconds": 357.041633,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Hickory_and_Twine_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Hickory_and_Twine_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.44157
+    },
+    {
+      "id": "jazz-like-seamus",
+      "title": "Like Seamus",
+      "composer": "Shades of Blue",
+      "url": "/api/audio/jazz-like-seamus.mp3",
+      "durationSeconds": 380.644331,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Like_Seamus_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Like_Seamus_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3#Licensing",
+        "artist": "Shades of Blue",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.732825
+    },
+    {
+      "id": "jazz-it-suits-me",
+      "title": "It Suits Me",
+      "composer": "Shades of Blue",
+      "url": "/api/audio/jazz-it-suits-me.mp3",
+      "durationSeconds": 515.958617,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:It_Suits_Me_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:It_Suits_Me_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3#Licensing",
+        "artist": "Shades of Blue",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.691831
+    },
+    {
+      "id": "jazz-everyday-adventures",
+      "title": "Everyday Adventures",
+      "composer": "Ben Patterson",
+      "url": "/api/audio/jazz-everyday-adventures.mp3",
+      "durationSeconds": 495.020408,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · U.S. Air Force",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Everyday_Adventures_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (US) · 한국 이용 권리 미확정",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Everyday_Adventures_-_Airmen_of_Note_-_United_States_Air_Force_Band.mp3#Licensing",
+        "artist": "Airmen of Note",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존) · 재생 게인만 적용"
+      },
+      "gain": 0.47863
+    }
+  ]
+}

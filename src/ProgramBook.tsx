@@ -25,7 +25,7 @@ export function ProgramBook({playlist,playback,onClose}:{playlist:Playlist;playb
  };
  const next=nextPiece(playlist,playback.index);
  return <dialog ref={dialog} className="program-book-dialog" aria-labelledby="program-book-title" onCancel={event=>{event.preventDefault();onClose();}}>
-  <header><div><small>PLEEE · PROGRAMME</small><h2 id="program-book-title">끝나지 않는 공연</h2></div><button autoFocus onClick={onClose} aria-label="공연 프로그램 닫기">닫기 ×</button></header>
+  <header><div><small>PLEEE · PROGRAMME</small><h2 id="program-book-title">{playlist.name??'끝나지 않는 공연'}</h2></div><button autoFocus onClick={onClose} aria-label="공연 프로그램 닫기">닫기 ×</button></header>
   <div key={turn} className={`program-paper ${returning?'program-return':'program-turn'}`}>
    {page===0?<><span className="program-kicker">{playback.playing?'지금 흐르는 음악':'곡 사이의 여백'}</span>
     <h3>{playback.track.title}</h3><p>{playback.track.composer}</p>

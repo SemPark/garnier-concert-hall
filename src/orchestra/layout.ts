@@ -1,6 +1,6 @@
 import type {Instrument} from '../character/Avatar';
 import {JAZZ_HALL} from '../../shared/hallKind';
-export type OrchestraSection='first-violins'|'second-violins'|'violas'|'cellos'|'basses'|'harps'|'keyboards'|'woodwinds'|'brass'|'percussion';
+export type OrchestraSection='first-violins'|'second-violins'|'violas'|'cellos'|'basses'|'harps'|'keyboards'|'woodwinds'|'brass'|'percussion'|'vocals';
 export type MusicianPlacement={instrument:Instrument;section:OrchestraSection;x:number;z:number;rise:number;yaw:number;row:number;deskId?:string};
 /** Stage and side boxes share the entrance datum; the audience is 1.3m below. */
 export const STAGE_FLOOR=0;
@@ -8,6 +8,7 @@ export const STAGE={width:30.4,front:-9.5,back:-29,wallX:15.3};
 export const MUSICIAN_SCALE=1.1;
 export const CONCERT_CAMERA={eye:[0,14,3.5],look:[0,2.3,-19.7]} as const;
 export const CONDUCTOR={x:0,z:-11.8};
+export const JAZZ_VOCALIST={x:0,z:-11.2};
 export const REFERENCE_COUNTS={
  'first-violins':13,'second-violins':14,violas:14,cellos:10,basses:6,harps:2,
  woodwinds:16,brass:16,percussion:9,keyboards:2,
@@ -149,6 +150,7 @@ function buildJazzLayout():MusicianPlacement[]{
  for(const x of [1.1,2.4,3.7,5])put('trumpet','brass',2,x,-17.05);
  put('piano','keyboards',0,-6.6,-13.2,[1,-.25]);put('guitar','keyboards',0,-2.9,-12.5,[.2,1]);
  put('bass','basses',1,-4.85,-16.2,[.2,1]);put('drum-kit','percussion',1,-1.45,-15.6,[.08,1]);
+ put('vocals','vocals',0,JAZZ_VOCALIST.x,JAZZ_VOCALIST.z);
  return players;
 }
 export const ORCHESTRA_LAYOUT:readonly MusicianPlacement[]=JAZZ_HALL?buildJazzLayout():FULL_ORCHESTRA?FULL_ORCHESTRA_LAYOUT:buildLayout(false);

@@ -3,6 +3,7 @@ import {buildFork,buildWineGlass,WINE_SCALE} from '../scene/DinnerDishes';
 import {JAZZ_HALL} from '../../shared/hallKind';
 import {buildCoffeeCup,buildMacaron} from './CoffeeCup';
 import {faceGeometry,faceFarGeometry,faceSurfaceZ,paintFace} from './Face';
+import {buildJazzGown,JAZZ_BLONDE,styleJazzHair} from './JazzVocalist';
 import {skirtGeometry} from './Skirt';
 import type {Outfit} from '../../shared/wardrobe';
 import * as T from 'three';
@@ -11,7 +12,7 @@ import {frontLitMaterial,prepareClothContact,type ClothContact} from './characte
 import {buildInstrument} from '../orchestra/instruments';
 import {greetingTarget,poseVillager,type CameraFacing,type Icon} from './villager';
 import type {Gesture} from '../../shared/gestures';
-export type Instrument='violin'|'viola'|'cello'|'bass'|'harp'|'piano'|'celesta'|'flute'|'piccolo'|'oboe'|'english-horn'|'clarinet'|'bass-clarinet'|'bassoon'|'contrabassoon'|'horn'|'trumpet'|'trombone'|'tuba'|'bass-drum'|'snare'|'cymbals'|'sleigh-bells'|'triangle'|'chimes'|'gong'|'timpani'|'xylophone'|'marimba'|'vibraphone'|'alto-sax'|'tenor-sax'|'bari-sax'|'guitar'|'drum-kit'|'conductor';
+export type Instrument='violin'|'viola'|'cello'|'bass'|'harp'|'piano'|'celesta'|'flute'|'piccolo'|'oboe'|'english-horn'|'clarinet'|'bass-clarinet'|'bassoon'|'contrabassoon'|'horn'|'trumpet'|'trombone'|'tuba'|'bass-drum'|'snare'|'cymbals'|'sleigh-bells'|'triangle'|'chimes'|'gong'|'timpani'|'xylophone'|'marimba'|'vibraphone'|'alto-sax'|'tenor-sax'|'bari-sax'|'guitar'|'drum-kit'|'conductor'|'vocals';
 export type HairStyle='short'|'long';
 type Arm={shoulder:T.Group;hand:T.Group;elbow?:T.Group;sleeve?:T.Mesh;captainSleeve?:T.BufferGeometry};
 export const PERCUSSION:readonly Instrument[]=['bass-drum','snare','cymbals','sleigh-bells','triangle','chimes','gong','timpani','xylophone','marimba','vibraphone'];
@@ -49,7 +50,7 @@ function garmentPatch(parent:T.Group,torso:T.Mesh,w:number,h:number,x:number,y:n
  const patch=new T.Mesh(geometry,cloth);parent.add(patch);return patch;
 }
 // Rounded arm ends tuck into the body instead of showing a flat cut or a ball joint.
-export const FLOOR_INSTRUMENTS=new Set<Instrument>(['cello','bass','harp','piano','celesta','timpani','bass-drum','gong','snare','chimes','xylophone','marimba','vibraphone','drum-kit']);
+export const FLOOR_INSTRUMENTS=new Set<Instrument>(['cello','bass','harp','piano','celesta','timpani','bass-drum','gong','snare','chimes','xylophone','marimba','vibraphone','drum-kit','vocals']);
 const SLEEVE_RADIUS=.066;
 const armGeometry=new T.CapsuleGeometry(SLEEVE_RADIUS,ARM_LENGTH-.13,4,10);
 const SLEEVE_CENTER_Y=-(ARM_LENGTH-.06)/2;
@@ -152,7 +153,7 @@ function capGeometry(columns:number,rows:number){
  return fitHairToFace(geometry);
 }
 const shortHairGeometry=capGeometry(16,12),shortHairFar=capGeometry(8,6);
-function buildLongHair(cols:number,dome:number,hang:number){
+function buildLongHair(cols:number,dome:number,hang:number,bob=false){
  const [,cy,cz]=LONG_HAIR_CENTER,[rx,ry,rz]=LONG_HAIR_RADIUS,fold=3,depth=.12;
  const {smoothstep,lerp}=T.MathUtils,positions:number[]=[],index:number[]=[];
  let ring=0;
@@ -160,7 +161,8 @@ function buildLongHair(cols:number,dome:number,hang:number){
   const phi=-Math.PI+2*Math.PI*j/cols,turn=Math.abs(phi),sx=Math.sin(phi),sz=Math.cos(phi);
   // 0 behind the head, 1 beside the ears, then 1 again toward the face where the hair tucks in.
   const side=smoothstep(turn,.7,1.35),face=smoothstep(turn,1.75,2.4);
-  const length=lerp(lerp(.7+.045*Math.cos(phi*5),.38,side),.22,face);
+  const back=bob?.44+.022*Math.cos(phi*5):.7+.045*Math.cos(phi*5);
+  const length=lerp(lerp(back,.38,side),.22,face);
   // Spread: a slight fullness at ear height and a gentle taper to the ends. Above the face the dome simply carries
   // on round into the head, like the men's cap, so the forehead line has no brim.
   const spread=(t:number)=>lerp(1+.02*(1-Math.cos(Math.min(t/.3,1)*Math.PI))-.16*(t/length)**2,Math.sqrt(Math.max(0,1-(t/ry)**2)),face);
@@ -183,10 +185,11 @@ function buildLongHair(cols:number,dome:number,hang:number){
 }
 // Far-away listeners get a coarser copy of the same shape.
 const longHairGeometry=buildLongHair(24,7,8),longHairFar=buildLongHair(12,4,4);
+const bobGeometry=buildLongHair(28,8,7,true),bobFar=buildLongHair(14,4,4,true);
 /** Index finger seat on the right mitten: thumb side, toward the face, rising above the knuckles. */
 export const FINGER_OFFSET=[-.035,.105,-.045] as const;
 /** In the jazz hall the trumpets stand on the back tier, as a big band's do. */
-export function musicianSits(type:Instrument|undefined){return !!type&&type!=='bass'&&type!=='conductor'&&!PERCUSSION.includes(type)&&!(JAZZ_HALL&&type==='trumpet');}
+export function musicianSits(type:Instrument|undefined){return !!type&&type!=='bass'&&type!=='conductor'&&type!=='vocals'&&!PERCUSSION.includes(type)&&!(JAZZ_HALL&&type==='trumpet');}
 export class Avatar{
  readonly appearance:'woman'|'man';readonly hair:HairStyle;
  readonly root=new T.Group();readonly body=new T.Group();readonly head=new T.Group();readonly eyes=new T.Group();
@@ -196,23 +199,35 @@ export class Avatar{
  icon:Icon|null=null;iconAlpha=0;
  private sitAmount=0;private left:Arm;private right:Arm;private danceFeetPosed=false;
  private direction=new T.Vector3();private armRotation=new T.Quaternion();private hipOffset=new T.Vector3();private tilt=new T.Euler();
+ private readonly vocalMouth?:T.Mesh;
  readonly variant:number;readonly skirt:T.Mesh|null;
  constructor(color=0x252733,instrument?:Instrument,variant=0,readonly outfit?:Outfit){this.variant=variant;
-  this.appearance=variant%8>=4?'woman':'man';this.hair=this.appearance==='woman'?'long':'short';
+  const vocalist=instrument==='vocals';
+  this.appearance=vocalist||variant%8>=4?'woman':'man';this.hair=this.appearance==='woman'&&!vocalist?'long':'short';
   this.instrumentType=instrument;this.root.add(this.body);this.body.add(this.head,this.leftArm,this.rightArm,this.leftLeg,this.rightLeg,this.instrument);
   const skin=0xf9cfcc,hair=[0x3b2c27,0x5a3423,0x232022,0xb4552a,0xb88a48,0x7e6b5c,0x553f32,0xaaa59b][Math.floor(variant/8)%8];
   // Narrow body with a plain neckline and a very short skin-coloured neck.
-  const torso=new T.Mesh(bellGeometry,material(color));torso.position.y=.47;torso.scale.set(.82,1,.72);torso.userData.clothContact='torso';this.body.add(torso);
-  if(this.appearance==='man')box(this.body,[.075,.06,.045],[0,.96,-.1775],0xa23c3c);else sphere(this.body,.04,[0,.97,-.16],0xe8b647);
+  const torso=new T.Mesh(bellGeometry,material(color));torso.position.y=.47;torso.scale.set(.82,1,.72);torso.userData.clothContact='torso';
+  if(vocalist)buildJazzGown(this.body,color,skin);
+  else{
+   this.body.add(torso);
+   if(this.appearance==='man')box(this.body,[.075,.06,.045],[0,.96,-.1775],0xa23c3c);else sphere(this.body,.04,[0,.97,-.16],0xe8b647);
+  }
   // Big round head with dot eyes, catch-lights, blush and a button nose.
   cylinder(this.body,.08,.02,[0,1.005,0],skin).userData.facePart='neck';
   this.head.position.y=AVATAR_HEAD_HEIGHT;// Lower the head into the neckline for both appearances.
   const skull=new T.Mesh(faceGeometry,material(skin));skull.position.y=.03;skull.scale.set(.37,.345,.35);skull.userData.lowDetail=faceFarGeometry;this.head.add(skull);// Blush and mouth sit on this surface, not in front of it.
-  paintFace(this.head,this.eyes);
+  const mouth=paintFace(this.head,this.eyes,vocalist);
+  if(vocalist)this.vocalMouth=mouth;
   sphere(this.head,.04,[0,-.075,faceSurfaceZ(0,-.075)-.015],0xe8a77f).scale.set(.035,.025,.023);
-  // Men wear one simple cap: it covers the crown, sides and back, with no fringe (and no ears).
-  // Women wear the long hair in one piece instead, so nothing overlaps.
-  if(this.appearance==='man'){const cap=new T.Mesh(shortHairGeometry,material(hair));cap.userData.lowDetail=shortHairFar;cap.userData.hairPart='cap';this.head.add(cap);}
+  if(vocalist){
+   const bob=new T.Mesh(bobGeometry,material(JAZZ_BLONDE));
+   bob.userData.hairPart='bob';
+   bob.userData.lowDetail=bobFar;
+   this.head.add(bob);
+   styleJazzHair(this.head);
+  }
+  else if(this.hair==='short'){const cap=new T.Mesh(shortHairGeometry,material(hair));cap.userData.lowDetail=shortHairFar;cap.userData.hairPart='cap';this.head.add(cap);}
   else{const long=new T.Mesh(longHairGeometry,material(hair));long.userData.hairPart='long';long.userData.lowDetail=longHairFar;this.head.add(long);}
   const wearsSkirt=this.appearance==='woman'&&!instrument;
   this.skirt=wearsSkirt?new T.Mesh(skirtGeometry,material(color)):null;
@@ -223,12 +238,13 @@ export class Avatar{
   for(const [side,arm]of [[-1,this.left],[1,this.right]] as const){
    // Arms start inside the torso, so the top of the arm is buried in the body instead of hanging beside it.
    arm.shoulder.position.set(side*SHOULDER_X,SHOULDER_Y,0);arm.shoulder.add(arm.hand);arm.hand.position.y=-ARM_LENGTH;
-   const limb=new T.Mesh(armGeometry,material(color));limb.position.y=SLEEVE_CENTER_Y;limb.userData.clothContact='sleeve';arm.shoulder.add(limb);
+   const limb=new T.Mesh(armGeometry,material(vocalist?skin:color));limb.position.y=SLEEVE_CENTER_Y;if(!vocalist)limb.userData.clothContact='sleeve';arm.shoulder.add(limb);
    sphere(arm.hand,.082,[0,0,0],skin).scale.set(.082,.088,.078);
   }
   // Hidden by zero scale (not visibility) so batched musicians never show it.
   this.finger=new T.Mesh(fingerGeometry,material(skin));this.finger.position.set(...FINGER_OFFSET);this.finger.scale.setScalar(0);this.rightHand.add(this.finger);
-  for(const [side,hip]of [[-1,this.leftLeg],[1,this.rightLeg]] as const){hip.position.set(side*.115,.55,0);
+  // The floor-length gown covers the legs and follows the standing pose.
+  if(!vocalist)for(const [side,hip]of [[-1,this.leftLeg],[1,this.rightLeg]] as const){hip.position.set(side*.115,.55,0);
    const dress=(leg:T.Mesh)=>{leg.userData.garment=wearsSkirt?'stocking':'trousers';if(!wearsSkirt)leg.userData.clothContact='trousers';};
    // Everyone has a knee, so visitors and musicians alike sit with their shins down in front of the chair.
    {const r=wearsSkirt?.065:.085,colour=wearsSkirt?skin:0x242329,knee=new T.Group();
@@ -424,7 +440,7 @@ export class Avatar{
  diningBite:number|null=null;
  /** Holding the dinner wine glass (only while sipping); it drinks exactly like the lobby coffee. */
  holdingWine=false;private wineGlass?:T.Group;private faceFront?:number;private fork?:T.Group;private forkBite?:T.Mesh;
- update(time:number,speed:number,sitting:boolean|number,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60,cameraFacing?:CameraFacing,keepCaptainJoints=false){
+ update(time:number,speed:number,sitting:boolean|number,performing:boolean,gesture?:Gesture|null,gestureAge=10,dt=1/60,cameraFacing?:CameraFacing,keepCaptainJoints=false,lunarSwing?:number){
   if(!keepCaptainJoints)for(const arm of [this.left,this.right]){
    if(arm.hand.parent===arm.shoulder)continue;
    arm.shoulder.add(arm.hand);
@@ -439,6 +455,21 @@ export class Avatar{
   if(sleeve){sleeve.scale.y=1;sleeve.position.y=SLEEVE_CENTER_Y;sleeve.morphTargetInfluences?.fill(0);}
   const t=time+this.phase,play=performing?1:0,type=this.instrumentType;this.sitAmount=typeof sitting==='number'?sitting:T.MathUtils.damp(this.sitAmount,sitting?1:0,12,dt);
   const pose=poseVillager({time,speed,sit:this.sitAmount,music:performing,musician:!!type,gesture,age:gestureAge,cameraFacing},this.phase),sit=pose.sit;
+  const vocalPhrase=type==='vocals'&&performing
+   ?T.MathUtils.smoothstep(Math.sin(t*1.15)+.32*Math.sin(t*2.6),-.42,.38)
+   :0;
+  if(type==='vocals'){
+   pose.sway=.045*Math.sin(t*1.8)*play;
+   pose.lean=.038*vocalPhrase;
+   pose.headPitch=.055*vocalPhrase;
+   this.vocalMouth!.morphTargetInfluences![0]=1-vocalPhrase*(.57+.39*Math.sin(t*8.4)**2);
+  }
+  const lunarFlex=Math.abs(lunarSwing??0)*(1-sit);
+  if(lunarSwing!==undefined){
+   pose.swing=lunarSwing;
+   pose.lift=0;
+   pose.lean+=.1*lunarFlex;
+  }
   if(this.trainPassenger&&gesture==='wave'&&pose.left){
    const [x,y,z]=pose.left;pose.right=[-x,y,z];pose.left=null;pose.sway=-pose.sway;pose.headRoll=-pose.headRoll;
   }
@@ -477,10 +508,14 @@ export class Avatar{
    for(const shoe of this.shoes){shoe.quaternion.identity();shoe.position.set(0,-SHIN_LENGTH,-.045);}
    this.danceFeetPosed=false;
   }
-  for(const knee of this.knees)knee.rotation.x=-Math.PI/2*sit;
+  for(const knee of this.knees)knee.rotation.x=-Math.PI/2*sit-.38*lunarFlex;
   // Resting arms are held out on a diagonal (less when seated).
-  const spread=T.MathUtils.lerp(.42,.16,sit);
+  const spread=T.MathUtils.lerp(.42,.16,sit)+.24*lunarFlex;
   this.leftArm.rotation.set(-pose.swing*.34,0,-spread);this.rightArm.rotation.set(pose.swing*.34,0,spread);
+  if(type==='vocals'){
+   this.aimAt(this.left,-.16,.92,-.39);
+   this.aimAt(this.right,.39+.05*Math.sin(t*1.8),.75+.19*vocalPhrase,-.09-.16*vocalPhrase,.2+.8*vocalPhrase);
+  }
   // Floor-standing keyboards and harps must not rise with the seated torso.
   // Floor instruments belong to the root, so the body can sway without lifting their feet.
   // Long bow strokes with a slight arc, and a vibrato in the left hand, so playing reads from far away.

@@ -1,10 +1,52 @@
-import list from './playlist';
-import {playbackAt,type Playback,type Playlist} from '../../shared/timeline';
+import {DEFAULT_PLAYLIST,INITIAL_PLAYLIST,PLAYLISTS,type PlaylistId} from './playlist';
+import {playbackAt,type Playback} from '../../shared/timeline';
 import type {Zone} from '../../shared/venue';
 import {MediaSync} from './MediaSync';
 export class ConcertAudio{
  readonly media=new Audio();enabled=false;volume=1;zone:Zone='lobby';state='소리 꺼짐';
  private wantsSound=true;
+ private selected:PlaylistId;
+ private mediaTrackIndex=0;
+ private mediaCycle=0;
+ private mediaRevision=0;
+ get soundRequested(){return this.wantsSound;}
+ get playlistId(){return this.selected;}
+ get playlist(){return PLAYLISTS[this.selected]??PLAYLISTS[DEFAULT_PLAYLIST];}
+ get usesMediaClock(){return this.selected!=='classical-carol'&&this.selected!=='jazz-carol';}
+
+ selectPlaylist(id:PlaylistId){
+  if(!PLAYLISTS[id])return;
+  if(id!==this.selected){
+   this.selected=id;
+   this.mediaTrackIndex=0;
+   this.mediaCycle=0;
+   this.shift=0;
+   this.cycle=-1;
+   this.media.pause();
+   this.media.removeAttribute('src');
+   this.media.load();
+   this.lastId='';
+   this.mediaRevision++;
+   this.unlocking=false;
+   this.playingRequest=false;
+   this.sync=new MediaSync();
+   this.spectrumTime=-Infinity;
+   this.state=this.wantsSound?'음악을 불러오는 중':'소리 꺼짐';
+  }
+  if(!this.wantsSound)return;
+  if(!this.enabled){void this.unlock();return;}
+  if(this.context?.state!=='running')void this.context?.resume().catch(()=>{});
+  this.tick(.1);
+ }
+
+ private loadTrack(p:Playback){
+  this.mediaRevision++;
+  this.playingRequest=false;
+  this.media.src=this.mediaUrl(p.track.url);
+  this.lastId=p.track.id;
+  this.sync.request();
+ }
+
  private playingRequest=false;private unlocking=false;private lastId='';private cycle=-1;
  private sync=new MediaSync();private abort=new AbortController();private timer:ReturnType<typeof setInterval>;
  private doorLeak=0;
@@ -61,7 +103,11 @@ export class ConcertAudio{
   this.musicGain=context.createGain();this.musicGain.gain.value=0;previous.connect(this.musicGain);this.musicGain.connect(context.destination);
   void this.startAmbience(context);return context.resume();
  }
- constructor(private now:()=>number){this.media.preload='auto';this.media.setAttribute('playsinline','');
+ constructor(private now:()=>number,initial:PlaylistId=INITIAL_PLAYLIST,wantsSound=true){
+  this.selected=PLAYLISTS[initial]?initial:DEFAULT_PLAYLIST;
+  this.wantsSound=wantsSound;
+  this.media.preload='auto';
+  this.media.setAttribute('playsinline','');
   const opts={signal:this.abort.signal};
   this.media.addEventListener('playing',()=>this.sync.playing(performance.now()),opts);
   for(const event of ['waiting','stalled'])this.media.addEventListener(event,()=>{this.state='음악을 불러오는 중';this.sync.buffering();},opts);
@@ -69,7 +115,7 @@ export class ConcertAudio{
   document.addEventListener('visibilitychange',()=>{this.sync.request();if(document.hidden)this.media.pause();},opts);
   // If the browser left the audio graph suspended, the next tap or key wakes it (music, door spill and lobby room tone all pass through it).
   for(const type of ['pointerdown','keydown','touchend'])document.addEventListener(type,event=>{
-   if((event.target as Element)?.closest?.('button[aria-label^="소리"], [data-device-probe]'))return;
+   if((event.target as Element)?.closest?.('button[aria-label^="소리"], [data-device-probe], [data-concert-picker]'))return;
    if(!this.wantsSound||document.hidden)return;
    if(this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});
    if(this.unlocking)return;
@@ -83,9 +129,14 @@ export class ConcertAudio{
  /** A personal time shift: zero follows the shared concert; otherwise this visitor replays the program from the start. */
  shift=0;
  get personal(){return this.shift!==0;}
- get playback():Playback{return playbackAt(list as Playlist,this.now()+this.shift);}
+ get playback():Playback{
+  if(!this.usesMediaClock)return playbackAt(this.playlist,this.now()+this.shift);
+  const track=this.playlist.tracks[this.mediaTrackIndex];
+  const offset=this.lastId===track.id?Math.min(track.durationSeconds,this.media.currentTime):0;
+  return {track,index:this.mediaTrackIndex,offset,playing:true,remaining:track.durationSeconds-offset,cycle:this.mediaCycle};
+ }
  /** Start the whole program again for this visitor only, from the hall murmur and tuning. */
- replayFromStart(){const program=list as Playlist,total=program.tracks.reduce((s,t)=>s+t.durationSeconds+t.gapAfterSeconds,0)*1000;
+ replayFromStart(){const program=this.playlist,total=program.tracks.reduce((s,t)=>s+t.durationSeconds+t.gapAfterSeconds,0)*1000;
   const into=(((this.now()-program.epochMs)%total)+total)%total;this.shift=-into+50;this.lastId='';this.sync.request();}
  private clapBuffer:AudioBuffer|null=null;private clapRoom:AudioBuffer|null=null;
  /** Short individual handclaps with a small hall reflection; only an explicit visitor gesture calls this. */
@@ -151,18 +202,36 @@ export class ConcertAudio{
  }
  /** Return to the concert everyone else is hearing. */
  rejoin(){this.shift=0;this.lastId='';this.sync.request();}
- async unlock(){if(this.unlocking)return false;this.wantsSound=true;this.enabled=true;this.unlocking=true;this.media.src=this.mediaUrl(this.playback.track.url);this.lastId=this.playback.track.id;this.cycle=this.playback.cycle;this.media.volume=1;this.media.muted=false;this.sync.request();
+ async unlock(){
+  if(this.unlocking)return false;
+  this.wantsSound=true;this.enabled=true;this.unlocking=true;
+  const p=this.playback;
+  if(this.lastId!==p.track.id||this.media.error)this.loadTrack(p);
+  const revision=this.mediaRevision;
+  this.cycle=p.cycle;this.media.volume=1;this.media.muted=false;this.sync.request();
   // Start the audio graph and the media in the same tap: browsers only allow sound that begins inside the gesture.
-  try{const graph=this.prepareFilter(),playing=this.media.play();await Promise.all([graph,playing]);this.sync.request();this.state=this.zone==='lobby'?'공연장에서 음악이 시작돼요':'함께 감상 중';return true;}
-  catch{this.enabled=false;this.state='소리를 켜주세요';return false;}finally{this.unlocking=false;}
+  try{const graph=this.prepareFilter(),playing=this.media.play();await Promise.all([graph,playing]);
+   if(revision!==this.mediaRevision)return false;
+   this.sync.request();this.state=this.zone==='lobby'?'공연장에서 음악이 시작돼요':'함께 감상 중';return true;}
+  catch{if(revision===this.mediaRevision){this.enabled=false;this.state='소리를 켜주세요';}return false;}
+  finally{if(revision===this.mediaRevision)this.unlocking=false;}
  }
- toggle(){if(this.enabled){this.wantsSound=false;this.enabled=false;this.media.pause();this.state='소리 꺼짐';}else void this.unlock();}
+ toggle(){
+  if(!this.enabled){void this.unlock();return;}
+  this.wantsSound=false;
+  this.enabled=false;
+  this.mediaRevision++;
+  this.unlocking=false;
+  this.playingRequest=false;
+  this.media.pause();
+  this.state='소리 꺼짐';
+ }
  setZone(zone:Zone){const changed=zone!==this.zone;this.zone=zone;this.sync.request();this.spectrumTime=-Infinity;
   if(this.enabled&&this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});
   if(!this.context)return;const t=this.context.currentTime,entering=zone==='auditorium';
   // The level and the door muffle switch together on the audio clock, in this order: going in, the muffle stays on
   // until the music is switched on; going out, the music is switched down first and the muffle comes on just after.
-  if(changed&&this.musicGain){const p=this.playback,target=this.enabled&&!document.hidden&&p.playing&&!p.track.stage?this.volume*(entering?1:this.doorLeak):0,g=this.musicGain.gain;
+  if(changed&&this.musicGain){const p=this.playback,target=this.enabled&&!document.hidden&&p.playing&&!p.track.stage?this.volume*(p.track.gain??1)*(entering?1:this.doorLeak):0,g=this.musicGain.gain;
    g.cancelScheduledValues(t);g.setValueAtTime(target,t);this.outputTarget=target;}
   for(const filter of this.filters){filter.frequency.cancelScheduledValues(t);filter.frequency.setValueAtTime(entering?22000:450,entering?t:t+.02);}}
  /** Closed-door spill uses the existing concert stream, with no extra decoder or audio loop. */
@@ -171,25 +240,44 @@ export class ConcertAudio{
   if(!this.doorLeak&&level>0)this.sync.request();this.doorLeak=level;
  }
  private playMedia(){
-  if(this.playingRequest)return;this.playingRequest=true;
-  void this.media.play().catch(()=>{this.enabled=false;this.state='소리 버튼을 눌러주세요';}).finally(()=>{this.playingRequest=false;});
+  if(this.playingRequest)return;
+  const revision=this.mediaRevision;
+  this.playingRequest=true;
+  void this.media.play().catch(()=>{
+   if(revision===this.mediaRevision){this.enabled=false;this.state='소리 버튼을 눌러주세요';}
+  }).finally(()=>{if(revision===this.mediaRevision)this.playingRequest=false;});
  }
  tick(dt:number){
   // The room tone stays under everything, in the lobby and in the hall, about 20 dB below the music; at the lobby door it ducks so the music spilling through stays clear.
   if(this.ambience&&this.context){const on=this.enabled&&!document.hidden,duck=this.zone==='lobby'?1-.8*Math.min(1,this.doorLeak/.5):1;// the same level in the lobby and the hall; only near the hall door does it dip for the music
    const target=on?Math.min(1,this.volume*this.roomLevel*.018*duck):0;if(Math.abs(target-this.ambienceTarget)>.00001){this.ambience.gain.setTargetAtTime(target,this.context.currentTime,.4);this.ambienceTarget=target;}}
   if(this.unlocking)return;
+  const usesMediaClock=this.usesMediaClock;
+  if(usesMediaClock&&this.enabled&&!document.hidden&&this.media.ended){
+   this.mediaTrackIndex=(this.mediaTrackIndex+1)%this.playlist.tracks.length;
+   if(this.mediaTrackIndex===0)this.mediaCycle++;
+  }
   const p=this.playback,level=this.zone==='auditorium'?1:this.doorLeak,active=this.enabled&&!document.hidden;
-  const target=active&&p.playing&&!p.track.stage?this.volume*level:0;
+  const target=active&&p.playing&&!p.track.stage?this.volume*(p.track.gain??1)*level:0;
   // Crossing the door is switched in setZone; here the level only follows smaller changes, smoothly.
   if(this.context&&this.musicGain&&Math.abs(target-this.outputTarget)>.0001){const g=this.musicGain.gain,t=this.context.currentTime;
-   g.setTargetAtTime(target,t,.15);this.outputTarget=target;}
+   if(p.track.gain!==undefined&&this.lastId!==p.track.id){
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(target,t);
+   }else g.setTargetAtTime(target,t,.15);
+   this.outputTarget=target;
+  }
   // Keep the user-unlocked stream running silently in the lobby. Pausing it here can
   // make a later asynchronous hall entry fail mobile autoplay restrictions.
   if(!active){this.media.pause();this.state=this.enabled?'음악 일시 정지':'소리 꺼짐';return;}
   if(!p.playing||p.track.stage){this.media.pause();this.state='잠시 쉬어가는 중';return;}
   if(this.cycle!==p.cycle){this.cycle=p.cycle;this.sync.request();}
-  if(this.lastId!==p.track.id){this.media.src=this.mediaUrl(p.track.url);this.lastId=p.track.id;this.sync.request();}
+  if(this.lastId!==p.track.id)this.loadTrack(p);
+  if(usesMediaClock){
+   if(this.media.paused)this.playMedia();
+   this.state=this.media.readyState<3?'음악을 불러오는 중':this.context?.state!=='running'?'화면을 눌러 음악을 이어주세요':'감상 중';
+   return;
+  }
   if(this.media.readyState<1){this.state='음악을 불러오는 중';if(!this.media.src)this.media.src=this.mediaUrl(p.track.url);if(this.media.paused)this.playMedia();return;}
   const expected=Math.min(p.offset,Math.max(0,this.media.duration-.02));
   const targetBuffered=Array.from({length:this.media.buffered.length},(_,i)=>i).some(i=>this.media.buffered.start(i)<=expected&&this.media.buffered.end(i)>=expected+1);
@@ -198,5 +286,5 @@ export class ConcertAudio{
   if(this.media.paused)this.playMedia();
   this.state=this.context?.state!=='running'?'화면을 눌러 음악을 이어주세요':this.media.readyState<3?'음악을 불러오는 중':this.zone==='lobby'?(level>0?'문 너머에서 음악이 들려요':'로비에서 쉬어가세요'):'함께 감상 중';
  }
- destroy(){clearInterval(this.timer);this.abort.abort();this.media.pause();this.media.removeAttribute('src');this.media.load();if(this.context)void this.context.close().catch(()=>{});}
+ destroy(){this.mediaRevision++;clearInterval(this.timer);this.abort.abort();this.media.pause();this.media.removeAttribute('src');this.media.load();if(this.context)void this.context.close().catch(()=>{});}
 }

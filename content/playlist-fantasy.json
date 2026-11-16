@@ -1,0 +1,103 @@
+{
+  "name": "환상",
+  "version": "classical-fantasy-v1",
+  "epochMs": 0,
+  "tracks": [
+    {
+      "id": "fantasy-mozart-magic-flute",
+      "title": "모차르트 — 마술피리 서곡",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/fantasy-mozart-magic-flute.m4a",
+      "durationSeconds": 400.772667,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File%3AMozart_-_Die_Zauberfl%C3%B6te%2C_K620_-_Overture_%28Musopen_Symphony%29.flac",
+        "licenseName": "Public Domain (Musopen)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File%3AMozart_-_Die_Zauberfl%C3%B6te%2C_K620_-_Overture_%28Musopen_Symphony%29.flac#Licensing",
+        "artist": "Musopen Symphony Orchestra",
+        "changes": "FLAC 원본을 AAC-LC 256 kbps 설정으로 변환"
+      }
+    },
+    {
+      "id": "fantasy-mendelssohn-scottish-2",
+      "title": "멘델스존 — 스코틀랜드 교향곡 2악장",
+      "composer": "펠릭스 멘델스존",
+      "url": "/api/audio/fantasy-mendelssohn-scottish-2.m4a",
+      "durationSeconds": 264.009333,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File%3AMendelssohn_-_Symphony_No._3_in_A_minor%2C_Op._56_%27Scottish%27_-_II._Vivace_non_troppo_%28Musopen_Symphony%29.flac",
+        "licenseName": "Public Domain (Musopen)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File%3AMendelssohn_-_Symphony_No._3_in_A_minor%2C_Op._56_%27Scottish%27_-_II._Vivace_non_troppo_%28Musopen_Symphony%29.flac#Licensing",
+        "artist": "Musopen Symphony Orchestra",
+        "changes": "FLAC 원본을 AAC-LC 256 kbps 설정으로 변환"
+      }
+    },
+    {
+      "id": "fantasy-smetana-moldau",
+      "title": "스메타나 — 몰다우",
+      "composer": "베드르지흐 스메타나",
+      "url": "/api/audio/fantasy-smetana-moldau.m4a",
+      "durationSeconds": 770.858667,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File%3ASmetana_-_M%C3%A1_Vlast_-_Vltava_%28Musopen_Symphony%29.flac",
+        "licenseName": "Public Domain (Musopen)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File%3ASmetana_-_M%C3%A1_Vlast_-_Vltava_%28Musopen_Symphony%29.flac#Licensing",
+        "artist": "Musopen Symphony Orchestra",
+        "changes": "FLAC 원본을 AAC-LC 256 kbps 설정으로 변환"
+      }
+    },
+    {
+      "id": "fantasy-tchaikovsky-pathetique-2",
+      "title": "차이콥스키 — 비창 교향곡 2악장",
+      "composer": "표트르 일리치 차이콥스키",
+      "url": "/api/audio/fantasy-tchaikovsky-pathetique-2.m4a",
+      "durationSeconds": 496.079563,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File%3ATchaikovsky_-_Symphony_No._6_in_B_minor%2C_Op._74_%27Path%C3%A9tique%27_-_II._Allegro_con_grazia_%28Musopen_Symphony%29.flac",
+        "licenseName": "Public Domain (Musopen)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File%3ATchaikovsky_-_Symphony_No._6_in_B_minor%2C_Op._74_%27Path%C3%A9tique%27_-_II._Allegro_con_grazia_%28Musopen_Symphony%29.flac#Licensing",
+        "artist": "Musopen Symphony Orchestra",
+        "changes": "FLAC 원본을 AAC-LC 256 kbps 설정으로 변환"
+      }
+    },
+    {
+      "id": "fantasy-rimsky-korsakov-russian-easter",
+      "title": "림스키코르사코프 — 러시아 부활절 서곡",
+      "composer": "니콜라이 림스키코르사코프",
+      "url": "/api/audio/fantasy-rimsky-korsakov-russian-easter.m4a",
+      "durationSeconds": 936.007354,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File%3ARimsky_Korsakov_-_Russian_Easter_Festival_Overture%2C_Op._36_%28Musopen_Symphony%29.flac",
+        "licenseName": "Public Domain (Musopen)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File%3ARimsky_Korsakov_-_Russian_Easter_Festival_Overture%2C_Op._36_%28Musopen_Symphony%29.flac#Licensing",
+        "artist": "Musopen Symphony Orchestra",
+        "changes": "FLAC 원본을 AAC-LC 256 kbps 설정으로 변환"
+      }
+    },
+    {
+      "id": "fantasy-mendelssohn-scottish-4",
+      "title": "멘델스존 — 스코틀랜드 교향곡 4악장",
+      "composer": "펠릭스 멘델스존",
+      "url": "/api/audio/fantasy-mendelssohn-scottish-4.m4a",
+      "durationSeconds": 682.170188,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File%3AMendelssohn_-_Symphony_No._3_in_A_minor%2C_Op._56_%27Scottish%27_-_IV._Allegro_vivacissimo_-_Allegro_maestoso_assai_%28Musopen_Symphony%29.flac",
+        "licenseName": "Public Domain (Musopen)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File%3AMendelssohn_-_Symphony_No._3_in_A_minor%2C_Op._56_%27Scottish%27_-_IV._Allegro_vivacissimo_-_Allegro_maestoso_assai_%28Musopen_Symphony%29.flac#Licensing",
+        "artist": "Musopen Symphony Orchestra",
+        "changes": "FLAC 원본을 AAC-LC 256 kbps 설정으로 변환"
+      }
+    }
+  ]
+}

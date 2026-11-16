@@ -3,6 +3,7 @@ import * as T from 'three';
 import {finishBuild} from '../scene/buildBudget';
 import {woodMaterial,applyWoodSurface,hallImage} from '../scene/HallTextures';
 import {Avatar,musicianSits,PERCUSSION,FLOOR_INSTRUMENTS} from '../character/Avatar';
+import {JAZZ_DRESS_COLOR} from '../character/JazzVocalist';
 import {box,cylinder,material,detailedMaterial,C} from '../scene/primitives';
 import {ORCHESTRA_LAYOUT,CONDUCTOR,STAGE,STAGE_FLOOR,STAGE_TERRACES,TERRACE_BACK,terraceOutline,stageRiseAt,MUSICIAN_SCALE,JAZZ_RISERS} from './layout';
 import {JAZZ_HALL} from '../../shared/hallKind';
@@ -63,12 +64,26 @@ export function* buildOrchestraSteps(scene:T.Scene){
  terraces(scene);
  const musicians:Avatar[]=[],desks=new Map<string,{x:number;z:number;count:number}>();
  for(const [i,p] of ORCHESTRA_LAYOUT.entries()){
-  const actor=new Avatar(0x2d3033,p.instrument,visitorVariant({id:`musician-${i}`}));actor.root.userData.section=p.section;actor.root.userData.placement=i;actor.root.userData.row=p.row;actor.phase=i*.43;actor.root.position.set(p.x,STAGE_FLOOR+p.rise-(musicianSits(p.instrument)?DINNER_SIT_DROP*MUSICIAN_SCALE:0),p.z);if(musicianSits(p.instrument)&&FLOOR_INSTRUMENTS.has(p.instrument))actor.instrument.position.y+=DINNER_SIT_DROP;actor.root.rotation.y=p.yaw;actor.root.scale.setScalar(MUSICIAN_SCALE);actor.settlePose(musicianSits(p.instrument));actor.body.userData.animated=true;scene.add(actor.root);musicians.push(actor);
+  const vocalist=p.instrument==='vocals';
+  const sitting=musicianSits(p.instrument);
+  const actor=new Avatar(vocalist?JAZZ_DRESS_COLOR:0x2d3033,p.instrument,vocalist?20:visitorVariant({id:`musician-${i}`}));
+  actor.root.userData.section=p.section;
+  actor.root.userData.placement=i;
+  actor.root.userData.row=p.row;
+  actor.phase=i*.43;
+  actor.root.position.set(p.x,STAGE_FLOOR+p.rise-(sitting?DINNER_SIT_DROP*MUSICIAN_SCALE:0),p.z);
+  if(sitting&&FLOOR_INSTRUMENTS.has(p.instrument))actor.instrument.position.y+=DINNER_SIT_DROP;
+  actor.root.rotation.y=p.yaw;
+  actor.root.scale.setScalar(MUSICIAN_SCALE);
+  actor.settlePose(sitting);
+  actor.body.userData.animated=true;
+  scene.add(actor.root);
+  musicians.push(actor);
   if(GHOST_ORCHESTRA)hideBody(actor);
-  if(musicianSits(p.instrument)){const furniture=new T.Group();furniture.position.set(p.x,STAGE_FLOOR+p.rise,p.z);furniture.rotation.y=p.yaw;furniture.scale.setScalar(MUSICIAN_SCALE);furniture.userData.chairFor=i;scene.add(furniture);chair(furniture);}
+  if(sitting){const furniture=new T.Group();furniture.position.set(p.x,STAGE_FLOOR+p.rise,p.z);furniture.rotation.y=p.yaw;furniture.scale.setScalar(MUSICIAN_SCALE);furniture.userData.chairFor=i;scene.add(furniture);chair(furniture);}
   if(JAZZ_HALL){
    // Every big-band player has their own stand straight in front of them; saxophones and trombones sit behind band fronts.
-   if(!['piano','drum-kit'].includes(p.instrument)){
+   if(!vocalist&&!['piano','drum-kit'].includes(p.instrument)){
     const boxDesk=p.instrument==='guitar'||p.instrument==='trombone'||p.instrument==='trumpet'||p.instrument.endsWith('-sax'),reach=(boxDesk||p.instrument==='bass'?.95:.62)*MUSICIAN_SCALE,sx=p.x-Math.sin(p.yaw)*reach,sz=p.z-Math.cos(p.yaw)*reach,g=new T.Group();g.position.set(sx,STAGE_FLOOR+stageRiseAt(sx,sz),sz);g.rotation.y=p.yaw;g.scale.setScalar(MUSICIAN_SCALE);g.userData.musicDesk=true;scene.add(g);
     if(boxDesk)bandFront(g);else stand(g);
    }
@@ -83,12 +98,13 @@ export function* buildOrchestraSteps(scene:T.Scene){
   const x=d.x/d.count,z=d.z/d.count,yaw=Math.atan2(x-CONDUCTOR.x,z-CONDUCTOR.z),sx=x-Math.sin(yaw)*.5*MUSICIAN_SCALE,sz=z-Math.cos(yaw)*.5*MUSICIAN_SCALE;
   const g=new T.Group();g.position.set(sx,STAGE_FLOOR+stageRiseAt(sx,sz),sz);g.rotation.y=yaw;g.scale.setScalar(MUSICIAN_SCALE);g.userData.musicDesk=true;scene.add(g);stand(g);yield;
  }
- // A big band's leader stands on the stage floor; the orchestra's conductor has a podium.
- const podium=JAZZ_HALL?0:.24;if(podium){box(scene,[1.7,podium,1.25],[0,STAGE_FLOOR+podium/2,CONDUCTOR.z],0x67452f);box(scene,[1.5,.025,1.05],[0,STAGE_FLOOR+podium+.01,CONDUCTOR.z],C.red);}
+ if(JAZZ_HALL)return musicians;
+ const podium=.24;
+ box(scene,[1.7,podium,1.25],[0,STAGE_FLOOR+podium/2,CONDUCTOR.z],0x67452f);
+ box(scene,[1.5,.025,1.05],[0,STAGE_FLOOR+podium+.01,CONDUCTOR.z],C.red);
  // The concertmaster leads the first violins from the chair nearest the conductor; they stand to tune the orchestra.
  const firsts=musicians.filter(a=>a.root.userData.section==='first-violins'&&a.root.userData.row===0&&a.root.position.x<0);
  const concertmaster=firsts.sort((a,b)=>a.root.position.distanceTo(new T.Vector3(CONDUCTOR.x,a.root.position.y,CONDUCTOR.z))-b.root.position.distanceTo(new T.Vector3(CONDUCTOR.x,b.root.position.y,CONDUCTOR.z)))[0];
  if(concertmaster){concertmaster.root.userData.concertmaster=true;concertmaster.root.userData.animated=true;}
- if(JAZZ_HALL)return musicians;// no conductor: the big band's leader plays the piano
  const conductor=new Avatar(0x272b2b,'conductor');conductor.root.userData.demoConductor=true;conductor.root.userData.animated=true;conductor.root.position.set(0,STAGE_FLOOR+podium,CONDUCTOR.z);conductor.root.scale.setScalar(MUSICIAN_SCALE);conductor.settlePose(false);scene.add(conductor.root);musicians.push(conductor);return musicians;
 }

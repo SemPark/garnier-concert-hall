@@ -13,7 +13,7 @@ export function ConductingExperience({world,onClose}:{world:World;onClose:()=>vo
   <div className="conducting-pad" role="button" tabIndex={0} aria-label="좌우 원하는 위치를 탭해서 지휘하기" onKeyDown={e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();tap(0);}}} onPointerDown={e=>{e.preventDefault();e.stopPropagation();const r=e.currentTarget.getBoundingClientRect();tap((e.clientX-r.left)/r.width*2-1);}}>
    <span className="conducting-hand" style={{left:(demo.x+1)*50+'%',top:25+demo.stroke*40+'%'}} aria-hidden="true">╱</span>
    <span className="conducting-side left">왼쪽</span><span className="conducting-side right">오른쪽</span>
-   <p>원하는 방향을 톡, 톡 눌러 주세요<br/><small>한 번 누르면 아래로 찍고 자동으로 올라옵니다 · 빠르게 탭하면 연주 동작도 빨라져요</small></p>
+   <p>원하는 방향을 톡, 톡 눌러 주세요<br/><small>지휘봉은 아래로 움직였다가 자동으로 올라오고, 연주자는 계속 연주해요.</small></p>
   </div>
  </section>;
 }

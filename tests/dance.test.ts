@@ -161,6 +161,17 @@ test('a tight space requires walking to a reachable dance spot on the same floor
   assert.equal(spot.y,target.y);
  }
 });
+test('space mode can start a solo dance in a narrow gallery without opening a partner spot',()=>{
+ const host:Visitor={...guest('host',14.7),y:8.3,z:10};
+ const start={type:'danceStart',allowGallerySolo:true} as const;
+ assert.equal(handleDance(host,[host],start,10000),null);
+ assert.deepEqual(host.dance,{startedAt:10000});
+ const pose=dancePose(host,10500);
+ assert.deepEqual([pose.x,pose.y,pose.z],[host.x,host.y,host.z]);
+ assert.ok(handleDance(host,[host],{type:'danceJoinNpc'},10500));
+ const below:Visitor={...guest('ground',0),y:0,z:43};
+ assert.ok(handleDance(below,[below],start,10000));
+});
 test('an available spot admits only one partner',()=>{
  const {a,b,all}=pair();
  assert.equal(handleDance(a,all,{type:'danceJoin',targetId:b.id},11000),null);
@@ -226,6 +237,31 @@ test('joining requires standing inside the front spot on the same floor',()=>{
  }
 });
 test('occupied dance space is refused',()=>{const {a,b,all}=pair();all.push(guest('c',0));assert.ok(handleDance(a,all,{type:'danceJoin',targetId:b.id},11000));assert.equal(a.dance,undefined);});
+test('both partner handholds stay apart through near and far steps with a visitor or a ghost',()=>{
+ for(const ghost of [false,true]){
+  const {a,b,all}=pair();
+  const join=ghost?{type:'danceJoinNpc'} as const:{type:'danceJoin',targetId:b.id} as const;
+  const host=ghost?b:a;
+  assert.equal(handleDance(host,ghost?[b]:all,join,11000),null);
+  const partner=ghost?danceNpc(host)!:b;
+  const avatar=new Avatar(),leftHand=new T.Vector3(),rightHand=new T.Vector3();
+  for(const jazz of [false,true])for(let age=1150;age<5000;age+=35){
+   const time=host.dance!.startedAt+age;
+   const p=dancePose(host,time,jazz),q=dancePose(partner,time,jazz);
+   assert.equal(p.hold,1);
+   assert.deepEqual(p.hand,q.rightHand);
+   assert.deepEqual(p.rightHand,q.hand);
+   avatar.update(0,0,false,false);
+   poseDancingAvatar(avatar,p);
+   avatar.leftHand.getWorldPosition(leftHand);
+   avatar.rightHand.getWorldPosition(rightHand);
+   assert.ok(leftHand.distanceTo(rightHand)>=.47,'mittens remain visibly apart');
+   avatar.root.worldToLocal(leftHand);
+   avatar.root.worldToLocal(rightHand);
+   assert.ok(rightHand.x-leftHand.x>.26,'arms open across the body without crossing');
+  }
+ }
+});
 test('the real avatar hand stays on the shared contact throughout the turn',()=>{
  const {a,b,all}=pair();handleDance(a,all,{type:'danceJoin',targetId:b.id},11000);
  assert.equal(handleDance(a,all,{type:'danceStart',style:'hop'},13000),null);

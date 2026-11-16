@@ -54,7 +54,11 @@ const eyeShapes=[-1,1].map(side=>ellipse(side*.115,-.015,.043,.056,true));
 const highlights=[-1,1].map(side=>ellipse(side*.103,.008,.012,.014,true,-.006,1,10,0));
 const cheekShapes=[-1,1].map(side=>ellipse(side*.22,-.095,.065,.035));
 const smileShape=smile();
-export function paintFace(head:T.Group,eyes:T.Group){
+const vocalShape=ellipse(0,-.153,.052,.032,true,-.151,2,20,.19);
+const lipstick=ink.clone();
+lipstick.color.setHex(0x9c2341);
+export function paintFace(head:T.Group,eyes:T.Group,vocalist=false){
  const add=(parent:T.Group,geometry:T.BufferGeometry,material:T.Material,part:string)=>{const mesh=new T.Mesh(geometry,material);mesh.userData.facePart=part;mesh.userData.surfaceDecal=true;parent.add(mesh);return mesh;};
- head.add(eyes);for(let i=0;i<2;i++){add(eyes,eyeShapes[i],ink,'eye');add(eyes,highlights[i],white,'eye-highlight');add(head,cheekShapes[i],blush,'blush');}add(head,smileShape,ink,'mouth');
+ head.add(eyes);for(let i=0;i<2;i++){add(eyes,eyeShapes[i],ink,'eye');add(eyes,highlights[i],white,'eye-highlight');add(head,cheekShapes[i],blush,'blush');}
+ return add(head,vocalist?vocalShape:smileShape,vocalist?lipstick:ink,'mouth');
 }

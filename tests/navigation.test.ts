@@ -1,6 +1,12 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {SEATS,FLOOR_SEATS,SPAWN,walkable,surfaceHeight,canSit,HALL_DESTINATIONS,distance} from '../shared/venue';import {findPath,segmentClear} from '../src/navigation/path';import {GALLERY_BRIDGE} from '../shared/gallery';
 test('every selectable seat is reachable on its floor (2F from the gallery jump point) without passing through a chair',()=>{for(const seat of SEATS){const start=seat.level==='balcony'?HALL_DESTINATIONS.upper:SPAWN.auditorium,path=findPath('auditorium',start,seat.approach);assert.ok(path,seat.id);let previous:{x:number;y?:number;z:number}=start;for(const step of path){assert.ok(segmentClear('auditorium',previous,step),seat.id);previous=step;}assert.deepEqual(path.at(-1),seat.approach);}});
+test('the entrance leaves the centre clear and reachable from the right-hand spawn',()=>{
+ const floor={x:0,y:0,z:45.5};
+ assert.ok(SPAWN.auditorium.x>.5);
+ assert.ok(segmentClear('auditorium',SPAWN.auditorium,floor));
+ assert.ok(segmentClear('auditorium',floor,{x:0,y:0,z:44.2}));
+});
 test('chair centers and the stage are not walking targets',()=>{for(const s of FLOOR_SEATS)assert.equal(walkable('auditorium',s),false);assert.equal(findPath('auditorium',SPAWN.auditorium,{x:0,z:-16}),null);});
 test('routes around a Grand Escalier column do not cut its corners',()=>{const start={x:-12.6,z:34.52},end={x:-12.6,z:36.52},path=findPath('lobby',start,end);assert.ok(path);assert.equal(segmentClear('lobby',start,end),false);let previous=start;for(const p of path){assert.ok(segmentClear('lobby',previous,p));previous=p;}});
 test('the central flight climbs from the lobby floor to the amphitheatre door',()=>{const start={x:0,y:0,z:24},end={x:0,y:3.6,z:40.6},path=findPath('lobby',start,end);assert.ok(path);

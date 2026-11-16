@@ -1,5 +1,6 @@
 import {DINNER_SIT_BACK} from './dinnerTables';
 import {BOUNDS,SEATS,distance,surfaceHeight,walkable,type Point,type Visitor} from './venue';
+import {GOLDEN_HALL} from './goldenHall';
 
 export const SOLO_DANCES=[
  {id:'step',label:'꼬마 선장 춤'}, // Keep the first move's existing network id.
@@ -16,7 +17,7 @@ export type DanceStyle=typeof SOLO_DANCES[number]['id']|typeof PARTNER_DANCES[nu
 type DanceMove={style:DanceStyle;moveStartedAt:number;moveLeader?:0|1};
 export type DanceState=Partial<DanceMove>&{startedAt:number;chair?:true;previousMove?:DanceMove;joinSpot?:{x:number;y:number;z:number};partnerId?:string;npcSpot?:{x:number;y:number;z:number};role?:0|1;center?:{x:number;y:number;z:number};angle?:number;endingAt?:number;stop?:{x:number;z:number;yaw:number;faceYaw?:number;back?:{x:number;z:number}}};
 export type DanceCommand=
- |{type:'danceStart';style?:DanceStyle}|{type:'danceStop'}
+ |{type:'danceStart';style?:DanceStyle;allowGallerySolo?:true}|{type:'danceStop'}
  |{type:'danceJoin';targetId:string}|{type:'danceJoinNpc'};
 export function isDanceCommand(message:{type:string}):message is DanceCommand{
  return message.type==='danceStart'||message.type==='danceStop'||message.type==='danceJoin'||message.type==='danceJoinNpc';
@@ -127,10 +128,12 @@ export function dancePose(v:Visitor,now:number,jazz=false){
  const radius=defaultRadius+(.77-defaultRadius)*formation;
  const x=center?center.x+Math.sin(orbitAngle)*radius*sign:v.x;
  const z=center?center.z+Math.cos(orbitAngle)*radius*sign:v.z;
- const spread=.12+near*.32;
- // After the greeting, open the stance and shift both grip points forward.
+ // Ease from the greeting into two separate handholds, even at the farthest step.
  const openStance=center?smooth((age-.65)/.50):0;
- const contact=(side:number)=>spread*side*(1-openStance*.52)-.31*openStance;
+ const greetingSpread=.12+near*.32;
+ const openSpread=.24+near*.10;
+ const spread=greetingSpread+(openSpread-greetingSpread)*openStance;
+ const contact=(side:number)=>spread*side-.22*openStance;
  const grip=(side:number)=>center?{
   x:center.x+Math.cos(orbitAngle)*contact(side),
   y:center.y+1.08+jumpLift*.5,
@@ -283,6 +286,11 @@ export function findDanceJoinSpot(host:Point&{yaw:number}){
   if(clearDanceSpace(host,spot,[]))return spot;
  }
 }
+export function canDanceSoloInGallery(point:Point){
+ const y=point.y??0;
+ const floor=surfaceHeight('auditorium',point);
+ return y>=GOLDEN_HALL.balconyHeight-.3&&floor!==null&&Math.abs(y-floor)<.08&&walkable('auditorium',point);
+}
 /** Search outward on the same floor for a place that can fit both dancers. */
 export function findNearbyDanceSpace(host:Point&{yaw:number},reachable:(position:{x:number;y:number;z:number})=>boolean){
  const bounds=BOUNDS.auditorium;
@@ -318,8 +326,8 @@ export function handleDance(v:Visitor,visitors:Visitor[],msg:DanceCommand,now:nu
    v.gesture=null;
   }else if(!v.dance){
    const joinSpot=findDanceJoinSpot(v);
-   if(!joinSpot)return '두 사람이 춤출 수 있는 빈 바닥으로 이동해 주세요.';
-   v.dance={startedAt:now,joinSpot};
+   if(!joinSpot&&(msg.allowGallerySolo!==true||!canDanceSoloInGallery(v)))return '두 사람이 춤출 수 있는 빈 바닥으로 이동해 주세요.';
+   v.dance=joinSpot?{startedAt:now,joinSpot}:{startedAt:now};
    v.pose='idle';v.gesture=null;
   }else if(msg.style&&v.dance.npcSpot){
    if(v.dance.endingAt===undefined)v.dance=selectDanceMove(v.dance,msg.style,now,v.dance.role);
