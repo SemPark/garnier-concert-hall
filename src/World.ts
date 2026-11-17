@@ -2,7 +2,7 @@ import {activeHighFive,canHighFive,USHER_HIGH_FIVE_ID,withinHighFiveReach,type H
 import {highFivePose,type HighFivePose} from './character/highFivePose';
 import {DanceCircles} from './scene/DanceCircles';
 import {JAZZ_HALL} from '../shared/hallKind';
-import {canDanceSoloInGallery,danceNpc,dancePose,partnerRoutineYaw,findDanceJoinSpot,DANCE_JOIN_RADIUS,SOLO_DANCES,type DanceCommand} from '../shared/dance';
+import {danceNpc,dancePose,DANCE_JOIN_RADIUS,SOLO_DANCES,type DanceCommand} from '../shared/dance';
 import {poseDancingAvatar} from './scene/DancePose';
 import {atTeaTable} from '../shared/tea';
 import {QueenWand} from './scene/QueenWand';
@@ -34,6 +34,7 @@ import {LOUNGE_SEATS} from '../shared/loungeSeats';
 import * as T from 'three';
 import {characterFrontLight,FRONT_LIGHT} from './character/characterLight';
 import {constrainCamera} from './controls/cameraCollision';
+import {danceCameraFrame,duetSideYaw,soloCameraFacing} from './controls/danceCamera';
 import {createVenue,createVenueAsync,type Venue} from './scene/Venue';
 import {Ghosts,type GhostSpot} from './scene/Ghosts';
 import {NpcBehavior} from './scene/NpcBehavior';
@@ -254,7 +255,7 @@ export class World{
   this.venues.lobby.scene.environment=this.environment.texture;this.venues.lobby.scene.environmentIntensity=.18;this.lightingPass=new LobbyLightPass(this.renderer,this.venues.lobby.scene,this.camera,bloomResolution(this.mobile,this.quality),msaaSamples(this.quality));
   this.crowds={lobby:new Ghosts(this.venues.lobby.scene)} as Record<Zone,Ghosts>;
   this.marker=new T.Mesh(new T.RingGeometry(.16,.24,24),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.8,depthWrite:false}));this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.venues.lobby.scene.add(this.marker);
-  this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>{if(this.uiObscured)return;if(this.listeningView){this.stopListeningView();return;}if(this.photoMode)this.endPhotoMode();else if(this.broadcastView)this.stopBroadcastView();else if(this.catView)this.stopCatView();else if(this.dancePlacementStatus)this.cancelDancePlacement();else this.stand();}});
+  this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>{if(this.uiObscured)return;if(this.listeningView){this.stopListeningView();return;}if(this.photoMode)this.endPhotoMode();else if(this.broadcastView)this.stopBroadcastView();else if(this.catView)this.stopCatView();else this.stand();}});
   for(const event of ['pointerdown','pointermove','keydown','wheel'])window.addEventListener(event,()=>{const now=performance.now();this.lobbyEnteredAt=now;this.cameraInputAt=now;if(this.entered&&this.zone==='lobby'&&now-this.activitySentAt>2000){this.activitySentAt=now;this.net.send({type:'activity'});}},{passive:true,signal:this.activityEvents.signal});
   for(const event of ['pointerdown','keydown','wheel'])window.addEventListener(event,this.skipEntranceReveal,{capture:true,passive:true,signal:this.activityEvents.signal});
   window.addEventListener('resize',this.resize);
@@ -561,7 +562,6 @@ export class World{
   if(!this.canStartBroadcast)return;
   this.stopCatView();
   this.route=[];
-  this.clearDancePlacement();
   if(this.pose!=='sit')this.cancelSeat();
   this.marker.visible=false;
   this.input.keys.clear();
@@ -666,7 +666,6 @@ export class World{
 
    if(self.dance&&!previousDance){
     this.catView=false;
-    this.clearDancePlacement();
     this.keepDanceView=this.pendingDanceView&&!self.dance.partnerId&&!self.dance.chair;
     this.pendingDanceView=false;
     this.selectedDanceHost=null;
@@ -677,8 +676,7 @@ export class World{
     this.beginDanceCamera(self);
    }
    if(self.dance&&previousDance&&self.dance.partnerId!==previousDance.partnerId){
-    if(this.keepDanceView)this.startDanceCameraGlide();
-    else this.frameDanceCamera(self);
+    this.frameDanceCamera(self);
    }
    if(previousDance&&!self.dance){
     this.keepDanceView=false;
@@ -695,7 +693,7 @@ export class World{
     if(self.pose==='sit'&&!initial&&!changedZone)this.seatedTarget=new T.Vector3(self.x,self.y??SEATS.find(s=>s.id===self.seatId)?.y??0,self.z);
     else{this.position.set(self.x,self.y??(self.pose==='sit'?(SEATS.find(s=>s.id===self.seatId)?.y??0):0),self.z);this.seatedTarget=null;}
     this.yaw=self.yaw;this.pose=self.pose;
-    if(initial||changedZone){this.catView=false;this.clearDancePlacement();this.pendingDanceView=false;this.clearPetInteraction();this.cameraSeatAmount=self.pose==='sit'?1:0;this.zone=self.zone;this.lobbyEnteredAt=self.zone==='lobby'?performance.now():0;if(self.zone==='auditorium')this.stopHallLoading();
+    if(initial||changedZone){this.catView=false;this.pendingDanceView=false;this.clearPetInteraction();this.cameraSeatAmount=self.pose==='sit'?1:0;this.zone=self.zone;this.lobbyEnteredAt=self.zone==='lobby'?performance.now():0;if(self.zone==='auditorium')this.stopHallLoading();
      // Enter beside the usher so the welcome is visible from the first hall frame.
      if(self.zone==='auditorium'){this.concertView=false;this.hallOverview=true;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.introUntil=0;this.seatWalkAt=0;this.usherGreetingPending=true;}else{this.introUntil=0;this.seatWalkAt=0;}
      this.entranceFraming=self.zone==='auditorium'&&self.pose!=='sit'&&underEntranceRoof(this.position);
@@ -921,7 +919,7 @@ export class World{
  }
  /** Floor menu: jump straight to the rear gallery (2F) or back down to the rear of the stalls (1F). */
  goToGallery(){if(this.zone!=='auditorium')return;this.goToHallPoint(this.position.y<GOLDEN_HALL.balconyHeight-.3?'upper':'rear');}
- private cancelSeat(keepPending=false){this.stopCatView();this.clearDancePlacement();this.visitingCafe=false;this.clearPetInteraction();this.visitingBoxOffice=false;this.visitingWardrobe=false;this.loungeTarget=null;if(!keepPending){this.pendingSeat=null;this.seatWalkAt=0;}this.reserveVersion++;if(this.reservedSeat)this.net.send({type:'release'});this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
+ private cancelSeat(keepPending=false){this.stopCatView();this.visitingCafe=false;this.clearPetInteraction();this.visitingBoxOffice=false;this.visitingWardrobe=false;this.loungeTarget=null;if(!keepPending){this.pendingSeat=null;this.seatWalkAt=0;}this.reserveVersion++;if(this.reservedSeat)this.net.send({type:'release'});this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
  /** Wardrobe changes happen in front of the cloakroom, then travel with the visitor into the hall. */
  visitWardrobe(){
   if(this.zone!=='lobby'||!this.entered||this.net.status!=='connected')return;
@@ -1138,28 +1136,40 @@ export class World{
    this.startDanceCameraGlide();
   }else this.frameDanceCamera(visitor);
  }
- private visitorDancePose(visitor:Visitor,now:number){
+ private visitorDancePose(visitor:Visitor,now:number,localCamera=false){
   const pose=dancePose(visitor,now,JAZZ_HALL);
-  const mirror=this.venues.auditorium?.mirror;
-  if(mirror&&visitor.zone==='auditorium'&&!visitor.dance?.center&&!pose.chair
+  const dance=visitor.dance!,mirror=this.venues.auditorium?.mirror;
+  let chairTurn=0,mirrorYaw:number|undefined;
+  if(mirror&&visitor.zone==='auditorium'&&!dance.center&&!pose.chair
    &&mirror.standingPoint.distanceToSquared(this.mirrorDanceAnchor.set(visitor.x,visitor.y??0,visitor.z))<.29**2){
-   pose.yaw=mirror.root.rotation.y;
+   pose.yaw=mirrorYaw=mirror.root.rotation.y;
   }
   if(pose.chair){
    const chair=magicChairPose(visitor.seatId,this.net.state?.magicChair,now);
-   pose.x+=chair.x;pose.z+=chair.z;pose.yaw+=chair.turn;
+   pose.x+=chair.x;pose.z+=chair.z;pose.yaw+=chair.turn;chairTurn=chair.turn;
+  }
+  if(localCamera&&!dance.center&&!dance.partnerId&&(!pose.chair||pose.chairStand>=1)){
+   const baseline=mirrorYaw??((dance.stop?.yaw??(dance.joinSpot
+    ?Math.atan2(visitor.x-dance.joinSpot.x,visitor.z-dance.joinSpot.z):visitor.yaw))+chairTurn);
+   pose.yaw=soloCameraFacing(pose.yaw,baseline,pose,this.camera.position);
   }
   return pose;
  }
  private readonly mirrorDanceAnchor=new T.Vector3();
  private frameDanceCamera(visitor:Visitor){
-  if(this.mirrorView)return;
-  const dance=visitor.dance!;
+  const dance=visitor.dance!,center=dance.center;
+  if(this.mirrorView&&!center)return;
+  if(center)this.mirrorView=false;
   const facing=this.visitorDancePose(visitor,this.net.now()).yaw;
-  // The camera sits in the direction the avatar's local -Z points.
-  this.cameraYaw=(dance.center?partnerRoutineYaw(dance.angle??facing):facing)+Math.PI;
   this.cameraPitch=.18;
   this.cameraDistance=this.camera.aspect<.8?5.4:4.6;
+  if(center){
+   const walls=this.venues.auditorium?.cameraWalls??this.venue.cameraWalls;
+   this.cameraYaw=duetSideYaw(dance.angle??facing,this.cameraYaw,yaw=>{
+    const frame=danceCameraFrame(center,yaw,this.cameraPitch,this.cameraDistance,true,walls);
+    return frame.position.distanceTo(frame.look);
+   });
+  }else this.cameraYaw=facing+Math.PI;
   this.startDanceCameraGlide();
  }
  private danceCameraGlide=false;
@@ -1176,73 +1186,25 @@ export class World{
  private danceCircles=new DanceCircles();
  private danceNpcs:Visitor[]=[];
  private selectedDanceHost:string|null=null;
- private choosingDanceSpot=false;
- private danceWalk:{route:Point[];target:Point}|null=null;
- get dancePlacementStatus(){
-  return this.choosingDanceSpot?(this.danceWalk?'walking':'choosing'):null;
- }
- private clearDancePlacement(){
-  if(this.danceWalk?.route===this.route){
-   this.route=[];this.marker.visible=false;
-  }
-  this.choosingDanceSpot=false;
-  this.danceWalk=null;
- }
- cancelDancePlacement(){
-  this.clearDancePlacement();
-  this.onChange();
- }
- toggleDancePlacement(){
-  if(this.choosingDanceSpot){this.cancelDancePlacement();return;}
-  if(!this.entered||this.zone!=='auditorium'||this.self?.dance||!this.canChooseDanceSpot())return;
+ startDanceHere(){
+  if(!this.entered||this.zone!=='auditorium'||this.self?.dance||this.net.status!=='connected'
+   ||this.changingZone||this.ridingTrain||this.uiObscured||this.photoMode||this.conducting.active
+   ||this.queenWand.casting||this.queenWand.receiving)return;
   if(this.wishFlowerCard||this.queenWand.charges){this.onToast('손에 든 소품을 내려놓은 뒤 춤을 시작해 주세요.');return;}
   if(this.pose==='sit'){this.danceAction({type:'danceStart'});return;}
-  this.stopBroadcastView();
+  const facing=this.cameraYaw+Math.PI;
+  if(!walkable('auditorium',this.position)){
+   this.onToast('걸어갈 수 있는 공연장 바닥에서 춤을 시작해 주세요.');
+   return;
+  }
   this.cancelSeat();
   this.selectedDanceHost=null;
-  this.route=[];
-  this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;
-  this.choosingDanceSpot=true;
-  this.onChange();
- }
- private canChooseDanceSpot(){
-  return this.net.status==='connected'&&!this.changingZone&&!this.ridingTrain&&!this.uiObscured
-   &&!this.photoMode&&!this.conducting.active&&!this.queenWand.casting&&!this.queenWand.receiving;
- }
- private canDanceAt(point:{x:number;y:number;z:number}){
-  return (this.openHall&&canDanceSoloInGallery(point))
-   ||!!findDanceJoinSpot({...point,yaw:this.cameraYaw+Math.PI});
- }
- chooseDanceSpot(point:Point=this.position){
-  if(!this.choosingDanceSpot||!this.canChooseDanceSpot())return;
-  const y=surfaceHeight('auditorium',point);
-  if(y===null||!this.canDanceAt({...point,y})){
-   this.onToast('이곳에서는 춤출 공간이 부족해요. 다른 바닥을 선택해 주세요.');
-   return;
-  }
-  const target={x:point.x,y,z:point.z};
-  if(distance(this.position,target)<.035){this.startChosenDance();return;}
-  const route=findPath('auditorium',this.position,target);
-  if(!route){this.onToast('걸어갈 수 있는 같은 층의 바닥을 선택해 주세요.');return;}
-  this.route=route;
-  this.danceWalk={route,target};
-  this.marker.position.set(target.x,target.y+.035,target.z);this.marker.visible=true;
-  this.onChange();
- }
- private startChosenDance(){
-  if(!this.canDanceAt(this.position)){
-   this.onToast('이곳에서는 춤출 공간이 부족해요. 다른 바닥을 선택해 주세요.');
-   this.onChange();
-   return;
-  }
-  this.clearDancePlacement();
-  this.yaw=this.cameraYaw+Math.PI;
+  this.yaw=facing;
+  // Keep the camera the visitor chose while walking here. Only a duet reframes it.
   this.danceAction({type:'danceStart'},true);
  }
  danceAction(message:DanceCommand,keepView=false){
   if(this.net.status!=='connected')return;
-  const allowGallerySolo=message.type==='danceStart'&&!this.self?.dance&&this.pose!=='sit'
-   &&this.openHall&&canDanceSoloInGallery(this.position);
   if(message.type!=='danceStop'){
    if(this.conducting.active||this.photoMode||this.queenWand.casting||this.queenWand.receiving)return;
    if(this.wishFlowerCard||this.queenWand.charges){this.onToast('손에 든 소품을 내려놓은 뒤 춤을 시작해 주세요.');return;}
@@ -1257,9 +1219,8 @@ export class World{
    &&self&&dance&&!dance.partnerId&&dance.endingAt===undefined&&!this.net.local
    &&this.danceSelection?.style!==message.style;
   if(message.type==='danceStop')this.predictedSolo=null;
-  const command=message.type==='danceStart'&&allowGallerySolo?{...message,allowGallerySolo:true as const}:message;
   if(message.type==='danceStart'&&!dance)this.pendingDanceView=keepView;
-  const sent=this.net.send(command);
+  const sent=this.net.send(message);
   if(!sent&&keepView)this.pendingDanceView=false;
   if(sent&&predict){
    const pending:Visitor={...self,dance:{...dance,style:message.style,moveStartedAt:this.net.now(),previousMove:undefined}};
@@ -1299,20 +1260,9 @@ export class World{
    if(cat&&this.ray.intersectObjects(cat.targets).length)this.visitAnimal(cat);
    return;
   }
-  if(!this.choosingDanceSpot&&this.clickDanceSpot())return;
+  if(this.clickDanceSpot())return;
   this.selectedDanceHost=null;
   const hits=this.ray.intersectObjects([...(this.zone==='auditorium'?this.encoreTrain?.targets??[]:[]),...(this.venue.usher?.targets??[]),...(this.venue.portrait?[this.venue.portrait.surface]:[]),...(this.dishLayer()?.targets??[]),...(this.activeCat?.targets??[]),...this.venue.dog.targets,...(this.venue.stairArrows?.targets??[]),...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);
-  if(this.choosingDanceSpot){
-   const hit=hits.find(({object,point})=>{
-    if(!object.userData.floor&&!object.userData.walkSurface)return true;
-    // The rear walking proxy can extend above the actual floor.
-    const y=surfaceHeight('auditorium',point);
-    return y!==null&&Math.abs(y-point.y)<.15;
-   });
-   if(hit&&(hit.object.userData.floor||hit.object.userData.walkSurface))this.chooseDanceSpot(hit.point);
-   else this.onToast('춤출 바닥을 선택해 주세요.');
-   return;
-  }
   const hit=hits[0];
   if(!hit)return;
   if(hit.object.userData.trainSeat!==undefined){if(this.ridingTrain)this.net.send({type:'trainBoard',seat:hit.object.userData.trainSeat});return;}
@@ -1742,16 +1692,8 @@ export class World{
   }
   const dance=this.self?.dance;
   if(dance){
-   const center=dance.center?new T.Vector3(dance.center.x,dance.center.y,dance.center.z):this.position.clone();
-   const horizontal=d*Math.cos(this.cameraPitch);
-   if(dance.chair&&this.self){
-    const pose=this.visitorDancePose(this.self,this.net.now());
-    center.set(pose.x,pose.y,pose.z);
-   }
-   const look=center.clone().add(new T.Vector3(0,.75,0));
-   const desired=look.clone().add(new T.Vector3(Math.sin(this.cameraYaw)*horizontal,d*Math.sin(this.cameraPitch),Math.cos(this.cameraYaw)*horizontal));
-   desired.y=Math.max(center.y+.35,desired.y);
-   return {look,position:constrainCamera(look,desired,this.venue.cameraWalls)};
+   const center=dance.center??(dance.chair?this.visitorDancePose(this.self!,this.net.now()):this.position);
+   return danceCameraFrame(center,this.cameraYaw,this.cameraPitch,d,!!dance.center,this.venue.cameraWalls);
   }
   if(this.entranceViewLocked){
    const entry=this.entranceCameraFrame(this.position,this.venue.cameraWalls,this.cameraYaw,this.cameraPitch);
@@ -1925,16 +1867,6 @@ export class World{
    // Walking through the amphitheatre door at the head of the flight enters the hall.
    if(this.zone==='lobby'&&Math.abs(this.position.y-GRAND_STAIR.rise)<.3&&this.position.z>=HALL_INNER_DOOR.approachZ-.02&&this.position.z<HALL_INNER_DOOR.z&&Math.abs(this.position.x)<HALL_INNER_DOOR.halfWidth)void this.changeZone(true);
   }
-  const danceWalk=this.danceWalk;
-  if(this.choosingDanceSpot){
-   if(this.zone!=='auditorium'||this.pose==='sit'||this.self?.dance||!this.canChooseDanceSpot()||(danceWalk&&this.route!==danceWalk.route)){
-    this.cancelDancePlacement();
-   }else if(danceWalk&&!this.route.length){
-    this.danceWalk=null;
-    if(distance(this.position,danceWalk.target)<.06)this.startChosenDance();
-    else this.onChange();
-   }
-  }
   if(this.pose==='sit'&&this.seatedTarget)this.position.lerp(this.seatedTarget,1-Math.exp(-dt*7));
   const mirror=this.venue.mirror;
   const mirrorDistance=mirror?this.position.distanceTo(mirror.standingPoint):Infinity;
@@ -2009,7 +1941,7 @@ export class World{
    this.avatar.wishing=this.wishing;
    this.avatar.trainPassenger=this.ridingTrain;
    const dancer=this.danceVisitor;
-   const dance=dancer?.dance?this.visitorDancePose(dancer,clock):null;
+   const dance=dancer?.dance?this.visitorDancePose(dancer,clock,true):null;
    const lunarSwing=lunarPose?Math.sin(Math.PI*this.lunarStride)*.86:undefined;
    this.avatar.update(clock/1000,speed,dance?.chair?1-dance.chairStand:seated,music,dance?.chair?null:gesture,gestureAge,dt,cameraFacing,!!dance?.captain,lunarSwing);
    if(highFive){

@@ -556,10 +556,6 @@ body.photo-active #world > :not(canvas){display:none!important}
 .actionbar button.dance-start{min-width:44px;min-height:44px;color:var(--gold)}
 .actionbar button.dance-start svg{color:#ffe092}
 
-.dance-placement{max-width:calc(100% - 20px);justify-content:center;flex-wrap:wrap;color:#eadbb7;font-size:13px}
-.dance-placement span{padding-inline:8px}
-.dance-placement button{background:#67513155}
-.dance-placement button:hover{background:#675131}
 .actionbar button.dance-start[aria-pressed="true"]{background:#675131}
 
 .dance-moves{display:grid;grid-template-columns:repeat(6,44px);gap:4px}

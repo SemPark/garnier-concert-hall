@@ -79,6 +79,30 @@ test('solo dance visibly swings both arms and alternates lifted feet at a fixed 
  assert.ok(samples[0].right-samples[0].left>.06);
  assert.ok(samples[1].left-samples[1].right>.06);
 });
+test('switching from captain to solo floss keeps each front mitten beside the waist',()=>{
+ const visitor=guest('solo',0),avatar=new Avatar(0x252733,undefined,4),mitten=new T.Vector3();
+ assert.equal(handleDance(visitor,[visitor],{type:'danceStart'},9500),null);
+ assert.equal(handleDance(visitor,[visitor],{type:'danceStart',style:'step'},10000),null);
+ const captain=dancePose(visitor,11900);
+ avatar.update(11.9,0,false,false,null,10,1/30,undefined,!!captain.captain);
+ poseDancingAvatar(avatar,captain);
+ assert.ok(avatar.leftHand.parent!==avatar.leftArm&&avatar.rightHand.parent!==avatar.rightArm);
+
+ assert.equal(handleDance(visitor,[visitor],{type:'danceStart',style:'clap'},12000),null);
+ const duration=danceMoveDuration(visitor.dance);
+ for(const [phase,side,hand,arm] of [
+  [.125,-1,avatar.leftHand,avatar.leftArm],
+  [.625,1,avatar.rightHand,avatar.rightArm],
+ ] as const){
+  const now=12000+duration*(1+phase),floss=dancePose(visitor,now);
+  avatar.update(now/1000,0,false,false,null,10,1/30,undefined,!!floss.captain);
+  poseDancingAvatar(avatar,floss);
+  assert.ok(hand.parent===arm,'the hand returns to its straight arm after the captain move');
+  avatar.body.worldToLocal(hand.getWorldPosition(mitten));
+  assert.ok(side*mitten.x>.08,'the front mitten stays on its own side of the torso');
+  assert.ok(mitten.y<arm.position.y-.12,'the front sleeve drops visibly below the shoulder');
+ }
+});
 test('solo move buttons repeat and keep their selection across cycles',()=>{
  const host=guest('solo',0);
  const visitors=[host];
@@ -156,13 +180,15 @@ test('partners can start on the rear table aisle and keep the center of their ad
  assert.deepEqual(host.dance!.center,{x:0,y:PARTERRE.floor,z:38.6});
  assert.deepEqual(partner.dance!.center,host.dance!.center);
 });
-test('a tight space requires walking to a reachable dance spot on the same floor',()=>{
+test('a tight space allows solo in place, but a duet still needs a reachable spot on the same floor',()=>{
  for(const start of [{x:0,z:43,y:0},{x:14.7,z:10,y:8.3}]){
   const y=surfaceHeight('auditorium',start)!;
   const host:Visitor={...guest('host',start.x),...start,y};
-  assert.ok(handleDance(host,[host],{type:'danceStart'},10000));
+  assert.equal(handleDance(host,[host],{type:'danceStart'},10000),null);
   assert.equal(host.z,start.z);
-  assert.equal(host.dance,undefined);
+  assert.deepEqual(host.dance,{startedAt:10000});
+  assert.ok(handleDance(host,[host],{type:'danceJoinNpc'},10500));
+  finishDance(host,[host],11000,true);
   const target=findNearbyDanceSpace(host,point=>findPath('auditorium',host,point)!==null);
   assert.ok(target);
   assert.notEqual(target.z,start.z);
@@ -175,16 +201,10 @@ test('a tight space requires walking to a reachable dance spot on the same floor
   assert.equal(spot.y,target.y);
  }
 });
-test('space mode can start a solo dance in a narrow gallery without opening a partner spot',()=>{
- const host:Visitor={...guest('host',14.7),y:8.3,z:10};
- const start={type:'danceStart',allowGallerySolo:true} as const;
- assert.equal(handleDance(host,[host],start,10000),null);
- assert.deepEqual(host.dance,{startedAt:10000});
- const pose=dancePose(host,10500);
- assert.deepEqual([pose.x,pose.y,pose.z],[host.x,host.y,host.z]);
- assert.ok(handleDance(host,[host],{type:'danceJoinNpc'},10500));
- const below:Visitor={...guest('ground',0),y:0,z:43};
- assert.ok(handleDance(below,[below],start,10000));
+test('a physically blocked spot cannot start a standing dance',()=>{
+ const host:Visitor={...guest('host',15.5),y:8.3,z:10};
+ assert.ok(handleDance(host,[host],{type:'danceStart'},10000));
+ assert.equal(host.dance,undefined);
 });
 test('an available spot admits only one partner',()=>{
  const {a,b,all}=pair();
