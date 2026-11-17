@@ -2,6 +2,7 @@ import {DanceControls,DanceStart} from './DanceControls';
 import {QueenCardGame} from './QueenCardGame';
 import {WishTarot} from './WishTarot';
 import {ProgramBook} from './ProgramBook';
+import {PlaylistCover} from './PlaylistCover';
 import {PhotoMode} from './PhotoMode';
 import {ConductingExperience} from './ConductingExperience';
 import coffeeIcon from './assets/cafe/coffee.webp';
@@ -11,7 +12,7 @@ import {reportLoading,reportInitialHallLoading,failLoading} from './loading';
 import {Wardrobe} from './Wardrobe';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {CONCERT_OPTIONS,HALL_ID,INITIAL_PLAYLIST,LOBBY_ENABLED,OPEN_INITIAL_PICKER,PLAYLISTS,type ConcertOption} from './audio/playlist';
-import {nextPiece} from '../shared/timeline';
+import {adjacentPiece} from '../shared/timeline';
 import {createRoot} from 'react-dom/client';
 import {World} from './World';
 import {GalaxySettings,GalaxyCredits} from './GalaxySettings';
@@ -35,6 +36,7 @@ function Icon({name,size=20}:{name:string;size?:number}){
    <path d="M7.4 1.8 4.9 6.3Q5.8 8.9 8.7 10.5l2.1.5 2.5-.5q3.3-2.7 4.7-5.4l1.2-3M10.8 11l2.4 4.3-2 6.8m2-6.8-4.3 3.1-2.3 3.7"/>
   </g>,
   train:<><rect x="5" y="3" width="14" height="15" rx="4"/><path d="M5 10h14M9 3v7M15 3v7M7 21l2-3m8 3-2-3"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></>,
+  cat:<><path d="M4 12V5l5 3h6l5-3v7c0 4.5-3.6 7-8 7s-8-2.5-8-7Z"/><path d="M9 12h.01M15 12h.01m-4 3 1 1 1-1M4 14l-2-.5m18 .5 2-.5"/></>,
   camera:<><path d="M3 7h4l2-3h6l2 3h4v13H3Z"/><circle cx="12" cy="13" r="4"/></>,
   hall:<><path d="m3 8 9-5 9 5M3 21h18M5 10v8m5-8v8m4-8v8m5-8v8M3 8h18"/></>,
   planet:<><circle cx="12" cy="12" r="6.5"/><path d="M6 10.5C3.1 12.7 1.4 15 2.2 16.3c1 1.7 6.2.9 11.5-2.2s8.8-6.9 7.8-8.6c-.7-1.2-3.3-.9-6.3.2"/></>,
@@ -57,6 +59,9 @@ function Icon({name,size=20}:{name:string;size?:number}){
   settings:<><path d="M19.0 10.3L21.5 10.6L21.5 13.4L19.0 13.7L18.2 15.7L19.7 17.7L17.7 19.7L15.7 18.2L13.7 19.0L13.4 21.5L10.6 21.5L10.3 19.0L8.3 18.2L6.3 19.7L4.3 17.7L5.8 15.7L5.0 13.7L2.5 13.4L2.5 10.6L5.0 10.3L5.8 8.3L4.3 6.3L6.3 4.3L8.3 5.8L10.3 5.0L10.6 2.5L13.4 2.5L13.7 5.0L15.7 5.8L17.7 4.3L19.7 6.3L18.2 8.3Z"/><circle cx="12" cy="12" r="3"/></>,
   arrow:<path d="M4 12h15m-6-6 6 6-6 6"/>,
   close:<path d="m6 6 12 12M6 18 18 6"/>,
+  skip:<path d="M3 6a1 1 0 0 1 1.55-.83L12 10.1V6a1 1 0 0 1 1.55-.83l7.5 4.95a2.25 2.25 0 0 1 0 3.76l-7.5 4.95A1 1 0 0 1 12 18v-4.1l-7.45 4.93A1 1 0 0 1 3 18Z" fill="currentColor" stroke="none"/>,
+  chevronDown:<path d="m6 9 6 6 6-6"/>,
+  playlist:<><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4" cy="6" r=".7" fill="currentColor"/><circle cx="4" cy="12" r=".7" fill="currentColor"/><circle cx="4" cy="18" r=".7" fill="currentColor"/></>,
   music:<><path d="M9 18V5l11-2v13M9 8l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="16" rx="3" ry="2"/></>,
   wave:<><path d="M8 12V5a1.5 1.5 0 0 1 3 0v6-8a1.5 1.5 0 0 1 3 0v8-7a1.5 1.5 0 0 1 3 0v8-5a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-13 4L3 13a1.7 1.7 0 0 1 2.5-2L8 14"/></>,
   seat:<><path d="M5 12V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v7M4 10v7h16v-7M6 17v4m12-4v4M4 13h16"/></>,
@@ -72,7 +77,6 @@ function Icon({name,size=20}:{name:string;size?:number}){
  };
  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]??paths.hall}</svg>;
 }
-function format(t:number){return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;}
 const HALL_AUDIO_KEY='pleee-hall-audio';
 function concertHref({hallId,playlistId}:ConcertOption){
  const url=new URL(location.href);
@@ -129,13 +133,14 @@ function ViewModeMenu({world,onBroadcast}:{world:World;onBroadcast:()=>void}){
   trigger.current?.focus();
  };
  const modes=[
-  {icon:'walk',label:'걷기 시점',active:!world.broadcastView&&!world.concertView,disabled:world.entranceViewLocked&&world.concertView&&!world.broadcastView,
-   action:()=>{if(world.concertView)world.toggleConcertView();else world.stopBroadcastView();}},
-  {icon:'overview',label:'홀 전체 보기',active:!world.broadcastView&&world.concertView&&world.hallOverview,disabled:world.entranceViewLocked,
+  {icon:'walk',label:'걷기',active:!world.listeningView&&!world.broadcastView&&!world.concertView,disabled:world.entranceViewLocked&&world.concertView&&!world.broadcastView,
+   action:()=>{if(world.listeningView)world.stopListeningView();else if(world.concertView)world.toggleConcertView();else world.stopBroadcastView();}},
+  {icon:'music',label:'테이블 감상',active:world.listeningView,disabled:!world.canStartListening&&!world.listeningView,action:()=>world.toggleListeningView()},
+  {icon:'overview',label:'홀 전체',active:!world.broadcastView&&world.concertView&&world.hallOverview,disabled:world.entranceViewLocked,
    action:()=>world.showHallOverview()},
-  {icon:'stageLow',label:'무대 올려다보기',active:!world.broadcastView&&world.concertView&&!world.hallOverview&&world.stageLowView,disabled:world.entranceViewLocked,
+  {icon:'stageLow',label:'무대 올려보기',active:!world.broadcastView&&world.concertView&&!world.hallOverview&&world.stageLowView,disabled:world.entranceViewLocked,
    action:()=>world.setStageView(true)},
-  {icon:'camera',label:'방송용 카메라',active:world.broadcastView,disabled:!world.canStartBroadcast&&!world.broadcastView,
+  {icon:'camera',label:'방송 카메라',active:world.broadcastView,disabled:!world.canStartBroadcast&&!world.broadcastView,
    action:()=>{world.toggleBroadcastView();if(world.broadcastView)onBroadcast();}},
  ];
  return <>
@@ -149,7 +154,7 @@ function ViewModeMenu({world,onBroadcast}:{world:World;onBroadcast:()=>void}){
   </button>
   <div ref={options} id="view-mode-options" className="view-mode-options" popover="auto" role="group" aria-label="보기 모드">
    {modes.map(({icon,label,active,disabled,action})=><button key={icon} type="button" aria-pressed={active}
-    title={disabled&&icon!=='camera'?'입구를 지나면 시점을 바꿀 수 있어요':undefined} disabled={disabled} onClick={()=>select(action)}>
+    title={disabled&&icon==='music'?'테이블 좌석에 앉은 뒤 사용할 수 있어요':disabled&&icon!=='camera'?'입구를 지나면 시점을 바꿀 수 있어요':undefined} disabled={disabled} onClick={()=>select(action)}>
     <Icon name={icon} size={20}/><span>{label}</span>
    </button>)}
   </div>
@@ -167,19 +172,24 @@ function App(){
  const [programOpen,setProgramOpen]=useState(false);
  const [menu,setMenu]=useState(true);
  const [hallPickerOpen,setHallPickerOpen]=useState(OPEN_INITIAL_PICKER);
+ const [musicExpanded,setMusicExpanded]=useState(false);
+ const [musicListOpen,setMusicListOpen]=useState(false);
+ const musicPlayer=useRef<HTMLElement>(null),musicToggle=useRef<HTMLButtonElement>(null);
  const hallPicker=useRef<HTMLDivElement>(null),hallPickerButton=useRef<HTMLButtonElement>(null);
  useEffect(()=>{
-  if(!hallPickerOpen)return;
+  if(!hallPickerOpen&&!musicExpanded)return;
   const dismiss=(event:PointerEvent)=>{
-   if(event.target instanceof Node&&!hallPicker.current?.contains(event.target))setHallPickerOpen(false);
+   if(!(event.target instanceof Node))return;
+   if(hallPickerOpen&&!hallPicker.current?.contains(event.target))setHallPickerOpen(false);
+   if(musicExpanded&&!musicPlayer.current?.contains(event.target))setMusicExpanded(false);
   };
   window.addEventListener('pointerdown',dismiss);
   return ()=>window.removeEventListener('pointerdown',dismiss);
- },[hallPickerOpen]);
+ },[hallPickerOpen,musicExpanded]);
  // Man/woman window shown in the lobby after entering; it closes once the visitor picks.
  const [conducting,setConducting]=useState(false);const closeConducting=useCallback(()=>setConducting(false),[]);
  const [lookPicker,setLookPicker]=useState(false);const [wardrobe,setWardrobe]=useState(false);
- const [app,setApp]=useState<{world:World;net:Presence;audio:ConcertAudio}|null>(null),[,redraw]=useState(0),[entered,setEntered]=useState(false),[settings,setSettings]=useState(false),[seats,setSeats]=useState(false),[musicExpanded,setMusicExpanded]=useState(false),[reactions,setReactions]=useState(false),[toast,setToast]=useState(''),[error,setError]=useState('');
+ const [app,setApp]=useState<{world:World;net:Presence;audio:ConcertAudio}|null>(null),[,redraw]=useState(0),[entered,setEntered]=useState(false),[settings,setSettings]=useState(false),[seats,setSeats]=useState(false),[reactions,setReactions]=useState(false),[toast,setToast]=useState(''),[error,setError]=useState('');
  const [probeProgress,setProbeProgress]=useState(''),[probeReport,setProbeReport]=useState(''),[probeMessage,setProbeMessage]=useState('');
  const [iphonePending,setIphonePending]=useState(false);
  const iphoneBridge=import.meta.env.DEV&&['localhost','127.0.0.1'].includes(location.hostname);
@@ -216,14 +226,14 @@ function App(){
  useEffect(()=>{if(settings){dialog.current?.showModal();app?.world.input.keys.clear();}else dialog.current?.close();},[settings,app]);
  const world=app?.world,net=app?.net,audio=app?.audio,p=audio?.playback,zone=world?.zone??'lobby',connected=net?.status==='connected',sitting=world?.pose==='sit';
  const program=audio?.playlist;
- const next=p&&program?nextPiece(program,p.index):null;
+ const currentTrack=p?.track.stage&&program?adjacentPiece(program,p.index):p?.track;
  const atWishTarotTable=!!world?.atWishTarotTable;
  const tableSeat=zone==='auditorium'&&sitting?world?.self?.seatId:null;
  useEffect(()=>{setDismissedTablePrompt(null);},[tableSeat]);
  const showTablePrompt=!!tableSeat&&dismissedTablePrompt!==tableSeat&&connected&&!world?.self?.dance&&!seats&&!settings&&!wardrobe&&!programOpen&&!queenGameOpen&&!wishTarotOpen&&!world?.photoMode;
  const dismissTablePrompt=()=>setDismissedTablePrompt(tableSeat??null);
  useEffect(()=>{if(!atWishTarotTable||!connected||world?.photoMode)setWishTarotOpen(false);},[atWishTarotTable,connected,world?.photoMode]);
- useEffect(()=>{if(zone!=='lobby')setWardrobe(false);setProgramOpen(false);setQueenGameOpen(false);},[zone]);
+ useEffect(()=>{if(zone!=='lobby')setWardrobe(false);setProgramOpen(false);setQueenGameOpen(false);setMusicExpanded(false);setMusicListOpen(false);},[zone]);
  const closeSeats=useCallback(()=>setSeats(false),[]);
  const chooseMappedSeat=useCallback((id:string)=>{if(!world)return;if(world.zone==="lobby")world.chooseSeatFromLobby(id);else void world.chooseSeat(id,true);},[world]);
  useEffect(()=>{if(!world)return;world.uiObscured=(seats||settings||wardrobe||programOpen||queenGameOpen||wishTarotOpen)&&!probeProgress;if(world.uiObscured)world.input.keys.clear();return()=>{world.uiObscured=false;};},[world,seats,settings,wardrobe,programOpen,queenGameOpen,wishTarotOpen,probeProgress]);
@@ -304,7 +314,16 @@ function App(){
 
  return <>
   {world?.photoMode&&<PhotoMode world={world}/>}
-  {world?.broadcastView&&<button className="broadcast-exit" type="button" autoFocus onClick={()=>world.stopBroadcastView()}><Icon name="close" size={16}/>방송 보기 종료</button>}
+  {world?.catView&&<button className="broadcast-exit" type="button" autoFocus onClick={()=>world.stopCatView()}><Icon name="close" size={16}/>고양이 보기 종료</button>}
+  {world?.listeningView&&<button className="listening-exit" type="button" onClick={()=>world.stopListeningView()}><Icon name="close" size={16}/>감상 종료</button>}
+  {world?.broadcastView&&<button className="broadcast-exit" type="button" autoFocus onClick={()=>world.stopBroadcastView()}><Icon name="close" size={16}/>방송 종료</button>}
+  {world?.concertView&&zone==='auditorium'&&!world.entranceViewLocked&&
+   !world.listeningView&&!world.broadcastView&&!world.catView&&!world.photoMode&&
+   !world.ridingTrain&&!world.self?.dance&&!conducting&&
+   <button className="concert-view-exit" type="button" aria-label="걷기로 돌아가기" title="걷기로 돌아가기" onClick={()=>{
+    world.toggleConcertView();
+    world.renderer.domElement.focus();
+   }}><Icon name="exit" size={20}/></button>}
   <div className="vignette"/>
   {(world?.hallLoading&&initialHallReady)&&<div className="hall-loading" role="status" aria-live="polite" aria-busy="true"><div className="hall-loading-card"><span className="hall-loading-spinner" aria-hidden="true"/><h2>공연장으로 들어가고 있어요</h2><p>무대와 좌석을 준비하고 있어요. 잠시만 기다려 주세요.</p></div></div>}
 
@@ -312,8 +331,48 @@ function App(){
    {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LOBBY':JAZZ_HALL?'pleee jazz':'pleee hall'}</span><span>{zone==='lobby'?'로비':'공연장'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ').replace('jazz-','재즈홀 ')??'입장 중'}</span></div>}
    {queenGameOpen&&world&&<QueenCardGame onResult={won=>world.queenCardResult(won)} onClose={()=>setQueenGameOpen(false)}/>}
    {wishTarotOpen&&atWishTarotTable&&connected&&<WishTarot onClose={closeWishTarot} onFlower={(card,image)=>{world?.receiveWishFlower(card,image);closeWishTarot();}}/>}
-   {programOpen&&p&&program&&<ProgramBook playlist={program} playback={p} onClose={()=>{setProgramOpen(false);world?.renderer.domElement.focus();}}/>}
-   {zone==='auditorium'&&p&&<aside className={`now-playing ${(!world?.concertView||world?.pose==='walk'||window.innerWidth<700)&&!musicExpanded?'compact-music':''}`}><button className="music-summary" aria-label={musicExpanded?'음악 정보 접기':'음악 정보 펼치기'} aria-expanded={musicExpanded} onClick={()=>setMusicExpanded(v=>!v)}><Icon name="music" size={14}/><span>{p.playing?p.track.title:`곧 이어서 — ${next?.title??''}`}</span><span>{musicExpanded?'−':'+'}</span></button><div className="music-details"><div className="now-label"><span className={`equalizer ${audio?.enabled&&p.playing?'active':''}`}><i/><i/><i/></span>{p.playing?(p.track.stage?'ON STAGE':'NOW PLAYING'):'잠시 후'}</div><h2>{p.playing?p.track.title:`곧 이어서 — ${next?.title??''}`}</h2><p>{p.playing&&!p.track.stage?p.track.composer:`다음 곡: ${next?.title??''}`}{!p.playing&&` · ${Math.ceil(p.remaining)}초 후`}</p>{p.playing&&!p.track.stage&&next&&<p className="next-track">다음 곡: {next.title}</p>}<div className="progress-track"><span style={{width:`${p.playing?p.offset/p.track.durationSeconds*100:0}%`}}/></div><div className="track-meta"><span>{audio?.state}</span><span>{format(p.offset)} / {format(p.track.durationSeconds)}</span></div></div></aside>}
+   {programOpen&&audio&&program&&<ProgramBook playlist={program} playlistId={audio.playlistId} onClose={()=>{setProgramOpen(false);world?.renderer.domElement.focus();}}/>}
+   {zone==='auditorium'&&audio&&program&&currentTrack&&<aside className="now-playing" ref={musicPlayer} aria-label="음악 재생" onKeyDown={event=>{
+    if(event.key!=='Escape'||!musicExpanded)return;
+    event.stopPropagation();
+    setMusicExpanded(false);
+    musicToggle.current?.focus();
+   }}>
+    <button type="button" className="music-summary" ref={musicToggle} aria-expanded={musicExpanded} aria-controls="music-panel" onClick={()=>{
+     setHallPickerOpen(false);
+     setMusicExpanded(open=>!open);
+    }}>
+     <span className="music-thumbnail" aria-hidden="true"><PlaylistCover playlistId={audio.playlistId} name={program.name}/></span>
+     <span className="music-summary-copy">
+      <strong>{currentTrack.title}</strong>
+      <span>{currentTrack.credit?.artist??currentTrack.composer}</span>
+     </span>
+     <Icon name="chevronDown" size={14}/>
+    </button>
+    <div className="music-panel" id="music-panel" hidden={!musicExpanded}>
+     <PlaylistCover playlistId={audio.playlistId} name={program.name}/>
+     <div className="music-track" aria-live="polite">
+      <h2>{currentTrack.title}</h2>
+      <p>{currentTrack.credit?.artist??currentTrack.composer}</p>
+     </div>
+     <div className="music-controls">
+      <button type="button" className="music-control music-previous" aria-label="이전 곡" title="이전 곡" onClick={()=>{audio.skipTrack(-1);redraw(n=>n+1);}}>
+       <Icon name="skip" size={21}/>
+      </button>
+      <button type="button" className="music-control music-next" aria-label="다음 곡" title="다음 곡" onClick={()=>{audio.skipTrack();redraw(n=>n+1);}}>
+       <Icon name="skip" size={21}/>
+      </button>
+      <button type="button" className="music-control music-list-toggle" aria-label="플레이리스트" title="플레이리스트" aria-expanded={musicListOpen} aria-controls="music-list" onClick={()=>setMusicListOpen(open=>!open)}>
+       <Icon name="playlist" size={19}/>
+      </button>
+     </div>
+     <ol className="music-list" id="music-list" aria-label={program.name??'플레이리스트'} hidden={!musicListOpen}>
+      {musicListOpen&&program.tracks.filter(track=>!track.stage).map(track=><li key={track.id} aria-current={track.id===currentTrack.id?'true':undefined}>
+       <strong>{track.title}</strong><span>{track.credit?.artist??track.composer}</span>
+      </li>)}
+     </ol>
+    </div>
+   </aside>}
    <nav className="tools" aria-label="음악당 설정">
     <div className="hall-picker" data-concert-picker ref={hallPicker} onKeyDown={event=>{
      if(event.key!=='Escape'||!hallPickerOpen)return;

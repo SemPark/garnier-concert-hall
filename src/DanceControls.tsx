@@ -18,12 +18,21 @@ function DanceMoveIcon({style}:{style:DanceStyle}){
 
 export function DanceStart({world,disabled,children}:{world:World;disabled:boolean;children:ReactNode}){
  return <button type="button" className="dance-start" aria-label="춤추기" title="춤추기" disabled={disabled}
-  onClick={()=>world.danceAction({type:'danceStart'})}>{children}</button>;
+  aria-pressed={!!world.dancePlacementStatus} onClick={()=>world.toggleDancePlacement()}>{children}</button>;
 }
 
 export function DanceControls({world,exitIcon}:{world:World;exitIcon:ReactNode}){
  const dance=world.danceSelection;
- if(!dance||world.zone!=='auditorium')return null;
+ if(world.zone!=='auditorium')return null;
+ if(!dance&&world.dancePlacementStatus){
+  const walking=world.dancePlacementStatus==='walking';
+  return <div className="dance-controls dance-placement" role="group" aria-label="춤 위치 선택">
+   <span role="status">{walking?'선택한 자리로 이동 중':'춤출 바닥을 선택하세요'}</span>
+   {!walking&&<button type="button" onClick={()=>world.chooseDanceSpot()}>현재 위치</button>}
+   <button type="button" onClick={()=>world.cancelDancePlacement()}>취소</button>
+  </div>;
+ }
+ if(!dance)return null;
  const ending=dance.endingAt!==undefined;
  return <div className="dance-controls" role="group" aria-label="춤 조작">
   <div className="dance-moves">{(dance.partnerId?PARTNER_DANCES:SOLO_DANCES).map(({id,label})=>

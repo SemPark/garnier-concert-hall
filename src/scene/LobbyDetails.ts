@@ -3,6 +3,7 @@ import {ATRIUM as A,GRAND_STAIR as S,LOBBY_ARCADE} from '../../shared/grandStair
 import {box,cylinder,sphere,line,material} from './primitives';
 import {surfaceMaterial} from './SurfaceMaterials';
 import {hallImage,woodMaterial} from './HallTextures';
+import {cameraFadeGroup} from './CameraFade';
 
 /** The hall's ivory, gilt frames and shared image motifs continue into the foyer. */
 export const LOBBY_PALETTE={ivory:0xe8d6ac,gold:0xc69b49,light:0xe7c77a,deep:0x8e622a,red:0x6f2830,glass:0xb9cfd8};
@@ -41,13 +42,15 @@ export function buildLobbyDetails(scene:T.Scene){
  for(const z of [A.front+.14,A.back-.14])lobbyWoodWall(wallFrame(scene,0,z,z>A.front+1?Math.PI:0),A.halfWidth*2,12,7.3,true);
  // End arcades continue the same spring heights and share the side cornice datum.
  for(const z of [A.front+A.balconyDepth,A.back-A.balconyDepth])for(const x of LOBBY_ARCADE.endColumns.slice(1,-1))for(const base of [A.balconyY,13.4]){
-  cylinder(scene,.29,.16,[x,base+.08,z],P.deep);cylinder(scene,.235,1.95,[x,base+1.22,z],P.ivory).material=surfaceMaterial('marble',0xded6c8);cylinder(scene,.31,.15,[x,base+2.35,z],P.gold);box(scene,[.72,.16,.72],[x,base+2.48,z],P.light);
+  const column=cameraFadeGroup(scene);
+  cylinder(column,.29,.16,[x,base+.08,z],P.deep);cylinder(column,.235,1.95,[x,base+1.22,z],P.ivory).material=surfaceMaterial('marble',0xded6c8);cylinder(column,.31,.15,[x,base+2.35,z],P.gold);box(column,[.72,.16,.72],[x,base+2.48,z],P.light);
  }
  // Single round shafts at the joints shared by adjacent arches; no doubled piers.
  for(const side of [-1,1])for(const z of LOBBY_ARCADE.columns)for(const [base,h] of [[0,3.6],[A.balconyY,2.6],[13.4,2.6]]){
   const x=side*LOBBY_ARCADE.x;
-  cylinder(scene,.34,.16,[x,base+.08,z],P.deep);cylinder(scene,.29,.14,[x,base+.23,z],P.light);
-  cylinder(scene,.235,h-.55,[x,base+h/2,z],P.ivory).material=surfaceMaterial('marble',0xded6c8);cylinder(scene,.3,.14,[x,base+h-.22,z],P.gold);box(scene,[.72,.16,.72],[x,base+h-.07,z],P.light);
+  const column=cameraFadeGroup(scene);
+  cylinder(column,.34,.16,[x,base+.08,z],P.deep);cylinder(column,.29,.14,[x,base+.23,z],P.light);
+  cylinder(column,.235,h-.55,[x,base+h/2,z],P.ivory).material=surfaceMaterial('marble',0xded6c8);cylinder(column,.3,.14,[x,base+h-.22,z],P.gold);box(column,[.72,.16,.72],[x,base+h-.07,z],P.light);
  }
  for(const side of [-1,1]){
   for(const z of LOBBY_ARCADE.bays){const frame=wallFrame(scene,side*(A.halfWidth-.2),z,-side*Math.PI/2);if(!(side===-1&&z<36)&&!(side===1&&z===LOBBY_ARCADE.bays[0]))panel(frame,3.7,4.3,3.05);panel(frame,3.7,4.5,10.25);windowBay(frame,3.3);}

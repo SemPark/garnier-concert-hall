@@ -93,6 +93,9 @@ export class HallTransition {
   }
  }
  configureGalaxies(settings:GalaxySettings){this.galaxies?.configure(settings);}
+ broadcastSaturn(point:T.Vector3){
+  return this.progress>.8?this.planets?.saturnPosition(point):undefined;
+ }
  frameSaturn(camera:T.Camera){this.planets?.frameSaturn(camera);}
  update(dt:number,concertSeconds=0){
   this.planets?.orbit(concertSeconds);

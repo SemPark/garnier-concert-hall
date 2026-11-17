@@ -9,6 +9,7 @@ import {isOutfit,atCloakroom} from '../../shared/wardrobe';
 import {LOUNGE_SEATS} from '../../shared/loungeSeats';
 import {SEATS,HALL_DESTINATIONS,DESTINATION_ZONE,isHallDestination,SPAWN,PALETTE,atCafe,distance,walkable,isLook,isCandleState,type Visitor} from '../../shared/venue';
 import type {ClientMessage,Snapshot} from '../../shared/protocol';
+import {startHighFive} from '../../shared/highFive';
 import {isGesture,gestureSeconds} from '../../shared/gestures';
 
 /** A single visitor session for static hosts that cannot run WebSocket servers. */
@@ -65,7 +66,11 @@ export class LocalConcert{
      if(v.drinkSips===DISH_BITES)v.drinkEmptyAt=Date.now()+gestureSeconds('drink')*1000;
      return true;
     }
-if(!isGesture(msg.gesture)||(msg.gesture==='eat'||msg.gesture==='drink')&&(v.gesture==='eat'||v.gesture==='drink')&&Date.now()-v.gestureAt<3200||msg.gesture==='eat'&&(!v.macaron||(v.macaronBites??0)>=2||!!v.macaronEmptyAt)||msg.gesture==='drink'&&(!v.coffee||(v.coffeeSips??0)>=3||v.gesture==='drink'&&Date.now()-v.gestureAt<gestureSeconds('drink')*1000))return false;if(msg.gesture==='eat'){v.macaronBites=(v.macaronBites??0)+1;if(v.macaronBites===2)v.macaronEmptyAt=Date.now()+gestureSeconds('eat')*1000;}if(msg.gesture==='drink'){v.coffeeSips=(v.coffeeSips??0)+1;if(v.coffeeSips===3)v.coffeeEmptyAt=Date.now()+gestureSeconds('drink')*1000;}v.gesture=msg.gesture;v.gestureAt=Date.now();return true;
+    if(msg.gesture==='wave'&&msg.highFive){
+     const now=Date.now();
+     if(startHighFive(v,msg.highFive,[v],now)){v.gesture=null;v.gestureAt=now;return true;}
+    }
+    if(!isGesture(msg.gesture)||(msg.gesture==='eat'||msg.gesture==='drink')&&(v.gesture==='eat'||v.gesture==='drink')&&Date.now()-v.gestureAt<3200||msg.gesture==='eat'&&(!v.macaron||(v.macaronBites??0)>=2||!!v.macaronEmptyAt)||msg.gesture==='drink'&&(!v.coffee||(v.coffeeSips??0)>=3||v.gesture==='drink'&&Date.now()-v.gestureAt<gestureSeconds('drink')*1000))return false;if(msg.gesture==='eat'){v.macaronBites=(v.macaronBites??0)+1;if(v.macaronBites===2)v.macaronEmptyAt=Date.now()+gestureSeconds('eat')*1000;}if(msg.gesture==='drink'){v.coffeeSips=(v.coffeeSips??0)+1;if(v.coffeeSips===3)v.coffeeEmptyAt=Date.now()+gestureSeconds('drink')*1000;}v.gesture=msg.gesture;v.gestureAt=Date.now();return true;
    default:return true;
   }
  }

@@ -1,3 +1,4 @@
+import type {HighFivePose} from './highFivePose';
 import * as T from 'three';
 import {Avatar} from './Avatar';
 import {SPAWN} from '../../shared/venue';
@@ -9,6 +10,7 @@ export const USHER_LINES={welcome:'어서 오세요. 또 처음 뵙네요.',ask:
 export class Usher{
  readonly avatar=new Avatar(0x5e1624,undefined,0);
  readonly targets:T.Object3D[]=[];
+ private readonly idleYaw=Math.atan2(USHER.x-SPAWN.auditorium.x,USHER.z-SPAWN.auditorium.z);
  private greetAt=-10;
  private speechUntil=0;
  private readonly speech=document.createElement('div');
@@ -45,7 +47,7 @@ export class Usher{
   this.speech.setAttribute('role','status');
   this.speech.setAttribute('aria-live','polite');
   this.speech.hidden=true;
-  a.root.position.set(USHER.x,y,USHER.z);a.root.rotation.y=Math.atan2(USHER.x-SPAWN.auditorium.x,USHER.z-SPAWN.auditorium.z);
+  a.root.position.set(USHER.x,y,USHER.z);a.root.rotation.y=this.idleYaw;
   const hit=new T.Mesh(new T.CylinderGeometry(.45,.45,1.8,8),new T.MeshBasicMaterial({visible:false}));hit.position.y=.9;hit.userData.usher=true;a.root.add(hit);this.targets.push(hit);
   scene.add(a.root);
  }
@@ -75,9 +77,13 @@ export class Usher{
   this.speech.hidden=false;
  }
  dispose(){this.speech.remove();}
- update(time:number,dt:number,reduced=false){
+ update(time:number,dt:number,reduced=false,highFive?:HighFivePose){
+  this.avatar.root.position.x=USHER.x;
+  this.avatar.root.position.z=USHER.z;
+  this.avatar.root.rotation.y=this.idleYaw;
   const age=time-this.greetAt;
   this.avatar.update(time,0,false,false,null,age,dt);
+  if(highFive){this.avatar.highFive(highFive,'left');return;}
   if(reduced||age<0||age>5)return;
   const bow=Math.sin(Math.PI*T.MathUtils.clamp(age/1.2,0,1))*.16;
   const guide=T.MathUtils.smoothstep(age,.8,1.8)*(1-T.MathUtils.smoothstep(age,4,5));

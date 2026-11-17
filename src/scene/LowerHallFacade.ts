@@ -4,6 +4,7 @@ import {WALL_DATUM} from './HallWallBands';
 import {box,cylinder,sphere,line,material} from './primitives';
 import {hallImage} from './HallTextures';
 import {hallPanelSconce} from './HallLighting';
+import {cameraFadeGroup} from './CameraFade';
 
 const GOLD=0xc69b49,LIGHT=0xe7c77a,IVORY=0xe8d6ac,RED=0x753e31;
 const gold=material(GOLD,.68,.34),pale=material(LIGHT,.6,.38);
@@ -13,7 +14,7 @@ let foldedPrototype:T.Group|undefined;
 /** A single draped herm, with folded arms; its crown meets the first-floor soffit. */
 function foldedCaryatid(parent:T.Object3D,x:number){
  if(foldedPrototype){const copy=foldedPrototype.clone(true);copy.position.x=x;parent.add(copy);return copy;}
- const g=new T.Group();g.position.x=x;g.userData.landmark='first-floor-folded-caryatid';g.userData.occluderGroup=true;parent.add(g);
+ const g=cameraFadeGroup(parent);g.position.x=x;g.userData.landmark='first-floor-folded-caryatid';
  // The ornamental pedestal is as high as the projecting front parapet.
  for(const [w,h,y,d]of [[1.02,.14,.07,.66],[.88,.13,.205,.58],[.74,.70,.62,.51],[.84,.12,1.03,.59],[.96,.14,1.16,.68]])box(g,[w,h,d],[0,y,.31],GOLD).material=gold;
  hallImage(g,'relief',.64,.57,0,.63,.58);

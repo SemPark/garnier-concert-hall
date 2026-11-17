@@ -13,15 +13,19 @@ test('near-wall cutaways retain the enclosing hall shell instead of opening a ho
  const matrix=new T.Matrix4(),positions:number[]=[];for(const o of scene.children)if(o instanceof T.InstancedMesh)for(let i=0;i<o.count;i++){o.getMatrixAt(i,matrix);positions.push(matrix.elements[12]);}
  assert.ok(positions.includes(16),'the side wall enclosing the camera must remain rendered');
 });
-test('stair batches fade independently of other meshes sharing the same finish',()=>{
+test('fade groups keep marked occluders visible and fade independently of the same finish',()=>{
  const scene=new T.Scene(),flight=cameraFadeGroup(scene),step=wall(0),other=wall(10);
+ step.userData.cameraOccluder=true;
  other.material=step.material;flight.add(step);scene.add(other);
- batchArchitecture(scene,[]);
+ const update=batchArchitecture(scene,[]),camera=new T.PerspectiveCamera(60,1,.08,100);
+ const focus=new T.Vector3(0,0,-2);
+ camera.position.z=2;camera.lookAt(focus);scene.userData.cameraFocus=focus;update(camera);
  const [fade]=scene.userData.cameraFades as CameraFade[];
- fade.update(new T.Vector3(0,0,2),new T.Vector3(0,0,-2),5,1);
+ fade.update(camera.position,focus,5,1);
  const batches=scene.children.filter(o=>o instanceof T.InstancedMesh);
  const transparent=batches.filter(({material})=>(material as T.Material).transparent);
  assert.equal(transparent.length,1);
+ assert.equal(transparent[0].count,1);
  assert.ok((transparent[0].material as T.Material).opacity<.2);
  fade.update(new T.Vector3(0,0,2),new T.Vector3(0,0,1),5,1);
  assert.ok(batches.every(({material})=>!(material as T.Material).transparent));

@@ -60,6 +60,11 @@ for(const room of ['hall-97','jazz-97']){
   const at=a.self.dance!.moveStartedAt!+800;
   assert.equal(dancePose(a.self,at).badLean,dancePose(b.self,at).badLean);
   assert.equal(dancePose(a.self,at).hold,0);
+  await until(()=>Date.now()>=a.self.dance!.moveStartedAt!+200,'shared routine begins');
+  const basicAt=Date.now();
+  b.send({type:'danceStart',style:'bad'});
+  await until(()=>[a,b].every(({self:{dance}})=>dance?.partnerId&&dance.style===undefined&&dance.moveStartedAt===undefined&&dance.previousMove===undefined),'toggle back to the basic pair step');
+  assert.ok([a,b].every(client=>dancePose(client.self,basicAt).hold===1));
   a.send({type:'danceStop'});
   await until(()=>a.self.dance?.endingAt&&b.self.dance?.endingAt,'shared farewell');
   const bowAt=a.self.dance!.endingAt!+1072;

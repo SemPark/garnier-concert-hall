@@ -28,7 +28,6 @@ export const LOBBY_FURNITURE={
  // The composer statues stand in the street vestibule beyond the entrance, not in this hall.
  busts:[] as {x:number;z:number;hx:number;hz:number}[],
  torchieres:[] as {x:number;z:number;hx:number;hz:number}[],
- programBoard:{x:-5.7,z:30,hx:1.1,hz:.6},
 } as const;
 export const COMPOSERS=['LULLI','GLUCK'] as const;
 /** Lobby floor: the Grand Escalier hall itself. */

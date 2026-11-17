@@ -141,6 +141,7 @@ export class SpacePlanets {
   this.saturn.add(this.saturnRing);
   this.addDistantPlanets();
  }
+ saturnPosition(point:T.Vector3){return this.saturn.getWorldPosition(point);}
  private planetSurface(radius:number,detail:number,light:T.Vector3,file:string,spinPeriod:number){
   const geometry=new T.SphereGeometry(radius,detail,detail===48?32:16);
   const normals=geometry.getAttribute('normal'),colors=new Float32Array(normals.count*3),normal=new T.Vector3();

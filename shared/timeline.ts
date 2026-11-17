@@ -16,8 +16,9 @@ export function playbackAt(list:Playlist,now:number):Playback{
  throw new Error('Unreachable timeline');
 }
 
-/** The next piece of music after this point in the program, for "다음 곡" hints. */
-export function nextPiece(list:Playlist,index:number):Track|null{
- for(let i=1;i<=list.tracks.length;i++){const t=list.tracks[(index+i)%list.tracks.length];if(!t.stage)return t;}
+/** Find an adjacent piece of music, skipping staged intervals. */
+export function adjacentPiece(list:Playlist,index:number,direction:1|-1=1):Track|null{
+ const count=list.tracks.length;
+ for(let i=1;i<=count;i++){const track=list.tracks[(index+direction*i+count)%count];if(!track.stage)return track;}
  return null;
 }

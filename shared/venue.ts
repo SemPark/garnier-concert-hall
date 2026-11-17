@@ -11,6 +11,7 @@ import {AMPHITHEATRE_DOOR} from './grandStair';
 import {LOBBY_CHRISTMAS_TREE} from './grandStair';
 import {OUTFITS,type Outfit} from './wardrobe';
 import {GOLDEN_HALL as H} from './goldenHall';
+import type {HighFive} from './highFive';
 import type {Gesture} from './gestures';
 import type {Dish} from './dishes';
 import {STAIR_DOORS,GALLERY_BRIDGE,REAR_COLUMNS,REAR_SCREENS,hasGalleryFloor} from './gallery';
@@ -24,12 +25,12 @@ export const isLook=(v:unknown):v is Look=>v==='man'||v==='woman';
 function appearanceSeed(id:string){let hash=2166136261;for(const ch of id)hash=Math.imul(hash^ch.charCodeAt(0),16777619);return hash>>>0;}
 /** Independent skin, look and hair choices, stable for the same visitor on every screen. */
 export function visitorVariant(v:{id:string;look?:Look}){const seed=appearanceSeed(v.id),look=v.look??(seed&4?'woman':'man');return (seed&3)+(look==='woman'?4:0)+((seed>>>8)&7)*8;}
-export type Visitor={dance?:DanceState;trainSeat?:number;id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronBites?:number;macaronEmptyAt?:number;dish?:Dish;dishBites?:number;dishEmptyAt?:number;drink?:'coffee'|'wine'|'tea';drinkSips?:number;teaReadyAt?:number;drinkEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
+export type Visitor={highFive?:HighFive;dance?:DanceState;trainSeat?:number;id:string;name:string;color:number;look?:Look;outfit?:Outfit;candle?:CandleState;macaron?:boolean;macaronBites?:number;macaronEmptyAt?:number;dish?:Dish;dishBites?:number;dishEmptyAt?:number;drink?:'coffee'|'wine'|'tea';drinkSips?:number;teaReadyAt?:number;drinkEmptyAt?:number;coffee?:boolean;coffeeSips?:number;coffeeEmptyAt?:number;zone:Zone;x:number;y?:number;z:number;yaw:number;pose:Pose;seatId:string|null;loungeSeatId?:string|null;gesture:Gesture|null;gestureAt:number};
 export type Seat={id:string;x:number;z:number;approach:Point;row:number;column:number;level:'parterre'|'balcony';y:number;yaw:number};
-export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number};
+export type Obstacle={x:number;z:number;hx:number;hz:number;y?:number;dinnerFurniture?:true};
 // Dinner-show floor: round tables with chairs all around (the theatre rows are kept in theatreSeating.ts).
 export {DINNER_TABLES,TABLE_RADIUS} from './dinnerTables';
-import {DINNER_TABLES,DINNER_ROWS,DINNER_LANES_X,DINNER_CROSS_LANE,TABLE_RADIUS,DINNER_SIT_DROP,dinnerSeats} from './dinnerTables';
+import {DINNER_TABLES,DINNER_ROWS,DINNER_LANES_X,DINNER_CROSS_LANE,TABLE_RADIUS,DINNER_SIT_DROP,DINNER_SIT_BACK,dinnerSeats} from './dinnerTables';
 /** Walking lanes between the table columns, and the wall-side aisles. */
 export const FLOOR_AISLES=[-12.9,...DINNER_LANES_X,12.9];
 /** Table rows (centre z), front to back. */
@@ -101,17 +102,49 @@ export function surfaceHeight(zone:Zone,p:Point,fromY=p.y??0):number|null{
  if(fromY<1&&fromY>PARTERRE.floor-.4&&Math.abs(p.x)<=15.65&&p.z>=STAGE_APRON_Z&&p.z<=50.3)return parterreHeight(p.x,p.z);
  return null;
 }
-const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[PROGRAM_BOOK,...FLOOR_SEATS.map(s=>({x:s.x+(isMagicChair(s.id)?Math.sin(s.yaw)*MAGIC_CHAIR_TRAVEL/2:0),z:s.z+(isMagicChair(s.id)?Math.cos(s.yaw)*MAGIC_CHAIR_TRAVEL/2:0),hx:.38+(isMagicChair(s.id)?Math.abs(Math.sin(s.yaw))*MAGIC_CHAIR_TRAVEL/2:0),hz:.38+(isMagicChair(s.id)?Math.abs(Math.cos(s.yaw))*MAGIC_CHAIR_TRAVEL/2:0),y:s.y+DINNER_SIT_DROP})),...DINNER_TABLES.map(t=>({x:t.x,z:t.z,hx:TABLE_RADIUS+.1,hz:TABLE_RADIUS+.1,y:PARTERRE.floor})),...[-1,1].flatMap(side=>LOWER_STATUES.map(z=>({x:side*(15.3+LOWER_FINISH_RECESS),z,hx:.45,hz:.48,y:0}))),...SIDE_BOX_SEATS.map(s=>({x:s.x,z:s.z,hx:.45,hz:.54,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...[-1,1].flatMap(side=>[PARTERRE.floor,0].map(y=>({x:side*(16+PARTERRE.stairHalfWidth)/2,z:(PARTERRE.stairFront+44.2)/2,hx:(16-PARTERRE.stairHalfWidth)/2,hz:(44.2-PARTERRE.stairFront)/2,y}))),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [PARTERRE.floor,0].map(y=>({x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y}));})],lobby:[
+const OBSTACLES:Record<Zone,Obstacle[]>={auditorium:[PROGRAM_BOOK,...FLOOR_SEATS.map(s=>({x:s.x+(isMagicChair(s.id)?Math.sin(s.yaw)*MAGIC_CHAIR_TRAVEL/2:0),z:s.z+(isMagicChair(s.id)?Math.cos(s.yaw)*MAGIC_CHAIR_TRAVEL/2:0),hx:.38+(isMagicChair(s.id)?Math.abs(Math.sin(s.yaw))*MAGIC_CHAIR_TRAVEL/2:0),hz:.38+(isMagicChair(s.id)?Math.abs(Math.cos(s.yaw))*MAGIC_CHAIR_TRAVEL/2:0),y:s.y+DINNER_SIT_DROP,dinnerFurniture:true as const})),...DINNER_TABLES.map(t=>({x:t.x,z:t.z,hx:TABLE_RADIUS+.1,hz:TABLE_RADIUS+.1,y:PARTERRE.floor,dinnerFurniture:true as const})),...[-1,1].flatMap(side=>LOWER_STATUES.map(z=>({x:side*(15.3+LOWER_FINISH_RECESS),z,hx:.45,hz:.48,y:0}))),...SIDE_BOX_SEATS.map(s=>({x:s.x,z:s.z,hx:.45,hz:.54,y:0})),...BALCONY_SEATS.map(s=>({x:s.x,z:s.z,hx:.48,hz:.57,y:s.y})),...[-1,1].flatMap(side=>[PARTERRE.floor,0].map(y=>({x:side*(16+PARTERRE.stairHalfWidth)/2,z:(PARTERRE.stairFront+44.2)/2,hx:(16-PARTERRE.stairHalfWidth)/2,hz:(44.2-PARTERRE.stairFront)/2,y}))),...REAR_COLUMNS.xs.map(x=>({x,z:REAR_COLUMNS.z,hx:REAR_COLUMNS.radius,hz:REAR_COLUMNS.radius,y:0})),...[-1,1].flatMap(side=>{const r=REAR_SCREENS,t=r.thickness/2;return [PARTERRE.floor,0].map(y=>({x:side*(r.innerX+r.outerX)/2,z:r.z,hx:(r.outerX-r.innerX)/2,hz:t,y}));})],lobby:[
  ...[-1,1].map(side=>({x:side*(GRAND_STAIR.flightHalf+.06),z:GRAND_STAIR.flightEnd,hx:.29,hz:.29,y:GRAND_STAIR.rise})),
  ...[-1,1].map(side=>({x:side*2.55,z:AMPHITHEATRE_DOOR.z-.75,hx:.52,hz:.46,y:GRAND_STAIR.rise})),
  ...LOBBY_ARCADE.endColumns.flatMap(x=>[ATRIUM.front+ATRIUM.balconyDepth,ATRIUM.back-ATRIUM.balconyDepth].map(z=>({x,z,hx:.33,hz:.33,y:ATRIUM.balconyY}))),
  ...[-1,1].flatMap(side=>[0,ATRIUM.balconyY].flatMap(y=>LOBBY_ARCADE.columns.map(z=>({x:side*LOBBY_ARCADE.x,z,hx:.33,hz:.33,y})))),
 
  {x:LOBBY_CHRISTMAS_TREE.x,z:LOBBY_CHRISTMAS_TREE.z,hx:LOBBY_CHRISTMAS_TREE.radius,hz:LOBBY_CHRISTMAS_TREE.radius,y:0},
- ...[F.boxOffice,F.cloakroom,F.cafeCounter,...F.ticketRails,...F.wardrobeRails,...F.sofas,F.ottoman,...F.busts,...F.torchieres,F.programBoard].map(f=>({...f,y:0}))]};
+ ...[F.boxOffice,F.cloakroom,F.cafeCounter,...F.ticketRails,...F.wardrobeRails,...F.sofas,F.ottoman,...F.busts,...F.torchieres].map(f=>({...f,y:0}))]};
 const CELLS:Record<Zone,Map<string,Obstacle[]>>={lobby:new Map(),auditorium:new Map()};
 for(const zone of ['lobby','auditorium'] as const)for(const o of OBSTACLES[zone])for(let x=Math.floor((o.x-o.hx-1)/2);x<=Math.floor((o.x+o.hx+1)/2);x++)for(let z=Math.floor((o.z-o.hz-1)/2);z<=Math.floor((o.z+o.hz+1)/2);z++){const key=`${x},${z}`,items=CELLS[zone].get(key)??[];items.push(o);CELLS[zone].set(key,items);}
 export function obstacles(zone:Zone):Obstacle[]{return OBSTACLES[zone];}
-export function walkable(zone:Zone,p:Point,padding=.27){const b=BOUNDS[zone],h=surfaceHeight(zone,p,p.y??0),y=p.y??0;return !(zone==='auditorium'&&y<1&&p.z>=LOWER_HALL.front&&p.z<=LOWER_HALL.rear&&Math.abs(p.x)>LOWER_WALL_INNER_X-padding)&&!(zone==='auditorium'&&Math.abs(y-H.balconyHeight)<.6&&Math.abs(p.x)>UPPER_WALK_LIMIT-padding)&&h!==null&&Math.abs(h-y)<.32&&p.x>=b.minX&&p.x<=b.maxX&&p.z>=b.minZ&&p.z<=b.maxZ&&!(padding>1?OBSTACLES[zone]:CELLS[zone].get(`${Math.floor(p.x/2)},${Math.floor(p.z/2)}`)??[]).some(o=>Math.abs((o.y??0)-y)<.6&&Math.abs(p.x-o.x)<o.hx+padding&&Math.abs(p.z-o.z)<o.hz+padding);}
+function walkableAt(zone:Zone,p:Point,padding:number,includeDinnerFurniture:boolean){const b=BOUNDS[zone],h=surfaceHeight(zone,p,p.y??0),y=p.y??0;return !(zone==='auditorium'&&y<1&&p.z>=LOWER_HALL.front&&p.z<=LOWER_HALL.rear&&Math.abs(p.x)>LOWER_WALL_INNER_X-padding)&&!(zone==='auditorium'&&Math.abs(y-H.balconyHeight)<.6&&Math.abs(p.x)>UPPER_WALK_LIMIT-padding)&&h!==null&&Math.abs(h-y)<.32&&p.x>=b.minX&&p.x<=b.maxX&&p.z>=b.minZ&&p.z<=b.maxZ&&!(padding>1?OBSTACLES[zone]:CELLS[zone].get(`${Math.floor(p.x/2)},${Math.floor(p.z/2)}`)??[]).some(o=>(includeDinnerFurniture||!o.dinnerFurniture)&&Math.abs((o.y??0)-y)<.6&&Math.abs(p.x-o.x)<o.hx+padding&&Math.abs(p.z-o.z)<o.hz+padding);}
+export function walkable(zone:Zone,p:Point,padding=.27){
+ return walkableAt(zone,p,padding,true);
+}
+export function walkableDanceFloor(point:Point){
+ return walkableAt('auditorium',point,.27,false);
+}
+
+const dinnerChairFootprints=FLOOR_SEATS.map(seat=>{
+ const sin=Math.sin(seat.yaw),cos=Math.cos(seat.yaw);
+ const travel=isMagicChair(seat.id)?MAGIC_CHAIR_TRAVEL/2:0;
+ // Include the backrest and, for moving chairs, the full slide and turn.
+ const offset=travel-DINNER_SIT_BACK;
+ return {x:seat.x+sin*offset,z:seat.z+cos*offset,sin,cos,hx:travel?.36:.30,hz:travel?.34+travel:.28};
+});
+
+/** Test the dance envelope against the circular cloth and chair-aligned footprints. */
+export function clearsDinnerFurniture(center:Point,radius:number){
+ if(Math.abs((center.y??0)-PARTERRE.floor)>=.6)return true;
+ const tableRadius=radius+TABLE_RADIUS+.12;
+ for(const table of DINNER_TABLES){
+  if((center.x-table.x)**2+(center.z-table.z)**2<tableRadius**2)return false;
+ }
+ const radiusSquared=radius**2;
+ for(const chair of dinnerChairFootprints){
+  const dx=center.x-chair.x,dz=center.z-chair.z;
+  const localX=Math.abs(dx*chair.cos-dz*chair.sin);
+  const localZ=Math.abs(dx*chair.sin+dz*chair.cos);
+  if(Math.max(0,localX-chair.hx)**2+Math.max(0,localZ-chair.hz)**2<radiusSquared)return false;
+ }
+ return true;
+}
+
 export function distance(a:Point,b:Point){return Math.hypot(a.x-b.x,a.z-b.z,(a.y??0)-(b.y??0));}
 export function canSit(p:Point,seat:Seat){return distance(p,seat.approach)<.4&&Math.abs((p.y??0)-seat.y)<.25;}

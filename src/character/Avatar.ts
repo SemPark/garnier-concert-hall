@@ -1,3 +1,4 @@
+import {turnForHighFive,type HighFivePose} from './highFivePose';
 import {buildTeaCup} from './TeaCup';
 import {buildFork,buildWineGlass,WINE_SCALE} from '../scene/DinnerDishes';
 import {JAZZ_HALL} from '../../shared/hallKind';
@@ -275,7 +276,8 @@ export class Avatar{
   }});
   if(!instrument){this.fork=buildFork();this.fork.scale.setScalar(0);this.forkBite=new T.Mesh(forkBiteGeometry,new T.MeshStandardMaterial({roughness:.6}));this.forkBite.position.set(0,.01,-.15);this.fork.add(this.forkBite);this.rightHand.add(this.fork);this.wineGlass=buildWineGlass();this.wineGlass.position.set(-.07,-.03,-.05);this.wineGlass.scale.setScalar(0);this.rightHand.add(this.wineGlass);this.coffeeCup=buildCoffeeCup();this.rightHand.add(this.coffeeCup);this.teaCup=buildTeaCup();this.teaCup.position.set(-.13,-.08,-.035);this.teaCup.rotation.y=Math.PI;this.teaCup.scale.setScalar(0);this.rightHand.add(this.teaCup);this.macaron=buildMacaron();this.macaron.scale.setScalar(0);this.leftHand.add(this.macaron);}
   const shadow=new T.Mesh(shadowGeometry,shadowMaterial);shadow.rotation.x=-Math.PI/2;shadow.position.y=.012;this.root.add(shadow);
-  if(instrument){buildInstrument(instrument,this.instrument,this.leftHand,this.rightHand);if(FLOOR_INSTRUMENTS.has(instrument)){this.root.add(this.instrument);this.instrument.userData.floorAnchored=true;if(instrument==='cello')this.instrument.position.y=.64;}if(instrument==='conductor'||JAZZ_HALL&&instrument==='piano')santaHat(this.head);/* the big band's leader plays the piano */}
+  if(instrument){buildInstrument(instrument,this.instrument,this.leftHand,this.rightHand);if(FLOOR_INSTRUMENTS.has(instrument)){this.root.add(this.instrument);this.instrument.userData.floorAnchored=true;if(instrument==='cello')this.instrument.position.y=.64;}}
+  if(instrument==='conductor'||vocalist)santaHat(this.head,vocalist);
  }
  /** Orchestra bodies are settled once; only the head and rigid arms need live transforms. */
  disposeDanceSleeves(){
@@ -430,6 +432,20 @@ export class Avatar{
   }
  }
  /** Each arm is one rigid piece: rotate only at the shoulder, never stretch or bend. */
+ highFive(pose:HighFivePose,side:'left'|'right'='right'){
+  this.root.position.x+=pose.dx;
+  this.root.position.z+=pose.dz;
+  this.root.rotation.y=turnForHighFive(this.root.rotation.y,pose.yaw+Math.PI,pose.turn);
+  if(pose.reach<=0)return;
+  const arm=this[side];
+  const point=this.body.worldToLocal(this.direction.set(pose.hand.x,pose.hand.y,pose.hand.z));
+  const reach=T.MathUtils.lerp(ARM_LENGTH,T.MathUtils.clamp(point.distanceTo(arm.shoulder.position),.23,.49),pose.reach);
+  this.aimAt(arm,point.x,point.y,point.z,pose.reach);
+  arm.hand.position.y=-reach;
+  arm.hand.quaternion.copy(arm.shoulder.quaternion).invert();
+  const sleeve=arm.shoulder.children.find(child=>child instanceof T.Mesh);
+  if(sleeve){sleeve.scale.y=reach/ARM_LENGTH;sleeve.position.y=-(reach-.06)/2;}
+ }
  private aimAt(arm:Arm,x:number,y:number,z:number,weight=1){this.direction.set(x,y,z).sub(arm.shoulder.position).normalize();this.armRotation.setFromUnitVectors(DOWN,this.direction);arm.shoulder.quaternion.slerp(this.armRotation,weight);}
  /** Reach for the cat's actual head in world space, regardless of the approach direction. */
  pet(point:T.Vector3,time:number,reduced:boolean){
@@ -679,8 +695,8 @@ function santaHatGeometry(segments:number,radial:number){
  geometry.computeVertexNormals();return geometry;
 }
 const santaHatNear=santaHatGeometry(14,16),santaHatFar=santaHatGeometry(8,8);
-function santaHat(head:T.Group){
- const hat=new T.Group();hat.position.set(0,.4,.045);hat.userData.costume='santa-hat';head.add(hat);
+function santaHat(head:T.Group,vocalist:boolean){
+ const hat=new T.Group();hat.position.set(0,vocalist?.47:.4,vocalist?-.075:.045);hat.userData.costume='santa-hat';head.add(hat);
  const cone=new T.Mesh(santaHatNear,material(0xa91e2d));cone.userData.lowDetail=santaHatFar;hat.add(cone);
  const brim=new T.Mesh(new T.TorusGeometry(.30,.055,8,32),material(0xfff4e3));brim.rotation.x=Math.PI/2;hat.add(brim);sphere(hat,.085,[.26,.29,0],0xfff4e3);
 }

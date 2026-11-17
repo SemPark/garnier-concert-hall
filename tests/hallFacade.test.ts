@@ -8,7 +8,7 @@ import {FLOOR_AISLES,walkable} from '../shared/venue';
 import {GOLDEN_HALL as H} from '../shared/goldenHall';
 
 test('the repeatable architectural images stay below 192 KB and reuse one material per image',()=>{
- const dir=new URL('../src/assets/hall/',import.meta.url),files=readdirSync(dir).filter(f=>/\.(svg|webp)$/.test(f)&&!['conductor-programme.webp','garnier-stair-ceiling.webp'].includes(f));
+ const dir=new URL('../src/assets/hall/',import.meta.url),files=readdirSync(dir).filter(f=>/\.(svg|webp)$/.test(f)&&!['garnier-stair-ceiling.webp'].includes(f));
  assert.equal(files.length,9);assert.ok(files.reduce((sum,f)=>sum+statSync(new URL(f,dir)).size,0)<192*1024);
  for(const kind of ['scroll','relief','pilaster','soffit','ceiling1','ceiling2','walnut','damask','fresco'] as const)assert.equal(hallImageMaterial(kind),hallImageMaterial(kind));
  for(const file of files.filter(f=>f.endsWith('.svg'))){const svg=readFileSync(new URL(file,dir),'utf8');assert.ok(!/<image\b|<script\b|https?:\/\/(?!www.w3.org)/.test(svg),'no photo, script or remote dependency belongs in the reusable art');}

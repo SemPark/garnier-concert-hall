@@ -2,18 +2,15 @@ import {buildLobbyCafe} from './LobbyCafe';
 import * as T from 'three';
 import {Avatar} from '../character/Avatar';
 import {LOUNGE_SEATS} from '../../shared/loungeSeats';
-import {buildProgramBoard} from './ProgramBoard';
 import {buildTicketRails} from './TicketGuide';
 import {box,cylinder,sphere,line,text,material,C} from './primitives';
 import {woodMaterial} from './HallTextures';
 import {LOBBY_FURNITURE as F,COMPOSERS} from '../../shared/grandStair';
 
-export type ProgramInfo={now:string;next:string;remaining:string;playing:boolean;seats:number;capacity:number};
-export type ProgramBoard={update:(info:ProgramInfo)=>void};
 const velvet=0x7c2430,brass=0xb8934f,walnut=0x5a3b25,marbleWhite=0xe8e1d3;
 
-/** Box office, cloakroom, café, lounge, composer busts and the live programme board for the lobby. */
-export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{programBoard:ProgramBoard}{
+/** Box office, cloakroom, café, lounge and composer busts for the lobby. */
+export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):void{
  buildTicketRails(scene);
  const hit=new T.MeshBasicMaterial({visible:false});
  for(const seat of LOUNGE_SEATS){const target=new T.Mesh(new T.BoxGeometry(.8,1.1,.8),hit);target.position.set(seat.x,.65,seat.z);target.userData.loungeSeatId=seat.id;scene.add(target);clickTargets.push(target);}
@@ -70,5 +67,4 @@ export function buildLobbyAmenities(scene:T.Scene,clickTargets:T.Object3D[]):{pr
   box(g,[.9,.75,.8],[0,2.8,-.15],st);box(g,[.85,.9,.3],[0,3.6,-.45],st);cylinder(g,.33,.95,[0,3.55,-.05],st);sphere(g,.24,[0,4.25,-.05],st);
   for(const side of [-1,1]){box(g,[.26,.22,.8],[side*.2,3.0,.35],st);box(g,[.22,.75,.24],[side*.2,2.6,.72],st);line(g,new T.Vector3(side*.33,3.85,-.05),new T.Vector3(side*.4,3.15,.35),.09,st);}
   box(g,[.9,.24,.02],[0,1.45,.66],brass);text(g,COMPOSERS[i],.85,[0,1.45,.68],'#3a2a1c');});
- return {programBoard:buildProgramBoard(scene)};
 }

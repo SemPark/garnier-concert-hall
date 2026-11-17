@@ -452,14 +452,20 @@ void main(){
   const startSpeed=2*previous*span/(previous+span),endSpeed=2*span*next/(span+next);
   return start+progress*(startSpeed+progress*(3*span-2*startSpeed-endSpeed+progress*(startSpeed+endSpeed-2*span)));
  }
+ private travelDistance(stationTime:number){
+  return this.routeDistance(Math.max(0,stationTime-STATION_DWELL)/TRAIN_PERIOD);
+ }
+ middleCarPosition(seconds:number,target:T.Vector3){
+  const stationTime=T.MathUtils.euclideanModulo(seconds,TRAIN_PERIOD+STATION_DWELL);
+  return this.curve.getPointAt(this.travelDistance(stationTime),target);
+ }
  update(seconds:number,visible:boolean,reducedMotion=false){
   this.root.visible=visible;
   if(!visible)return;
   this.boardingGuide.update(reducedMotion?0:seconds);
   const cycle=TRAIN_PERIOD+STATION_DWELL;
   const stationTime=T.MathUtils.euclideanModulo(seconds,cycle);
-  const travelPhase=Math.max(0,stationTime-STATION_DWELL)/TRAIN_PERIOD;
-  const headDistance=this.routeDistance(travelPhase)+2.55/this.length;
+  const headDistance=this.travelDistance(stationTime)+2.55/this.length;
   this.stationAscent.visible=!reducedMotion&&stationTime<ARRIVAL_ASCENT_DURATION;
   if(this.stationAscent.visible)this.stationAscent.material.uniforms.uTime.value=stationTime;
   for(const effect of [this.stationPulse,this.stationRibbons]){

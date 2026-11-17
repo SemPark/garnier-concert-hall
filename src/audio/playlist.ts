@@ -4,6 +4,7 @@ import fantasy from '../../content/playlist-fantasy.json';
 import jazz from '../../content/playlist-jazz.json';
 import warmth from '../../content/playlist-jazz-warmth.json';
 import nightscape from '../../content/playlist-jazz-nightscape.json';
+import yeoun from '../../content/playlist-jazz-yeoun.json';
 import {JAZZ_HALL} from '../../shared/hallKind';
 import type {Playlist} from '../../shared/timeline';
 
@@ -14,6 +15,7 @@ export const CONCERT_OPTIONS = [
  {hallId:'jazz',playlistId:'jazz-carol',label:'재즈 홀 - 캐롤'},
  {hallId:'jazz',playlistId:'jazz-warmth',label:'재즈 홀 - 온기'},
  {hallId:'jazz',playlistId:'jazz-nightscape',label:'재즈 홀 - 야경'},
+ {hallId:'jazz',playlistId:'jazz-yeoun',label:'재즈 홀 - 여운'},
 ] as const;
 export type ConcertOption = typeof CONCERT_OPTIONS[number];
 export type PlaylistId = ConcertOption['playlistId'];
@@ -26,6 +28,7 @@ export const PLAYLISTS = {
  'jazz-carol':jazz as Playlist,
  'jazz-warmth':import.meta.env.VITE_JAZZ_WARMTH_READY==='true'?warmth as Playlist:null,
  'jazz-nightscape':import.meta.env.VITE_JAZZ_NIGHTSCAPE_READY==='true'?nightscape as Playlist:null,
+ 'jazz-yeoun':import.meta.env.VITE_JAZZ_YEOUN_READY==='true'?yeoun as Playlist:null,
 };
 
 export const DEFAULT_PLAYLIST=JAZZ_HALL?'jazz-carol':'classical-carol';

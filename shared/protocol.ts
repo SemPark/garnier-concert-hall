@@ -3,6 +3,7 @@ import type {MagicChairState} from './magicChair';
 import type {Dish} from './dishes';
 import type {Outfit} from './wardrobe';
 import type {Visitor,Zone,Pose,Look,CandleState,HallDestination} from './venue';
+import type {HighFiveTarget} from './highFive';
 import type {Gesture} from './gestures';
 export type SeatClaim={visitorId:string;status:'reserved'|'seated';expiresAt:number|null};
 export type Snapshot={magicChair?:MagicChairState;revision:number;visitors:Visitor[];seats:Record<string,SeatClaim>;serverNow:number;roomId:string};
@@ -32,7 +33,7 @@ export type ClientMessage=
  |{type:'loungeSit';seatId:string}
  |{type:'release';requestId?:string}
  |{type:'renew';seatId:string}
- |{type:'gesture';gesture:Gesture}
+ |{type:'gesture';gesture:Gesture;highFive?:HighFiveTarget}
  |{type:'look';look:Look}
  |{type:'outfit';outfit:Outfit}
  |{type:'coffee'}

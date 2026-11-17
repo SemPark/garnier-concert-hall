@@ -1,5 +1,5 @@
 import {DINNER_SIT_BACK} from './dinnerTables';
-import {BOUNDS,SEATS,distance,surfaceHeight,walkable,type Point,type Visitor} from './venue';
+import {BOUNDS,SEATS,distance,surfaceHeight,walkable,walkableDanceFloor,clearsDinnerFurniture,type Point,type Visitor} from './venue';
 import {GOLDEN_HALL} from './goldenHall';
 
 export const SOLO_DANCES=[
@@ -48,14 +48,19 @@ export const DANCE_END_MS=1600;
 const CHAIR_STAND_MS=340;
 const CHAIR_CUSHION_Y=.625;
 export const DANCE_RADIUS=.4;
+const DANCE_SWEEP_RADIUS=1.2;
+const DANCE_ANCHOR_RADIUS=.77;
 const FLOSS_SIDE=[1,1,1,-1,-1,-1];
 const FLOSS_CROSS=[0,1,0,0,-1,0];
 const smooth=(x:number)=>{const t=Math.max(0,Math.min(1,x));return t*t*(3-2*t);};
 const activeMove=(dance:DanceState,now:number)=>dance.previousMove&&now<(dance.moveStartedAt??0)?dance.previousMove:dance;
 
 function selectDanceMove(dance:DanceState,style:DanceStyle,now:number,moveLeader?:0|1){
- if(dance.style===style&&dance.moveLeader===moveLeader)return dance;
- if(!dance.partnerId)return {...dance,style,moveStartedAt:now,moveLeader,previousMove:undefined};
+ if(!dance.partnerId){
+  if(dance.style===style)return dance;
+  return {...dance,style,moveStartedAt:now,moveLeader,previousMove:undefined};
+ }
+ if(dance.style===style)return {...dance,style:undefined,moveStartedAt:undefined,moveLeader:undefined,previousMove:undefined};
  const current=activeMove(dance,now);
  const {style:previousStyle,moveStartedAt,moveLeader:previousLeader}=current;
  const duration=danceMoveDuration({style:previousStyle,partnerId:dance.partnerId});
@@ -94,6 +99,8 @@ export function dancePose(v:Visitor,now:number,jazz=false){
  const moveAge=moveNow-(move.moveStartedAt??Infinity);
  const duration=danceMoveDuration({style,partnerId:d.partnerId});
  const playing=style!==undefined&&moveAge>=0;
+ const pairedShimmy=!!center&&playing&&style==='shimmy';
+ const soloBody=!center||pairedShimmy;
  const progress=playing?(moveAge%duration)/duration:0;
  const sweep=style==='sweep';
  const isFloss=style==='clap';
@@ -126,16 +133,16 @@ export function dancePose(v:Visitor,now:number,jazz=false){
  const near=normalNear+(prepNear-normalNear)*prepWeight;
  const openStance=center?smooth((age-.65)/.50):0;
  const freeRadius=DANCE_RADIUS+.04+(1-near)*.22;
- const heldRadius=.36+(1-near)*.065;
+ const heldRadius=.345+(1-near)*.145;
  const sideBySide=Math.max(formation,gripRelease);
  const contactRadius=heldRadius+(freeRadius-heldRadius)*(1-openStance*(1-sideBySide));
- const radius=contactRadius+(.77-contactRadius)*formation;
+ const radius=contactRadius+(DANCE_ANCHOR_RADIUS-contactRadius)*formation;
  const x=center?center.x+Math.sin(orbitAngle)*radius*sign:v.x;
  const z=center?center.z+Math.cos(orbitAngle)*radius*sign:v.z;
  // The hands open sideways on the inward step and come together on the retreat.
- const spread=.15+near*.17-jumpLift*.04;
+ const spread=.15+near*.25-jumpLift*.04;
  const contact=(side:number)=>spread*side;
- const grip=(side:number)=>center?{
+ const grip=(side:number)=>center&&!pairedShimmy?{
   x:center.x+Math.cos(orbitAngle)*contact(side),
   y:center.y+1.015+jumpLift*.5,
   z:center.z-Math.sin(orbitAngle)*contact(side)
@@ -178,13 +185,13 @@ export function dancePose(v:Visitor,now:number,jazz=false){
  const greeting=Math.sin(Math.PI*smooth(age/(center?1.15:1.2)))*(1-settle);
  const farewell=Math.sin(Math.PI*(pairedFarewell?smooth((ending-.40)/.54):release));
  const bow=(center?.24:.18)*greeting+.19*farewell;
- const gripLean=center?.043*(1-near)*openStance*(1-sideBySide):0;
+ const gripLean=soloBody?0:.10*(1-near)*openStance*(1-sideBySide);
  const headPitch=-.36*greeting-.40*farewell;
  const soloYaw=d.joinSpot?Math.atan2(v.x-d.joinSpot.x,v.z-d.joinSpot.z):v.yaw;
- const swing=Math.sin(phase+.55)*stepping*(center?.18:jazz?.63:.49);
+ const swing=Math.sin(phase+.55)*stepping*(soloBody?(jazz?.63:.49):.18);
  const towardPartner=Math.PI/2*(1-formation);
  const partnerYaw=partnerRoutineYaw(orbitAngle)-sign*towardPartner;
- const gripWeight=hold*(1-gripRelease)*(1-formation);
+ const gripWeight=pairedShimmy?0:hold*(1-gripRelease)*(1-formation);
  const headYaw=-sign*(Math.PI/2-towardPartner)*gripWeight;
  let yaw=d.stop?.yaw??((center?partnerYaw:soloYaw)+spinAngle);
  if(d.stop?.faceYaw!==undefined){
@@ -201,7 +208,7 @@ export function dancePose(v:Visitor,now:number,jazz=false){
   chair,chairStand,
   yaw,
   bob:center?lift:hop*.19,
-  lean:step*(center?.034:(jazz?.23:.17)),
+  lean:step*(soloBody?(jazz?.23:.17):.034),
   step,swing,handsUp,handsSway,reach,floss,flossSwing,flossHip,flossCross,badLean,badLower,badPop,shimmy,hop,
   captain,captainSide,captainSeconds,
   bow:bow+gripLean,headPitch,headYaw,hold:gripWeight,
@@ -225,13 +232,17 @@ export function danceNpc(host:Visitor):Visitor|undefined{
  return npc;
 }
 
-export function clearDanceSpace(a:Point&Partial<Pick<Visitor,'id'|'zone'>>,b:Point&Partial<Pick<Visitor,'id'>>,visitors:readonly Visitor[]){
- const center={x:(a.x+b.x)/2,y:a.y??0,z:(a.z+b.z)/2};
- // Validate the swept disk against shared furniture and floors.
- for(let ring=0;ring<=4;ring++)for(let i=0;i<24;i++){
-  const angle=i*Math.PI/12,r=ring*.3;
-  const p={x:center.x+Math.sin(angle)*r,y:center.y,z:center.z+Math.cos(angle)*r};
-  if(!walkable('auditorium',p)||Math.abs((surfaceHeight('auditorium',p)??Infinity)-center.y)>.08)return null;
+export function clearDanceSpace(a:Point&Partial<Pick<Visitor,'id'|'zone'>>,b:Point&Partial<Pick<Visitor,'id'>>,visitors:readonly Visitor[],joinSpot:Point=b){
+ const center={x:(a.x+joinSpot.x)/2,y:a.y??0,z:(a.z+joinSpot.z)/2};
+ if(!clearsDinnerFurniture(center,DANCE_SWEEP_RADIUS+.05))return null;
+ // The dancers' standing positions still use the same clearance as ordinary walking.
+ for(const radius of [0,.3,.6,DANCE_ANCHOR_RADIUS,.9,DANCE_SWEEP_RADIUS]){
+  for(let i=0;i<(radius===0?1:24);i++){
+   const angle=i*Math.PI/12;
+   const p={x:center.x+Math.sin(angle)*radius,y:center.y,z:center.z+Math.cos(angle)*radius};
+   const clear=radius<=DANCE_ANCHOR_RADIUS?walkable('auditorium',p):walkableDanceFloor(p);
+   if(!clear||Math.abs((surfaceHeight('auditorium',p)??Infinity)-center.y)>.08)return null;
+  }
  }
  for(const v of [a,b])for(let i=0;i<=12;i++){
   const t=i/12,p={x:v.x+(center.x-v.x)*t,y:center.y,z:v.z+(center.z-v.z)*t};
@@ -361,8 +372,8 @@ export function handleDance(v:Visitor,visitors:Visitor[],msg:DanceCommand,now:nu
   return '이 춤자리는 이미 찼거나 닫혔어요.';
  if(Math.abs((v.y??0)-spot.y)>.15||distance(v,spot)>DANCE_JOIN_RADIUS)
   return '빈 원 안으로 들어와 주세요.';
- if(!clearDanceSpace(host,v,visitors))return '함께 춤출 공간이 부족해요.';
- const center={x:(host.x+spot.x)/2,y:spot.y,z:(host.z+spot.z)/2};
+ const center=clearDanceSpace(host,v,visitors,spot);
+ if(!center)return '함께 춤출 공간이 부족해요.';
  const angle=Math.atan2(host.x-center.x,host.z-center.z);
  const startedAt=now+150;
  host.dance={startedAt,partnerId:v.id,role:0,center,angle};

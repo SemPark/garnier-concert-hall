@@ -3,7 +3,7 @@ import * as T from 'three';
  * Never use decorative/camera-cutaway bounds as blockers, or infer a box around an arch. */
 export function removeBuriedFaces(scene:T.Scene,protectedObjects:Set<T.Object3D>){
  const meshes:T.Mesh[]=[],solids:{mesh:T.Mesh;box:T.Box3}[]=[],size=new T.Vector3();
- const permanent=(o:T.Object3D)=>{for(let p:T.Object3D|null=o;p;p=p.parent)if(p.userData.cameraOccluder||p.userData.occluderGroup||p.userData.occluderBox||p.userData.animated)return false;return true;};
+ const permanent=(o:T.Object3D)=>{for(let p:T.Object3D|null=o;p;p=p.parent)if(p.userData.cameraFade||p.userData.cameraOccluder||p.userData.occluderGroup||p.userData.occluderBox||p.userData.animated)return false;return true;};
  scene.traverse(o=>{if(!(o instanceof T.Mesh)||o instanceof T.InstancedMesh||protectedObjects.has(o)||Array.isArray(o.material)||o.material.transparent||!o.material.visible||o.material.alphaTest>0||o.morphTargetInfluences||o.onBeforeRender!==T.Object3D.prototype.onBeforeRender)return;
   if(!(o.geometry instanceof T.BoxGeometry))return;meshes.push(o);
   const e=o.matrixWorld.elements,aligned=[0,4,8].every(i=>[e[i],e[i+1],e[i+2]].filter(v=>Math.abs(v)>1e-6).length===1);

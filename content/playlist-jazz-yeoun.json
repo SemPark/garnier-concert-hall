@@ -1,0 +1,167 @@
+{
+  "name": "여운",
+  "version": "jazz-yeoun-v1",
+  "epochMs": 0,
+  "tracks": [
+    {
+      "id": "jazz-yeoun-barbara",
+      "title": "Barbara",
+      "composer": "U.S. Army Blues",
+      "url": "/api/audio/jazz-yeoun-barbara.m4a",
+      "durationSeconds": 521.888413,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:US_Army_Blues_-_09_-_Barbara.ogg",
+        "licenseName": "CC0 1.0 (Commons 표기)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "artist": "U.S. Army Blues",
+        "changes": "모바일 Safari 호환을 위해 AAC-LC로 변환"
+      }
+    },
+    {
+      "id": "jazz-yeoun-amazing-grace",
+      "title": "Amazing Grace",
+      "composer": "Airmen of Note · U.S. Air Force Band",
+      "url": "/api/audio/jazz-yeoun-amazing-grace.m4a",
+      "durationSeconds": 385.044898,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Amazing_Grace_%28USAFB_jazz_vocal%29.ogg",
+        "licenseName": "PD-USGov-Military-Air Force (미국)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Amazing_Grace_%28USAFB_jazz_vocal%29.ogg#Licensing",
+        "artist": "Airmen of Note · U.S. Air Force Band",
+        "changes": "모바일 Safari 호환을 위해 AAC-LC로 변환"
+      }
+    },
+    {
+      "id": "jazz-yeoun-walk-that-dog",
+      "title": "Walk That Dog",
+      "composer": "U.S. Army Blues",
+      "url": "/api/audio/jazz-yeoun-walk-that-dog.m4a",
+      "durationSeconds": 225.085147,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:US_Army_Blues_-_11_-_Walk_That_Dog.ogg",
+        "licenseName": "CC0 1.0 (Commons 표기)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "artist": "U.S. Army Blues",
+        "changes": "모바일 Safari 호환을 위해 AAC-LC로 변환"
+      }
+    },
+    {
+      "id": "jazz-yeoun-shrinking-violet",
+      "title": "Shrinking Violet",
+      "composer": "Shades of Blue · U.S. Air Force Band of Mid-America",
+      "url": "/api/audio/jazz-yeoun-shrinking-violet.mp3",
+      "durationSeconds": 288.510454,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Shrinking_Violet_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (미국)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Shrinking_Violet_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3#Licensing",
+        "artist": "Shades of Blue · U.S. Air Force Band of Mid-America",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존)"
+      }
+    },
+    {
+      "id": "jazz-yeoun-ave-pancakes",
+      "title": "Ave Pancakes",
+      "composer": "Shades of Blue · U.S. Air Force Band of Mid-America",
+      "url": "/api/audio/jazz-yeoun-ave-pancakes.mp3",
+      "durationSeconds": 365.388821,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ave_Pancakes_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (미국)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Ave_Pancakes_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3#Licensing",
+        "artist": "Shades of Blue · U.S. Air Force Band of Mid-America",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존)"
+      }
+    },
+    {
+      "id": "jazz-yeoun-bayou-farewell",
+      "title": "Bayou Farewell",
+      "composer": "U.S. Army Blues",
+      "url": "/api/audio/jazz-yeoun-bayou-farewell.m4a",
+      "durationSeconds": 440.934943,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:US_Army_Blues_-_07_-_Bayou_Farewell.ogg",
+        "licenseName": "CC0 1.0 (Commons 표기)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "artist": "U.S. Army Blues",
+        "changes": "모바일 Safari 호환을 위해 AAC-LC로 변환"
+      }
+    },
+    {
+      "id": "jazz-yeoun-product-of-fear",
+      "title": "Product of Fear",
+      "composer": "Shades of Blue · U.S. Air Force Band of Mid-America",
+      "url": "/api/audio/jazz-yeoun-product-of-fear.mp3",
+      "durationSeconds": 487.119433,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Product_of_Fear_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (미국)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Product_of_Fear_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3#Licensing",
+        "artist": "Shades of Blue · U.S. Air Force Band of Mid-America",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존)"
+      }
+    },
+    {
+      "id": "jazz-yeoun-wrong-advices",
+      "title": "Wrong Advices",
+      "composer": "Shades of Blue · U.S. Air Force Band of Mid-America",
+      "url": "/api/audio/jazz-yeoun-wrong-advices.mp3",
+      "durationSeconds": 246.5578,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Wrong_Advices_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3",
+        "licenseName": "PD-USGov-Military-Air Force (미국)",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Wrong_Advices_-_Shades_of_Blue_-_United_States_Air_Force_Band_of_Mid-America.mp3#Licensing",
+        "artist": "Shades of Blue · U.S. Air Force Band of Mid-America",
+        "changes": "Lyrics3 꼬리 태그 제거 (오디오 프레임 보존)"
+      }
+    },
+    {
+      "id": "jazz-yeoun-kellis-number",
+      "title": "Kelli's Number",
+      "composer": "U.S. Army Blues",
+      "url": "/api/audio/jazz-yeoun-kellis-number.m4a",
+      "durationSeconds": 365.388821,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:US_Army_Blues_-_08_-_Kellis_Number.ogg",
+        "licenseName": "CC0 1.0 (Commons 표기)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "artist": "U.S. Army Blues",
+        "changes": "모바일 Safari 호환을 위해 AAC-LC로 변환"
+      }
+    },
+    {
+      "id": "jazz-yeoun-stardust",
+      "title": "Stardust",
+      "composer": "U.S. Army Blues",
+      "url": "/api/audio/jazz-yeoun-stardust.m4a",
+      "durationSeconds": 314.450045,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:US_Army_Blues_-_05_-_Stardust.ogg",
+        "licenseName": "CC0 1.0 (Commons 표기)",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "artist": "U.S. Army Blues",
+        "changes": "모바일 Safari 호환을 위해 AAC-LC로 변환"
+      }
+    }
+  ]
+}

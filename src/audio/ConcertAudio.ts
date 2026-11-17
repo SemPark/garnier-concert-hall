@@ -1,5 +1,5 @@
 import {DEFAULT_PLAYLIST,INITIAL_PLAYLIST,PLAYLISTS,type PlaylistId} from './playlist';
-import {playbackAt,type Playback} from '../../shared/timeline';
+import {adjacentPiece,playbackAt,type Playback} from '../../shared/timeline';
 import type {Zone} from '../../shared/venue';
 import {MediaSync} from './MediaSync';
 export class ConcertAudio{
@@ -78,6 +78,7 @@ export class ConcertAudio{
  // Crossing the hall door switches the sound at once: muffled outside, full inside, with no fade.
 
  private lastMeow=-Infinity;
+ private lastBark=-Infinity;
  // The lobby's own room sound: a soft, seamless murmur loop of a large hall, decoded once and looped gaplessly.
  private ambience:GainNode|null=null;private ambienceLoading=false;private ambienceTarget=-1;
  // How loud the room tone is: 1 to 10, 5 in the middle (the default). 5 (the default) gives 0.09 in both the lobby and the hall with the music at 100; 10 is twice that, and each step down takes off a tenth of that.
@@ -134,6 +135,28 @@ export class ConcertAudio{
   const track=this.playlist.tracks[this.mediaTrackIndex];
   const offset=this.lastId===track.id?Math.min(track.durationSeconds,this.media.currentTime):0;
   return {track,index:this.mediaTrackIndex,offset,playing:true,remaining:track.durationSeconds-offset,cycle:this.mediaCycle};
+ }
+ /** Change tracks for this listener without changing the room clock. */
+ skipTrack(direction:1|-1=1){
+  const now=this.now(),playlist=this.playlist,tracks=playlist.tracks;
+  const current=this.usesMediaClock?this.playback:playbackAt(playlist,now+this.shift);
+  const target=adjacentPiece(playlist,current.index,direction);
+  if(!target)return;
+  const index=tracks.indexOf(target);
+  const wrapped=direction===1?index<=current.index:index>=current.index;
+  const cycle=Math.max(0,current.cycle+(wrapped?direction:0));
+  if(this.usesMediaClock){
+   this.mediaTrackIndex=index;
+   this.mediaCycle=cycle;
+  }else{
+   const start=tracks.slice(0,index).reduce((sum,track)=>sum+track.durationSeconds+track.gapAfterSeconds,0);
+   const length=tracks.reduce((sum,track)=>sum+track.durationSeconds+track.gapAfterSeconds,0);
+   this.shift=playlist.epochMs+(cycle*length+start)*1000-now+1;
+  }
+  this.unlocking=false;
+  this.loadTrack(this.playback);
+  if(this.enabled)this.tick(.1);
+  else if(this.wantsSound)void this.unlock();
  }
  /** Start the whole program again for this visitor only, from the hall murmur and tuning. */
  replayFromStart(){const program=this.playlist,total=program.tracks.reduce((s,t)=>s+t.durationSeconds+t.gapAfterSeconds,0)*1000;
@@ -199,6 +222,46 @@ export class ConcertAudio{
   envelope.gain.setValueAtTime(0,t);envelope.gain.linearRampToValueAtTime(this.volume*.25,t+.025);envelope.gain.setValueAtTime(this.volume*.22,t+.18);envelope.gain.exponentialRampToValueAtTime(.0001,t+.7);envelope.connect(c.destination);
   for(const oscillator of [voice,body,vibrato]){oscillator.start(t);oscillator.stop(t+.72);}
   voice.onended=()=>{for(const node of [voice,body,vibrato,depth,envelope,bodyGain,...filters,...levels])node.disconnect();};return true;
+ }
+ /** Two bright, short puppy barks with a raspy attack. */
+ bark(){
+  const c=this.context;
+  if(!this.enabled||this.volume<=0||document.hidden||!c||c.state!=='running'||c.currentTime-this.lastBark<1.2)return false;
+  const t=c.currentTime;this.lastBark=t;
+  const harmonics=new Float32Array([0,1,.58,.31,.16,.075,.035]);
+  const voiceShape=c.createPeriodicWave(new Float32Array(harmonics.length),harmonics);
+  const breathBuffer=c.createBuffer(1,Math.ceil(c.sampleRate*.07),c.sampleRate);
+  const samples=breathBuffer.getChannelData(0);
+  for(let i=0;i<samples.length;i++)samples[i]=Math.random()*2-1;
+
+  for(const [delay,pitch,duration,volume] of [[0,820,.16,.18],[.21,750,.14,.145]]){
+   const start=t+delay,end=start+duration;
+   const voice=c.createOscillator(),tone=c.createBiquadFilter(),level=c.createGain();
+   voice.setPeriodicWave(voiceShape);
+   voice.frequency.setValueAtTime(pitch*.78,start);
+   voice.frequency.exponentialRampToValueAtTime(pitch,start+.022);
+   voice.frequency.exponentialRampToValueAtTime(pitch*.90,start+.052);
+   voice.frequency.exponentialRampToValueAtTime(pitch*.70,end);
+   tone.type='lowpass';tone.Q.value=.45;
+   tone.frequency.setValueAtTime(3100,start);tone.frequency.exponentialRampToValueAtTime(1750,end);
+
+   const breath=c.createBufferSource(),breathTone=c.createBiquadFilter(),breathLevel=c.createGain();
+   breath.buffer=breathBuffer;
+   breathTone.type='bandpass';breathTone.frequency.value=1950;breathTone.Q.value=1;
+   breathLevel.gain.setValueAtTime(0,start);
+   breathLevel.gain.linearRampToValueAtTime(.32,start+.008);
+   breathLevel.gain.exponentialRampToValueAtTime(.0001,start+.057);
+   breath.connect(breathTone);breathTone.connect(breathLevel);breathLevel.connect(tone);
+
+   level.gain.setValueAtTime(0,start);
+   level.gain.linearRampToValueAtTime(this.volume*volume,start+.013);
+   level.gain.exponentialRampToValueAtTime(this.volume*volume*.40,start+.063);
+   level.gain.exponentialRampToValueAtTime(.0001,end);
+   voice.connect(tone);tone.connect(level);level.connect(c.destination);
+   voice.start(start);breath.start(start);voice.stop(end+.01);
+   voice.onended=()=>{for(const node of [voice,tone,level,breath,breathTone,breathLevel])node.disconnect();};
+  }
+  return true;
  }
  /** Return to the concert everyone else is hearing. */
  rejoin(){this.shift=0;this.lastId='';this.sync.request();}

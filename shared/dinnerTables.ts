@@ -4,7 +4,7 @@ import type {Seat} from './venue';
  * facing its table on the diagonals so nobody sits with their back square to the stage. The stage front is z −9.5,
  * the rear steps start at z 39.8; the floor runs to x ±12.2.
  */
-export const TABLE_RADIUS=1;
+export const TABLE_RADIUS=1,DINNER_TABLE_HEIGHT=.76;
 /** Chair centres sit this far from the table centre, drawn in close so seated knees go under the cloth. Visitors walk up
  * beside the chair (APPROACH_SIDE along the table's edge) and slide in from the side, never through the backrest. */
 export const CHAIR_RING=1.5,APPROACH_SIDE=1.05,

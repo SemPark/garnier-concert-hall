@@ -16,6 +16,7 @@ import {WALL_DATUM,WALL_LEVELS,buildPerimeterCornices,buildPerimeterFriezes} fro
 import {GALLERY_BRIDGE,GALLERY_RAIL_HEIGHT,REAR_COLUMNS,REAR_SCREENS,STAIR_DOORS,galleryRailSpans} from '../../shared/gallery';
 import {ORGAN_LOFT_BACK,ORGAN_LOFT_CONTOUR,ORGAN_RAIL_JOIN_X,ORGAN_RAIL_JOIN_Z,ORGAN_RAIL_POST_HALF,organBalconyFront} from '../../shared/organLoft';
 import {buildGalleryFloors} from './GalleryFloors';
+import {cameraFadeGroup} from './CameraFade';
 import {hallImage,hallImageMaterial,woodMaterial,applyWoodSurface,entranceWoodMaterial} from './HallTextures';
 export {organBalconyFront} from '../../shared/organLoft';
 const P={ivory:0xe8d6ac,gold:0xc69b49,light:0xe7c77a,deep:0x8e622a,wood:0x945d30,red:0x6f2830,shadow:0x49351e,glass:0xc5d4ce};
@@ -320,14 +321,12 @@ export function rearFacade(scene:T.Scene){
  // Dark timber Ionic columns carry the deep rear gallery front, as in the original.
  const front=WALL_DATUM.rear-REAR_COLUMNS.z;
  for(const x of REAR_COLUMNS.xs){
-  const column=new T.Group();column.position.set(x,0,front);column.userData.landmark='rear-portico-column';g.add(column);
+  const column=cameraFadeGroup(g);column.position.set(x,0,front);column.userData.landmark='rear-portico-column';
   cylinder(column,.49,.23,[0,.12,0],0x3e3025);cylinder(column,.40,.17,[0,.32,0],P.light);
   const shaft=cylinder(column,.30,6.55,[0,3.75,0],0x6e4029);shaft.material=woodMaterial('walnut');
   for(let i=0;i<12;i++){const a=i/12*Math.PI*2;cylinder(column,.014,6.45,[Math.cos(a)*.304,3.75,Math.sin(a)*.304],0x9a6a3f);}
   box(column,[1.05,.25,.8],[0,7.25,0],P.gold);
   for(const side of [-1,1]){const volute=cylinder(column,.16,.2,[side*.38,7.04,.28],P.gold);volute.rotation.x=Math.PI/2;}
-  // Hidden only while it stands between the camera and the visitor.
-  column.userData.occluderGroup=true;
  }
  // Gilded beam under the gallery front, and warm lamps in the shadowed standing area beneath.
  for(const [z,xs]of [[2.2,[-10.5,-5.25,0,5.25,10.5]],[WALL_DATUM.rear-46,[-5.25,0,5.25]]] as const)for(const x of xs)hallFlatCeilingLight(g,x,7.86,z);
@@ -348,18 +347,18 @@ export function rearFacade(scene:T.Scene){
   door.userData.rearMainDoor=true;door.traverse(o=>{o.userData.fullDetail=true;});
   box(g,[3.9,.72,.08],[x,7.1,.65],P.light);box(g,[3.72,.55,.05],[x,7.1,.71],0x32261d);if(typeof document!=='undefined')text(g,'pleee lobby',3.2,[x,7.1,.75],'#e7c77a');
  }
- const rail=new T.Group();rail.position.set(0,H.balconyHeight,GALLERY_BRIDGE.minZ+.4);rail.rotation.y=Math.PI;rail.userData.landmark='gallery-rail';scene.add(rail);balustrade(rail,25);
+ const rail=cameraFadeGroup(scene);rail.position.set(0,H.balconyHeight,GALLERY_BRIDGE.minZ+.4);rail.rotation.y=Math.PI;rail.userData.landmark='gallery-rail';balustrade(rail,25);
  // Only near-camera decoration cuts away; the structural hall shell remains solid.
  g.traverse(o=>{if(o instanceof T.Mesh){if(!Array.isArray(o.material)&&(o.material.userData.woodTone&&o.material.userData.woodTone!=='door'||o.material instanceof T.MeshLambertMaterial&&[0x3a281c,0x7a5634,0x2c1f16,0x9a6a3f,0x3e3025].includes(o.material.color.getHex())))o.material=woodMaterial('wall-panel');if(!o.userData.wallSurface)o.userData.cameraOccluder=true;o.userData.fullDetail=true;}});return g;
 }
 /** The parterre-level bay of the side walls: panelled field between two caryatids, with a door or a low box front. */
 /** Short walls closing the outer rear bays, as in the original: pale panelled faces with a marble pilaster at the inner end. */
 function rearScreens(scene:T.Scene){
- const r=REAR_SCREENS,walls:T.Mesh[]=[],width=r.outerX-r.innerX,top=r.height-.5;
+ const r=REAR_SCREENS,width=r.outerX-r.innerX,top=r.height-.5;
  for(const side of [-1,1]){
-  const g=new T.Group();g.userData.landmark='rear-screen';scene.add(g);const X=(x:number)=>side*x,mid=X((r.innerX+r.outerX)/2),face=r.z-r.thickness/2;
-  // As in the original: a plain cream field framed by red-brown marble pilasters, under a dark entablature.
-  walls.push(box(g,[width,r.height,r.thickness],[mid,r.height/2,r.z],0xeadfc4));
+  const g=cameraFadeGroup(scene);g.userData.landmark='rear-screen';const X=(x:number)=>side*x,mid=X((r.innerX+r.outerX)/2),face=r.z-r.thickness/2;
+  // Shared movement rules block this screen. The camera can orbit through it and fade the panel.
+  box(g,[width,r.height,r.thickness],[mid,r.height/2,r.z],0xeadfc4);
   const pilaster=(x:number,w:number)=>{
    box(g,[w,top-.35,.12],[X(x),.35+(top-.35)/2,face-.06],0x6e3326);
    box(g,[w-.28,top-.75,.05],[X(x),.35+(top-.35)/2,face-.14],0xb3705d).userData.landmark='rear-screen-marble';
@@ -368,10 +367,11 @@ function rearScreens(scene:T.Scene){
   pilaster(r.innerX+.45,.9);pilaster(r.outerX-.45,.9);
   const ornament=new T.Group();ornament.position.set(mid,0,face-.015);ornament.rotation.y=Math.PI;g.add(ornament);rearPanelDecoration(ornament,width-1.8);
   // The return is visible from the rear landing too; decorate the existing wall's back face only.
-  const back=new T.Group();back.position.set(mid,0,r.z+r.thickness/2+.015);g.add(back);rearWallInfill(back,width);
+  const back=new T.Group();back.position.set(mid,0,r.z+r.thickness/2+.015);g.add(back);
+  rearWallInfill(back,width)?.traverse(o=>{delete o.userData.wallSurface;});
   // Existing side-wall faces on either side of the screen; no new blocking volumes.
   for(const [a,b]of [[PARTERRE.stairFront,r.z-r.thickness/2],[r.z+r.thickness/2,WALL_DATUM.rear]]){
-   const end=new T.Group();end.position.set(side*WALL_DATUM.halfWidth,0,(a+b)/2);end.rotation.y=side<0?Math.PI/2:-Math.PI/2;g.add(end);rearWallInfill(end,b-a-.10);
+   const end=new T.Group();end.position.set(side*WALL_DATUM.halfWidth,0,(a+b)/2);end.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(end);rearWallInfill(end,b-a-.10);
   }
   // Plain moulded wall fields replace the wall-mounted red hangings.
   for(const xx of [mid-(width-1.8)/2,mid+(width-1.8)/2])box(g,[.06,5.8,.08],[xx,3.4,face-.12],P.gold);
@@ -379,7 +379,6 @@ function rearScreens(scene:T.Scene){
 
 
  }
- return walls;
 }
 /**
  * The side walls' gilded cornice (same three profiles and dentils, at the same height) continues across the rear,
@@ -410,7 +409,7 @@ export function* buildGoldenHallSteps(scene:T.Scene){
   buildLowerHallFacade(scene,side,timberDoor);
   buildUpperSideFacade(scene,side);
   for(const {center:z} of UPPER_CELLS){const g=new T.Group();g.position.set(side*WALL_DATUM.halfWidth,0,z);g.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(g);
-   for(const span of galleryRailSpans(z,HALL_CELL_WIDTH)){const rail=new T.Group();rail.position.set(side*((span.start+span.end)/2-z),H.balconyHeight,WALL_DATUM.halfWidth-12.5-.4);rail.userData.landmark='gallery-rail';g.add(rail);balustrade(rail,span.end-span.start);}
+   for(const span of galleryRailSpans(z,HALL_CELL_WIDTH)){const rail=cameraFadeGroup(g);rail.position.set(side*((span.start+span.end)/2-z),H.balconyHeight,WALL_DATUM.halfWidth-12.5-.4);rail.userData.landmark='gallery-rail';balustrade(rail,span.end-span.start);}
    // Keep the continuous gallery rail and soffit independent of the facade rhythm.
    const coffer=hallImage(g,'soffit',HALL_CELL_WIDTH-.02,2.4,0,7.90,1.45);coffer.rotation.x=Math.PI/2;
    for(const x of [-HALL_CELL_WIDTH/4,HALL_CELL_WIDTH/4])hallFlatCeilingLight(g,x,7.86,1.45);
@@ -419,14 +418,14 @@ export function* buildGoldenHallSteps(scene:T.Scene){
   // Corner infill keeps the guardrail connected to the organ without stretching a full cell.
   for(const [a,b]of [[-27,UPPER_CELLS[0].start],[UPPER_CELLS.at(-1)!.end,51.8]]){
    for(const span of galleryRailSpans((a+b)/2,b-a)){
-    const rail=new T.Group();rail.position.set(side*(12.5+.4),H.balconyHeight,(span.start+span.end)/2);rail.rotation.y=side<0?Math.PI/2:-Math.PI/2;rail.userData.landmark='gallery-rail-corner-infill';scene.add(rail);balustrade(rail,span.end-span.start);
+    const rail=cameraFadeGroup(scene);rail.position.set(side*(12.5+.4),H.balconyHeight,(span.start+span.end)/2);rail.rotation.y=side<0?Math.PI/2:-Math.PI/2;rail.userData.landmark='gallery-rail-corner-infill';balustrade(rail,span.end-span.start);
    }
   }
   // The repeated bays stop short of both corners; finish those returns too.
   for(const [a,b]of [[WALL_DATUM.front,-27],[51,WALL_DATUM.rear]]){const end=new T.Group();end.position.set(side*WALL_DATUM.halfWidth,0,(a+b)/2);end.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(end);wallPanel(end,0,WALL_LEVELS.panelY,b-a,WALL_LEVELS.panelHeight);}
  }
  cameraWalls.push(...buildGalleryFloors(scene).filter(slab=>slab.userData.rearGallery));
- cameraWalls.push(...rearScreens(scene));rearCornice(scene);
+ rearScreens(scene);rearCornice(scene);
  buildPerimeterCornices(scene);buildPerimeterFriezes(scene,friezeMaterial());
  buildFrontWindows(scene);yield;buildOrgan(scene);yield;paintedCeiling(scene);yield;
  for(const {x,y,z} of HALL_CHANDELIERS){crystalChandelier(scene,x,y,z);yield;}

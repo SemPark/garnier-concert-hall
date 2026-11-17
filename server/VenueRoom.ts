@@ -7,6 +7,7 @@ import {zoneUpdate} from '../shared/zoneUpdates';
 import {DurableObject} from 'cloudflare:workers';
 import {ALL_SEATS,NPC_SEATS,SEATS,HALL_DESTINATIONS,DESTINATION_ZONE,isHallDestination,SPAWN,CAPACITY,PALETTE,atCafe,walkable,surfaceHeight,distance,isLook,isCandleState,type Visitor} from '../shared/venue';
 import type {ClientMessage,ServerMessage,Snapshot,SeatClaim,Delta} from '../shared/protocol';
+import {startHighFive} from '../shared/highFive';
 import {isGesture,gestureSeconds} from '../shared/gestures';
 import {isOutfit,atCloakroom} from '../shared/wardrobe';
 import {LOUNGE_SEATS} from '../shared/loungeSeats';
@@ -249,7 +250,8 @@ export class VenueRoom extends DurableObject<Env>{
    else if(msg.gesture==='eat'){v.macaronBites=(v.macaronBites??0)+1;if(v.macaronBites===2)v.macaronEmptyAt=now+gestureSeconds('eat')*1000;}
    if(msg.gesture==='drink'&&v.drink){v.drinkSips=(v.drinkSips??0)+1;if(v.drinkSips===DISH_BITES)v.drinkEmptyAt=now+gestureSeconds('drink')*1000;}
    else if(msg.gesture==='drink'){v.coffeeSips=(v.coffeeSips??0)+1;if(v.coffeeSips===3)v.coffeeEmptyAt=now+gestureSeconds('drink')*1000;}
-   v.gesture=msg.gesture;v.gestureAt=now;
+   const highFive=msg.gesture==='wave'&&msg.highFive&&startHighFive(v,msg.highFive,this.active().map(({a})=>a.visitor),now);
+   v.gesture=highFive?null:msg.gesture;v.gestureAt=now;
   }else return;
   if(msg.type!=='move')a.lastActivity=now;
   a.lastMessage=now;ws.serializeAttachment({...a,roomId:this.roomId()});this.broadcast();await this.schedule();

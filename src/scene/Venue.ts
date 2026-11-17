@@ -17,6 +17,8 @@ import {buildCathedralFloor} from './CathedralFloor';
 import {lobbyPracticalLights} from './LobbyLighting';
 import {finishArchitecture,surfaceMaterial} from './SurfaceMaterials';
 import {LobbyCat} from '../character/LobbyCat';
+import {HallCat} from '../character/HallCat';
+import {Dog} from '../character/Dog';
 import {Usher,USHER} from '../character/Usher';
 import {HallMirror} from './HallMirror';
 import {HallPortrait} from './HallPortrait';
@@ -27,8 +29,9 @@ import {ATRIUM,GRAND_STAIR,LOBBY_BRANCH,LOBBY_ARCADE,HALL_INNER_DOOR} from '../.
 import {buildGarnierCeiling} from './GarnierCeiling';
 import {buildLobbyEntrance} from './LobbyEntrance';
 import {buildLobbyDetails,lobbyWoodWall,LOBBY_PALETTE} from './LobbyDetails';
-import {buildLobbyAmenities,type ProgramBoard} from './LobbyAmenities';
+import {buildLobbyAmenities} from './LobbyAmenities';
 import {ALL_SEATS,SEATS,BOUNDS,DINNER_TABLES,TABLE_RADIUS,surfaceHeight,type Zone} from '../../shared/venue';
+import {DINNER_TABLE_HEIGHT} from '../../shared/dinnerTables';
 import {DINNER_SIT_BACK,DINNER_SIT_DROP} from '../../shared/dinnerTables';
 import type {Avatar} from '../character/Avatar';
 import {buildOrchestraSteps} from '../orchestra/buildOrchestra';
@@ -46,7 +49,7 @@ import {woodMaterial,applyWoodSurface,hallImage,hallImageMaterial} from './HallT
 import {batchArchitectureSteps,batchCharactersSteps} from './batching';
 import {cameraFadeGroup} from './CameraFade';
 import {EmoteLayer} from '../character/EmoteLayer';
-export type Venue={storyTableProps:ReturnType<typeof buildStoryTableProps>|null;programBook?:ReturnType<typeof buildProgramBook>;magicChair?:MagicChairs;treeStar:ReturnType<typeof buildFloatingTreeStar>|null;cat:LobbyCat|null;usher:Usher|null;mirror:HallMirror|null;portrait:HallPortrait|null;programBoard?:ProgramBoard;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
+export type Venue={storyTableProps:ReturnType<typeof buildStoryTableProps>|null;programBook?:ReturnType<typeof buildProgramBook>;magicChair?:MagicChairs;treeStar:ReturnType<typeof buildFloatingTreeStar>|null;cat:LobbyCat|null;hallCat:HallCat|null;dog:Dog;usher:Usher|null;mirror:HallMirror|null;portrait:HallPortrait|null;scene:T.Scene;floor:T.Mesh;walkTargets:T.Object3D[];seatTargets:T.Object3D[];portal:T.Object3D;musicians:Avatar[];cameraWalls:T.Object3D[];overviewHidden:T.Object3D[];seatLights:Map<string,T.Mesh>;updateMusicians:(camera?:T.Camera)=>void;updateLOD:(camera:T.Camera)=>void;emotes:EmoteLayer;sunlight:Sunlight|null;stairArrows:StairArrows|null};
 
 function chandelier(parent:T.Object3D,x:number,y:number,z:number,r=1){
  const g=new T.Group();g.position.set(x,y,z);g.userData.landmark='lobby-chandelier';parent.add(g);
@@ -107,13 +110,13 @@ function flowerGeometry(){
 }
 /** Round dinner tables with floor-length ivory cloths: one instanced batch for all fifty. */
 function buildDinnerTables(scene:T.Scene){
- const cloth=new T.CylinderGeometry(TABLE_RADIUS+.05,TABLE_RADIUS+.12,.76,28,1);cloth.translate(0,.38,0);
+ const cloth=new T.CylinderGeometry(TABLE_RADIUS+.05,TABLE_RADIUS+.12,DINNER_TABLE_HEIGHT,28,1);cloth.translate(0,DINNER_TABLE_HEIGHT/2,0);
  const mesh=new T.InstancedMesh(cloth,new T.MeshStandardMaterial({color:0xefe6d6,roughness:.9}),DINNER_TABLES.length);
  const m=new T.Matrix4();DINNER_TABLES.forEach((t,i)=>mesh.setMatrixAt(i,m.makeTranslation(t.x,PARTERRE.floor,t.z)));
  mesh.computeBoundingSphere();mesh.userData.preserveSilhouette=true;scene.add(mesh);
 
  // A slim bud vase beside the candles on every table, with one flower on a stem and two leaves: four small batches.
- const top=PARTERRE.floor+.76,n=DINNER_TABLES.length,vaseShape=[[.001,0],[.035,0],[.045,.04],[.03,.12],[.016,.17],[.022,.19]].map(([x,y])=>new T.Vector2(x,y));
+ const top=PARTERRE.floor+DINNER_TABLE_HEIGHT,n=DINNER_TABLES.length,vaseShape=[[.001,0],[.035,0],[.045,.04],[.03,.12],[.016,.17],[.022,.19]].map(([x,y])=>new T.Vector2(x,y));
  const vases=new T.InstancedMesh(new T.LatheGeometry(vaseShape,10),new T.MeshStandardMaterial({color:0xe9f1ee,roughness:.15,metalness:.1,transparent:true,opacity:.75}),n);
  const stems=new T.InstancedMesh(new T.CylinderGeometry(.005,.005,.2,5).translate(0,.1,0),new T.MeshStandardMaterial({color:0x4b6b34,roughness:.9}),n);
  const blooms=new T.InstancedMesh(flowerGeometry(),new T.MeshStandardMaterial({roughness:.8,vertexColors:true}),n);
@@ -226,7 +229,7 @@ function grandEscalier(scene:T.Scene,cameraWalls:T.Object3D[],walkTargets:T.Obje
  buildLobbyDetails(scene);
  // Balcony floors for both tiers.
  for(const y of [A.balconyY,tier2]){for(const side of [-1,1])box(scene,[D,.45,len],[side*(W-D/2),y-.22,midZ],stone);box(scene,[inner*2,.45,D],[0,y-.22,A.back-D/2],stone);box(scene,[inner*2,.45,D],[0,y-.22,A.front+D/2],stone);}
- const rail=(x1:number,z1:number,y1:number,x2:number,z2:number,y2:number,lamps=false,bal=redMarble,parent:T.Object3D=scene)=>{
+ const rail=(x1:number,z1:number,y1:number,x2:number,z2:number,y2:number,lamps=false,bal=redMarble,parent:T.Object3D=cameraFadeGroup(scene))=>{
   const n=Math.max(1,Math.round(Math.hypot(x2-x1,z2-z1)/.36));
   for(let i=0;i<=n;i++){const t=i/n;cylinder(parent,bal===redMarble?.06:.09,.78,[x1+(x2-x1)*t,y1+(y2-y1)*t+.47,z1+(z2-z1)*t],bal);}
   line(parent,new T.Vector3(x1,y1+.93,z1),new T.Vector3(x2,y2+.93,z2),.11,onyx);line(parent,new T.Vector3(x1,y1+.06,z1),new T.Vector3(x2,y2+.06,z2),.12,stone);
@@ -302,10 +305,10 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  const cameraWalls:T.Object3D[]=[],overviewHidden:T.Object3D[]=[],seatTargets:T.Object3D[]=[],musicians:Avatar[]=[],seatLights=new Map<string,T.Mesh>();
  let magicChair:MagicChairs|undefined;
  let programBook:Venue['programBook'];
- let portal:T.Object3D,programBoard:ProgramBoard|undefined;
+ let portal:T.Object3D;
  if(zone==='lobby'){
   grandEscalier(scene,cameraWalls,walkTargets);lobbyPracticalLights(scene);
-  const amenities=buildLobbyAmenities(scene,walkTargets);programBoard=amenities.programBoard;
+  buildLobbyAmenities(scene,walkTargets);
   // The amphitheatre door at the head of the flight is the way into the hall.
   portal=new T.Mesh(new T.BoxGeometry(2.5,3.4,.5),new T.MeshBasicMaterial({visible:false}));portal.position.set(HALL_INNER_DOOR.x,GRAND_STAIR.rise+1.7,HALL_INNER_DOOR.z);portal.userData.portal=true;scene.add(portal);
   sun.position.set(21,28,22);sun.target.position.set(-3,0,32);scene.add(sun.target);
@@ -325,13 +328,18 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
   musicians.push(...(yield* buildOrchestraSteps(scene)));
  }
  if(zone==='auditorium')programBook=buildProgramBook(scene,walkTargets);
- const cat=zone==='lobby'?new LobbyCat(scene):null;const usher=zone==='auditorium'?new Usher(scene,surfaceHeight('auditorium',USHER,0)??0):null;
+ const cat=zone==='lobby'?new LobbyCat(scene):null;
+ const hallCat=zone==='auditorium'?new HallCat(scene):null;
+ const dog=new Dog(scene,zone);
+ const activeCat=cat??hallCat;
+ const animalRoots=[activeCat?.root,dog.root].filter(root=>root!==undefined);
+ const usher=zone==='auditorium'?new Usher(scene,surfaceHeight('auditorium',USHER,0)??0):null;
  scene.traverse(o=>{if(o.userData.wallSurface)cameraWalls.push(o);});
  cameraWalls.push(portal);
  for(const wall of cameraWalls)wall.traverse(o=>{o.userData.cameraWall=true;});
  if(zone==='auditorium'){raiseLandingDisplayLights(scene);buildHallLampHalos(scene);}
- finishArchitecture(scene,[...(magicChair?[magicChair.root]:[]),...(usher?[usher.avatar.root]:[]),...(cat?[cat.root]:[]),...musicians.map(a=>a.root)]);
- const updateBaseLOD=yield* batchArchitectureSteps(scene,[...(magicChair?[magicChair.root]:[]),floor,portal,...(cat?[cat.root,...cat.targets]:[]),...(usher?[usher.avatar.root]:[]),...walkTargets,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
+ finishArchitecture(scene,[...(magicChair?[magicChair.root]:[]),...(usher?[usher.avatar.root]:[]),...animalRoots,...musicians.map(a=>a.root)]);
+ const updateBaseLOD=yield* batchArchitectureSteps(scene,[...(magicChair?[magicChair.root]:[]),floor,portal,...animalRoots,...(activeCat?.targets??[]),...dog.targets,...(usher?[usher.avatar.root]:[]),...walkTargets,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
  const upper=scene.userData.upperArchitecture as T.Scene|undefined;
  let updateUpper:((camera:T.Camera)=>void)|undefined;
  if(upper){
@@ -343,7 +351,7 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
   scene.userData.showArchitectureForShadow=()=>{showBase?.();if(upper.visible)upper.userData.showArchitectureForShadow?.();};
  }
  const updateLOD=(camera:T.Camera)=>{updateBaseLOD(camera);if(upper?.visible)updateUpper?.(camera);};
- const updateMusicians=yield* batchCharactersSteps(scene,[...musicians.map(a=>a.root),...(cat?[cat.root]:[])]);updateMusicians();
+ const updateMusicians=yield* batchCharactersSteps(scene,[...musicians.map(a=>a.root),...animalRoots]);updateMusicians();
  // Visitor reaction icons share one draw call per hall.
  const emotes=new EmoteLayer(64);scene.add(emotes.points);
  // Sun shafts use their own shaders, so they join after batching.
@@ -375,5 +383,5 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  const mirror=zone==='auditorium'?new HallMirror(scene):null;
  if(mirror)walkTargets.push(mirror.standingMarker);
  const portrait=zone==='auditorium'?new HallPortrait(scene):null;
- return {storyTableProps,programBook,magicChair,treeStar,cat,usher,mirror,portrait,programBoard,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
+ return {storyTableProps,programBook,magicChair,treeStar,cat,hallCat,dog,usher,mirror,portrait,scene,floor,walkTargets,updateLOD,seatTargets,portal,musicians,cameraWalls,overviewHidden,seatLights,updateMusicians,emotes,sunlight,stairArrows};
 }
