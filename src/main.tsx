@@ -35,6 +35,7 @@ function Icon({name,size=20}:{name:string;size?:number}){
    <path d="M7.4 1.8 4.9 6.3Q5.8 8.9 8.7 10.5l2.1.5 2.5-.5q3.3-2.7 4.7-5.4l1.2-3M10.8 11l2.4 4.3-2 6.8m2-6.8-4.3 3.1-2.3 3.7"/>
   </g>,
   train:<><rect x="5" y="3" width="14" height="15" rx="4"/><path d="M5 10h14M9 3v7M15 3v7M7 21l2-3m8 3-2-3"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></>,
+  cat:<><path d="M4 12V5l5 3h6l5-3v7c0 4.5-3.6 7-8 7s-8-2.5-8-7Z"/><path d="M9 12h.01M15 12h.01m-4 3 1 1 1-1M4 14l-2-.5m18 .5 2-.5"/></>,
   camera:<><path d="M3 7h4l2-3h6l2 3h4v13H3Z"/><circle cx="12" cy="13" r="4"/></>,
   hall:<><path d="m3 8 9-5 9 5M3 21h18M5 10v8m5-8v8m4-8v8m5-8v8M3 8h18"/></>,
   planet:<><circle cx="12" cy="12" r="6.5"/><path d="M6 10.5C3.1 12.7 1.4 15 2.2 16.3c1 1.7 6.2.9 11.5-2.2s8.8-6.9 7.8-8.6c-.7-1.2-3.3-.9-6.3.2"/></>,
@@ -304,6 +305,7 @@ function App(){
 
  return <>
   {world?.photoMode&&<PhotoMode world={world}/>}
+  {world?.catView&&<button className="broadcast-exit" type="button" autoFocus onClick={()=>world.stopCatView()}><Icon name="close" size={16}/>고양이 보기 종료</button>}
   {world?.broadcastView&&<button className="broadcast-exit" type="button" autoFocus onClick={()=>world.stopBroadcastView()}><Icon name="close" size={16}/>방송 보기 종료</button>}
   <div className="vignette"/>
   {(world?.hallLoading&&initialHallReady)&&<div className="hall-loading" role="status" aria-live="polite" aria-busy="true"><div className="hall-loading-card"><span className="hall-loading-spinner" aria-hidden="true"/><h2>공연장으로 들어가고 있어요</h2><p>무대와 좌석을 준비하고 있어요. 잠시만 기다려 주세요.</p></div></div>}
@@ -376,6 +378,7 @@ function App(){
      <span className="icon-menu-divider"/>
      <button role="menuitem" className="icon-menu-item" aria-label="공연장 들어가기" title="공연장 들어가기" onClick={()=>{world?.changeZone();}}><Icon name="enter" size={20}/></button>
     </>}
+    <button role="menuitem" className="icon-menu-item" aria-label="고양이 찾기" title="고양이 찾기" disabled={!world?.canWatchCat} onClick={()=>{if(world?.watchCat()){setHallPickerOpen(false);setReactions(false);setMenu(false);}}}><Icon name="cat" size={20}/></button>
     <button role="menuitem" className="icon-menu-item" aria-label="사진 모드" title="사진 모드" onClick={()=>{setHallPickerOpen(false);setReactions(false);world?.startPhotoMode();}}><Icon name="camera" size={20}/></button>
     <button role="menuitem" className="icon-menu-item" aria-label="설정" title="설정" onClick={()=>{setSettings(true);}}><Icon name="settings" size={20}/></button>
    </nav></>}

@@ -50,7 +50,7 @@ function visitorGhostGesture(v:Visitor,now:number){if(!v.gesture)return null;con
 import {LobbyLightPass,type RenderPassTimings} from './scene/LobbyLighting';
 import {interiorEnvironment,bakeArchitectureShadows} from './scene/InteriorLight';
 import {Avatar,musicianSits} from './character/Avatar';
-import {CAT_VISITOR_GAP} from './character/LobbyCat';
+import {CAT_VISITOR_GAP,type PettableCat} from './character/LobbyCat';
 import {USHER_LINES} from './character/Usher';
 import {Input} from './controls/Input';
 import {stageShow} from './orchestra/stageShow';
@@ -205,7 +205,7 @@ export class World{
   this.onChange();
  }
  onProgramBook:()=>void=()=>{};
- onChange:()=>void=()=>{};onToast:(message:string)=>void=()=>{};onSeatMap:()=>void=()=>{};onWardrobe:()=>void=()=>{};private wardrobeNear=false;private visitingWardrobe=false;private pendingSeat:string|null=null;private loungeTarget:string|null=null;private visitingCat=false;private petUntil=0;private visitingBoxOffice=false;private seatWalkAt=0;private boardAt=0;
+ onChange:()=>void=()=>{};onToast:(message:string)=>void=()=>{};onSeatMap:()=>void=()=>{};onWardrobe:()=>void=()=>{};private wardrobeNear=false;private visitingWardrobe=false;private pendingSeat:string|null=null;private loungeTarget:string|null=null;private catVisit:{cat:PettableCat;route:Point[];expiresAt:number}|null=null;private pettingCat:PettableCat|null=null;private petUntil=0;private visitingBoxOffice=false;private seatWalkAt=0;private boardAt=0;
  private fireworks:StageFireworks|null=null;
  private hallDust:HallDust|null=null;
  private musicLights:MusicLights|null=null;
@@ -253,7 +253,7 @@ export class World{
   this.venues.lobby.scene.environment=this.environment.texture;this.venues.lobby.scene.environmentIntensity=.18;this.lightingPass=new LobbyLightPass(this.renderer,this.venues.lobby.scene,this.camera,bloomResolution(this.mobile,this.quality),msaaSamples(this.quality));
   this.crowds={lobby:new Ghosts(this.venues.lobby.scene)} as Record<Zone,Ghosts>;
   this.marker=new T.Mesh(new T.RingGeometry(.16,.24,24),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.8,depthWrite:false}));this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.venues.lobby.scene.add(this.marker);
-  this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>{if(this.uiObscured)return;if(this.photoMode)this.endPhotoMode();else if(this.broadcastView)this.stopBroadcastView();else this.stand();}});
+  this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>{if(this.uiObscured)return;if(this.photoMode)this.endPhotoMode();else if(this.broadcastView)this.stopBroadcastView();else if(this.catView)this.stopCatView();else this.stand();}});
   for(const event of ['pointerdown','pointermove','keydown','wheel'])window.addEventListener(event,()=>{const now=performance.now();this.lobbyEnteredAt=now;this.cameraInputAt=now;if(this.entered&&this.zone==='lobby'&&now-this.activitySentAt>2000){this.activitySentAt=now;this.net.send({type:'activity'});}},{passive:true,signal:this.activityEvents.signal});
   for(const event of ['pointerdown','keydown','wheel'])window.addEventListener(event,this.skipEntranceReveal,{capture:true,passive:true,signal:this.activityEvents.signal});
   window.addEventListener('resize',this.resize);
@@ -454,6 +454,7 @@ export class World{
  startPhotoMode(){
   if(!this.entered||!this.ready||this.changingZone||this.hallLoading)return;
   this.stopBroadcastView();
+  this.stopCatView();
   this.photoOriginal={position:this.camera.position.clone(),look:this.camera.position.clone().add(this.camera.getWorldDirection(new T.Vector3()).multiplyScalar(20)),fov:this.camera.fov,avatarVisible:this.avatar?.root.visible??false,avatarYaw:this.avatar?.root.rotation.y??this.yaw};
   if(this.conducting.active)this.endConducting();
   if(this.pose!=='sit')this.cancelSeat();
@@ -536,7 +537,7 @@ export class World{
    request.reject(new Error('사진을 저장하지 못했습니다. 다시 촬영해 주세요.'));
   }
  }
- setStageView(low:boolean){if(this.entranceViewLocked||this.zone!=='auditorium')return;this.stopBroadcastView();this.introUntil=0;this.concertView=true;this.hallOverview=false;this.stageLowView=low;this.resetCameraSway(performance.now());this.cameraYaw=0;this.cameraPitch=.13;this.hallZoom=1;this.route=[];this.marker.visible=false;this.onChange();}
+ setStageView(low:boolean){if(this.entranceViewLocked||this.zone!=='auditorium')return;this.stopBroadcastView();this.stopCatView();this.introUntil=0;this.concertView=true;this.hallOverview=false;this.stageLowView=low;this.resetCameraSway(performance.now());this.cameraYaw=0;this.cameraPitch=.13;this.hallZoom=1;this.route=[];this.marker.visible=false;this.onChange();}
  private broadcastStartedAt:number|null=null;
  get broadcastView(){return this.broadcastStartedAt!==null;}
  get canStartBroadcast(){
@@ -545,6 +546,7 @@ export class World{
  toggleBroadcastView(){
   if(this.broadcastView){this.stopBroadcastView();return;}
   if(!this.canStartBroadcast)return;
+  this.stopCatView();
   this.route=[];
   this.danceWalk=null;
   if(this.pose!=='sit')this.cancelSeat();
@@ -647,6 +649,7 @@ export class World{
    }
 
    if(self.dance&&!previousDance){
+    this.catView=false;
     this.selectedDanceHost=null;
     this.position.set(self.x,self.y??0,self.z);
     this.route=[];
@@ -671,7 +674,7 @@ export class World{
     if(self.pose==='sit'&&!initial&&!changedZone)this.seatedTarget=new T.Vector3(self.x,self.y??SEATS.find(s=>s.id===self.seatId)?.y??0,self.z);
     else{this.position.set(self.x,self.y??(self.pose==='sit'?(SEATS.find(s=>s.id===self.seatId)?.y??0):0),self.z);this.seatedTarget=null;}
     this.yaw=self.yaw;this.pose=self.pose;
-    if(initial||changedZone){this.cameraSeatAmount=self.pose==='sit'?1:0;this.zone=self.zone;this.lobbyEnteredAt=self.zone==='lobby'?performance.now():0;if(self.zone==='auditorium')this.stopHallLoading();
+    if(initial||changedZone){this.catView=false;this.clearCatInteraction();this.cameraSeatAmount=self.pose==='sit'?1:0;this.zone=self.zone;this.lobbyEnteredAt=self.zone==='lobby'?performance.now():0;if(self.zone==='auditorium')this.stopHallLoading();
      // Enter beside the usher so the welcome is visible from the first hall frame.
      if(self.zone==='auditorium'){this.concertView=false;this.hallOverview=true;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.introUntil=0;this.seatWalkAt=0;this.usherGreetingPending=true;}else{this.introUntil=0;this.seatWalkAt=0;}
      this.entranceFraming=self.zone==='auditorium'&&self.pose!=='sit'&&underEntranceRoof(this.position);
@@ -758,13 +761,46 @@ export class World{
   const path=findPath('lobby',this.position,seat.approach);if(!path){this.onToast('의자 앞 통로로 이동해 주세요.');return;}
   this.cancelSeat();this.loungeTarget=id;this.route=path;this.marker.position.set(seat.approach.x,.035,seat.approach.z);this.marker.visible=true;
  }
+ private get activeCat(){return this.venue.cat??this.venue.hallCat;}
+ catView=false;
+ get canWatchCat(){
+  return this.entered&&this.ready&&!this.changingZone&&!this.hallLoading&&!this.photoMode
+   &&!this.self?.dance&&!this.ridingTrain&&!this.conducting.active&&!!this.activeCat;
+ }
+ watchCat(){
+  if(!this.canWatchCat)return false;
+  this.stopBroadcastView();
+  if(this.pose!=='sit')this.cancelSeat();
+  this.route=[];
+  this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;
+  this.catView=true;
+  this.snapCamera();this.onChange();
+  return true;
+ }
+ stopCatView(){
+  if(!this.catView)return;
+  this.catView=false;
+  this.snapCamera();this.onChange();
+ }
  /** A click walks to the cat first, then gives a gentle pat. */
  private visitCat(){
-  const cat=this.venue.cat;if(!cat||this.zone!=='lobby'||this.net.status!=='connected')return;
+  const cat=this.activeCat;
+  if(!cat||this.net.status!=='connected'||this.changingZone||this.conducting.active)return;
+  if(!cat.canPet){this.onToast('고양이가 바닥에 내려오면 쓰다듬을 수 있어요.');return;}
   if(this.pose==='sit')this.stand();
-  this.cancelSeat();if(!cat.invite(this.position))return;
-  const path=findPath('lobby',this.position,cat.approach);if(!path){cat.release();this.onToast('고양이 옆 통로로 이동해 주세요.');return;}
-  this.visitingCat=true;this.route=path;this.marker.position.set(cat.approach.x,.035,cat.approach.z);this.marker.visible=true;
+  this.cancelSeat();
+  const route=cat.invite(this.position);
+  if(!route){this.onToast('고양이 옆 통로로 이동해 주세요.');return;}
+  this.catVisit={cat,route,expiresAt:performance.now()+20000};
+  this.route=route;
+  this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;
+  this.marker.position.set(cat.approach.x,cat.approach.y+.035,cat.approach.z);this.marker.visible=true;
+ }
+ private clearCatInteraction(){
+  const visit=this.catVisit;
+  if(visit&&this.route===visit.route){this.route=[];this.marker.visible=false;}
+  visit?.cat.release();this.pettingCat?.release();
+  this.catVisit=null;this.pettingCat=null;this.petUntil=0;
  }
  /** A seat picked at the lobby box office: enter the hall, then walk to it. */
  chooseSeatFromLobby(id:string){if(!SEATS.some(s=>s.id===id)||this.zone!=='lobby'||!this.entered)return;if(this.pose==='sit')this.stand();this.pendingSeat=id;void this.changeZone(true);}// Seat map: no walk to the hall door, go straight in.
@@ -869,7 +905,7 @@ export class World{
  }
  /** Floor menu: jump straight to the rear gallery (2F) or back down to the rear of the stalls (1F). */
  goToGallery(){if(this.zone!=='auditorium')return;this.goToHallPoint(this.position.y<GOLDEN_HALL.balconyHeight-.3?'upper':'rear');}
- private cancelSeat(keepPending=false){this.visitingCafe=false;if(this.visitingCat||this.petUntil)this.venues.lobby.cat?.release();this.visitingCat=false;this.petUntil=0;this.visitingBoxOffice=false;this.visitingWardrobe=false;this.loungeTarget=null;if(!keepPending){this.pendingSeat=null;this.seatWalkAt=0;}this.reserveVersion++;if(this.reservedSeat)this.net.send({type:'release'});this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
+ private cancelSeat(keepPending=false){this.stopCatView();this.visitingCafe=false;this.clearCatInteraction();this.visitingBoxOffice=false;this.visitingWardrobe=false;this.loungeTarget=null;if(!keepPending){this.pendingSeat=null;this.seatWalkAt=0;}this.reserveVersion++;if(this.reservedSeat)this.net.send({type:'release'});this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
  /** Wardrobe changes happen in front of the cloakroom, then travel with the visitor into the hall. */
  visitWardrobe(){
   if(this.zone!=='lobby'||!this.entered||this.net.status!=='connected')return;
@@ -888,7 +924,7 @@ export class World{
  /** One drag rule for every view. */
  get entranceViewLocked(){return this.entered&&this.entranceFraming&&this.zone==='auditorium'&&this.pose!=='sit'&&underEntranceRoof(this.position);}
  rotateView(dx:number,dy:number){
-  if(this.broadcastView)return;
+  if(this.broadcastView||this.catView)return;
   this.danceCameraGlide=false;
   this.mirrorView=false;
   if(this.photoMode){
@@ -908,9 +944,9 @@ export class World{
   if(overview){this.cameraYaw=T.MathUtils.clamp(yaw,-.9,.9);this.cameraPitch=T.MathUtils.clamp(pitch,.13-1.3,.13+1.4);}
   else{this.cameraYaw=yaw;this.cameraPitch=T.MathUtils.clamp(pitch,-1.45,1.45);}
  }
- private get firstPerson(){return !this.broadcastView&&!this.self?.dance&&!this.ridingTrain&&this.entered&&!this.conducting.active&&!(this.zone==='auditorium'&&this.concertView)&&this.cameraDistance<=FIRST_PERSON_ZOOM;}
+ private get firstPerson(){return !this.broadcastView&&!this.catView&&!this.self?.dance&&!this.ridingTrain&&this.entered&&!this.conducting.active&&!(this.zone==='auditorium'&&this.concertView)&&this.cameraDistance<=FIRST_PERSON_ZOOM;}
  zoomView(f:number){
-  if(this.broadcastView)return;
+  if(this.broadcastView||this.catView)return;
   this.danceCameraGlide=false;
   this.mirrorView=false;
   if(this.photoMode){
@@ -1121,9 +1157,14 @@ export class World{
   return true;
  }
  private click(x:number,y:number){if(!this.entered||this.photoMode||this.uiObscured||this.broadcastView)return;if(this.self?.dance)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
+  if(this.catView){
+   const cat=this.activeCat;
+   if(cat&&this.ray.intersectObjects(cat.targets).length)this.visitCat();
+   return;
+  }
   if(this.clickDanceSpot())return;
   this.selectedDanceHost=null;
-  const hits=this.ray.intersectObjects([...(this.zone==='auditorium'?this.encoreTrain?.targets??[]:[]),...(this.venue.usher?.targets??[]),...(this.venue.portrait?[this.venue.portrait.surface]:[]),...(this.dishLayer()?.targets??[]),...(this.venue.cat?.targets??[]),...(this.venue.stairArrows?.targets??[]),...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);if(!hits.length)return;const hit=hits[0];
+  const hits=this.ray.intersectObjects([...(this.zone==='auditorium'?this.encoreTrain?.targets??[]:[]),...(this.venue.usher?.targets??[]),...(this.venue.portrait?[this.venue.portrait.surface]:[]),...(this.dishLayer()?.targets??[]),...(this.activeCat?.targets??[]),...(this.venue.stairArrows?.targets??[]),...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);if(!hits.length)return;const hit=hits[0];
   if(hit.object.userData.trainSeat!==undefined){if(this.ridingTrain)this.net.send({type:'trainBoard',seat:hit.object.userData.trainSeat});return;}
   if(this.ridingTrain)return;
   if(hit.object.userData.mirrorStandingSpot){this.walkToMirror();return;}
@@ -1137,7 +1178,7 @@ export class World{
   if(hit.object.userData.usher){this.venue.usher?.greet(performance.now()/1000,USHER_LINES.ask);return;}
   if(hit.object.userData.queenCard){this.openQueenCardGame();return;}
   if(hit.object.userData.programBook){this.route=[];this.marker.visible=false;this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;this.onProgramBook();return;}
-  if(hit.object.userData.lobbyCat){this.visitCat();return;}
+  if(hit.object.userData.pettableCat){this.visitCat();return;}
   if(hit.object.userData.loungeSeatId){this.sitInLobby(hit.object.userData.loungeSeatId);return;}
   if(hit.object.userData.cloakroom){this.visitWardrobe();return;}
   if(hit.object.userData.macaron||hit.object.userData.cafe){this.openCafeMenu();return;}
@@ -1266,6 +1307,19 @@ export class World{
   else if(this.cameraSwayBlend<.001)this.cameraSwayTime=0;
  }
  private cameraFrame(){
+  const cat=this.catView?this.activeCat:null;
+  if(cat){
+   const look=cat.root.position.clone();
+   look.y+=.38;
+   const yaw=cat.root.rotation.y;
+   const x=Math.sin(yaw),z=Math.cos(yaw);
+   // A close three-quarter view keeps the cat visible above the nearby chairs.
+   const eye=look.clone();
+   eye.x+=-1.35*x+.95*z;
+   eye.y+=.95;
+   eye.z+=-1.35*z-.95*x;
+   return {look,position:constrainCamera(look,eye,this.venue.cameraWalls)};
+  }
   if(this.broadcastStartedAt!==null){
    const actor=this.avatar?.root;
    const usher=this.venue.usher?.avatar.root;
@@ -1451,7 +1505,9 @@ export class World{
   this.encoreTrain?.update(this.net.now()/1000,this.zone==='auditorium',this.reduced);
   this.venues.auditorium?.magicChair?.update(this.net.state?.magicChair,this.net.now());
   const movementLocked=this.self?.dance||this.photoMode||this.ridingTrain||this.uiObscured||this.queenWand.casting||this.queenWand.receiving;
-  if(movementLocked){this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;this.route=[];}
+  if(this.catVisit&&(this.catVisit.route!==this.route||now>=this.catVisit.expiresAt||this.net.status!=='connected'))this.clearCatInteraction();
+  if(this.pettingCat&&now>=this.petUntil)this.pettingCat=null;
+  if(movementLocked){this.clearCatInteraction();this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;this.route=[];}
   const lunarGallery=this.onLunarGallery;
   const lunarWalk=lunarGallery&&!this.reduced&&!movementLocked&&!this.changingZone&&!this.conducting.active;
   const stepPhase=this.lunarStride%1;
@@ -1461,10 +1517,11 @@ export class World{
   let steering=false;
   let speed=0;const keys=this.input.keys;let kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+this.input.touchMove.x;let kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+this.input.touchMove.z;
   if(this.broadcastView&&(kx||kz))this.stopBroadcastView();
+  if(this.catView&&(kx||kz))this.stopCatView();
   if(this.entered&&this.net.status==='connected'){
    // Automatically enter only after 30 seconds without activity.
    if(this.zone!=='lobby')this.lobbyEnteredAt=0;
-   else if(kx||kz||this.route.length||this.uiObscured||this.photoMode||document.hidden)this.lobbyEnteredAt=now;
+   else if(kx||kz||this.route.length||this.uiObscured||this.photoMode||this.catView||document.hidden)this.lobbyEnteredAt=now;
    else if(!this.lobbyEnteredAt)this.lobbyEnteredAt=now;
    else if(now-this.lobbyEnteredAt>=30000&&!this.changingZone&&!this.uiObscured&&!document.hidden){this.lobbyEnteredAt=now;void this.changeZone();}
    if(now<this.collisionPauseUntil)kx=kz=0;
@@ -1503,8 +1560,11 @@ export class World{
      else if(this.reservedSeat&&!this.seating){this.seating=true;this.sendPosition(now,true);this.net.send({type:'seated',seatId:this.reservedSeat});}
     }
    }
-   if(this.visitingCat&&!this.route.length&&this.venue.cat&&distance(this.position,this.venue.cat.approach)<.15){
-    this.visitingCat=false;this.petUntil=now+2600;this.venue.cat.pet(now/1000);this.audio.meow();this.pose='idle';this.onToast('고양이가 눈을 감고 기분 좋게 꼬리를 흔들어요.');this.sentAt=0;
+   const visit=this.catVisit;
+   if(visit&&!this.route.length&&distance(this.position,visit.cat.approach)<.15){
+    this.catVisit=null;
+    this.pettingCat=visit.cat;this.petUntil=now+2600;visit.cat.pet(now/1000);
+    this.audio.meow();this.pose='idle';this.onToast('고양이가 눈을 감고 기분 좋게 꼬리를 흔들어요.');this.sentAt=0;
    }
    if(this.loungeTarget&&!this.route.length){const seat=LOUNGE_SEATS.find(s=>s.id===this.loungeTarget);this.loungeTarget=null;if(seat&&distance(this.position,seat.approach)<.12){this.pose='idle';this.sendPosition(now,true);this.net.send({type:'loungeSit',seatId:seat.id});}}
    if(this.visitingBoxOffice&&this.zone==='lobby'&&distance(this.position,BOX_OFFICE_APPROACH)<.12){this.visitingBoxOffice=false;this.route=[];this.marker.visible=false;this.pose='idle';this.onSeatMap();}
@@ -1512,7 +1572,7 @@ export class World{
    const wardrobeDistance=this.zone==='lobby'&&Math.abs(this.position.y)<.3?Math.hypot(this.position.x-CLOAKROOM_APPROACH.x,this.position.z-CLOAKROOM_APPROACH.z):Infinity;
    if(wardrobeDistance>1.8)this.wardrobeNear=false;
    if(!this.uiObscured&&wardrobeDistance<(this.visitingWardrobe ? .2 : .9)&&!this.wardrobeNear){this.openWardrobe();speed=0;}
-   if(now<this.petUntil&&this.venue.cat){this.venue.cat.petPoint(this.petFocus);this.yaw=Math.atan2(this.position.x-this.petFocus.x,this.position.z-this.petFocus.z);this.pose='idle';speed=0;}
+   if(this.pettingCat){this.pettingCat.petPoint(this.petFocus);this.yaw=Math.atan2(this.position.x-this.petFocus.x,this.position.z-this.petFocus.z);this.pose='idle';speed=0;}
    if(this.reservedSeat&&this.pose!=='sit'&&now-this.renewAt>5000){this.net.send({type:'renew',seatId:this.reservedSeat});this.renewAt=now;}
    this.sendPosition(now);
    // Walking through the amphitheatre door at the head of the flight enters the hall.
@@ -1614,7 +1674,7 @@ export class World{
    }
    if(this.queenWand.casting&&!seated&&dx*dx+dz*dz>.04)this.avatar.root.rotation.y=cameraYaw;
    this.avatar.root.visible=this.entered;
-   if(now<this.petUntil&&this.venue.cat)this.avatar.pet(this.venue.cat.petPoint(this.petFocus),now/1000,this.reduced);
+   if(this.pettingCat)this.avatar.pet(this.pettingCat.petPoint(this.petFocus),now/1000,this.reduced);
   }
   this.camera.updateMatrixWorld();this.poseFrustum.setFromProjectionMatrix(this.poseProjection.multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse));
   for(const r of this.remotes.values()){
@@ -1677,6 +1737,10 @@ export class World{
     if(actor.root.userData.concertmaster){actor.update(clock,0,!show.concertmasterStands,(show.concertmasterPlays||show.orchestraPlays)&&!this.reduced,null,10,actorDt);continue;}
     actor.update(clock,0,musicianSits(actor.instrumentType),show.orchestraPlays&&!this.reduced,null,10,actorDt);
    }
+   if(hallActive){
+    this.venues.auditorium?.hallCat?.update(concertSeconds,this.reduced,now/1000);
+    this.venues.auditorium?.hallDog?.update(concertSeconds,animationDt,this.net.state?.visitors??[],this.reduced);
+   }
    const batchStart=timings?performance.now():0;
    this.venue.updateMusicians(this.camera);
    if(timings){
@@ -1717,16 +1781,16 @@ export class World{
   const snap=!this.danceCameraGlide&&((this.entered&&!this.concertView&&this.introEase<=0&&!this.introGlide)
    ||firstPerson||now-this.dragAt<150||this.cameraLocked);
   const glideRate=this.danceCameraGlide?2.8:(this.introEase>0||this.introGlide?1.6:7);
-  const smooth=snap||broadcast?1:1-Math.exp(-dt*glideRate);
+  const smooth=this.catView?1-Math.exp(-dt*10):snap||broadcast?1:1-Math.exp(-dt*glideRate);
   if(this.introEase>0)this.introEase=Math.max(0,this.introEase-dt);
-  const walled=this.entered&&!entranceReveal&&!broadcast&&!this.self?.dance&&!this.ridingTrain&&!this.photoMode&&!firstPerson&&!this.concertView&&this.position.z<=GOLDEN_HALL.rear,origin=walled?localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin:null;
+  const walled=this.entered&&!entranceReveal&&!broadcast&&!this.catView&&!this.self?.dance&&!this.ridingTrain&&!this.photoMode&&!firstPerson&&!this.concertView&&this.position.z<=GOLDEN_HALL.rear,origin=walled?localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin:null;
   if(origin)f.position.copy(constrainCamera(origin,f.position,this.venue.cameraWalls));
   this.camera.position.lerp(f.position,smooth);
   if(origin&&this.cameraLocked)this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));
   const scene=this.venue.scene;
   if(!this.entered)scene.userData.cameraFocus=null;
   else if(firstPerson)scene.userData.cameraFocus=f.position;
-  else if(this.concertView||broadcast)scene.userData.cameraFocus=f.look;
+  else if(this.concertView||broadcast||this.catView)scene.userData.cameraFocus=f.look;
   else scene.userData.cameraFocus=localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin;
   this.look.lerp(f.look,smooth);
   this.camera.lookAt(this.look);
@@ -1736,7 +1800,7 @@ export class World{
    this.avatar.root.visible=!firstPerson&&this.camera.position.distanceTo(head)>.7;
   }
   if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}
-  for(const object of this.venue.overviewHidden)object.visible=!this.concertView||broadcast;
+  for(const object of this.venue.overviewHidden)object.visible=!this.concertView||broadcast||this.catView;
   if(this.conducting.active&&this.avatar)this.avatar.root.visible=false;
   if(this.photoMode&&this.avatar)this.avatar.root.visible=this.photoComposition==='current'?this.photoOriginal.avatarVisible:true;
   const submitStart=this.diagnosticActive?performance.now():0;
@@ -1791,5 +1855,5 @@ export class World{
   if(timings)this.onDiagnosticFrame?.(timings);
   if(now-this.lastUI>500){this.lastUI=now;this.onChange();}
  };
- destroy(){if(this.disposed)return;this.avatar?.disposeDanceSleeves();this.danceCircles.dispose();this.disposed=true;this.queenWand.dispose();this.venues.auditorium?.scene.userData.hallTransition?.dispose();this.endPhotoMode();this.venues.auditorium?.programBook?.dispose();this.venues.auditorium?.storyTableProps?.dispose();this.encoreTrain?.dispose();this.encoreClock?.dispose();this.musicLights?.dispose();this.fireworks?.dispose();this.hallDust?.dispose();this.venues.auditorium?.mirror?.dispose();this.venues.auditorium?.portrait?.dispose();this.venues.auditorium?.usher?.dispose();this.conductEffect?.dispose();this.activityEvents.abort();clearTimeout(this.hallLoadingTimeout);this.releaseLoadingCallbacks();cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues)){for(const fade of v.scene.userData.cameraFades as CameraFade[]??[])fade.dispose();v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});}this.lightingPass?.dispose();this.environment.dispose();this.renderer.dispose();this.renderer.forceContextLoss();this.renderer.domElement.remove();this.visitorNames.dispose();}
+ destroy(){if(this.disposed)return;this.avatar?.disposeDanceSleeves();this.danceCircles.dispose();this.disposed=true;this.queenWand.dispose();this.venues.auditorium?.scene.userData.hallTransition?.dispose();this.endPhotoMode();this.venues.auditorium?.programBook?.dispose();this.venues.auditorium?.storyTableProps?.dispose();this.encoreTrain?.dispose();this.encoreClock?.dispose();this.musicLights?.dispose();this.fireworks?.dispose();this.hallDust?.dispose();this.venues.auditorium?.mirror?.dispose();this.venues.auditorium?.portrait?.dispose();this.venues.auditorium?.usher?.dispose();this.conductEffect?.dispose();this.venues.lobby.cat?.dispose();this.venues.auditorium?.hallCat?.dispose();this.activityEvents.abort();clearTimeout(this.hallLoadingTimeout);this.releaseLoadingCallbacks();cancelAnimationFrame(this.frame);this.input.destroy();window.removeEventListener('resize',this.resize);for(const v of Object.values(this.venues)){for(const fade of v.scene.userData.cameraFades as CameraFade[]??[])fade.dispose();v.scene.traverse(o=>{if(o instanceof T.Mesh)o.geometry.dispose();});}this.lightingPass?.dispose();this.environment.dispose();this.renderer.dispose();this.renderer.forceContextLoss();this.renderer.domElement.remove();this.visitorNames.dispose();}
 }
