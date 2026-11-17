@@ -70,7 +70,15 @@ function selectDanceMove(dance:DanceState,style:DanceStyle,now:number,moveLeader
  return {...dance,style,moveStartedAt:nextAt,moveLeader,previousMove:nextAt>now?previousMove:undefined};
 }
 
-/** The facing for side-by-side routines, shared by both dancers and the opening camera. */
+const sharedRoutineStyle=(style:DanceStyle|undefined)=>SHARED_ROUTINES.some(move=>move.id===style);
+
+/** Use the active routine, not momentary body rotation or a routine still in the queue. */
+export function duetCameraFacesFront(dance:DanceState,now:number){
+ const move=activeMove(dance,now);
+ return !!dance.center&&dance.endingAt===undefined&&now>=(move.moveStartedAt??Infinity)&&sharedRoutineStyle(move.style);
+}
+
+/** The body heading shared by both dancers during side-by-side routines. */
 export function partnerRoutineYaw(angle:number){return angle+Math.PI/2;}
 
 export function dancePose(v:Visitor,now:number,jazz=false){
@@ -108,7 +116,7 @@ export function dancePose(v:Visitor,now:number,jazz=false){
  const fadeIn=sweep?.055:isFloss?.10:isBad?.08:isCaptain?180/duration:.15;
  const remaining=move===d?Infinity:(d.moveStartedAt??moveNow)-moveNow;
  const accent=playing?smooth(moveAge/(duration*fadeIn))*smooth(remaining/Math.min(220,duration*.22)):0;
- const sharedRoutine=!!center&&playing&&(isCaptain||isBad||isFloss||style==='shimmy');
+ const sharedRoutine=!!center&&playing&&sharedRoutineStyle(style);
  // Turn both dancers toward the same side and give each a clear space for arm swings.
  const formation=sharedRoutine?smooth(moveAge/320)*smooth(remaining/320):0;
  const spin=playing&&style==='spin';

@@ -138,12 +138,12 @@ button.brand .brand-sub{font-size:12px;letter-spacing:1px;color:#f3e7cc;margin-t
 .view-mode-options button:enabled:hover,.view-mode-options button[aria-pressed="true"]{background:#d3bc8733}
 .view-mode-options button:focus-visible{outline-offset:-3px}
 .icon-menu-item:has(+ .view-mode-options:popover-open){background:#d3bc8733}
-:is(.broadcast-exit,.listening-exit,.concert-view-exit){
+:is(.broadcast-exit,.concert-view-exit){
  position:fixed;bottom:max(20px,env(safe-area-inset-bottom));right:clamp(16px,3vw,32px);
  display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 15px;border-radius:24px;
  border:1px solid #d0b98b50;background:var(--panel);color:#f1e8d5;font-size:12px;
 }
-:is(.broadcast-exit,.listening-exit,.concert-view-exit):hover{background:#423528}
+:is(.broadcast-exit,.concert-view-exit):hover{background:#423528}
 .concert-view-exit{width:44px;justify-content:center;padding:0}
 @media(max-width:540px){
  .concert-view-exit{bottom:calc(76px + env(safe-area-inset-bottom,0px))}

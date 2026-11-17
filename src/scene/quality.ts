@@ -1,7 +1,13 @@
 export type RenderQuality='balanced'|'sharp'|'low';
+
+/** iPadOS may report a desktop UA, even with a trackpad connected. */
+export function isIPadDevice(userAgent:string,maxTouchPoints:number){
+ if(/iPhone|iPod|Android/i.test(userAgent))return false;
+ return /iPad/i.test(userAgent)||(/Macintosh/i.test(userAgent)&&maxTouchPoints>1);
+}
 /** Preserve aspect ratio within the selected landscape/portrait resolution envelope. */
-export function renderRatio(width:number,height:number,dpr:number,quality:RenderQuality,mobile=false){
- if(mobile){
+export function renderRatio(width:number,height:number,dpr:number,quality:RenderQuality,mobile=false,ipad=false){
+ if(mobile&&!(ipad&&quality==='sharp')){
   const [long,short]=quality==='sharp'?[1280,720]:[1136,640];
   return Math.min(Math.max(1,dpr),long/Math.max(1,width,height),short/Math.max(1,Math.min(width,height)));
  }

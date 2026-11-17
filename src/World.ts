@@ -2,7 +2,7 @@ import {activeHighFive,canHighFive,USHER_HIGH_FIVE_ID,withinHighFiveReach,type H
 import {highFivePose,type HighFivePose} from './character/highFivePose';
 import {DanceCircles} from './scene/DanceCircles';
 import {JAZZ_HALL} from '../shared/hallKind';
-import {danceNpc,dancePose,DANCE_JOIN_RADIUS,SOLO_DANCES,type DanceCommand} from '../shared/dance';
+import {danceNpc,dancePose,duetCameraFacesFront,DANCE_JOIN_RADIUS,SOLO_DANCES,type DanceCommand} from '../shared/dance';
 import {poseDancingAvatar} from './scene/DancePose';
 import {atTeaTable} from '../shared/tea';
 import {QueenWand} from './scene/QueenWand';
@@ -34,7 +34,7 @@ import {LOUNGE_SEATS} from '../shared/loungeSeats';
 import * as T from 'three';
 import {characterFrontLight,FRONT_LIGHT} from './character/characterLight';
 import {constrainCamera} from './controls/cameraCollision';
-import {danceCameraFrame,duetSideYaw,soloCameraFacing} from './controls/danceCamera';
+import {danceCameraFrame,duetFrontYaw,duetSideYaw,soloCameraFacing,stepDuetCameraYaw} from './controls/danceCamera';
 import {createVenue,createVenueAsync,type Venue} from './scene/Venue';
 import {Ghosts,type GhostSpot} from './scene/Ghosts';
 import {NpcBehavior} from './scene/NpcBehavior';
@@ -72,7 +72,7 @@ import {FLOOR_SEATS,FLOOR_CROSS_AISLE,SPAWN,SEATS,BOUNDS,seatLabel,walkable,dist
 import type {Snapshot} from '../shared/protocol';
 import type {Presence} from './network/Presence';
 import type {ConcertAudio} from './audio/ConcertAudio';
-import {renderRatio,frameRate,bloomResolution,msaaSamples,type RenderQuality} from './scene/quality';
+import {renderRatio,frameRate,bloomResolution,isIPadDevice,msaaSamples,type RenderQuality} from './scene/quality';
 import {galaxySettingsForDevice,normalizeGalaxySettings,type GalaxySettings} from './scene/SpaceGalaxies';
 import {CONCERT_CAMERA,CONDUCTOR,JAZZ_VOCALIST,STAGE,STAGE_FLOOR} from './orchestra/layout';
 import {GOLDEN_HALL,HALL_CAMERA} from '../shared/goldenHall';
@@ -220,6 +220,7 @@ export class World{
  private ray=new T.Raycaster();private ndc=new T.Vector2();private frame=0;private last=performance.now();private sentAt=0;private lastPose='';private renewAt=0;private lastUI=0;private look=new T.Vector3();private gesture:Gesture|null=null;private headTop=new T.Vector3();private gestureAt=0;
  private gestureCameraTurn:number|null=null;
  private disposed=false;private lodAt=0;private orchestraAt=0;quality:RenderQuality='balanced';readonly mobile=matchMedia('(pointer: coarse)').matches||/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);private renderedAt=0;
+ private readonly ipad=isIPadDevice(navigator.userAgent,navigator.maxTouchPoints);
  private releaseLoadingCallbacks=()=>{};
  diagnosticActive=false;diagnosticMode:'normal'|'no-draw'|'audio-only'='normal';drawCount=0;frameCost={at:0,cpu:0,submit:0};
  diagnosticGpu:GpuFrameTimer|null=null;
@@ -247,7 +248,7 @@ export class World{
   try{this.showVisitorNames=localStorage.getItem('pleee-show-visitor-names')!=='0';}catch{/* Local storage is optional. */}
   try{this.mirrorHintSeen=localStorage.getItem('pleee-mirror-discovery')==='1';}catch{/* Local storage is optional. */}
   try{const saved=localStorage.getItem('concert-quality');if(saved==='balanced'||saved==='sharp'||saved==='low')this.quality=saved;}catch{/* Storage can be unavailable in private browsing. */}
-  this.renderer=new T.WebGLRenderer({antialias:true,powerPreference:'low-power'});this.renderer.setPixelRatio(renderRatio(innerWidth,innerHeight,devicePixelRatio,this.quality,this.mobile));this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1;this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFShadowMap;
+  this.renderer=new T.WebGLRenderer({antialias:true,powerPreference:'low-power'});this.renderer.setPixelRatio(renderRatio(innerWidth,innerHeight,devicePixelRatio,this.quality,this.mobile,this.ipad));this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1;this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFShadowMap;
   const canvas=this.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','캐릭터 뒤에서 둘러보는 플리 음악당. 바닥 클릭으로 이동하고 드래그로 둘러봅니다.');host.append(canvas);this.visitorNames=new VisitorNames(host);this.visitorNames.setVisible(this.showVisitorNames);
   this.environment=interiorEnvironment(this.renderer);
   this.venues={lobby:measuredVenue('lobby')} as Record<Zone,Venue>;reportLoading(55,'음악당의 색과 빛을 준비하고 있어요');
@@ -255,7 +256,7 @@ export class World{
   this.venues.lobby.scene.environment=this.environment.texture;this.venues.lobby.scene.environmentIntensity=.18;this.lightingPass=new LobbyLightPass(this.renderer,this.venues.lobby.scene,this.camera,bloomResolution(this.mobile,this.quality),msaaSamples(this.quality));
   this.crowds={lobby:new Ghosts(this.venues.lobby.scene)} as Record<Zone,Ghosts>;
   this.marker=new T.Mesh(new T.RingGeometry(.16,.24,24),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.8,depthWrite:false}));this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.venues.lobby.scene.add(this.marker);
-  this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>{if(this.uiObscured)return;if(this.listeningView){this.stopListeningView();return;}if(this.photoMode)this.endPhotoMode();else if(this.broadcastView)this.stopBroadcastView();else if(this.catView)this.stopCatView();else this.stand();}});
+  this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>{if(this.uiObscured)return;if(this.photoMode)this.endPhotoMode();else if(this.broadcastView)this.stopBroadcastView();else if(this.catView)this.stopCatView();else this.stand();}});
   for(const event of ['pointerdown','pointermove','keydown','wheel'])window.addEventListener(event,()=>{const now=performance.now();this.lobbyEnteredAt=now;this.cameraInputAt=now;if(this.entered&&this.zone==='lobby'&&now-this.activitySentAt>2000){this.activitySentAt=now;this.net.send({type:'activity'});}},{passive:true,signal:this.activityEvents.signal});
   for(const event of ['pointerdown','keydown','wheel'])window.addEventListener(event,this.skipEntranceReveal,{capture:true,passive:true,signal:this.activityEvents.signal});
   window.addEventListener('resize',this.resize);
@@ -463,7 +464,7 @@ export class World{
    yield {x:point.x,y:point.y,z:point.z,yaw:Math.atan2(this.camera.position.x-point.x,this.camera.position.z-point.z),id:'photo-sneak',sitting:false,npc:true,gesture:'wave',age:(age-1.2)%5};
   }
  }
- startPhotoMode(){this.stopListeningView(false);
+ startPhotoMode(){
   if(!this.entered||!this.ready||this.changingZone||this.hallLoading)return;
   this.stopBroadcastView();
   this.stopCatView();
@@ -496,7 +497,6 @@ export class World{
  private get photoBaseFov(){return this.photoComposition==='current'?this.photoOriginal.fov:61;}
  private get viewFov(){
   const aspect=this.camera.aspect;
-  if(this.listeningView)return aspect<.78?59:46;
   if(aspect>=.8)return 61;
   if(this.ridingTrain)return 86;
   if(!this.entranceViewLocked||this.broadcastView||this.concertView)return 70;
@@ -550,14 +550,14 @@ export class World{
    request.reject(new Error('사진을 저장하지 못했습니다. 다시 촬영해 주세요.'));
   }
  }
- setStageView(low:boolean){this.stopListeningView(false);if(this.entranceViewLocked||this.zone!=='auditorium')return;this.stopBroadcastView();this.stopCatView();this.introUntil=0;this.concertView=true;this.hallOverview=false;this.stageLowView=low;this.resetCameraSway(performance.now());this.cameraYaw=0;this.cameraPitch=.13;this.hallZoom=1;this.route=[];this.marker.visible=false;this.onChange();}
+ setStageView(low:boolean){if(this.entranceViewLocked||this.zone!=='auditorium')return;this.stopBroadcastView();this.stopCatView();this.introUntil=0;this.concertView=true;this.hallOverview=false;this.stageLowView=low;this.resetCameraSway(performance.now());this.cameraYaw=0;this.cameraPitch=.13;this.hallZoom=1;this.route=[];this.marker.visible=false;this.onChange();}
  private broadcastCamera:BroadcastCamera|null=null;
  private broadcastEventGhosts:GhostSpot[]=[];
  get broadcastView(){return this.broadcastCamera!==null;}
  get canStartBroadcast(){
   return this.entered&&this.zone==='auditorium'&&!this.changingZone&&!this.photoMode&&!this.ridingTrain&&!this.self?.dance&&!this.conducting.active;
  }
- toggleBroadcastView(){this.stopListeningView(false);
+ toggleBroadcastView(){
   if(this.broadcastView){this.stopBroadcastView();return;}
   if(!this.canStartBroadcast)return;
   this.stopCatView();
@@ -605,7 +605,7 @@ export class World{
   scene.userData.hallTransition.setOpen(this.openHall,this.galaxySettings);
   this.onChange();
  }
- showHallOverview(){this.stopListeningView(false);
+ showHallOverview(){
   if(this.entranceViewLocked||this.zone!=='auditorium')return;
   this.stopBroadcastView();
   this.introUntil=0;
@@ -628,7 +628,7 @@ export class World{
   const probe=this.diagnosticActive&&!this.mobile?PROBE_PROFILE:null;
   const w=probe?.width??innerWidth,h=probe?.height??innerHeight;
   const mobile=!!probe||this.mobile,quality=probe?.quality??this.quality;
-  const ratio=renderRatio(w,h,probe?.dpr??devicePixelRatio,quality,mobile);
+  const ratio=renderRatio(w,h,probe?.dpr??devicePixelRatio,quality,mobile,!probe&&this.ipad);
   const canvas=this.renderer.domElement;
   this.renderer.setDrawingBufferSize(w,h,ratio);
   const fit=probe?Math.min(innerWidth/w,innerHeight/h):1;
@@ -680,6 +680,7 @@ export class World{
    }
    if(previousDance&&!self.dance){
     this.keepDanceView=false;
+    this.duetCameraFront=null;this.duetCameraOrbit=null;
     this.position.set(self.x,self.y??0,self.z);this.yaw=self.yaw;
     if(this.beforeDanceCamera)Object.assign(this,this.beforeDanceCamera);
     this.beforeDanceCamera=null;
@@ -867,7 +868,7 @@ export class World{
   if(!direct)this.sendPosition(performance.now(),true);
   this.net.send(direct?{type:'trainBoard',direct:true}:{type:'trainBoard'});
  }
- stand(){this.stopListeningView(false);
+ stand(){
   if(this.ridingTrain){this.net.send({type:'trainLeave'});return;}
   this.seatedTarget=null;
   if(this.pose==='sit'||this.reservedSeat){
@@ -938,14 +939,8 @@ export class World{
  /** One drag rule for every view. */
  get entranceViewLocked(){return this.entered&&this.entranceFraming&&this.zone==='auditorium'&&this.pose!=='sit'&&underEntranceRoof(this.position);}
  rotateView(dx:number,dy:number){
-  if(this.listeningView){
-   const scale=3/Math.max(320,this.renderer.domElement.clientWidth);
-   this.listeningYaw=T.MathUtils.clamp(this.listeningYaw-dx*scale,-1.10,1.10);
-   this.listeningPitch=T.MathUtils.clamp(this.listeningPitch+dy*scale*.54,-.25,.27);
-   this.danceCameraGlide=false;this.dragAt=performance.now();return;
-  }
   if(this.broadcastView||this.catView)return;
-  this.danceCameraGlide=false;
+  this.danceCameraGlide=false;this.duetCameraOrbit=null;
   this.mirrorView=false;
   if(this.photoMode){
    const scale=4/Math.max(320,this.renderer.domElement.clientWidth);
@@ -964,12 +959,8 @@ export class World{
   if(overview){this.cameraYaw=T.MathUtils.clamp(yaw,-.9,.9);this.cameraPitch=T.MathUtils.clamp(pitch,.13-1.3,.13+1.4);}
   else{this.cameraYaw=yaw;this.cameraPitch=T.MathUtils.clamp(pitch,-1.45,1.45);}
  }
- private get firstPerson(){return !this.listeningView&&!this.broadcastView&&!this.catView&&!this.self?.dance&&!this.ridingTrain&&this.entered&&!this.conducting.active&&!(this.zone==='auditorium'&&this.concertView)&&this.cameraDistance<=FIRST_PERSON_ZOOM;}
+ private get firstPerson(){return !this.broadcastView&&!this.catView&&!this.self?.dance&&!this.ridingTrain&&this.entered&&!this.conducting.active&&!(this.zone==='auditorium'&&this.concertView)&&this.cameraDistance<=FIRST_PERSON_ZOOM;}
  zoomView(f:number){
-  if(this.listeningView){
-   this.listeningZoom=T.MathUtils.clamp(this.listeningZoom*f,.77,1.47);
-   this.danceCameraGlide=false;this.dragAt=performance.now();return;
-  }
   if(this.broadcastView||this.catView)return;
   this.danceCameraGlide=false;
   this.mirrorView=false;
@@ -1164,13 +1155,38 @@ export class World{
   this.cameraPitch=.18;
   this.cameraDistance=this.camera.aspect<.8?5.4:4.6;
   if(center){
-   const walls=this.venues.auditorium?.cameraWalls??this.venue.cameraWalls;
-   this.cameraYaw=duetSideYaw(dance.angle??facing,this.cameraYaw,yaw=>{
-    const frame=danceCameraFrame(center,yaw,this.cameraPitch,this.cameraDistance,true,walls);
-    return frame.position.distanceTo(frame.look);
-   });
-  }else this.cameraYaw=facing+Math.PI;
+   this.frameDuetCamera(visitor,duetCameraFacesFront(dance,this.net.now()));
+  }else{
+   this.duetCameraFront=null;this.duetCameraOrbit=null;
+   this.cameraYaw=facing+Math.PI;
+  }
   this.startDanceCameraGlide();
+ }
+ private duetCameraFront:boolean|null=null;
+ private duetCameraOrbit:number|null=null;
+ private frameDuetCamera(visitor:Visitor,front:boolean){
+  const dance=visitor.dance!,center=dance.center!;
+  const walls=this.venues.auditorium?.cameraWalls??this.venue.cameraWalls;
+  const pairAxis=dance.angle??this.visitorDancePose(visitor,this.net.now()).yaw;
+  const clearance=(yaw:number)=>{
+   const frame=danceCameraFrame(center,yaw,this.cameraPitch,this.cameraDistance,true,walls);
+   return frame.position.distanceTo(frame.look);
+  };
+  this.duetCameraFront=front;
+  this.duetCameraOrbit=front
+   ?duetFrontYaw(pairAxis,this.cameraYaw,clearance,Math.min(3.2,this.cameraDistance*.72))
+   :duetSideYaw(pairAxis,this.cameraYaw,clearance);
+  this.startDanceCameraGlide();
+ }
+ private updateDuetCamera(dt:number){
+  const visitor=this.self,dance=visitor?.dance;
+  if(!visitor||!dance?.center||dance.endingAt!==undefined)return;
+  const front=duetCameraFacesFront(dance,this.net.now());
+  if(front!==this.duetCameraFront)this.frameDuetCamera(visitor,front);
+  if(this.duetCameraOrbit===null)return;
+  const next=stepDuetCameraYaw(this.cameraYaw,this.duetCameraOrbit,dt);
+  this.cameraYaw=next.yaw;
+  if(next.done)this.duetCameraOrbit=null;
  }
  private danceCameraGlide=false;
  private startDanceCameraGlide(){
@@ -1254,7 +1270,7 @@ export class World{
   this.selectedDanceHost=host.id;
   return true;
  }
- private click(x:number,y:number){if(this.listeningView||!this.entered||this.photoMode||this.uiObscured||this.broadcastView)return;if(this.self?.dance)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
+ private click(x:number,y:number){if(!this.entered||this.photoMode||this.uiObscured||this.broadcastView)return;if(this.self?.dance)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
   if(this.catView){
    const cat=this.activeCat;
    if(cat&&this.ray.intersectObjects(cat.targets).length)this.visitAnimal(cat);
@@ -1514,100 +1530,7 @@ export class World{
  }
  private readonly broadcastSaturn=new T.Vector3();
 
- listeningView=false;
- listeningYaw=0;private listeningPitch=0;private listeningZoom=1;
- private readonly listeningProbe=new T.PerspectiveCamera();
- private listeningShot:{key:string;eye:T.Vector3;look:T.Vector3}|null=null;
- private get listeningSeat(){
-  return this.entered&&this.zone==='auditorium'&&this.pose==='sit'&&this.self?.seatId
-   ? DINNER_SEATS_BY_ID.get(this.self.seatId):undefined;
- }
- get canStartListening(){
-  return !!this.listeningSeat&&!this.entranceViewLocked&&!this.changingZone&&!this.photoMode&&!this.broadcastView
-   &&!this.catView&&!this.ridingTrain&&!this.self?.dance&&!this.conducting.active;
- }
- toggleListeningView(){
-  if(this.listeningView){this.stopListeningView();return;}
-  if(!this.canStartListening)return;
-  this.listeningView=true;this.listeningShot=null;this.listeningYaw=0;this.listeningPitch=0;this.listeningZoom=1;
-  this.concertView=false;this.route=[];this.marker.visible=false;this.introUntil=0;
-  this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;
-  this.danceCameraGlide=!this.reduced;this.resetCameraSway(performance.now());this.onChange();
- }
- stopListeningView(notify=true){
-  if(!this.listeningView)return;
-  this.listeningView=false;this.listeningShot=null;this.danceCameraGlide=!this.reduced;
-  if(notify)this.onChange();
- }
- private listeningFrame(){
-  const seat=this.listeningSeat;if(!seat)return null;
-  const table=DINNER_TABLES[seat.row-1],p=this.position,aspect=this.camera.aspect;
-  const key=seat.id+'/'+aspect.toFixed(3);
-  let shot=this.listeningShot;
-  if(shot?.key!==key){
-   shot=null;
-   const portrait=aspect<.78,probe=this.listeningProbe,origin=p.clone().add(new T.Vector3(0,1.1,0));
-   probe.aspect=aspect;probe.fov=portrait?59:46;probe.updateProjectionMatrix();
-   const dir=new T.Vector3(table.x-seat.x,0,table.z-seat.z).normalize();
-   const head=p.clone().add(new T.Vector3(0,1.25,0));
-   const top=p.clone().add(new T.Vector3(0,1.72,0));
-   const shoulder=p.clone().add(new T.Vector3(0,.68,0));
-   const hands=p.clone().addScaledVector(dir,.43).add(new T.Vector3(0,1.02,0));
-   const tableEdge=p.clone().addScaledVector(dir,.75).add(new T.Vector3(0,.91,0));
-   const tabletop=p.clone().addScaledVector(dir,1.15).add(new T.Vector3(0,.91,0));
-   const stage=new T.Vector3(0,2.0,-15);
-   const faceAngle=Math.atan2(dir.x,dir.z);
-   const angles=[-.98,-.70,-.39,0,.39,.70,.98,faceAngle-.82,faceAngle+.82,faceAngle-1.18,faceAngle+1.18];
-   const radii=portrait?[2.65,3.10,3.55]:[1.85,2.20,2.60];
-   const projected=new T.Vector3();
-   const margin=(v:T.Vector3,x:number,y:number)=>{
-    projected.copy(v).project(probe);
-    return Math.max(0,Math.abs(projected.x)-x)**2+Math.max(0,Math.abs(projected.y)-y)**2
-     +(projected.z>1||projected.z< -1?4:0);
-   };
-   let best=Infinity;
-   for(const angle of angles){
-    const bearing=new T.Vector3(Math.sin(angle),0,Math.cos(angle));
-    for(const radius of radii){
-     const desired=p.clone().addScaledVector(bearing,radius).add(new T.Vector3(0,portrait?1.52:1.39,0));
-     const eye=constrainCamera(origin,desired,this.venue.cameraWalls,.24);
-     if(eye.distanceTo(origin)<radius*.55)continue;
-     for(const aim of (portrait?[.30,.45,.63,.82]:[.27,.46,.62])){
-      const look=p.clone().addScaledVector(dir,aim).add(new T.Vector3(0,portrait?1.08:1.2,0));
-      probe.position.copy(eye);probe.lookAt(look);probe.updateMatrixWorld();
-      const headX=projected.copy(head).project(probe).x;
-      const headY=projected.y;
-      const tabletopX=projected.copy(tabletop).project(probe).x;
-      const profile=bearing.dot(dir);
-      const cost=100*margin(head,portrait?.36:.49,.63)+75*margin(top,.63,.84)+45*margin(shoulder,.66,.93)+55*margin(hands,.82,.91)
-       +60*margin(tableEdge,.83,.9)+23*margin(tabletop,.89,.93)+1.6*margin(stage,1.08,.98)
-       +12*Math.max(0,.08-profile)**2+1.45*(profile-.55)**2
-       +1.25*(headX-(portrait?.27:.32))**2+.6*(headY-.24)**2
-       +1.2*Math.max(0,tabletopX-headX+.08)**2
-       +.085*(radius-(portrait?2.65:1.85))**2+.10*(1-bearing.z);
-      if(cost<best){best=cost;shot={key,eye:eye.clone().sub(p),look:look.clone().sub(p)};}
-     }
-    }
-   }
-   this.listeningShot=shot??null;
-  }
-  if(!shot)return null;
-  if(!this.listeningYaw&&!this.listeningPitch&&this.listeningZoom===1)
-   return {position:p.clone().add(shot.eye),look:p.clone().add(shot.look)};
-  // Orbit only the camera around the seated body; both the eye and focus keep the portrait composition.
-  const up=new T.Vector3(0,1,0);
-  const pivot=new T.Vector3(0,1.16,0);
-  const eye=shot.eye.clone().sub(pivot).applyAxisAngle(up,this.listeningYaw);
-  const look=shot.look.clone().sub(pivot).applyAxisAngle(up,this.listeningYaw);
-  const right=new T.Vector3().crossVectors(up,eye).normalize();
-  eye.applyAxisAngle(right,this.listeningPitch).multiplyScalar(this.listeningZoom).add(pivot).add(p);
-  look.applyAxisAngle(right,this.listeningPitch).multiplyScalar(this.listeningZoom).add(pivot).add(p);
-  const origin=p.clone().add(pivot);
-  eye.y=Math.max(p.y+.42,eye.y);
-  return {position:constrainCamera(origin,eye,this.venue.cameraWalls,.22),look};
- }
  private cameraFrame(){
-  if(this.listeningView){const shot=this.listeningFrame();if(shot)return shot;}
   const cat=this.catView?this.activeCat:null;
   if(cat){
    const look=cat.root.position.clone();
@@ -1781,7 +1704,6 @@ export class World{
   if(this.disposed)return;
   this.frame=requestAnimationFrame(this.animate);const now=performance.now();if(document.hidden){this.last=now;this.renderedAt=0;return;}if(this.graphicsRestorePending)this.restoreGraphics();if(this.graphicsLost){this.last=now;this.renderedAt=0;return;}const rate=this.frameBudget(),interval=1000/rate;if(now-this.renderedAt<interval)return;this.renderedAt=interval?now-((now-this.renderedAt)%interval):now;const elapsed=(now-this.last)/1000,dt=Math.min(.1,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
   const workStart=this.diagnosticActive?performance.now():0;
-  if(this.listeningView&&!this.canStartListening)this.stopListeningView();
   if(this.diagnosticActive&&this.diagnosticMode==='audio-only'){this.frameCost={at:now,cpu:0,submit:0};if(now-this.lastUI>500){this.lastUI=now;this.onChange();}return;}
   const timings:FrameTimings|undefined=this.onDiagnosticFrame
    ? {musicianAnimation:0,musicianBatch:0,crowdBatch:0,fireworksUpdate:0,sceneRender:0,postProcessing:0}
@@ -2054,9 +1976,10 @@ export class World{
   }
   this.updateCameraSway(now,dt);
   this.cameraSeatAmount=T.MathUtils.damp(this.cameraSeatAmount,this.pose==='sit'?1:0,8,dt);
+  this.updateDuetCamera(dt);
   const f=this.cameraFrame();
   const gap=this.camera.position.distanceTo(f.position);
-  if(this.danceCameraGlide&&gap<.025&&this.look.distanceTo(f.look)<.025)this.danceCameraGlide=false;
+  if(this.danceCameraGlide&&this.duetCameraOrbit===null&&gap<.025&&this.look.distanceTo(f.look)<.025)this.danceCameraGlide=false;
   const follow=!this.concertView&&this.introEase<=0&&gap<1.5;
   // Preserve the slow dance transition even when the normal walking view would snap.
   this.cameraLocked=!this.danceCameraGlide&&follow&&(this.cameraLocked||gap<.03);
@@ -2064,9 +1987,9 @@ export class World{
   const snap=!this.danceCameraGlide&&((this.entered&&!this.concertView&&this.introEase<=0&&!this.introGlide)
    ||firstPerson||now-this.dragAt<150||this.cameraLocked);
   const glideRate=this.danceCameraGlide?2.8:(this.introEase>0||this.introGlide?1.6:7);
-  const smooth=this.catView?1-Math.exp(-dt*10):snap||broadcast?1:1-Math.exp(-dt*glideRate);
+  const smooth=this.catView?1-Math.exp(-dt*10):snap||broadcast?1:1-Math.exp(-dt*(this.duetCameraOrbit===null?glideRate:12));
   if(this.introEase>0)this.introEase=Math.max(0,this.introEase-dt);
-  const walled=!this.listeningView&&this.entered&&!entranceReveal&&!broadcast&&!this.catView&&!this.self?.dance&&!this.ridingTrain&&!this.photoMode&&!firstPerson&&!this.concertView&&this.position.z<=GOLDEN_HALL.rear,origin=walled?localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin:null;
+  const walled=this.entered&&!entranceReveal&&!broadcast&&!this.catView&&!this.self?.dance&&!this.ridingTrain&&!this.photoMode&&!firstPerson&&!this.concertView&&this.position.z<=GOLDEN_HALL.rear,origin=walled?localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin:null;
   if(origin)f.position.copy(constrainCamera(origin,f.position,this.venue.cameraWalls));
   this.camera.position.lerp(f.position,smooth);
   if(origin&&this.cameraLocked)this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));

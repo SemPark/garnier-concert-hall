@@ -11,7 +11,7 @@ import {DISHES,isDrink} from '../shared/dishes';
 import {reportLoading,reportInitialHallLoading,failLoading} from './loading';
 import {Wardrobe} from './Wardrobe';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
-import {CONCERT_OPTIONS,HALL_ID,INITIAL_PLAYLIST,LOBBY_ENABLED,OPEN_INITIAL_PICKER,PLAYLISTS,type ConcertOption} from './audio/playlist';
+import {CONCERT_OPTIONS,HALL_ID,INITIAL_PLAYLIST,LOBBY_ENABLED,PLAYLISTS,type ConcertOption} from './audio/playlist';
 import {adjacentPiece} from '../shared/timeline';
 import {createRoot} from 'react-dom/client';
 import {World} from './World';
@@ -133,9 +133,8 @@ function ViewModeMenu({world,onBroadcast}:{world:World;onBroadcast:()=>void}){
   trigger.current?.focus();
  };
  const modes=[
-  {icon:'walk',label:'걷기',active:!world.listeningView&&!world.broadcastView&&!world.concertView,disabled:world.entranceViewLocked&&world.concertView&&!world.broadcastView,
-   action:()=>{if(world.listeningView)world.stopListeningView();else if(world.concertView)world.toggleConcertView();else world.stopBroadcastView();}},
-  {icon:'music',label:'테이블 감상',active:world.listeningView,disabled:!world.canStartListening&&!world.listeningView,action:()=>world.toggleListeningView()},
+  {icon:'walk',label:'걷기',active:!world.broadcastView&&!world.concertView,disabled:world.entranceViewLocked&&world.concertView&&!world.broadcastView,
+   action:()=>{if(world.concertView)world.toggleConcertView();else world.stopBroadcastView();}},
   {icon:'overview',label:'홀 전체',active:!world.broadcastView&&world.concertView&&world.hallOverview,disabled:world.entranceViewLocked,
    action:()=>world.showHallOverview()},
   {icon:'stageLow',label:'무대 올려보기',active:!world.broadcastView&&world.concertView&&!world.hallOverview&&world.stageLowView,disabled:world.entranceViewLocked,
@@ -154,7 +153,7 @@ function ViewModeMenu({world,onBroadcast}:{world:World;onBroadcast:()=>void}){
   </button>
   <div ref={options} id="view-mode-options" className="view-mode-options" popover="auto" role="group" aria-label="보기 모드">
    {modes.map(({icon,label,active,disabled,action})=><button key={icon} type="button" aria-pressed={active}
-    title={disabled&&icon==='music'?'테이블 좌석에 앉은 뒤 사용할 수 있어요':disabled&&icon!=='camera'?'입구를 지나면 시점을 바꿀 수 있어요':undefined} disabled={disabled} onClick={()=>select(action)}>
+    title={disabled&&icon!=='camera'?'입구를 지나면 시점을 바꿀 수 있어요':undefined} disabled={disabled} onClick={()=>select(action)}>
     <Icon name={icon} size={20}/><span>{label}</span>
    </button>)}
   </div>
@@ -171,7 +170,7 @@ function App(){
  const wishTarotWasOpen=useRef(false);
  const [programOpen,setProgramOpen]=useState(false);
  const [menu,setMenu]=useState(true);
- const [hallPickerOpen,setHallPickerOpen]=useState(OPEN_INITIAL_PICKER);
+ const [hallPickerOpen,setHallPickerOpen]=useState(false);
  const [musicExpanded,setMusicExpanded]=useState(false);
  const [musicListOpen,setMusicListOpen]=useState(false);
  const musicPlayer=useRef<HTMLElement>(null),musicToggle=useRef<HTMLButtonElement>(null);
@@ -315,10 +314,9 @@ function App(){
  return <>
   {world?.photoMode&&<PhotoMode world={world}/>}
   {world?.catView&&<button className="broadcast-exit" type="button" autoFocus onClick={()=>world.stopCatView()}><Icon name="close" size={16}/>고양이 보기 종료</button>}
-  {world?.listeningView&&<button className="listening-exit" type="button" onClick={()=>world.stopListeningView()}><Icon name="close" size={16}/>감상 종료</button>}
   {world?.broadcastView&&<button className="broadcast-exit" type="button" autoFocus onClick={()=>world.stopBroadcastView()}><Icon name="close" size={16}/>방송 종료</button>}
   {world?.concertView&&zone==='auditorium'&&!world.entranceViewLocked&&
-   !world.listeningView&&!world.broadcastView&&!world.catView&&!world.photoMode&&
+   !world.broadcastView&&!world.catView&&!world.photoMode&&
    !world.ridingTrain&&!world.self?.dance&&!conducting&&
    <button className="concert-view-exit" type="button" aria-label="걷기로 돌아가기" title="걷기로 돌아가기" onClick={()=>{
     world.toggleConcertView();
