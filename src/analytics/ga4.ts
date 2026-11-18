@@ -18,8 +18,20 @@ export function ga4MeasurementId(config:{production:boolean;origin:string;enable
   typeof id==='string'&&/^G-[A-Z0-9]{5,20}$/.test(id)?id:null;
 }
 
-export function readAnalyticsChoice(storage:Pick<Storage,'getItem'>){
- try{return storage.getItem(GA4_CONSENT_KEY)==='yes';}catch{return false;}
+export function allowsCookielessAnalytics(
+ storage:Pick<Storage,'getItem'>,
+ privacy:{globalPrivacyControl?:boolean;doNotTrack?:string|null},
+){
+ if(privacy.globalPrivacyControl===true||['1','yes'].includes(privacy.doNotTrack??''))return false;
+ try{return storage.getItem(GA4_CONSENT_KEY)!=='no';}catch{return false;}
+}
+
+export function queueCookielessDefaults(tag:Tag){
+ tag('consent','default',{
+  analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',
+ });
+ tag('set','ads_data_redaction',true);
+ tag('set','url_passthrough',false);
 }
 
 export class AnalyticsConsent {
@@ -71,11 +83,13 @@ function browserTransport(id:string):AnalyticsTransport{
   load(onReady,onFailure){
    const dataLayer=analytics.dataLayer??(analytics.dataLayer=[]);
    tag=analytics.gtag??(analytics.gtag=function(){dataLayer.push(arguments);});
+   // Consent defaults must be queued before any config, event or tag script request.
+   queueCookielessDefaults(tag);
    const script=document.createElement('script');
    script.async=true;
    script.referrerPolicy='no-referrer';
    script.src='https://www.googletagmanager.com/gtag/js?id='+id;
-   // Nothing is queued until the script loads while still opted in.
+   // No measurement is queued until the script loads and the visitor is not opted out.
    script.onload=()=>{
     tag?.('js',new Date());
     tag?.('config',id,{...parameters,send_page_view:false,

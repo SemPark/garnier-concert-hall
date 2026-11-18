@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {PlaybackTracker,type PlaybackAnalyticsEvent,type PlaybackSample} from '../src/analytics/PlaybackTracker';
-import {AnalyticsConsent,GA4_CONSENT_KEY,ga4MeasurementId,readAnalyticsChoice} from '../src/analytics/ga4';
+import {allowsCookielessAnalytics,AnalyticsConsent,GA4_CONSENT_KEY,ga4MeasurementId,queueCookielessDefaults} from '../src/analytics/ga4';
 
 function observer(){
  const events:PlaybackAnalyticsEvent[]=[];
@@ -88,21 +88,25 @@ function sample(tracker:PlaybackTracker|null,now:number,position=now){
  tracker?.sample({nowMs:now*1000,positionSeconds:position,revision:1,playbackRate:1,audible:true});
 }
 
-test('choice defaults off, requires explicit saved yes and is safely off without storage',()=>{
- for(const setting of [null,'true','no','', 'YES'])assert.equal(readAnalyticsChoice({getItem:()=>setting}),false);
- assert.equal(readAnalyticsChoice({getItem:key=>key===GA4_CONSENT_KEY?'yes':null}),true);
- assert.equal(readAnalyticsChoice({getItem:()=>{throw new Error('storage disabled');}}),false);
- const unconfigured=new AnalyticsConsent(null);
- unconfigured.setAccepted(true);
- assert.equal(unconfigured.tracker,null);
- const {consent,events,actions}=consentHarness();
- consent.setAccepted(false);
- sample(consent.tracker,1000);
- assert.deepEqual(events,[]);
- assert.deepEqual(actions,[]);
+test('cookieless default respects explicit previous opt-out, DNT, GPC and unreadable storage',()=>{
+ for(const setting of [null,'yes']) assert.equal(allowsCookielessAnalytics({getItem:key=>key===GA4_CONSENT_KEY?setting:'no'},{}),true);
+ assert.equal(allowsCookielessAnalytics({getItem:()=>'no'},{}),false);
+ assert.equal(allowsCookielessAnalytics({getItem:()=>null},{globalPrivacyControl:true}),false);
+ for(const doNotTrack of ['1','yes']) assert.equal(allowsCookielessAnalytics({getItem:()=>null},{doNotTrack}),false);
+ assert.equal(allowsCookielessAnalytics({getItem:()=>{throw new Error('storage disabled');}},{}),false);
 });
 
-test('opt-in loads once, records one page view after the tag is ready, and does not include the prior audio',()=>{
+test('queues only denied storage and advertising consent plus safe flags',()=>{
+ const calls:unknown[][]=[];
+ queueCookielessDefaults((...args)=>calls.push(args));
+ assert.deepEqual(calls,[
+  ['consent','default',{analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied'}],
+  ['set','ads_data_redaction',true],
+  ['set','url_passthrough',false],
+ ]);
+});
+
+test('eligible measurement loads once, records one page view after the tag is ready, and does not include the prior audio',()=>{
  const {consent,events,actions,loaded}=consentHarness();
  consent.setAccepted(true);consent.setAccepted(true);
  assert.deepEqual(actions,['enable','load']);
@@ -114,7 +118,7 @@ test('opt-in loads once, records one page view after the tag is ready, and does 
  assert.deepEqual(events,['page_view','playback_start']);
 });
 
-test('withdrawal cancels in-flight activation and rejects a late SDK callback',()=>{
+test('privacy disable cancels in-flight activation and rejects a late SDK callback',()=>{
  const {consent,events,actions,loaded}=consentHarness();
  consent.setAccepted(true);consent.setAccepted(false);
  loaded[0]();
@@ -128,7 +132,7 @@ test('withdrawal cancels in-flight activation and rejects a late SDK callback',(
  assert.deepEqual(events,['page_view']);
 });
 
-test('withdrawal disables immediately and discards elapsed time without duplicating page view',()=>{
+test('privacy disable acts immediately and discards elapsed time without duplicating page view',()=>{
  const {consent,events,actions,loaded}=consentHarness();
  consent.setAccepted(true);loaded[0]();
  const before=consent.tracker;
