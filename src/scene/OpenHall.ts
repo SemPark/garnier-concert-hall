@@ -2,8 +2,12 @@ import * as T from 'three';
 import {GOLDEN_HALL} from '../../shared/goldenHall';
 
 const retainedArchitecture=new Set(['pipe-organ','gallery-rail','gallery-rail-corner-infill','gallery-floor','herringbone-gallery-floor']);
+const hallWalls=new Set([
+ 'hall-shell','first-floor-side-composition','rear-facade','rear-screen','wall-panel',
+ 'side-box-front','side-box-stair-cheek',
+]);
 
-/** Split architecture before batching; the organ is a protected, full-height landmark. */
+/** Split architecture before batching so walls can dissolve independently of the floors and organ. */
 export function separateUpperHall(scene:T.Scene,height=GOLDEN_HALL.balconyHeight){
  const upper=new T.Scene();upper.name='hall-upper-architecture';
  scene.updateMatrixWorld(true);
@@ -12,16 +16,20 @@ export function separateUpperHall(scene:T.Scene,height=GOLDEN_HALL.balconyHeight
  const meshes:T.Mesh[]=[];
  const upperObjects:T.Object3D[]=[];
  const position=new T.Vector3();
- const collect=(o:T.Object3D)=>{
+ const collect=(o:T.Object3D,inWall=false)=>{
   const kind=o.userData.landmark;
-  if(retainedArchitecture.has(kind))return;
+  if(retainedArchitecture.has(kind)||o.userData.walkSurface)return;
+  const wall=inWall||hallWalls.has(kind)||o.userData.openHallWall;
   // Keep the fixture root with its meshes: the wall wash is built from the root later.
   if(o.userData.upperWallLight||
-    (o instanceof T.Sprite||kind==='panel-centre-sconce'||kind==='door-header-light')&&o.getWorldPosition(position).y>=height){
+    (o instanceof T.Sprite||kind==='panel-centre-sconce'||kind==='door-header-light')&&(wall||o.getWorldPosition(position).y>=height)){
    upperObjects.push(o);return;
   }
-  if(o instanceof T.Mesh&&!(o instanceof T.InstancedMesh))meshes.push(o);
-  for(const child of o.children)collect(child);
+  if(o instanceof T.Mesh&&!(o instanceof T.InstancedMesh)){
+   if(wall){o.userData.openHallCutoff=cutoff;upperObjects.push(o);}
+   else meshes.push(o);
+  }
+  for(const child of o.children)collect(child,wall);
  };
  collect(scene);
  for(const object of upperObjects)upper.attach(object);

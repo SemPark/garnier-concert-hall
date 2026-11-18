@@ -29,7 +29,7 @@ export default defineConfig(({mode})=>{
    'import.meta.env.VITE_JAZZ_YEOUN_READY':JSON.stringify(String(audioReady(yeoun,10))),
    'import.meta.env.VITE_STATIC_PREVIEW':JSON.stringify(mode==='pages'?'true':'false'),'import.meta.env.VITE_PRESENCE_ORIGIN':JSON.stringify(mode==='pages'?'https://garnier-concert-hall.cleansam7.workers.dev':'')},
   // Vite reloads the page when its development socket reconnects after backgrounding.
-  server:{host:iphone?'0.0.0.0':'127.0.0.1',port:iphone?5174:5173,strictPort:true,ws:false,proxy:{'/api':{target:`http://127.0.0.1:${iphone?8788:8787}`,ws:true}}},
+  server:{host:iphone?'0.0.0.0':'127.0.0.1',port:5174,strictPort:true,ws:false,proxy:{'/api':{target:`http://127.0.0.1:${iphone?8788:8787}`,ws:true}}},
   build:{target:'es2022',chunkSizeWarningLimit:750},
  };
 });

@@ -147,7 +147,9 @@ export function buildOrgan(scene:T.Scene,ornament:T.Material=friezeMaterial()){
  for(const side of [-1,1]){const post=box(g,[ORGAN_RAIL_POST_HALF*2,railTop,ORGAN_RAIL_POST_HALF*2],[side*ORGAN_RAIL_JOIN_X,H.balconyHeight+railTop/2,ORGAN_RAIL_JOIN_Z-ORGAN_LOFT_BACK],P.light);post.userData.landmark='organ-rail-join';}
  for(const x of [-13,-8.3,-4.3,4.3,8.3,13]){const z=organBalconyFront(x)-.55;box(g,[.42,.9,1.05],[x,H.balconyHeight-.97,z-.3],P.deep);box(g,[.68,.2,1.15],[x,H.balconyHeight-.82,z-.3],P.light);}
  buildOrganConsole(g);
- for(const x of [-12,-6,0,6,12]){const panel=new T.Group();panel.position.set(x,0,.15);g.add(panel);wallPanel(panel,0,3.65,5.5,6.8);for(const xx of [-2.8,2.8])gildedColumn(panel,xx,.1,7.6,.18);box(panel,[2.4,.65,.1],[0,5.6,.4],P.gold);rosette(panel,0,5.6,.5,.2);}
+ const lowerWall=new T.Group();lowerWall.position.z=g.position.z;lowerWall.userData.openHallWall=true;scene.add(lowerWall);
+ for(const x of [-12,-6,0,6,12]){const panel=new T.Group();panel.position.set(x,0,.15);lowerWall.add(panel);wallPanel(panel,0,3.65,5.5,6.8);for(const xx of [-2.8,2.8])gildedColumn(panel,xx,.1,7.6,.18);box(panel,[2.4,.65,.1],[0,5.6,.4],P.gold);rosette(panel,0,5.6,.5,.2);}
+ lowerWall.traverse(o=>{if(o instanceof T.Mesh)o.userData.fullDetail=true;});
  g.traverse(o=>{if(o instanceof T.Mesh)o.userData.fullDetail=true;});return g;
 }
 
@@ -371,7 +373,7 @@ function rearScreens(scene:T.Scene){
   rearWallInfill(back,width)?.traverse(o=>{delete o.userData.wallSurface;});
   // Existing side-wall faces on either side of the screen; no new blocking volumes.
   for(const [a,b]of [[PARTERRE.stairFront,r.z-r.thickness/2],[r.z+r.thickness/2,WALL_DATUM.rear]]){
-   const end=new T.Group();end.position.set(side*WALL_DATUM.halfWidth,0,(a+b)/2);end.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(end);rearWallInfill(end,b-a-.10);
+   const end=new T.Group();end.position.set(side*WALL_DATUM.halfWidth,0,(a+b)/2);end.rotation.y=side<0?Math.PI/2:-Math.PI/2;end.userData.openHallWall=true;scene.add(end);rearWallInfill(end,b-a-.10);
   }
   // Plain moulded wall fields replace the wall-mounted red hangings.
   for(const xx of [mid-(width-1.8)/2,mid+(width-1.8)/2])box(g,[.06,5.8,.08],[xx,3.4,face-.12],P.gold);

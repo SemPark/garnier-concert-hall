@@ -314,6 +314,8 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
   sun.position.set(21,28,22);sun.target.position.set(-3,0,32);scene.add(sun.target);
  }else{
   cameraWalls.push(...(yield* buildGoldenHallSteps(scene)).cameraWalls);
+  raiseLandingDisplayLights(scene);
+  portal=box(scene,[6.75,6.4,.3],[0,3.2,GOLDEN_HALL.rear-.18],C.wood);(portal as T.Mesh).material=woodMaterial('walnut');portal.userData.portal=true;portal.userData.openHallWall=true;
   scene.userData.upperArchitecture=separateUpperHall(scene);
   scene.traverse(o=>{if(o instanceof T.Mesh&&o.userData.walkSurface)walkTargets.push(o);});
   const hitGeometry=new T.BoxGeometry(1.08,1.5,1.05),dinnerHitGeometry=new T.BoxGeometry(.62,1,.5),hitMaterial=new T.MeshBasicMaterial({visible:false});
@@ -324,7 +326,6 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
    const dinner=s.level==='parterre',target=new T.Mesh(dinner?dinnerHitGeometry:hitGeometry,hitMaterial);if(dinner)target.position.set(s.x-Math.sin(s.yaw)*DINNER_SIT_BACK,PARTERRE.floor+.5,s.z-Math.cos(s.yaw)*DINNER_SIT_BACK);else target.position.set(s.x,s.y+.7,s.z);target.rotation.y=s.yaw;target.userData.seatId=s.id;scene.add(target);seatTargets.push(target);if(isMagicChair(s.id)){magicChair??=new MagicChairs();magicChair.add(scene,g,target,s);}if(i%12===11)yield;
   }
   buildDinnerTables(scene);
-  portal=box(scene,[6.75,6.4,.3],[0,3.2,GOLDEN_HALL.rear-.18],C.wood);(portal as T.Mesh).material=woodMaterial('walnut');portal.userData.portal=true;
   musicians.push(...(yield* buildOrchestraSteps(scene)));
  }
  if(zone==='auditorium')programBook=buildProgramBook(scene,walkTargets);
@@ -335,17 +336,18 @@ function* createVenueSteps(zone:Zone):Generator<void,Venue,void>{
  const animalRoots=[activeCat?.root,dog.root].filter(root=>root!==undefined);
  const usher=zone==='auditorium'?new Usher(scene,surfaceHeight('auditorium',USHER,0)??0):null;
  scene.traverse(o=>{if(o.userData.wallSurface)cameraWalls.push(o);});
+ const upper=scene.userData.upperArchitecture as T.Scene|undefined;
+ upper?.traverse(o=>{if(o.userData.wallSurface)cameraWalls.push(o);});
  cameraWalls.push(portal);
  for(const wall of cameraWalls)wall.traverse(o=>{o.userData.cameraWall=true;});
- if(zone==='auditorium'){raiseLandingDisplayLights(scene);buildHallLampHalos(scene);}
+ if(zone==='auditorium')buildHallLampHalos(scene);
  finishArchitecture(scene,[...(magicChair?[magicChair.root]:[]),...(usher?[usher.avatar.root]:[]),...animalRoots,...musicians.map(a=>a.root)]);
  const updateBaseLOD=yield* batchArchitectureSteps(scene,[...(magicChair?[magicChair.root]:[]),floor,portal,...animalRoots,...(activeCat?.targets??[]),...dog.targets,...(usher?[usher.avatar.root]:[]),...walkTargets,...overviewHidden,...seatTargets,...seatLights.values(),...musicians.map(a=>a.root)]);
- const upper=scene.userData.upperArchitecture as T.Scene|undefined;
  let updateUpper:((camera:T.Camera)=>void)|undefined;
  if(upper){
   buildHallLampHalos(upper);
   finishArchitecture(upper,[]);
-  updateUpper=yield* batchArchitectureSteps(upper,[]);
+  updateUpper=yield* batchArchitectureSteps(upper,[portal]);
   scene.add(upper);
   const showBase=scene.userData.showArchitectureForShadow;
   scene.userData.showArchitectureForShadow=()=>{showBase?.();if(upper.visible)upper.userData.showArchitectureForShadow?.();};

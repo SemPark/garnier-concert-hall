@@ -20,11 +20,11 @@ function ringGeometry(depth:number){
 const rings=profiles.map(p=>ringGeometry(p.depth));
 export function buildPerimeterCornices(scene:T.Scene){
  for(const y of WALL_LEVELS.cornices){
-  profiles.forEach((p,i)=>{const mesh=new T.Mesh(rings[i],material(0xe7c77a));mesh.scale.y=p.height;mesh.position.y=y+p.dy+p.height/2;mesh.userData.landmark='perimeter-cornice';mesh.userData.elevation=y;mesh.userData.fullDetail=true;scene.add(mesh);});
+  profiles.forEach((p,i)=>{const mesh=new T.Mesh(rings[i],material(0xe7c77a));mesh.scale.y=p.height;mesh.position.y=y+p.dy+p.height/2;mesh.userData.landmark='perimeter-cornice';mesh.userData.elevation=y;mesh.userData.fullDetail=true;mesh.userData.openHallWall=true;scene.add(mesh);});
   // Dentils follow the same lower edge on both side and end walls.
   const inset=.41,x=WALL_DATUM.halfWidth-inset,front=WALL_DATUM.front+inset,rear=WALL_DATUM.rear-inset;
-  for(let z=front+.18;z<rear;z+=.36)for(const side of [-1,1])box(scene,[.25,.18,.13],[side*x,y-.16,z],0xc69b49);
-  for(let xx=-x+.18;xx<x;xx+=.36)for(const z of [front,rear])box(scene,[.13,.18,.25],[xx,y-.16,z],0xc69b49);
+  for(let z=front+.18;z<rear;z+=.36)for(const side of [-1,1])box(scene,[.25,.18,.13],[side*x,y-.16,z],0xc69b49).userData.openHallWall=true;
+  for(let xx=-x+.18;xx<x;xx+=.36)for(const z of [front,rear])box(scene,[.13,.18,.25],[xx,y-.16,z],0xc69b49).userData.openHallWall=true;
  }
 }
 

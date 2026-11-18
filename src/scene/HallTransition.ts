@@ -2,7 +2,6 @@ import * as T from 'three';
 import {SpacePlanets,SpaceStars} from './SpaceSky';
 import {SpaceNebula} from './SpaceNebula';
 import {SpaceGalaxies,type GalaxySettings} from './SpaceGalaxies';
-import {GOLDEN_HALL} from '../../shared/goldenHall';
 
 /** Materials are cloned after batching; only uniforms change during the transition. */
 export class HallTransition {
@@ -108,8 +107,8 @@ export class HallTransition {
   this.stars?.update(p);
   this.nebula?.update(p);
   this.galaxies?.update(p);
-  this.cutoff.value=T.MathUtils.lerp(32,6.8,pct);
-  if(this.upper.userData.transitionCutoff)this.upper.userData.transitionCutoff.value=p===0?Infinity:Math.max(GOLDEN_HALL.balconyHeight,this.cutoff.value);
+  this.cutoff.value=T.MathUtils.lerp(32,-2,pct);
+  if(this.upper.userData.transitionCutoff)this.upper.userData.transitionCutoff.value=p===0?Infinity:p===1?-Infinity:this.cutoff.value;
   for(const entry of this.materials){
    entry.material.opacity=entry.opacity*remaining;
    if(entry.emissive!==undefined)(entry.material as T.MeshStandardMaterial).emissiveIntensity=entry.emissive*remaining*remaining;

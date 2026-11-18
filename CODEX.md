@@ -34,7 +34,7 @@ React + TypeScript + Three.js 클라이언트를 Vite로 개발한다. 서버는
 
 | 명령 | 용도 |
 | --- | --- |
-| `npm run dev` | Vite `127.0.0.1:5173`, Worker `127.0.0.1:8787` |
+| `npm run dev` | Vite `127.0.0.1:5174`, Worker `127.0.0.1:8787` |
 | `npm run dev:iphone` | Vite `0.0.0.0:5174`, Worker `127.0.0.1:8788`, 별도 로컬 저장소 `.wrangler/iphone` |
 | `npm run check` | 클라이언트와 서버 TypeScript 검사 |
 | `npm run build` | 음원 manifest 생성 후 Vite 빌드 |
@@ -44,6 +44,8 @@ React + TypeScript + Three.js 클라이언트를 Vite로 개발한다. 서버는
 | `npm run test:integration` | 실행 중인 로컬 Worker를 대상으로 통합 검증. 대상 포트와 사전 조건은 `tests/integration.ts` 확인 |
 | `npm run typegen` | Worker 바인딩 변경 후 타입 생성 |
 | `npm run deploy` | 빌드 후 실제 Cloudflare 배포. 사용자 요청 범위와 대상 확인 필요 |
+
+두 개발 명령은 같은 Vite 포트를 사용하므로 한 번에 하나만 실행한다.
 
 - 코드 변경 후 기본 검증은 `npm run check`와 변경 기능의 정상 진입 경로 확인이다. 문서만 바꾸면 명령·경로·설명의 일치와 `git diff --check`를 확인한다.
 - 전체 테스트와 통합 테스트를 매번 자동 실행하지 않는다. 사용자가 요청했거나 공유 프로토콜·충돌·예약 등 변경의 회귀 위험에 필요한 경우 관련 기존 테스트부터 실행한다. 새 테스트는 구체적인 회귀를 막을 필요가 있을 때 추가한다.
