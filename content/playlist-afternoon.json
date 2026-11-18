@@ -1,0 +1,143 @@
+{
+  "name": "오후",
+  "version": "classical-afternoon-v1",
+  "epochMs": 0,
+  "tracks": [
+    {
+      "id": "afternoon-mozart-k299-2",
+      "title": "모차르트 — 플루트와 하프를 위한 협주곡 K.299 II. Andantino",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/afternoon-mozart-k299-2.ogg",
+      "durationSeconds": 579.253333,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Al Goldstein / Pandora Music (ibiblio)",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_Concerto_for_Flute_and_Harp_-_2._Andantino.ogg",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "artist": "Alexander Murray (flute); Ann Yeung (harp); Sinfonia da Camera, University of Illinois; Ian Hobson (music director)",
+        "changes": "원본 파일 변경 없음; 재생 시 곡별 고정 gain 적용 (목표 −25 LUFS)"
+      },
+      "gain": 0.645654
+    },
+    {
+      "id": "afternoon-haydn-op64-5-2",
+      "title": "하이든 — 현악 4중주 Op.64 No.5 〈종달새〉 II. Adagio. Cantabile",
+      "composer": "요제프 하이든",
+      "url": "/api/audio/afternoon-haydn-op64-5-2.flac",
+      "durationSeconds": 291.757938,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Haydn_-_String_Quartet,_Op._64_No._5_in_D_major_%27The_Lark%27_-_II._Adagio._Cantabile_(Musopen_String_Quartet).flac",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Haydn_-_String_Quartet,_Op._64_No._5_in_D_major_%27The_Lark%27_-_II._Adagio._Cantabile_(Musopen_String_Quartet).flac#Licensing",
+        "artist": "Musopen String Quartet",
+        "changes": "원본 파일 변경 없음; 재생 시 곡별 고정 gain 적용 (목표 −25 LUFS)"
+      },
+      "gain": 0.954993
+    },
+    {
+      "id": "afternoon-bach-bwv1043-2",
+      "title": "바흐 — 두 대의 바이올린을 위한 협주곡 BWV 1043 II. Largo ma non tanto",
+      "composer": "요한 제바스티안 바흐",
+      "url": "/api/audio/afternoon-bach-bwv1043-2.ogg",
+      "durationSeconds": 401.51,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Al Goldstein / Pandora Music (ibiblio)",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Johann_Sebastian_Bach_-_Concerto_for_Two_Violins_in_D_minor_-_2._Largo_ma_non_tanto.ogg",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "artist": "Advent Chamber Orchestra; David Parry and Roxana Pavel Goldstein (violins)",
+        "changes": "원본 파일 변경 없음; 재생 시 곡별 고정 gain 적용 (목표 −25 LUFS)"
+      },
+      "gain": 0.732825
+    },
+    {
+      "id": "afternoon-mozart-k465-2",
+      "title": "모차르트 — 현악 4중주 K.465 〈불협화음〉 II. Andante cantabile",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/afternoon-mozart-k465-2.flac",
+      "durationSeconds": 461.291313,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_String_Quartet_No._19_in_C_major,_K465_%27Dissonance%27_-_II._Andante_cantabile_(Musopen_String_Quartet).flac",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Mozart_-_String_Quartet_No._19_in_C_major,_K465_%27Dissonance%27_-_II._Andante_cantabile_(Musopen_String_Quartet).flac#Licensing",
+        "artist": "Musopen String Quartet",
+        "changes": "원본 파일 변경 없음; 재생 시 곡별 고정 gain 적용 (목표 −25 LUFS)"
+      },
+      "gain": 0.638263
+    },
+    {
+      "id": "afternoon-beethoven-op68-2",
+      "title": "베토벤 — 교향곡 Op.68 〈전원〉 II. Andante molto mosso",
+      "composer": "루트비히 판 베토벤",
+      "url": "/api/audio/afternoon-beethoven-op68-2.ogg",
+      "durationSeconds": 646.392,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._6_in_f_major_%27pastoral%27,_op._68_-_ii._andante_molto_mosso.ogg",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Ludwig_van_Beethoven_-_symphony_no._6_in_f_major_%27pastoral%27,_op._68_-_ii._andante_molto_mosso.ogg#Licensing",
+        "artist": "연주자 미상 — 원본 페이지에 녹음 연주자 표기 없음",
+        "changes": "원본 파일 변경 없음; 재생 시 곡별 고정 gain 적용 (목표 −25 LUFS)"
+      },
+      "gain": 0.57544
+    },
+    {
+      "id": "afternoon-dvorak-op22-4",
+      "title": "드보르자크 — 현을 위한 세레나데 Op.22 IV. Larghetto",
+      "composer": "안토닌 드보르자크",
+      "url": "/api/audio/afternoon-dvorak-op22-4.ogg",
+      "durationSeconds": 343.386667,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Al Goldstein / Pandora Music (ibiblio)",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Dvorak_-_Serenade_for_Strings_Op._22_-_Larghetto.ogg",
+        "licenseName": "CC BY-SA 2.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+        "artist": "Advent Chamber Orchestra; Roxanna Pavel Goldstein (musical director); Elias Goldstein (orchestra manager)",
+        "changes": "원본 파일 변경 없음; 재생 시 곡별 고정 gain 적용 (목표 −25 LUFS)"
+      },
+      "gain": 0.74131
+    },
+    {
+      "id": "afternoon-dvorak-op96-2",
+      "title": "드보르자크 — 현악 4중주 Op.96 〈아메리카〉 II. Lento",
+      "composer": "안토닌 드보르자크",
+      "url": "/api/audio/afternoon-dvorak-op96-2.flac",
+      "durationSeconds": 471.458292,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Dvo%C5%99%C3%A1k_-_String_Quartet_No._12_in_F_major,_Op._96_%27American%27_-_II._Lento_(Musopen_String_Quartet).flac",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Dvo%C5%99%C3%A1k_-_String_Quartet_No._12_in_F_major,_Op._96_%27American%27_-_II._Lento_(Musopen_String_Quartet).flac#Licensing",
+        "artist": "Musopen String Quartet",
+        "changes": "원본 파일 변경 없음; 재생 시 곡별 고정 gain 적용 (목표 −25 LUFS)"
+      },
+      "gain": 0.881049
+    },
+    {
+      "id": "afternoon-borodin-quartet2-3",
+      "title": "보로딘 — 현악 4중주 2번 III. Notturno. Andante",
+      "composer": "알렉산드르 보로딘",
+      "url": "/api/audio/afternoon-borodin-quartet2-3.flac",
+      "durationSeconds": 547.360042,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Borodin_-_String_Quartet_No._2_in_D_major_-_III._Notturno._Andante_(Musopen_String_Quartet).flac",
+        "licenseName": "Public domain",
+        "licenseUrl": "https://commons.wikimedia.org/wiki/File:Borodin_-_String_Quartet_No._2_in_D_major_-_III._Notturno._Andante_(Musopen_String_Quartet).flac#Licensing",
+        "artist": "Musopen String Quartet",
+        "changes": "원본 파일 변경 없음; 재생 시 곡별 고정 gain 적용 (목표 −25 LUFS)"
+      },
+      "gain": 0.588844
+    }
+  ]
+}

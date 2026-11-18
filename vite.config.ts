@@ -3,6 +3,7 @@ import {statSync} from 'node:fs';
 import warmth from './content/playlist-jazz-warmth.json';
 import nightscape from './content/playlist-jazz-nightscape.json';
 import yeoun from './content/playlist-jazz-yeoun.json';
+import afternoon from './content/playlist-afternoon.json';
 import {iphoneProbeBridge} from './scripts/iphone-probe';
 import {liveStyles} from './scripts/live-styles';
 import {galaxyPresetEditor} from './scripts/galaxy-presets';
@@ -26,6 +27,7 @@ export default defineConfig(({mode})=>{
    'import.meta.env.VITE_GA4_MEASUREMENT_ID':JSON.stringify(mode==='production'?'G-WNQ7FWBJ7N':''),
    'import.meta.env.VITE_JAZZ_WARMTH_READY':JSON.stringify(String(audioReady(warmth))),
    'import.meta.env.VITE_JAZZ_NIGHTSCAPE_READY':JSON.stringify(String(audioReady(nightscape))),
+   'import.meta.env.VITE_CLASSICAL_AFTERNOON_READY':JSON.stringify(String(audioReady(afternoon,8))),
    'import.meta.env.VITE_JAZZ_YEOUN_READY':JSON.stringify(String(audioReady(yeoun,10))),
    'import.meta.env.VITE_STATIC_PREVIEW':JSON.stringify(mode==='pages'?'true':'false'),'import.meta.env.VITE_PRESENCE_ORIGIN':JSON.stringify(mode==='pages'?'https://garnier-concert-hall.cleansam7.workers.dev':'')},
   // Vite reloads the page when its development socket reconnects after backgrounding.

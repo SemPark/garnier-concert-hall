@@ -19,6 +19,7 @@ export function ProgramBook({playlist,playlistId,onClose}:{playlist:Playlist;pla
   </header>
   <div className="program-paper">
    <PlaylistCover playlistId={playlistId} name={playlist.name}/>
+   {playlistId==='classical-afternoon'&&<p><a href="/credits/afternoon" target="_blank" rel="noreferrer">음원 출처 및 라이선스</a></p>}
    <ol>{tracks.map(track=><li key={track.id}>
     <strong>{track.title}</strong>
     <span>{track.credit?.artist??track.composer}</span>

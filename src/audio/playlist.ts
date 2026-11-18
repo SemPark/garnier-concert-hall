@@ -1,6 +1,7 @@
 import classic from '../../content/playlist.json';
 import autumn from '../../content/playlist-autumn.json';
 import fantasy from '../../content/playlist-fantasy.json';
+import afternoon from '../../content/playlist-afternoon.json';
 import jazz from '../../content/playlist-jazz.json';
 import warmth from '../../content/playlist-jazz-warmth.json';
 import nightscape from '../../content/playlist-jazz-nightscape.json';
@@ -12,6 +13,7 @@ export const CONCERT_OPTIONS = [
  {hallId:'classical',playlistId:'classical-carol',label:'클래식 홀 - 캐롤'},
  {hallId:'classical',playlistId:'classical-autumn',label:'클래식 홀 - 가을'},
  {hallId:'classical',playlistId:'classical-fantasy',label:'클래식 홀 - 환상'},
+ {hallId:'classical',playlistId:'classical-afternoon',label:'클래식 홀 - 오후'},
  {hallId:'jazz',playlistId:'jazz-carol',label:'재즈 홀 - 캐롤'},
  {hallId:'jazz',playlistId:'jazz-warmth',label:'재즈 홀 - 온기'},
  {hallId:'jazz',playlistId:'jazz-nightscape',label:'재즈 홀 - 야경'},
@@ -25,6 +27,7 @@ export const PLAYLISTS = {
  'classical-carol':classic as Playlist,
  'classical-autumn':autumn as Playlist,
  'classical-fantasy':fantasy as Playlist,
+ 'classical-afternoon':import.meta.env.VITE_CLASSICAL_AFTERNOON_READY==='true'?afternoon as Playlist:null,
  'jazz-carol':jazz as Playlist,
  'jazz-warmth':import.meta.env.VITE_JAZZ_WARMTH_READY==='true'?warmth as Playlist:null,
  'jazz-nightscape':import.meta.env.VITE_JAZZ_NIGHTSCAPE_READY==='true'?nightscape as Playlist:null,

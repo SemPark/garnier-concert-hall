@@ -2,6 +2,7 @@ import {CONCERT_OPTIONS,type PlaylistId} from './audio/playlist';
 import classicalCarol from './assets/playlist/classical-carol.webp';
 import classicalAutumn from './assets/playlist/classical-autumn.webp';
 import classicalFantasy from './assets/playlist/classical-fantasy.webp';
+import classicalAfternoon from './assets/playlist/classical-afternoon.webp';
 import jazzCarol from './assets/playlist/jazz-carol.webp';
 import jazzWarmth from './assets/playlist/jazz-warmth.webp';
 import jazzNightscape from './assets/playlist/jazz-nightscape.webp';
@@ -11,6 +12,7 @@ const covers:Record<PlaylistId,string>={
  'classical-carol':classicalCarol,
  'classical-autumn':classicalAutumn,
  'classical-fantasy':classicalFantasy,
+ 'classical-afternoon':classicalAfternoon,
  'jazz-carol':jazzCarol,
  'jazz-warmth':jazzWarmth,
  'jazz-nightscape':jazzNightscape,

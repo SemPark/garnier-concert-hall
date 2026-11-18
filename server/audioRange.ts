@@ -15,15 +15,15 @@ function invalidRange(length:number){
  return new Response(null,{status:416,headers:{'Content-Range':`bytes */${length}`}});
 }
 
-/** Reassemble a large M4A as one seekable audio resource over static asset parts. */
-function packedAudio(request:Request,assets:Fetcher,url:URL,length:number){
+/** Reassemble byte-identical audio over static asset parts without re-encoding. */
+function packedAudio(request:Request,assets:Fetcher,url:URL,length:number,extension:string){
  const range=request.headers.get('Range');
  const bounds=range?byteRange(range,length):{start:0,end:length-1};
  if(!bounds)return invalidRange(length);
  const {start,end}=bounds;
  const contentLength=end-start+1;
  const headers=new Headers({
-  'Content-Type':'audio/mp4',
+  'Content-Type':extension==='.ogg'?'audio/ogg':extension==='.flac'?'audio/flac':'audio/mp4',
   'Accept-Ranges':'bytes',
   'Content-Length':String(contentLength),
  });
@@ -35,7 +35,7 @@ function packedAudio(request:Request,assets:Fetcher,url:URL,length:number){
  const streamParts=async()=>{
   const path=url.pathname;
   for(let offset=0,index=0;offset<=end;index++){
-   const partPath=`${path}.part-${index}.m4a`;
+   const partPath=`${path}.part-${index}${extension}`;
    const size=sizes[partPath];
    if(!size)throw new Error(`Missing packed audio part: ${partPath}`);
    const from=Math.max(0,start-offset),to=Math.min(size-1,end-offset);
@@ -59,7 +59,8 @@ function packedAudio(request:Request,assets:Fetcher,url:URL,length:number){
 export async function audioAsset(request:Request,assets:Fetcher):Promise<Response>{
  const url=new URL(request.url);
  const storedSize=sizes[url.pathname];
- if(storedSize&&sizes[url.pathname+'.part-0.m4a']&&(request.method==='GET'||request.method==='HEAD'))return packedAudio(request,assets,url,storedSize);
+ const extension=/\.(m4a|ogg|flac)$/.exec(url.pathname)?.[0];
+ if(storedSize&&extension&&sizes[url.pathname+'.part-0'+extension]&&(request.method==='GET'||request.method==='HEAD'))return packedAudio(request,assets,url,storedSize,extension);
  const range=request.headers.get('Range');
  const asset=await assets.fetch(new Request(request));
  if(!range||asset.status!==200)return asset;
