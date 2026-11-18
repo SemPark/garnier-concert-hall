@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111219">
+  <meta name="robots" content="noindex, nofollow">
+  <title>PLEEE 공연장 방문 리포트</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" type="module"></script>
+</head>
+<body>
+  <a class="skip-link" href="#overview">본문 바로가기</a>
+  <div class="shell">
+    <aside class="sidebar" aria-label="대시보드 메뉴">
+      <a class="brand" href="#overview">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <span><strong>PLEEE</strong><small>공연장 방문 리포트</small></span>
+      </a>
+      <nav aria-label="리포트 메뉴">
+        <a href="#overview">한눈에 보기</a>
+        <a href="#reports">상세 보고서</a>
+      </nav>
+      <div class="source-list">
+        <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer">Google Analytics <span aria-hidden="true">↗</span></a>
+        <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer">Cloudflare <span aria-hidden="true">↗</span></a>
+      </div>
+    </aside>
+    <main id="overview" tabindex="-1">
+      <header class="hero">
+        <div>
+          <h1>공연장 방문 리포트</h1>
+        </div>
+        <button class="refresh" id="refresh" type="button"><span aria-hidden="true" class="refresh-icon">↻</span> 새로고침</button>
+      </header>
+      <div class="controls">
+        <fieldset class="ranges" id="ranges">
+          <legend class="sr-only">조회 기간</legend>
+          <label><input type="radio" name="days" value="1">오늘</label>
+          <label><input type="radio" name="days" value="7" checked>최근 7일</label>
+          <label><input type="radio" name="days" value="14">최근 14일</label>
+          <label><input type="radio" name="days" value="30">최근 30일</label>
+        </fieldset>
+        <div class="query-info" role="status" aria-atomic="true">
+          <span id="period"></span>
+          <span id="updated">조회 중…</span>
+        </div>
+      </div>
+      <div id="notice" class="notice" hidden role="alert"></div>
+      <noscript>대시보드의 데이터를 조회하려면 JavaScript를 사용할 수 있어야 합니다.</noscript>
+      <section aria-labelledby="summary-heading" class="section summary">
+        <div class="section-head">
+          <h2 id="summary-heading">한눈에 보기</h2>
+        </div>
+        <div id="summary" class="quick-grid" aria-busy="true"></div>
+      </section>
+      <section id="reports" class="section" aria-labelledby="reports-heading">
+        <div class="section-head">
+          <h2 id="reports-heading">상세 보고서</h2>
+        </div>
+        <details id="comparison" class="report-fold">
+          <summary>페이지·방문자 비교</summary>
+          <div id="comparison-content" class="report-fold-content" aria-busy="true"></div>
+        </details>
+        <details id="infrastructure" class="report-fold cloudflare-section">
+          <summary>Cloudflare · 유입, 성능과 오류</summary>
+          <div class="report-fold-content">
+            <div class="report-source-info">
+              <span id="cloudflare-period" class="panel-meta report-period" hidden></span>
+              <span class="source-status" data-source="cloudflare">Cloudflare · 조회 중</span>
+            </div>
+            <div id="infra-content" class="cloudflare-grid" aria-busy="true"></div>
+          </div>
+        </details>
+        <details id="audience" class="report-fold">
+          <summary>Google Analytics · 캠페인과 행동</summary>
+          <div class="report-fold-content">
+            <div class="report-source-info">
+              <span id="google-period" class="panel-meta report-period"></span>
+              <span class="source-status" data-source="google">Google Analytics · 조회 중</span>
+            </div>
+            <div id="google-summary" class="metric-grid" aria-busy="true"></div>
+            <p id="google-notice" class="panel-meta" hidden></p>
+            <div id="audience-content" class="detail-grid" aria-busy="true"></div>
+          </div>
+        </details>
+      </section>
+      <footer>새로고침 시 각 서비스에서 제공하는 최신 집계를 조회합니다. 최근 데이터는 원본 서비스의 처리 시간에 따라 늦게 반영될 수 있습니다.</footer>
+    </main>
+  </div>
+</body>
+</html>

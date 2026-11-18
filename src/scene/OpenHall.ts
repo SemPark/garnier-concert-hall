@@ -1,11 +1,11 @@
 import * as T from 'three';
 import {GOLDEN_HALL} from '../../shared/goldenHall';
 
-const retainedArchitecture=new Set(['pipe-organ','gallery-rail','gallery-rail-corner-infill','gallery-floor','herringbone-gallery-floor']);
-const hallWalls=new Set([
- 'hall-shell','first-floor-side-composition','rear-facade','rear-screen','wall-panel',
+const retainedArchitecture=new Set([
+ 'pipe-organ','gallery-rail','gallery-rail-corner-infill','gallery-floor','herringbone-gallery-floor',
  'side-box-front','side-box-stair-cheek',
 ]);
+const hallWalls=new Set(['hall-shell','first-floor-side-composition','rear-facade','rear-screen','wall-panel']);
 
 /** Split architecture before batching so walls can dissolve independently of the floors and organ. */
 export function separateUpperHall(scene:T.Scene,height=GOLDEN_HALL.balconyHeight){

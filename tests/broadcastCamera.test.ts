@@ -91,20 +91,47 @@ test('moving NPCs and train b-roll both hold their original positions and aim',(
  assert.equal(director.frame(69,moving).look.z,stageZ);
 });
 
-test('the opening stage shot fits the whole ensemble in portrait framing',()=>{
+test('all indoor stage angles keep the ensemble in portrait framing and drift slowly',()=>{
  const aspect=390/844;
  const camera=new PerspectiveCamera(70,aspect,.08,150);
- const director=new BroadcastCamera(0);
- for(const elapsed of [0,9,17.99]){
-  const {look,position}=director.frame(elapsed,{...view,aspect});
-  camera.position.copy(position);
-  camera.lookAt(look);
-  camera.updateMatrixWorld();
-  for(const player of ORCHESTRA_LAYOUT){
-   const center=new Vector3(player.x,STAGE_FLOOR+player.rise+1,player.z).project(camera);
-   assert.ok(Math.abs(center.x)<.96,`${player.instrument} cropped at ${elapsed} seconds`);
+ const director=new BroadcastCamera(0,()=>0);
+ const portrait={...view,aspect};
+ const cuts=[18,42,64];
+ const starts=[0,24,46,69];
+ const positions:Vector3[]=[];
+ for(const [index,start] of starts.entries()){
+  if(index>0)director.frame(cuts[index-1],portrait);
+  positions.push(director.frame(start,portrait).position);
+  for(const elapsed of [start,start+9,start+17.99]){
+   const {look,position}=director.frame(elapsed,portrait);
+   assert.ok(position.distanceTo(positions[index])<2);
+   camera.position.copy(position);
+   camera.lookAt(look);
+   camera.updateMatrixWorld();
+   for(const player of ORCHESTRA_LAYOUT){
+    const center=new Vector3(player.x,STAGE_FLOOR+player.rise+1,player.z).project(camera);
+    assert.ok(Math.abs(center.x)<.96&&Math.abs(center.y)<.96,`${player.instrument} cropped at ${elapsed} seconds`);
+   }
   }
  }
+ const [front,left,high,right]=positions;
+ assert.ok(left.x< -10&&right.x>10);
+ assert.ok(high.y>front.y+8);
+});
+
+test('space coverage uses a reverse stage angle and follows the current planet position',()=>{
+ const director=new BroadcastCamera(0,()=>0);
+ const saturn={id:'saturn',position:new Vector3(40,37,100)};
+ const space={...view,space:true,planets:[saturn]};
+ for(const time of [0,18,24,42])director.frame(time,space);
+ const reverse=director.frame(46,space);
+ assert.ok(reverse.position.z< -24&&reverse.look.z>0);
+ assert.ok(reverse.position.y>8.3);
+ assert.deepEqual(director.frame(64,space).look,saturn.position);
+ const moved={...saturn,position:new Vector3(44,37,98)};
+ assert.deepEqual(director.frame(67,{...space,planets:[moved]}).look,moved.position);
+ const indoors=director.frame(68,view);
+ assert.ok(indoors.position.z>0&&indoors.position.y<8.3);
 });
 
 test('close-ups change angles to avoid stage foliage and keep the stage when the subject is fully covered',()=>{

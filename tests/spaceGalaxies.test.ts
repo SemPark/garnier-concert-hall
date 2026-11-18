@@ -12,7 +12,7 @@ function intervals(min:number,max:number){
  ]);
 }
 
-test('all 18 galaxies clear the nebulae from inside the hall at maximum size',()=>{
+test('all 18 galaxies spread around the hall and clear the nebulae at maximum size',()=>{
  const scene=new T.Scene();
  const defaults:GalaxySettings={count:8,size:1,brightness:1,resolution:'desktop'};
  const settings=normalizeGalaxySettings({...defaults,count:99,size:2},defaults);
@@ -33,6 +33,16 @@ test('all 18 galaxies clear the nebulae from inside the hall at maximum size',()
  const directions=Array.from({length:settings.count},(_,i)=>new T.Vector3().fromBufferAttribute(centers,i*6).normalize());
  const elevations=directions.map(direction=>T.MathUtils.radToDeg(Math.asin(direction.y)));
  assert.ok(Math.min(...elevations)<0&&Math.max(...elevations)<45);
+ const galaxyCenters=Array.from({length:settings.count},(_,i)=>
+  mesh.localToWorld(new T.Vector3().fromBufferAttribute(centers,i*6)),
+ );
+ for(const x of [-13,0,13])for(const y of [1,9])for(const z of [-25,12,47]){
+  const eye=new T.Vector3(x,y,z);
+  const bearings=galaxyCenters.map(center=>center.clone().sub(eye).normalize());
+  for(const [i,bearing] of bearings.entries())for(const other of bearings.slice(0,i)){
+   assert.ok(bearing.angleTo(other)>T.MathUtils.degToRad(10),'galaxy centers stay apart on both floors');
+  }
+ }
  for(const mobile of [true,false]){
   const count=galaxySettingsForDevice(mobile).count;
   const headings=directions.slice(0,count).map(({x,z})=>T.MathUtils.radToDeg(Math.atan2(x,-z))).sort((a,b)=>a-b);

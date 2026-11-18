@@ -93,10 +93,11 @@ export class LobbyLightPass{
  resize(width:number,height:number,ratio:number){this.composer.setPixelRatio(ratio);this.composer.setSize(width,height);}
  /** Change the scene buffer's multisampling (the buffer is rebuilt on the next frame). */
  setSamples(samples:number){for(const target of [this.composer.renderTarget1,this.composer.renderTarget2]){if(target.samples===samples)continue;target.samples=samples;target.dispose();}}
- render(scene:T.Scene,camera:T.Camera,timings?:RenderPassTimings){
+ render(scene:T.Scene,camera:T.Camera,timings?:RenderPassTimings,present=true){
   this.scenePass.scene=scene;this.scenePass.camera=camera;const auto=this.renderer.info.autoReset;this.renderer.info.reset();this.renderer.info.autoReset=false;
+  const renderToScreen=this.composer.renderToScreen;this.composer.renderToScreen=present;
   this.timings=timings;
-  try{this.composer.render();}finally{this.timings=undefined;this.renderer.info.autoReset=auto;}
+  try{this.composer.render();}finally{this.timings=undefined;this.composer.renderToScreen=renderToScreen;this.renderer.info.autoReset=auto;}
  }
  dispose(){for(const pass of this.composer.passes)pass.dispose();this.composer.dispose();}
 }

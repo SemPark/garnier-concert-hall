@@ -4,14 +4,14 @@ import * as T from 'three';
 import {GOLDEN_HALL} from '../shared/goldenHall';
 import {SpacePlanets,SPACE_ORBIT_CENTER} from '../src/scene/SpaceSky';
 
-test('Earth keeps a north-up axis toward the hall and spins back to Korea',()=>{
+test('Earth shows its tilted equator to the hall and spins back to Korea’s meridian',()=>{
  const scene=new T.Scene(),planets=new SpacePlanets(scene);
  const earth=planets.root.getObjectByName('earth')!;
  const surface=earth.children[0] as T.Mesh<T.SphereGeometry,T.MeshBasicMaterial>;
  const map=new T.Texture(),camera=new T.PerspectiveCamera();
  surface.material.map=map;
- const latitude=T.MathUtils.degToRad(36),longitude=T.MathUtils.degToRad(128);
- const korea=new T.Vector3(Math.cos(latitude)*Math.cos(longitude),Math.sin(latitude),-Math.cos(latitude)*Math.sin(longitude));
+ const longitude=T.MathUtils.degToRad(128);
+ const meridian=new T.Vector3(Math.cos(longitude),0,-Math.sin(longitude));
  const hall=SPACE_ORBIT_CENTER.clone();hall.y=1.3+GOLDEN_HALL.balconyHeight/2;
 
  planets.update(1);
@@ -21,8 +21,12 @@ test('Earth keeps a north-up axis toward the hall and spins back to Korea',()=>{
   surface.onBeforeRender(null!,scene,camera,surface.geometry,surface.material,null!);
   assert.equal(map.offset.x,offset);
   const towardsHall=hall.clone().sub(earth.getWorldPosition(new T.Vector3())).normalize();
-  const facing=korea.clone().transformDirection(surface.matrixWorld);
+  const facing=meridian.clone().transformDirection(surface.matrixWorld);
   assert.ok(facing.dot(towardsHall)>.9999);
+  const pole=new T.Vector3(0,1,0).transformDirection(surface.matrixWorld);
+  const screenUp=new T.Vector3(0,1,0).projectOnPlane(towardsHall).normalize();
+  assert.ok(Math.abs(pole.dot(towardsHall))<.0001);
+  assert.ok(Math.abs(T.MathUtils.radToDeg(pole.angleTo(screenUp))-23.5)<.5);
  }
  map.dispose();
  planets.dispose();

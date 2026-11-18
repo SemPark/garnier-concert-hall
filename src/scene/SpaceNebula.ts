@@ -124,11 +124,11 @@ export class SpaceNebula {
     }
    `,
   });
-  // Keep generous angular gaps between the three clouds as the planets orbit past them.
+  // Keep the clouds along the horizon so the upper sky stays clear.
   const placements=[
-   {name:'space-nebula',position:[-54,62,-109],scale:1,roll:-.10,seed:0,shape:0},
-   {name:'space-nebula-rose',position:[119,84,24],scale:1.08,roll:.32,seed:17.3,shape:1},
-   {name:'space-nebula-indigo',position:[-63,72,118],scale:.86,roll:-.38,seed:43.7,shape:2},
+   {name:'space-nebula',position:[-54,5,-109],scale:1,roll:-.10,seed:0,shape:0},
+   {name:'space-nebula-rose',position:[119,20,24],scale:.95,roll:.32,seed:17.3,shape:1},
+   {name:'space-nebula-indigo',position:[-63,9,118],scale:.86,roll:-.38,seed:43.7,shape:2},
   ];
   for(const [index,placement] of placements.entries()){
    const cloudMaterial=index===0?material:material.clone();

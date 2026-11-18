@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "ops": "node ops/server.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:iphone": "node scripts/dev.mjs --iphone",
     "build": "node scripts/audio-manifest.mjs && vite build --outDir .wrangler/assets-build && node scripts/audio-manifest.mjs --pack-dist",

@@ -68,7 +68,7 @@ import {GHOST_ORCHESTRA} from './orchestra/buildOrchestra';
 import {ORCHESTRA_LAYOUT,STAGE_FLOOR as ORCHESTRA_FLOOR} from './orchestra/layout';
 /** Trial ghost orchestra: one ghost at every player's place (people face −z, ghosts +z, hence the half turn). */
 const ORCHESTRA_GHOSTS:GhostSpot[]=ORCHESTRA_LAYOUT.map((p,i)=>({x:p.x,y:ORCHESTRA_FLOOR+p.rise,z:p.z,yaw:p.yaw+Math.PI,id:'player-'+i,sitting:musicianSits(p.instrument),npc:true}));
-import {FLOOR_SEATS,FLOOR_CROSS_AISLE,SPAWN,SEATS,BOUNDS,seatLabel,walkable,distance,surfaceHeight,inGallery,STAGE_APRON_Z,DESTINATION_ZONE,visitorVariant,visitorColor,cafeApproach,atCafe,CANDLE_TABLES,type CandleTable,type HallDestination,type Look,type Visitor,type Zone,type Point} from '../shared/venue';
+import {FLOOR_SEATS,FLOOR_CROSS_AISLE,SPAWN,SEATS,BOUNDS,seatLabel,walkable,distance,surfaceHeight,STAGE_APRON_Z,DESTINATION_ZONE,visitorVariant,visitorColor,cafeApproach,atCafe,CANDLE_TABLES,type CandleTable,type HallDestination,type Look,type Visitor,type Zone,type Point} from '../shared/venue';
 import type {Snapshot} from '../shared/protocol';
 import type {Presence} from './network/Presence';
 import type {ConcertAudio} from './audio/ConcertAudio';
@@ -229,6 +229,8 @@ export class World{
  private readonly visitorNames:VisitorNames;
  showVisitorNames=true;
  private graphicsLost=false;private graphicsRestorePending=false;
+ seatMapOpen=false;
+ private seatMapBackdropDirty=true;
  private entranceRevealAt:number|null=null;
  private entranceRevealProgress=0;
  private entranceRevealSeen=false;
@@ -273,6 +275,7 @@ export class World{
  }
  private restoreGraphics(){
   this.graphicsRestorePending=false;
+  this.seatMapBackdropDirty=true;
   try{
    const previous=this.environment;
    this.environment=interiorEnvironment(this.renderer);
@@ -315,8 +318,8 @@ export class World{
   if(this.disposed)return;
   const venue=await this.prepareHall();if(this.disposed)return;
   const camera=this.camera.clone();camera.position.set(...HALL_CAMERA.eye);camera.lookAt(new T.Vector3(...HALL_CAMERA.look));venue.updateLOD(camera);venue.updateMusicians(camera);venue.scene.updateMatrixWorld(true);
-  // Compile and upload a handful of shared batches per turn. Warming the entire scene in one render
-  // still blocks input on texture/instance-buffer upload, even after its CPU construction was split.
+  // Submit one mesh at a time so two large buffer or texture uploads cannot block the same render.
+  // Cheap submissions can still share a turn.
   const warm=new T.Scene();warm.fog=venue.scene.fog;warm.environment=venue.scene.environment;warm.environmentIntensity=venue.scene.environmentIntensity;
   const meshes:{object:T.Object3D;parent:T.Object3D;matrix:T.Matrix4;auto:boolean}[]=[];
   venue.scene.traverse(object=>{
@@ -324,16 +327,26 @@ export class World{
    else if((object instanceof T.Mesh||object instanceof T.Points)&&object.visible&&object.parent&&[object.material].flat().some(material=>material.visible)&&(!(object instanceof T.InstancedMesh)||object.count>0))meshes.push({object,parent:object.parent,matrix:object.matrix.clone(),auto:object.matrixAutoUpdate});
   });
   const target=new T.WebGLRenderTarget(16,16);reportInitialHallLoading(72,'공연장의 무대와 좌석을 준비하고 있어요');
-  try{for(let i=0;i<meshes.length;i+=2){if(this.disposed)return;const batch=meshes.slice(i,i+2);
-   // Use the actual batches, so their buffers/VAOs are prepared once. Entry waits for this job;
-   // the offscreen hall is never displayed with a temporarily detached batch.
-   for(const {object}of batch){object.matrixAutoUpdate=false;object.matrix.copy(object.matrixWorld);warm.add(object);}
-   try{await this.compileHall(warm,camera);if(this.disposed)return;
+  let uploadWork=0,uploads=0;
+  try{for(const [i,{object,parent,matrix,auto}]of meshes.entries()){
+   if(this.disposed)return;
+   // Use the actual mesh so its buffers and VAOs are prepared for the first hall frame.
+   object.matrixAutoUpdate=false;object.matrix.copy(object.matrixWorld);warm.add(object);
+   try{
+    const compileStart=performance.now(),compiled=this.compileHall(warm,camera);
+    uploadWork+=performance.now()-compileStart;
+    await compiled;if(this.disposed)return;
     const start=performance.now(),previous=this.renderer.getRenderTarget();try{this.renderer.setRenderTarget(target);this.renderer.render(warm,camera);}finally{this.renderer.setRenderTarget(previous);}
-    performance.measure('aurea-upload-slice',{start,end:performance.now()});
-   }finally{for(const {object,parent,matrix,auto}of batch){parent.add(object);object.matrix.copy(matrix);object.matrixAutoUpdate=auto;}}
-   reportInitialHallLoading(72+Math.round(23*Math.min(1,(i+2)/meshes.length)),'공연장의 조명과 오케스트라를 준비하고 있어요');
-   await new Promise<void>(resolve=>{if(document.hidden)setTimeout(resolve,32);else requestAnimationFrame(()=>setTimeout(resolve,0));});
+    const end=performance.now();
+    uploadWork+=end-start;
+    performance.measure('aurea-upload-slice',{start,end});
+   }finally{parent.add(object);object.matrix.copy(matrix);object.matrixAutoUpdate=auto;}
+   // Yield after a costly upload so the browser can process input and paint.
+   if(++uploads>=8||uploadWork>=5||i+1===meshes.length){
+    reportInitialHallLoading(72+Math.round(23*(i+1)/meshes.length),'공연장의 조명과 오케스트라를 준비하고 있어요');
+    await new Promise<void>(resolve=>{if(document.hidden)setTimeout(resolve,32);else requestAnimationFrame(()=>setTimeout(resolve,0));});
+    uploadWork=uploads=0;
+   }
   }}finally{target.dispose();warm.clear();}
   if(this.disposed)return;
   bakeArchitectureShadows(this.renderer,venue.scene,camera);
@@ -348,7 +361,7 @@ export class World{
    await this.compileHall(venue.scene,camera);
    if(this.disposed)return;
    const exposure=this.renderer.toneMappingExposure;
-   try{this.renderer.toneMappingExposure=1;this.lightingPass?.render(venue.scene,camera);}
+   try{this.renderer.toneMappingExposure=1;this.lightingPass?.render(venue.scene,camera,undefined,false);}
    finally{this.renderer.toneMappingExposure=exposure;}
    await this.waitForWarmGPU();
   }
@@ -552,6 +565,7 @@ export class World{
  }
  setStageView(low:boolean){if(this.entranceViewLocked||this.zone!=='auditorium')return;this.stopBroadcastView();this.stopCatView();this.introUntil=0;this.concertView=true;this.hallOverview=false;this.stageLowView=low;this.resetCameraSway(performance.now());this.cameraYaw=0;this.cameraPitch=.13;this.hallZoom=1;this.route=[];this.marker.visible=false;this.onChange();}
  private broadcastCamera:BroadcastCamera|null=null;
+ private renderedBroadcastShotAt:number|undefined;
  private broadcastEventGhosts:GhostSpot[]=[];
  get broadcastView(){return this.broadcastCamera!==null;}
  get canStartBroadcast(){
@@ -575,6 +589,7 @@ export class World{
  stopBroadcastView(){
   if(!this.broadcastView)return;
   this.broadcastCamera=null;
+  this.renderedBroadcastShotAt=undefined;
   this.broadcastEventGhosts=[];
   this.snapCamera();
   this.renderer.domElement.focus({preventScroll:true});
@@ -584,9 +599,6 @@ export class World{
  private lunarStride=0;
  private lunarLift=0;
  private lunarVelocity=new T.Vector3();
- private get onLunarGallery(){
-  return this.openHall&&this.zone==='auditorium'&&this.position.y>=GOLDEN_HALL.balconyHeight-.3&&inGallery(this.position);
- }
  galaxySettings=galaxySettingsForDevice(this.mobile);
  setGalaxySettings(change:Partial<GalaxySettings>){
   if(!import.meta.env.DEV)return;
@@ -625,6 +637,7 @@ export class World{
   this.resize();
  }
  private resize=()=>{
+  this.seatMapBackdropDirty=true;
   const probe=this.diagnosticActive&&!this.mobile?PROBE_PROFILE:null;
   const w=probe?.width??innerWidth,h=probe?.height??innerHeight;
   const mobile=!!probe||this.mobile,quality=probe?.quality??this.quality;
@@ -1522,13 +1535,17 @@ export class World{
   if(diningSeat)details.push(target('dining-'+diningSeat.id,diningSeat,.99,diningSeat.yaw+Math.PI+.4,3,1.45));
 
   const transition=venue.scene.userData.hallTransition as import('./scene/HallTransition').HallTransition|undefined;
+  const space=!!transition&&transition.progress>=.96;
+  if(space){
+   for(const planet of this.broadcastPlanets)transition.broadcastPlanet(planet.id,planet.position);
+  }
   return director.frame(performance.now()/1000,{
-   aspect:this.camera.aspect,reduced:this.reduced,space:this.spaceVisible,walls:venue.cameraWalls,
+   aspect:this.camera.aspect,reduced:this.reduced,space,walls:venue.cameraWalls,
    visitor:target('visitor',visitor,this.pose==='sit'?1.05:1.1,(actor?.rotation.y??this.yaw)+Math.PI,3.4,.52),
-   podium,ghosts,details,events,saturn:transition?.broadcastSaturn(this.broadcastSaturn),
+   podium,ghosts,details,events,planets:space?this.broadcastPlanets:undefined,
   });
  }
- private readonly broadcastSaturn=new T.Vector3();
+ private readonly broadcastPlanets=['saturn','earth','jupiter'].map(id=>({id,position:new T.Vector3()}));
 
  private cameraFrame(){
   const cat=this.catView?this.activeCat:null;
@@ -1693,7 +1710,6 @@ export class World{
   * fewer frames leave the phone's CPU for that work; otherwise the chosen quality decides (sharp: 60). */
  private frameBudget(){
   if(this.diagnosticActive)return PROBE_PROFILE.fps;
-  if(this.mobile)return frameRate(true,this.quality);
   if(!this.entered&&this.ready)return 15;
   const chosen=frameRate(this.mobile,this.quality);
   if(this.hallLoading||this.changingZone)return Math.min(chosen,15);
@@ -1714,8 +1730,8 @@ export class World{
   if(this.petVisit&&(this.petVisit.route!==this.route||now>=this.petVisit.expiresAt||this.net.status!=='connected'))this.clearPetInteraction();
   if(this.pettingAnimal&&now>=this.petUntil)this.pettingAnimal=null;
   if(movementLocked){this.clearPetInteraction();this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;this.route=[];}
-  const lunarGallery=this.onLunarGallery;
-  const lunarWalk=lunarGallery&&!this.reduced&&!movementLocked&&!this.changingZone&&!this.conducting.active;
+  const lunarFloor=this.openHall&&this.zone==='auditorium';
+  const lunarWalk=lunarFloor&&!this.reduced&&!movementLocked&&!this.changingZone&&!this.conducting.active;
   const stepPhase=this.lunarStride%1;
   const strideDelta=dt/LUNAR_STEP_SECONDS;
   const airborne=stepPhase>0&&stepPhase<LUNAR_LANDING;
@@ -1733,7 +1749,7 @@ export class World{
    if(now<this.collisionPauseUntil)kx=kz=0;
    if((kx||kz)&&this.pose==='sit')this.stand();
    const previous=this.position.clone();
-   const moveTime=dt*(lunarGallery?LUNAR_SPEED_SCALE:1);
+   const moveTime=dt*(lunarFloor?LUNAR_SPEED_SCALE:1);
    steering=!!(kx||kz);
    gliding=lunarWalk&&!steering&&!this.route.length&&this.pose!=='sit'&&now>=this.collisionPauseUntil&&airborne&&this.lunarVelocity.lengthSq()>0;
    if(steering||gliding){
@@ -1921,39 +1937,6 @@ export class World{
   this.hallDust?.update(concertSeconds,hallActive&&!this.reduced);
   this.musicLights?.update(now/1000,dt,this.zone==='auditorium'&&this.entered&&!this.reduced,this.audio);
   this.updateCandles(now);this.updateCoffee(now);
-  if(now-this.orchestraAt>=1000/30){
-   const animationStart=timings?performance.now():0;
-   const animationDt=Math.min(.15,(now-this.orchestraAt)/1000);this.orchestraAt=now-((now-this.orchestraAt)%(1000/30));const show=stageShow(playback);
-   const clock=this.reduced?0:this.audio.usesMediaClock?playback.offset:concertSeconds;
-   for(const actor of this.venue.musicians){
-    this.poseCenter.copy(actor.root.position);this.poseCenter.y+=1;const inView=this.poseFrustum.intersectsSphere(this.poseSphere.set(this.poseCenter,2));
-    const conductor=actor.instrumentType==='conductor',poseAt=actor.root.userData.poseAt??0,actorDt=Math.min(.25,Math.max(animationDt,(now-poseAt)/1000));
-    // The conductor also travels across the stage; keep his route live when the camera looks away.
-    if(!conductor&&!inView)continue;
-    const actorInterval=musicianInterval(projectedHeight(1.4,this.camera.position.distanceTo(this.poseCenter),this.camera.projectionMatrix.elements[5]));
-    // Keep readable players at 30Hz, including zoomed views; only tiny figures use 20Hz.
-    if(!conductor&&now-poseAt<actorInterval)continue;actor.root.userData.poseAt=now;
-    if(this.conducting.active){
-     if(conductor)continue;
-     actor.update(this.reduced?0:concertSeconds,0,musicianSits(actor.instrumentType),!this.reduced,null,10,actorDt);
-     const turn=faceYaw(CONDUCTOR.x-actor.root.position.x,CONDUCTOR.z-actor.root.position.z)-actor.root.rotation.y;
-     actor.head.rotation.y=Math.atan2(Math.sin(turn),Math.cos(turn));
-     actor.head.rotation.x=-.08;
-     continue;
-    }
-    if(actor.instrumentType==='conductor'){const c=show.conductor;actor.root.position.set(c.x,c.y,c.z);actor.root.rotation.y=c.yaw;actor.update(clock,c.walking?1.2:0,false,show.orchestraPlays&&!this.reduced,c.bowAge===null?null:'bow',c.bowAge??10,actorDt);continue;}
-    if(actor.root.userData.concertmaster){actor.update(clock,0,!show.concertmasterStands,(show.concertmasterPlays||show.orchestraPlays)&&!this.reduced,null,10,actorDt);continue;}
-    actor.update(clock,0,musicianSits(actor.instrumentType),show.orchestraPlays&&!this.reduced,null,10,actorDt);
-   }
-   if(hallActive)this.venues.auditorium?.hallCat?.update(concertSeconds,this.reduced,now/1000);
-   this.venue.dog.update(now/1000,animationDt,this.net.state?.visitors??[],this.reduced,this.activeCat?.root.position);
-   const batchStart=timings?performance.now():0;
-   this.venue.updateMusicians(this.camera);
-   if(timings){
-    timings.musicianAnimation=batchStart-animationStart;
-    timings.musicianBatch=performance.now()-batchStart;
-   }
-  }
   if(this.introUntil&&now>this.introUntil){this.introUntil=0;if(this.zone==='auditorium'&&this.concertView&&this.pose!=='sit'){this.concertView=false;this.introEase=2.5;this.introGlide=true;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.onChange();}}
   if(this.zone==='auditorium'&&this.pendingSeat&&this.seatWalkAt&&now>=this.seatWalkAt){const id=this.pendingSeat;this.pendingSeat=null;this.seatWalkAt=0;void this.chooseSeat(id,true);}
   // The walking camera stays locked to its orbit (no trailing glide); easing is kept only for big view changes.
@@ -2005,12 +1988,55 @@ export class World{
    head.y+=1.1;
    this.avatar.root.visible=!firstPerson&&this.camera.position.distanceTo(head)>.7;
   }
-  if(now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}
+  const broadcastShotAt=this.broadcastCamera?.shotStartedAt;
+  const broadcastCut=broadcastShotAt!==this.renderedBroadcastShotAt;
+  this.renderedBroadcastShotAt=broadcastShotAt;
+  if(broadcastCut||now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}
+  this.camera.updateMatrixWorld();
+  this.poseFrustum.setFromProjectionMatrix(this.poseProjection.multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse));
+  if(broadcastCut||now-this.orchestraAt>=1000/30){
+   const animationStart=timings?performance.now():0;
+   const animationDt=Math.min(.15,(now-this.orchestraAt)/1000);this.orchestraAt=now-((now-this.orchestraAt)%(1000/30));const show=stageShow(playback);
+   // Pose motion follows the room clock even if a personal audio stream pauses.
+   const clock=this.reduced?0:concertSeconds;
+   for(const actor of this.venue.musicians){
+    this.poseCenter.copy(actor.root.position);this.poseCenter.y+=1;const inView=this.poseFrustum.intersectsSphere(this.poseSphere.set(this.poseCenter,2));
+    const conductor=actor.instrumentType==='conductor',poseAt=actor.root.userData.poseAt??0,actorDt=Math.min(.25,Math.max(animationDt,(now-poseAt)/1000));
+    // The conductor also travels across the stage; keep his route live when the camera looks away.
+    if(!conductor&&!inView)continue;
+    const actorInterval=musicianInterval(projectedHeight(1.4,this.camera.position.distanceTo(this.poseCenter),this.camera.projectionMatrix.elements[5]));
+    // Keep readable players at 30Hz, including zoomed views; only tiny figures use 20Hz.
+    if(!broadcastCut&&!conductor&&now-poseAt<actorInterval)continue;actor.root.userData.poseAt=now;
+    if(this.conducting.active){
+     if(conductor)continue;
+     actor.update(this.reduced?0:concertSeconds,0,musicianSits(actor.instrumentType),!this.reduced,null,10,actorDt);
+     const turn=faceYaw(CONDUCTOR.x-actor.root.position.x,CONDUCTOR.z-actor.root.position.z)-actor.root.rotation.y;
+     actor.head.rotation.y=Math.atan2(Math.sin(turn),Math.cos(turn));
+     actor.head.rotation.x=-.08;
+     continue;
+    }
+    if(actor.instrumentType==='conductor'){const c=show.conductor;actor.root.position.set(c.x,c.y,c.z);actor.root.rotation.y=c.yaw;actor.update(clock,c.walking?1.2:0,false,show.orchestraPlays&&!this.reduced,c.bowAge===null?null:'bow',c.bowAge??10,actorDt);continue;}
+    if(actor.root.userData.concertmaster){actor.update(clock,0,!show.concertmasterStands,(show.concertmasterPlays||show.orchestraPlays)&&!this.reduced,null,10,actorDt);continue;}
+    actor.update(clock,0,musicianSits(actor.instrumentType),show.orchestraPlays&&!this.reduced,null,10,actorDt);
+   }
+   if(hallActive)this.venues.auditorium?.hallCat?.update(concertSeconds,this.reduced,now/1000);
+   this.venue.dog.update(now/1000,animationDt,this.net.state?.visitors??[],this.reduced,this.activeCat?.root.position);
+   const batchStart=timings?performance.now():0;
+   this.venue.updateMusicians(this.camera);
+   if(timings){
+    timings.musicianAnimation=batchStart-animationStart;
+    timings.musicianBatch=performance.now()-batchStart;
+   }
+  }
   for(const object of this.venue.overviewHidden)object.visible=!this.concertView||broadcast||this.catView;
   if(this.conducting.active&&this.avatar)this.avatar.root.visible=false;
   if(this.photoMode&&this.avatar)this.avatar.root.visible=this.photoComposition==='current'?this.photoOriginal.avatarVisible:true;
   const submitStart=this.diagnosticActive?performance.now():0;
-  if(!this.diagnosticActive||this.diagnosticMode==='normal'){
+  // Leave the last lobby frame behind the loading screen so it doesn't compete with hall uploads.
+  // The seat picker also retains its backdrop until a resize or graphics restore.
+  const warmingHall=this.zone==='lobby'&&this.hallLoading&&!this.hallWarmed;
+  const drawBackdrop=!warmingHall&&(!this.seatMapOpen||this.seatMapBackdropDirty||this.hallLoading||this.changingZone);
+  if(this.diagnosticActive?this.diagnosticMode==='normal':drawBackdrop){
    this.diagnosticGpu?.begin(now);
    try{
    const reflectedAvatar=this.avatar?.root;
@@ -2027,7 +2053,7 @@ export class World{
    this.visitorNames.update(this.camera,broadcast?null:self,broadcast?[]:this.remotes.values(),this.venue.scene.userData.solidOccluded,this.probeViewport);
    this.venues.auditorium?.usher?.updateSpeech(this.camera,this.renderer.domElement,this.entered&&this.zone==='auditorium'&&!this.uiObscured,now/1000);
    const crowdStart=timings?performance.now():0;
-   this.crowds[this.zone].update(this.allGhosts(),this.camera,now,this.reduced);
+   this.crowds[this.zone].update(this.allGhosts(),this.camera,now,this.reduced,broadcastCut);
    if(this.avatar){
     const crowd=this.crowds[this.zone];
     const wasReceiving=this.queenWand.receiving;
@@ -2053,7 +2079,12 @@ export class World{
     }
    }finally{this.diagnosticGpu?.end();}
    this.finishPhotoCapture();
-   this.drawCount++;if(this.zone==='auditorium'&&this.hallWarmed)completeInitialLoading();
+   this.seatMapBackdropDirty=false;
+   this.drawCount++;
+   if(this.zone==='auditorium'&&this.hallWarmed){
+    if(this.hallLoading)this.stopHallLoading();
+    completeInitialLoading();
+   }
     if(this.usherGreetingPending&&this.entered&&!entranceReveal&&!document.getElementById('boot-screen')){this.usherGreetingPending=false;this.venue.usher?.greet(performance.now()/1000);if(this.pendingSeat)this.seatWalkAt=performance.now()+4500;}
    if(!this.ready&&this.texturesLoaded){this.ready=true;performance.measure('aurea-first-scene',{start:0,end:performance.now()});document.body.classList.add('scene-ready');reportLoading(100,'공연장 연결을 준비하고 있어요');this.onChange();
    }

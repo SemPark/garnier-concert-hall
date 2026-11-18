@@ -12,28 +12,27 @@ const MOON_ORBIT_RADIUS=34;
 const MOON_ORBIT_SECONDS=96;
 const MOON_ORBIT_TILT=.22;
 
-// The gallery looks across the lower sky, while the floor sees over the rail toward Earth, Saturn and Jupiter.
-// Vary azimuth and orbital radius to leave room between the silhouettes from both floors.
+// Keep the largest planets near the first-floor sightline and stagger the others above them.
 const PLANETS=[
  {name:'mercury',radius:4,yaw:290,elevation:16,distance:104,tilt:.03,detail:24,spinPeriod:84},
- {name:'venus',radius:8.2,yaw:207,elevation:9,distance:118,tilt:.08,detail:24,spinPeriod:-100},
- {name:'earth',radius:EARTH_RADIUS,yaw:249,elevation:27,distance:132,tilt:.41,detail:48,spinPeriod:EARTH_SPIN_SECONDS},
- {name:'mars',radius:5.95,yaw:113,elevation:13,distance:111,tilt:.22,detail:24,spinPeriod:56},
- {name:'jupiter',radius:29.7,yaw:15,elevation:32,distance:142,tilt:.16,detail:48,spinPeriod:105},
- {name:'saturn',radius:9,yaw:163,elevation:36,distance:121,detail:48,spinPeriod:SATURN_SPIN_SECONDS},
- {name:'uranus',radius:13.6,yaw:64,elevation:19,distance:140,tilt:-.35,detail:24,spinPeriod:-59},
- {name:'neptune',radius:17.4,yaw:325,elevation:23,distance:154,tilt:.34,detail:24,spinPeriod:51},
+ {name:'venus',radius:8.2,yaw:207,elevation:-2,distance:118,tilt:.08,detail:24,spinPeriod:-100},
+ {name:'earth',radius:EARTH_RADIUS,yaw:249,elevation:8,distance:132,tilt:.41,detail:48,spinPeriod:EARTH_SPIN_SECONDS},
+ {name:'mars',radius:5.95,yaw:113,elevation:19,distance:111,tilt:.22,detail:24,spinPeriod:56},
+ {name:'jupiter',radius:29.7,yaw:15,elevation:3,distance:142,tilt:.16,detail:48,spinPeriod:105},
+ {name:'saturn',radius:9,yaw:163,elevation:13,distance:121,detail:48,spinPeriod:SATURN_SPIN_SECONDS},
+ {name:'uranus',radius:13.6,yaw:64,elevation:32,distance:140,tilt:-.35,detail:24,spinPeriod:-59},
+ {name:'neptune',radius:17.4,yaw:325,elevation:12,distance:154,tilt:.34,detail:24,spinPeriod:51},
 ] as const;
 const DISTANT_PLANETS=[
  {radius:.81,yaw:351,elevation:49,distance:155,color:0xa38fc8},
  {radius:4.81,yaw:47,elevation:9,distance:147,color:0x6eb2a3},
  {radius:1.09,yaw:87,elevation:12,distance:167,color:0xc9957a},
- {radius:3.54,yaw:114,elevation:29,distance:132,color:0x849dc1},
+ {radius:3.54,yaw:114,elevation:39,distance:132,color:0x849dc1},
  {radius:1.26,yaw:132,elevation:46,distance:157,color:0xc5ad8a},
  {radius:3.33,yaw:186,elevation:13,distance:153,color:0x987dc2},
  {radius:1.62,yaw:213,elevation:23,distance:161,color:0x8db9ba},
- {radius:2.88,yaw:272,elevation:6,distance:160,color:0xc0776c},
- {radius:1.67,yaw:303,elevation:29,distance:136,color:0xbbbf88},
+ {radius:2.88,yaw:272,elevation:32,distance:160,color:0xc0776c},
+ {radius:1.67,yaw:303,elevation:9,distance:136,color:0xbbbf88},
  {radius:2.25,yaw:342,elevation:13,distance:152,color:0x6b9fcb},
 ] as const;
 const SATURN_RING_INNER=11.25;
@@ -49,18 +48,19 @@ function facingBasis(normal:T.Vector3,up:T.Vector3){
  return new T.Matrix4().makeBasis(right,new T.Vector3().crossVectors(normal,right),normal);
 }
 
-function earthOrientation(position:T.Vector3,tilt:T.Quaternion){
- // Set the zero phase of the equirectangular map to Korea with north upright.
- const latitude=T.MathUtils.degToRad(36),longitude=T.MathUtils.degToRad(128);
- const korea=new T.Vector3(Math.cos(latitude)*Math.cos(longitude),Math.sin(latitude),-Math.cos(latitude)*Math.sin(longitude));
- const inverse=tilt.clone().invert();
+function planetOrientation(position:T.Vector3,tilt:number){
  const eyeHeight=1.3+GOLDEN_HALL.balconyHeight/2;
- const towardsHall=new T.Vector3(0,eyeHeight-SPACE_ORBIT_CENTER.y,0).sub(position).applyQuaternion(inverse).normalize();
- const north=new T.Vector3(0,1,0);
- const textureBasis=facingBasis(korea,north);
- const hallBasis=facingBasis(towardsHall,north.applyQuaternion(inverse));
- return new T.Quaternion().setFromRotationMatrix(hallBasis.multiply(textureBasis.transpose()));
+ const towardsHall=new T.Vector3(0,eyeHeight-SPACE_ORBIT_CENTER.y,0).sub(position).normalize();
+ const orientation=new T.Quaternion().setFromRotationMatrix(facingBasis(towardsHall,new T.Vector3(0,1,0)));
+ // Tilt in the plane of the view so the pole stays away from the center of the disc.
+ return orientation.multiply(new T.Quaternion().setFromAxisAngle(new T.Vector3(0,0,1),tilt));
 }
+
+// At zero spin, put Korea's meridian on the front of Earth while keeping the equator centered.
+const koreaLongitude=T.MathUtils.degToRad(128);
+const EARTH_TEXTURE_ORIENTATION=new T.Quaternion().setFromUnitVectors(
+ new T.Vector3(Math.cos(koreaLongitude),0,-Math.sin(koreaLongitude)),new T.Vector3(0,0,1),
+);
 
 /** Real planetary maps on low-poly spheres, with baked vertex lighting and no extra lights. */
 export class SpacePlanets {
@@ -97,14 +97,14 @@ export class SpacePlanets {
     Math.sin(altitude),
     -Math.cos(azimuth)*Math.cos(altitude),
    ).multiplyScalar(distance);
-   if(name!=='saturn')group.rotation.z=spec.tilt;
+   if(name!=='saturn')group.quaternion.copy(planetOrientation(group.position,spec.tilt));
    this.root.add(group);
    // Keep Saturn lit from the same side of the view and the other planets lit from the hall.
    const light=name==='saturn'?SATURN_LIGHT:new T.Vector3(-Math.sin(azimuth),.65,Math.cos(azimuth))
     .applyQuaternion(group.quaternion.clone().invert()).normalize();
    if(name==='earth'){
     moonLight.copy(light);
-    const orientation=earthOrientation(group.position,group.quaternion);
+    const orientation=EARTH_TEXTURE_ORIENTATION;
     // Derive the moon's orbit from Earth's texture pole while keeping the initial approach side.
     const pole=new T.Vector3(0,1,0).applyQuaternion(orientation);
     this.moonOrbitStart.projectOnPlane(pole).normalize();
@@ -141,7 +141,7 @@ export class SpacePlanets {
   this.saturn.add(this.saturnRing);
   this.addDistantPlanets();
  }
- saturnPosition(point:T.Vector3){return this.saturn.getWorldPosition(point);}
+ planetPosition(name:string,point:T.Vector3){return this.root.getObjectByName(name)?.getWorldPosition(point);}
  private planetSurface(radius:number,detail:number,light:T.Vector3,file:string,spinPeriod:number){
   const geometry=new T.SphereGeometry(radius,detail,detail===48?32:16);
   const normals=geometry.getAttribute('normal'),colors=new Float32Array(normals.count*3),normal=new T.Vector3();
