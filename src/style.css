@@ -568,3 +568,14 @@ body.photo-active #world > :not(canvas){display:none!important}
 
 .setting-toggle{background:#322b22;color:#e1cda4;border:1px solid #8d785545;padding:7px 10px;border-radius:3px;font-size:11px;min-width:54px}
 .visitor-names[hidden]{display:none}
+
+/* The regional choice is non-modal. Both actions have identical affordance. */
+.analytics-choices:not(.in-settings){
+ position:fixed;z-index:40;inset:auto 12px max(76px,calc(env(safe-area-inset-bottom) + 72px));margin-inline:auto;
+ max-width:26rem;padding:.75rem;border-radius:.75rem;background:#221a26;color:#fff;
+ box-shadow:0 .25rem 1rem #0007;
+}
+.analytics-choices a{color:inherit;text-decoration:underline;}
+.analytics-choices p{margin:0 0 .5rem;}
+.analytics-choice-buttons{display:flex;gap:.5rem;}
+.analytics-choice-buttons button{flex:1;padding:.45rem .75rem;min-height:2.75rem;}

@@ -1,7 +1,6 @@
 import {PlaybackTracker} from './PlaybackTracker';
 
 const PRODUCTION_ORIGIN='https://pleee.hall-live.workers.dev';
-export const GA4_CONSENT_KEY='pleee-ga4-opt-in-v1';
 type Tag=(...args:unknown[])=>void;
 type AnalyticsWindow=Window&{dataLayer?:unknown[];gtag?:Tag};
 type EventName='page_view'|'playback_start'|'playback_180_seconds';
@@ -9,6 +8,7 @@ type AnalyticsTransport={
  // Return a cleanup for a script which has not loaded yet.
  load(onReady:()=>void,onFailure:()=>void):()=>void;
  disable(disabled:boolean):void;
+ forgetCookies?():void;
  send(event:EventName):void;
 };
 
@@ -18,21 +18,11 @@ export function ga4MeasurementId(config:{production:boolean;origin:string;enable
   typeof id==='string'&&/^G-[A-Z0-9]{5,20}$/.test(id)?id:null;
 }
 
-export function allowsAnalytics(
- storage:Pick<Storage,'getItem'>,
- privacy:{globalPrivacyControl?:boolean;doNotTrack?:string|null},
-){
- if(privacy.globalPrivacyControl===true||['1','yes'].includes(privacy.doNotTrack??''))return false;
- try{return storage.getItem(GA4_CONSENT_KEY)!=='no';}catch{return false;}
-}
-
-export function queueRegionalAnalyticsDefaults(tag:Tag){
+// Only called after server policy and browser choice allow initialization.
+export function queueAnalyticsDefaults(tag:Tag){
  tag('consent','default',{
-  analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',
+  analytics_storage:'granted',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',
  });
- // Google's geographic region match, never the browser language. If the tag
- // cannot identify this region, the unscoped denied defaults still apply.
- tag('consent','default',{analytics_storage:'granted',region:['KR']});
  tag('set','ads_data_redaction',true);
  tag('set','url_passthrough',false);
 }
@@ -48,6 +38,11 @@ export class AnalyticsConsent {
  constructor(private transport:AnalyticsTransport|null){}
 
  get tracker(){return this.current;}
+
+ refuse(){
+  this.setAccepted(false);
+  this.transport?.forgetCookies?.();
+ }
 
  setAccepted(accepted:boolean){
   const transport=this.transport;
@@ -77,17 +72,24 @@ export class AnalyticsConsent {
  }
 }
 
+export function expiryCookiesForHost(measurementId:string){
+ // Do not delete domain cookies shared with any sibling site.
+ const names=['_ga','_ga_'+measurementId.slice(2)];
+ return names.map(name=>name+'=; Max-Age=0; Path=/; Secure; SameSite=Lax');
+}
+
 function browserTransport(id:string):AnalyticsTransport{
  const analytics=window as AnalyticsWindow;
  const parameters={page_location:PRODUCTION_ORIGIN+'/',page_referrer:'',page_title:'PLEEE'};
  let tag:Tag|undefined;
  return {
   disable(disabled){Reflect.set(analytics,`ga-disable-${id}`,disabled);},
+  forgetCookies(){for(const value of expiryCookiesForHost(id))document.cookie=value;},
   load(onReady,onFailure){
    const dataLayer=analytics.dataLayer??(analytics.dataLayer=[]);
    tag=analytics.gtag??(analytics.gtag=function(){dataLayer.push(arguments);});
    // Consent defaults must be queued before any config, event or tag script request.
-   queueRegionalAnalyticsDefaults(tag);
+   queueAnalyticsDefaults(tag);
    const script=document.createElement('script');
    script.async=true;
    script.referrerPolicy='no-referrer';
@@ -96,7 +98,7 @@ function browserTransport(id:string):AnalyticsTransport{
    script.onload=()=>{
     tag?.('js',new Date());
     tag?.('config',id,{...parameters,send_page_view:false,
-     allow_google_signals:false,allow_ad_personalization_signals:false});
+     allow_google_signals:false,allow_ad_personalization_signals:false,cookie_domain:'none',cookie_path:'/'});
     onReady();
    };
    script.onerror=()=>{script.remove();onFailure();};

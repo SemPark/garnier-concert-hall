@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {PlaybackTracker,type PlaybackAnalyticsEvent,type PlaybackSample} from '../src/analytics/PlaybackTracker';
-import {allowsAnalytics,AnalyticsConsent,GA4_CONSENT_KEY,ga4MeasurementId,queueRegionalAnalyticsDefaults} from '../src/analytics/ga4';
+import {AnalyticsConsent,ga4MeasurementId,queueAnalyticsDefaults} from '../src/analytics/ga4';
 
 function observer(){
  const events:PlaybackAnalyticsEvent[]=[];
@@ -88,20 +88,11 @@ function sample(tracker:PlaybackTracker|null,now:number,position=now){
  tracker?.sample({nowMs:now*1000,positionSeconds:position,revision:1,playbackRate:1,audible:true});
 }
 
-test('regional analytics still respects explicit previous opt-out, DNT, GPC and unreadable storage',()=>{
- for(const setting of [null,'yes']) assert.equal(allowsAnalytics({getItem:key=>key===GA4_CONSENT_KEY?setting:'no'},{}),true);
- assert.equal(allowsAnalytics({getItem:()=>'no'},{}),false);
- assert.equal(allowsAnalytics({getItem:()=>null},{globalPrivacyControl:true}),false);
- for(const doNotTrack of ['1','yes']) assert.equal(allowsAnalytics({getItem:()=>null},{doNotTrack}),false);
- assert.equal(allowsAnalytics({getItem:()=>{throw new Error('storage disabled');}},{}),false);
-});
-
-test('defaults to no storage worldwide and grants only analytics storage in KR',()=>{
+test('when eligible, GA4 permits analytics only and never ads or URL passthrough',()=>{
  const calls:unknown[][]=[];
- queueRegionalAnalyticsDefaults((...args)=>calls.push(args));
+ queueAnalyticsDefaults((...args)=>calls.push(args));
  assert.deepEqual(calls,[
-  ['consent','default',{analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied'}],
-  ['consent','default',{analytics_storage:'granted',region:['KR']}],
+  ['consent','default',{analytics_storage:'granted',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied'}],
   ['set','ads_data_redaction',true],
   ['set','url_passthrough',false],
  ]);

@@ -1,5 +1,6 @@
 import {DanceControls,DanceStart} from './DanceControls';
-import {allowsAnalytics,createPlaybackAnalytics,GA4_CONSENT_KEY} from './analytics/ga4';
+import {createPlaybackAnalytics} from './analytics/ga4';
+import {AnalyticsChoices,useAnalyticsPreference} from './analytics/AnalyticsChoices';
 import {QueenCardGame} from './QueenCardGame';
 import {WishTarot} from './WishTarot';
 import {ProgramBook} from './ProgramBook';
@@ -163,19 +164,7 @@ function ViewModeMenu({world,onBroadcast}:{world:World;onBroadcast:()=>void}){
 
 function App(){
  const [analytics]=useState(createPlaybackAnalytics);
- useEffect(()=>{
-  if(!analytics)return;
-  const apply=()=>{
-   try{analytics.setAccepted(allowsAnalytics(window.localStorage,navigator));}
-   catch{/* Analytics must not affect the concert. */}
-  };
-  apply();
-  const sync=(event:StorageEvent)=>{
-   if(event.key===GA4_CONSENT_KEY||event.key===null)apply();
-  };
-  window.addEventListener('storage',sync);
-  return ()=>{window.removeEventListener('storage',sync);analytics.setAccepted(false);};
- },[analytics]);
+ const analyticsPreference=useAnalyticsPreference(analytics);
  // The icon menu stays listed from the start; ☰ hides or shows it.
  const [queenGameOpen,setQueenGameOpen]=useState(false);
  const [wishTarotOpen,setWishTarotOpen]=useState(false);
@@ -501,8 +490,12 @@ function App(){
    {import.meta.env.DEV&&<section className="device-diagnostic">{iphoneBridge?<><button data-device-probe disabled={iphonePending} onClick={()=>void measureIPhone()}>연결된 아이폰 측정</button><p>USB로 연결된 아이폰에서 플리를 열고 FPS와 CPU·GPU 시간을 측정합니다.</p></>:<><button data-device-probe disabled={!entered||zone!=='auditorium'||!!probeProgress} onClick={()=>void diagnose()}>끊김 진단 · 최대 30초</button><p>{world?.mobile?'이 기기의 화면 설정으로 FPS와 CPU·GPU 시간을 측정합니다.':'iPhone 13 Pro 화면 조건에서 이 PC의 FPS와 CPU·GPU 시간을 측정합니다.'} 음악을 비교할 수 있을 때는 30초, 그 외에는 10초 동안 실행합니다.</p></>}{probeMessage&&<p role="status">{probeMessage}</p>}{probeReport&&<><button onClick={copyProbeReport}>진단 결과 복사</button><details ref={probeDetails}><summary>진단 결과 보기</summary><textarea ref={probeText} aria-label="기기 진단 결과" readOnly value={probeReport}/></details></>}</section>}<div className="controls-copy">{net?.local&&<p>GitHub Pages 감상 버전 · 다른 관객과의 실시간 연결은 제공하지 않습니다.</p>}<p>바닥 클릭 / WASD / 방향키 — 이동</p><p>드래그 — 둘러보기 · 휠 / 두 손가락 — 거리 조절</p><p>좌석 클릭 — 앉기 · ESC — 일어나기</p></div>
    {analytics&&<div className="setting-row">
      <span><a href="/privacy.html" target="_blank" rel="noreferrer">개인정보 안내</a></span>
+     {(analyticsPreference.mode==='auto'||analyticsPreference.mode==='ask')&&
+      <AnalyticsChoices {...analyticsPreference} inSettings/>}
    </div>}
   </dialog>
+  {!settings&&analyticsPreference.mode==='ask'&&analyticsPreference.choice===null&&
+   <AnalyticsChoices {...analyticsPreference}/>}
  </>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);

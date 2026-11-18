@@ -1,9 +1,12 @@
+import {analyticsModeResponse} from './analyticsMode';
+import {ANALYTICS_MODE_PATH} from '../shared/analyticsPolicy';
 import {VenueRoom} from './VenueRoom';
 import {audioAsset} from './audioRange';
 export {VenueRoom};
 export default {
  async fetch(request:Request,env:Env):Promise<Response>{
   const url=new URL(request.url);
+  if(url.pathname===ANALYTICS_MODE_PATH)return analyticsModeResponse(request);
   if(url.pathname==='/api/health')return Response.json({ok:true,scene:'garnier-v1'});
   if(url.pathname.startsWith('/api/audio/')){const assetUrl=new URL(url);assetUrl.pathname=url.pathname.slice(4);return audioAsset(new Request(assetUrl,request),env.ASSETS);}
   if(url.pathname==='/api/presence'){
