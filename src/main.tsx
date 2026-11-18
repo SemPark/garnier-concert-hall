@@ -1,4 +1,5 @@
 import {DanceControls,DanceStart} from './DanceControls';
+import {createPlaybackAnalytics,GA4_CONSENT_KEY,readAnalyticsChoice} from './analytics/ga4';
 import {QueenCardGame} from './QueenCardGame';
 import {WishTarot} from './WishTarot';
 import {ProgramBook} from './ProgramBook';
@@ -161,6 +162,28 @@ function ViewModeMenu({world,onBroadcast}:{world:World;onBroadcast:()=>void}){
 }
 
 function App(){
+ const [analytics]=useState(createPlaybackAnalytics);
+ const [analyticsAccepted,setAnalyticsAccepted]=useState(false);
+ useEffect(()=>{
+  if(!analytics)return;
+  const apply=(accepted:boolean)=>{
+   try{analytics.setAccepted(accepted);}catch{/* Analytics must not affect the concert. */}
+   setAnalyticsAccepted(accepted);
+  };
+  try{apply(readAnalyticsChoice(window.localStorage));}catch{/* storage unavailable */}
+  const sync=(event:StorageEvent)=>{
+   if(event.storageArea!==window.localStorage)return;
+   if(event.key===GA4_CONSENT_KEY||event.key===null)apply(event.newValue==='yes');
+  };
+  window.addEventListener('storage',sync);
+  return ()=>{window.removeEventListener('storage',sync);analytics.setAccepted(false);};
+ },[analytics]);
+ function changeAnalytics(accepted:boolean){
+  try{analytics?.setAccepted(accepted);}catch{/* Browser may block Google. */}
+  try{window.localStorage.setItem(GA4_CONSENT_KEY,accepted?'yes':'no');}catch{/* Current tab only. */}
+  setAnalyticsAccepted(accepted);
+ }
+
  // The icon menu stays listed from the start; ☰ hides or shows it.
  const [queenGameOpen,setQueenGameOpen]=useState(false);
  const [wishTarotOpen,setWishTarotOpen]=useState(false);
@@ -198,7 +221,7 @@ function App(){
  useEffect(()=>{
   let world:World|undefined;
   const intent=takeHallAudioIntent();
-  const net=new Presence(),audio=new ConcertAudio(net.now,INITIAL_PLAYLIST,intent!=='mute');
+  const net=new Presence(),audio=new ConcertAudio(net.now,INITIAL_PLAYLIST,intent!=='mute',analytics);
   let startedSelectedAudio=false;
   try{world=new World(document.getElementById('world')!,net,audio);const active=world;const update=()=>redraw(n=>n+1);const notify=(message:string)=>{setToast(message);clearTimeout(toastTimer.current);toastTimer.current=window.setTimeout(()=>setToast(''),3500);};
    world.onChange=()=>{
@@ -480,6 +503,10 @@ function App(){
   {error&&<section className="fatal" role="alert"><h1>음악당을 열지 못했어요.</h1><p>WebGL을 지원하는 브라우저에서 다시 열어주세요.</p><small>{error}</small><button onClick={()=>location.reload()}>다시 열기</button></section>}
   {wardrobe&&world&&<Wardrobe look={world.visitorLook} selected={world.self?.outfit} onSelect={outfit=>world.setOutfit(outfit)} onClose={()=>setWardrobe(false)}/>}
   <dialog ref={dialog} onCancel={()=>setSettings(false)} onClose={()=>setSettings(false)} className="settings-dialog"><div className="panel-heading"><div><span className="eyebrow">YOUR LITTLE CONCERT</span><h2>편안하게 감상하기</h2></div><button className="icon-button" aria-label="설정 닫기" onClick={()=>setSettings(false)}><Icon name="close"/></button></div><label className="setting-row"><span>음악 소리 <b>{Math.round((audio?.volume??1)*100)}</b><small>공연장에서 들리는 음량 (0~100)</small></span><input aria-label="음악 음량" type="range" min="0" max="100" value={Math.round((audio?.volume??1)*100)} onChange={e=>{if(audio)audio.volume=Number(e.target.value)/100;redraw(n=>n+1);}}/></label><label className="setting-row"><span>공간 소리 <b>{audio?.roomLevel??5}</b><small>로비와 공연장의 은은한 울림 (1~10, 5가 기본)</small></span><input aria-label="공간 소리" type="range" min="1" max="10" step="1" value={audio?.roomLevel??5} onChange={e=>{audio?.setRoomLevel(Number(e.target.value));redraw(n=>n+1);}}/></label><label className="setting-row"><span>내 캐릭터<small>다른 관객에게도 이렇게 보여요</small></span><select aria-label="내 캐릭터" value={world?.visitorLook??'man'} onChange={e=>{const look=e.target.value as 'man'|'woman';try{localStorage.setItem('garnier-look',look);}catch{}world?.setLook(look);redraw(n=>n+1);}}><option value="man">남자</option><option value="woman">여자</option></select></label><div className="setting-row"><span>캐릭터 이름<small>내 이름과 다른 관객의 이름을 표시해요</small></span><button type="button" className="setting-toggle" aria-label="캐릭터 이름 표시" aria-pressed={world?.showVisitorNames??true} onClick={()=>world?.setShowVisitorNames(!world.showVisitorNames)}>{world?.showVisitorNames!==false?"켜짐":"꺼짐"}</button></div><label className="setting-row"><span>화면 품질<small>{world?`${world.fps} FPS · ${world.renderer.domElement.width}×${world.renderer.domElement.height}`:'선명도를 선택할 수 있어요'}</small></span><select aria-label="화면 품질" value={world?.quality??"balanced"} onChange={e=>world?.setQuality(e.target.value)}><option value="balanced">균형 · {world?.mobile?'60':'30'}FPS</option><option value="sharp">선명하게 · 60FPS</option><option value="low">저발열 · {world?.mobile?'60':'30'}FPS</option></select></label><div className="settings-info"><Icon name="music" size={19}/><p>{p?.track.title}<br/>{p?.track.credit&&<><a href={p.track.credit.sourceUrl} target="_blank" rel="noreferrer">{p.track.credit.sourceName}</a> · {p.track.credit.artist&&<>{p.track.credit.artist} · </>} <a href={p.track.credit.licenseUrl} target="_blank" rel="noreferrer">{p.track.credit.licenseName}</a>{p.track.credit.changes&&<> · {p.track.credit.changes}</>}</>}</p></div><p className="settings-info"><small>로비 천장 사진: <a href="https://commons.wikimedia.org/wiki/File:Ópera,_París,_Francia,_2022-10-31,_DD_54-56_HDR.jpg" target="_blank" rel="noreferrer">Diego Delso / Wikimedia Commons</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a> · 2048px·WebP 변환</small></p>
+   {analytics&&<div className="setting-row">
+     <span>방문·재생 통계<small id="analytics-choice-details">동의하면 Google Analytics로 방문, 재생 시작, 누적 3분 재생 여부를 측정해요. 꺼도 음악당을 그대로 이용할 수 있어요. <a href="/privacy.html" target="_blank" rel="noreferrer">통계 및 쿠키 안내</a></small></span>
+     <button type="button" className="setting-toggle" aria-label="방문·재생 통계 동의" aria-describedby="analytics-choice-details" aria-pressed={analyticsAccepted} onClick={()=>changeAnalytics(!analyticsAccepted)}>{analyticsAccepted?'켜짐':'꺼짐'}</button>
+   </div>}
    {import.meta.env.DEV&&world&&<GalaxySettings world={world}/>}
    <GalaxyCredits/>
    <p className="settings-info"><small>행성 텍스처 · <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noreferrer">Solar System Scope</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a></small></p>
