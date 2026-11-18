@@ -1,5 +1,5 @@
 import {DanceControls,DanceStart} from './DanceControls';
-import {allowsCookielessAnalytics,createPlaybackAnalytics,GA4_CONSENT_KEY} from './analytics/ga4';
+import {allowsAnalytics,createPlaybackAnalytics,GA4_CONSENT_KEY} from './analytics/ga4';
 import {QueenCardGame} from './QueenCardGame';
 import {WishTarot} from './WishTarot';
 import {ProgramBook} from './ProgramBook';
@@ -166,7 +166,7 @@ function App(){
  useEffect(()=>{
   if(!analytics)return;
   const apply=()=>{
-   try{analytics.setAccepted(allowsCookielessAnalytics(window.localStorage,navigator));}
+   try{analytics.setAccepted(allowsAnalytics(window.localStorage,navigator));}
    catch{/* Analytics must not affect the concert. */}
   };
   apply();
