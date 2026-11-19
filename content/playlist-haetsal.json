@@ -1,0 +1,135 @@
+{
+  "name": "햇살",
+  "version": "classical-haetsal-v1",
+  "epochMs": 0,
+  "tracks": [
+    {
+      "id": "haetsal-mozart-29-1",
+      "title": "모차르트 — 교향곡 29번 K.201 I. Allegro moderato",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/haetsal-mozart-29-1.ogg",
+      "durationSeconds": 482.690612244898,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Das Orchester Tsumugi / Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:IMSLP348253-PMLP01555-Mozart_29-1.ogg",
+        "licenseName": "CC BY 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "artist": "Das Orchester Tsumugi",
+        "changes": "Commons 원본 바이트 그대로 사용; 편집·재인코딩 없음; 재생 이득 변경 없음"
+      }
+    },
+    {
+      "id": "haetsal-mozart-29-2",
+      "title": "모차르트 — 교향곡 29번 K.201 II. Andante",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/haetsal-mozart-29-2.ogg",
+      "durationSeconds": 515.9967346938776,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Das Orchester Tsumugi / Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:IMSLP348254-PMLP01555-Mozart_29-2.ogg",
+        "licenseName": "CC BY 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "artist": "Das Orchester Tsumugi",
+        "changes": "Commons 원본 바이트 그대로 사용; 편집·재인코딩 없음; 재생 이득 변경 없음"
+      }
+    },
+    {
+      "id": "haetsal-mozart-29-3",
+      "title": "모차르트 — 교향곡 29번 K.201 III. Menuetto",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/haetsal-mozart-29-3.ogg",
+      "durationSeconds": 203.91183673469388,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Das Orchester Tsumugi / Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:IMSLP348255-PMLP01555-Mozart_29-3.ogg",
+        "licenseName": "CC BY 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "artist": "Das Orchester Tsumugi",
+        "changes": "Commons 원본 바이트 그대로 사용; 편집·재인코딩 없음; 재생 이득 변경 없음"
+      }
+    },
+    {
+      "id": "haetsal-mozart-29-4",
+      "title": "모차르트 — 교향곡 29번 K.201 IV. Allegro con spirito",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/haetsal-mozart-29-4.ogg",
+      "durationSeconds": 331.4155102040816,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Das Orchester Tsumugi / Musopen",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:IMSLP348256-PMLP01555-Mozart_29-4.ogg",
+        "licenseName": "CC BY 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "artist": "Das Orchester Tsumugi",
+        "changes": "Commons 원본 바이트 그대로 사용; 편집·재인코딩 없음; 재생 이득 변경 없음"
+      }
+    },
+    {
+      "id": "haetsal-mozart-36-1",
+      "title": "모차르트 — 교향곡 36번 〈린츠〉 K.425 I. Adagio–Allegro spiritoso",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/haetsal-mozart-36-1.ogg",
+      "durationSeconds": 631.2489795918367,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Das Orchester Tsumugi / IMSLP",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_Symphony_36_KV_425_Linz_1.oga",
+        "licenseName": "CC BY 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "artist": "Das Orchester Tsumugi · Takashi Inoue (지휘)",
+        "changes": "Commons 원본 바이트 그대로 사용; 편집·재인코딩 없음; 재생 이득 변경 없음; 원본 OGA 변환: Akaniji; 로컬 확장자만 .oga → .ogg 변경 (Ogg Vorbis 동일)"
+      }
+    },
+    {
+      "id": "haetsal-mozart-36-2",
+      "title": "모차르트 — 교향곡 36번 〈린츠〉 K.425 II. Poco adagio",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/haetsal-mozart-36-2.ogg",
+      "durationSeconds": 633.4955102040816,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Das Orchester Tsumugi / IMSLP",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_Symphony_36_KV_425_Linz_2.oga",
+        "licenseName": "CC BY 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "artist": "Das Orchester Tsumugi · Takashi Inoue (지휘)",
+        "changes": "Commons 원본 바이트 그대로 사용; 편집·재인코딩 없음; 재생 이득 변경 없음; 원본 OGA 변환: Akaniji; 로컬 확장자만 .oga → .ogg 변경 (Ogg Vorbis 동일)"
+      }
+    },
+    {
+      "id": "haetsal-mozart-36-3",
+      "title": "모차르트 — 교향곡 36번 〈린츠〉 K.425 III. Menuetto",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/haetsal-mozart-36-3.ogg",
+      "durationSeconds": 219.74204081632652,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Das Orchester Tsumugi / IMSLP",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_Symphony_36_KV_425_Linz_3.oga",
+        "licenseName": "CC BY 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "artist": "Das Orchester Tsumugi · Takashi Inoue (지휘)",
+        "changes": "Commons 원본 바이트 그대로 사용; 편집·재인코딩 없음; 재생 이득 변경 없음; 원본 OGA 변환: Akaniji; 로컬 확장자만 .oga → .ogg 변경 (Ogg Vorbis 동일)"
+      }
+    },
+    {
+      "id": "haetsal-mozart-36-4",
+      "title": "모차르트 — 교향곡 36번 〈린츠〉 K.425 IV. Presto",
+      "composer": "볼프강 아마데우스 모차르트",
+      "url": "/api/audio/haetsal-mozart-36-4.ogg",
+      "durationSeconds": 447.79102040816326,
+      "gapAfterSeconds": 0,
+      "credit": {
+        "sourceName": "Wikimedia Commons · Das Orchester Tsumugi / IMSLP",
+        "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mozart_Symphony_36_KV_425_Linz_4.oga",
+        "licenseName": "CC BY 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "artist": "Das Orchester Tsumugi · Takashi Inoue (지휘)",
+        "changes": "Commons 원본 바이트 그대로 사용; 편집·재인코딩 없음; 재생 이득 변경 없음; 원본 OGA 변환: Akaniji; 로컬 확장자만 .oga → .ogg 변경 (Ogg Vorbis 동일)"
+      }
+    }
+  ]
+}
