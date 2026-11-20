@@ -1,3 +1,4 @@
+import type {DetailEvent} from './DetailedAnalytics';
 import {PlaybackTracker} from './PlaybackTracker';
 
 const PRODUCTION_ORIGIN='https://pleee.hall-live.workers.dev';
@@ -10,6 +11,7 @@ type AnalyticsTransport={
  disable(disabled:boolean):void;
  forgetCookies?():void;
  send(event:EventName):void;
+ sendDetail?(event:DetailEvent):void;
 };
 
 export function ga4MeasurementId(config:{production:boolean;origin:string;enabled:unknown;measurementId:unknown}){
@@ -38,6 +40,11 @@ export class AnalyticsConsent {
  constructor(private transport:AnalyticsTransport|null){}
 
  get tracker(){return this.current;}
+ get detailReady(){return this.accepted&&this.ready&&!!this.transport?.sendDetail;}
+
+ sendDetail(event:DetailEvent){
+  if(this.detailReady)this.transport?.sendDetail?.(event);
+ }
 
  refuse(){
   this.setAccepted(false);
@@ -78,6 +85,10 @@ export function expiryCookiesForHost(measurementId:string){
  return names.map(name=>name+'=; Max-Age=0; Path=/; Secure; SameSite=Lax');
 }
 
+export function dispatchDetailedEvent(tag:Tag,id:string,{name,params}:DetailEvent){
+ tag('event',name,{...params,page_location:PRODUCTION_ORIGIN+'/',page_referrer:'',page_title:'PLEEE',send_to:id});
+}
+
 function browserTransport(id:string):AnalyticsTransport{
  const analytics=window as AnalyticsWindow;
  const parameters={page_location:PRODUCTION_ORIGIN+'/',page_referrer:'',page_title:'PLEEE'};
@@ -106,6 +117,7 @@ function browserTransport(id:string):AnalyticsTransport{
    return ()=>{script.onload=null;script.onerror=null;script.remove();};
   },
   send(event){tag?.('event',event,{...parameters,send_to:id});},
+  sendDetail(event){if(tag)dispatchDetailedEvent(tag,id,event);},
  };
 }
 

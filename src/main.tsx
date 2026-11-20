@@ -1,3 +1,4 @@
+import {DetailedAnalyticsChoices,useDetailedAnalytics} from './analytics/DetailedAnalyticsChoices';
 import {DanceControls,DanceStart} from './DanceControls';
 import {createPlaybackAnalytics} from './analytics/ga4';
 import {AnalyticsChoices,useAnalyticsPreference} from './analytics/AnalyticsChoices';
@@ -169,6 +170,8 @@ function ViewModeMenu({world,onBroadcast}:{world:World;onBroadcast:()=>void}){
 function App(){
  const [analytics]=useState(createPlaybackAnalytics);
  const analyticsPreference=useAnalyticsPreference(analytics);
+ const detailPreference=useDetailedAnalytics(analytics,analyticsPreference.mode,analyticsPreference.choice);
+ const detail=detailPreference.detail;
  // The icon menu stays listed from the start; ☰ hides or shows it.
  const [queenGameOpen,setQueenGameOpen]=useState(false);
  const [wishTarotOpen,setWishTarotOpen]=useState(false);
@@ -208,6 +211,12 @@ function App(){
   const intent=takeHallAudioIntent();
   const net=new Presence(),audio=new ConcertAudio(net.now,INITIAL_PLAYLIST,intent!=='mute',analytics);
   let startedSelectedAudio=false;
+  const confirmSeat=(state:typeof net.state)=>{
+   if(!detail?.measuring||!world?.self)return;
+   const seat=world.self.zone==='auditorium'?world.self.seatId:null;
+   const claim=seat?state?.seats[seat]:undefined;
+   detail.seated(claim?.visitorId===net.selfId&&claim?.status==='seated'?seat:null);
+  };
   try{world=new World(document.getElementById('world')!,net,audio);const active=world;const update=()=>redraw(n=>n+1);const notify=(message:string)=>{setToast(message);clearTimeout(toastTimer.current);toastTimer.current=window.setTimeout(()=>setToast(''),3500);};
    world.onChange=()=>{
     if(!startedSelectedAudio&&intent==='play'&&active.zone==='auditorium'){
@@ -216,7 +225,13 @@ function App(){
     }
     update();
    };
-   world.onQueenCardGame=()=>setQueenGameOpen(true);world.onProgramBook=()=>setProgramOpen(true);world.onToast=notify;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{active.input.keys.clear();setSeats(true);};net.onState=s=>active.apply(s);net.onMoveBlocked=point=>active.correctMove(point);net.onRelocated=point=>active.finishHallMove(point);net.onStatus=()=>{if(net.status!=='connected')active.stopHallLoading();update();};net.onError=message=>{active.stopHallLoading();notify(message);};setApp({world,net,audio});
+   world.onQueenCardGame=()=>setQueenGameOpen(true);world.onProgramBook=()=>setProgramOpen(true);world.onToast=notify;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{active.input.keys.clear();setSeats(true);};
+   net.onState=s=>{active.apply(s);confirmSeat(s);};
+   active.onAnalyticsSeatSelected=id=>detail?.selected(id);
+   net.onMoveBlocked=point=>active.correctMove(point);
+   net.onRelocated=point=>{active.finishHallMove(point);detail?.interrupt();};
+   net.onStatus=()=>{if(net.status!=='connected'){active.stopHallLoading();detail?.interrupt();}update();};
+   net.onError=message=>{active.stopHallLoading();notify(message);};setApp({world,net,audio});
    world.onWishTarot=()=>setWishTarotOpen(true);
    if(import.meta.env.DEV)Object.assign(window,{__concert:{world,net,audio}});
   }catch(e){failLoading();setError(e instanceof Error?e.message:'3D 화면을 열지 못했어요.');}
@@ -225,9 +240,19 @@ function App(){
   let released=false;
   const release=()=>{if(released)return;released=true;net.destroy();audio.destroy();world?.destroy();};
   const restore=(event:PageTransitionEvent)=>{if(event.persisted&&released)location.reload();};
-  window.addEventListener('pagehide',release);
+  const sampleArea=()=>{
+   if(!detail?.measuring||!world?.entered||!world.self||document.hidden||world.hallLoading||
+    world.ridingTrain||net.status!=='connected'){detail?.interrupt();return;}
+   confirmSeat(net.state);
+   detail.position(world.zone,world.position.y,world.position.z,performance.now());
+  };
+  const visibility=()=>detail?.interrupt();
+  const timer=detail?window.setInterval(sampleArea,1000):undefined;
+  const pagehide=()=>{detail?.flush();release();};
+  if(detail)document.addEventListener('visibilitychange',visibility);
+  window.addEventListener('pagehide',pagehide);
   window.addEventListener('pageshow',restore);
-  return ()=>{window.removeEventListener('pagehide',release);window.removeEventListener('pageshow',restore);release();};
+  return ()=>{window.removeEventListener('pagehide',pagehide);document.removeEventListener('visibilitychange',visibility);clearInterval(timer);window.removeEventListener('pageshow',restore);release();};
  },[]);
  useEffect(()=>{const key=(e:KeyboardEvent)=>{const i=Number(e.code.replace('Digit',''))-1;if(!app||!entered||settings||!(i>=0&&i<GESTURES.length)||app.net.status!=='connected'||(e.target as HTMLElement)?.closest('input,textarea,select,dialog'))return;e.preventDefault();app.world.gestureAction(GESTURES[i].id);};window.addEventListener('keydown',key);return ()=>window.removeEventListener('keydown',key);},[app,entered,settings]);
  useEffect(()=>{if(settings){dialog.current?.showModal();app?.world.input.keys.clear();}else dialog.current?.close();},[settings,app]);
@@ -242,7 +267,7 @@ function App(){
  useEffect(()=>{if(!atWishTarotTable||!connected||world?.photoMode)setWishTarotOpen(false);},[atWishTarotTable,connected,world?.photoMode]);
  useEffect(()=>{if(zone!=='lobby')setWardrobe(false);setProgramOpen(false);setQueenGameOpen(false);setMusicExpanded(false);setMusicListOpen(false);},[zone]);
  const closeSeats=useCallback(()=>setSeats(false),[]);
- const chooseMappedSeat=useCallback((id:string)=>{if(!world)return;if(world.zone==="lobby")world.chooseSeatFromLobby(id);else void world.chooseSeat(id,true);},[world]);
+ const chooseMappedSeat=useCallback((id:string)=>{if(!world)return;detail?.selected(id);if(world.zone==="lobby")world.chooseSeatFromLobby(id);else void world.chooseSeat(id,true);},[world,detail]);
  useEffect(()=>{if(!world)return;world.seatMapOpen=seats;return()=>{world.seatMapOpen=false;};},[world,seats]);
  useEffect(()=>{if(!world)return;world.uiObscured=(seats||settings||wardrobe||programOpen||queenGameOpen||wishTarotOpen)&&!probeProgress;if(world.uiObscured)world.input.keys.clear();return()=>{world.uiObscured=false;};},[world,seats,settings,wardrobe,programOpen,queenGameOpen,wishTarotOpen,probeProgress]);
  useEffect(()=>{
@@ -499,6 +524,7 @@ function App(){
    <GalaxyCredits/>
    <p className="settings-info"><small>행성 텍스처 · <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noreferrer">Solar System Scope</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a></small></p>
    {import.meta.env.DEV&&<section className="device-diagnostic">{iphoneBridge?<><button data-device-probe disabled={iphonePending} onClick={()=>void measureIPhone()}>연결된 아이폰 측정</button><p>USB로 연결된 아이폰에서 플리를 열고 FPS와 CPU·GPU 시간을 측정합니다.</p></>:<><button data-device-probe disabled={!entered||zone!=='auditorium'||!!probeProgress} onClick={()=>void diagnose()}>끊김 진단 · 최대 30초</button><p>{world?.mobile?'이 기기의 화면 설정으로 FPS와 CPU·GPU 시간을 측정합니다.':'iPhone 13 Pro 화면 조건에서 이 PC의 FPS와 CPU·GPU 시간을 측정합니다.'} 음악을 비교할 수 있을 때는 30초, 그 외에는 10초 동안 실행합니다.</p></>}{probeMessage&&<p role="status">{probeMessage}</p>}{probeReport&&<><button onClick={copyProbeReport}>진단 결과 복사</button><details ref={probeDetails}><summary>진단 결과 보기</summary><textarea ref={probeText} aria-label="기기 진단 결과" readOnly value={probeReport}/></details></>}</section>}<div className="controls-copy">{net?.local&&<p>GitHub Pages 감상 버전 · 다른 관객과의 실시간 연결은 제공하지 않습니다.</p>}<p>바닥 클릭 / WASD / 방향키 — 이동</p><p>드래그 — 둘러보기 · 휠 / 두 손가락 — 거리 조절</p><p>좌석 클릭 — 앉기 · ESC — 일어나기</p></div>
+   {detailPreference.eligible&&<DetailedAnalyticsChoices {...detailPreference}/>}
    {analytics&&<div className="setting-row">
      <span><a href="/privacy.html" target="_blank" rel="noreferrer">개인정보 안내</a></span>
      {(analyticsPreference.mode==='auto'||analyticsPreference.mode==='ask')&&

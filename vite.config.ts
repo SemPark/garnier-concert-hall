@@ -24,6 +24,7 @@ export default defineConfig(({mode})=>{
   }],
   define:{
    // Public web-stream ID; the runtime also checks the production origin and explicit visitor consent.
+   'import.meta.env.VITE_PLEEE_SEAT_DWELL_ENABLED':JSON.stringify(mode==='production'?'true':'false'),
    'import.meta.env.VITE_PLEEE_GA4_ENABLED':JSON.stringify(mode==='production'?'true':'false'),
    'import.meta.env.VITE_GA4_MEASUREMENT_ID':JSON.stringify(mode==='production'?'G-WNQ7FWBJ7N':''),
    'import.meta.env.VITE_JAZZ_WARMTH_READY':JSON.stringify(String(audioReady(warmth))),

@@ -207,6 +207,7 @@ export class World{
   this.onChange();
  }
  onProgramBook:()=>void=()=>{};
+ onAnalyticsSeatSelected?:(id:string)=>void;
  onChange:()=>void=()=>{};onToast:(message:string)=>void=()=>{};onSeatMap:()=>void=()=>{};onWardrobe:()=>void=()=>{};private wardrobeNear=false;private visitingWardrobe=false;private pendingSeat:string|null=null;private loungeTarget:string|null=null;private petVisit:{animal:PettableAnimal;route:Point[];expiresAt:number}|null=null;private pettingAnimal:PettableAnimal|null=null;private petUntil=0;private visitingBoxOffice=false;private seatWalkAt=0;
  private fireworks:StageFireworks|null=null;
  private hallDust:HallDust|null=null;
@@ -1316,7 +1317,7 @@ export class World{
   if(hit.object.userData.candleTable){this.visitCandleTable(hit.object.userData.candleTable as CandleTable);return;}
   if(hit.object.userData.boxOffice){this.visitBoxOffice();return;}
   if(hit.object.userData.lobbyExit){this.changeZone();return;}let obj:T.Object3D|null=hit.object,seatId:string|undefined;while(obj){seatId=seatId??obj.userData.seatId;if(obj.userData.portal){if(this.zone==='lobby')this.walkToEntrance();else void this.changeZone();return;}obj=obj.parent;}
-  if(seatId){void this.chooseSeat(seatId,isMagicChair(seatId));return;}
+  if(seatId){this.onAnalyticsSeatSelected?.(seatId);void this.chooseSeat(seatId,isMagicChair(seatId));return;}
   if(this.pose==='sit'){this.stand();return;}
   const point={x:hit.point.x,y:surfaceHeight(this.zone,hit.point,hit.point.y)??hit.point.y,z:hit.point.z};
   // A tap on the stage lip, whose ray reaches the floor under the stage, walks to the front of the stage instead.
