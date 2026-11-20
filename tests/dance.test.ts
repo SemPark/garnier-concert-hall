@@ -79,7 +79,7 @@ test('solo dance visibly swings both arms and alternates lifted feet at a fixed 
  assert.ok(samples[0].right-samples[0].left>.06);
  assert.ok(samples[1].left-samples[1].right>.06);
 });
-test('switching from captain to solo floss keeps each front mitten beside the waist',()=>{
+test('switching from captain to solo floss restores straight arms and crosses the front wrist',()=>{
  const visitor=guest('solo',0),avatar=new Avatar(0x252733,undefined,4),mitten=new T.Vector3();
  assert.equal(handleDance(visitor,[visitor],{type:'danceStart'},9500),null);
  assert.equal(handleDance(visitor,[visitor],{type:'danceStart',style:'step'},10000),null);
@@ -90,6 +90,7 @@ test('switching from captain to solo floss keeps each front mitten beside the wa
 
  assert.equal(handleDance(visitor,[visitor],{type:'danceStart',style:'clap'},12000),null);
  const duration=danceMoveDuration(visitor.dance);
+ const soloAvatar=new Avatar(0x252733,undefined,4),soloMitten=new T.Vector3();
  for(const [phase,side,hand,arm] of [
   [.125,-1,avatar.leftHand,avatar.leftArm],
   [.625,1,avatar.rightHand,avatar.rightArm],
@@ -99,8 +100,13 @@ test('switching from captain to solo floss keeps each front mitten beside the wa
   poseDancingAvatar(avatar,floss);
   assert.ok(hand.parent===arm,'the hand returns to its straight arm after the captain move');
   avatar.body.worldToLocal(hand.getWorldPosition(mitten));
-  assert.ok(side*mitten.x>.08,'the front mitten stays on its own side of the torso');
-  assert.ok(mitten.y<arm.position.y-.12,'the front sleeve drops visibly below the shoulder');
+  assert.ok(side*mitten.x<0,'the front mitten crosses the waist toward the other side');
+  assert.ok(mitten.z<-.25,'the crossed mitten stays in front of the torso');
+  soloAvatar.update(now/1000,0,false,false,null,10,1/30);
+  poseDancingAvatar(soloAvatar,floss);
+  const soloHand=side<0?soloAvatar.leftHand:soloAvatar.rightHand;
+  soloAvatar.body.worldToLocal(soloHand.getWorldPosition(soloMitten));
+  assert.ok(mitten.distanceTo(soloMitten)<.001,'the previous captain pose does not alter the solo floss position');
  }
 });
 test('solo move buttons repeat and keep their selection across cycles',()=>{

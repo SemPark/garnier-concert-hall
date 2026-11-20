@@ -13,7 +13,13 @@ const view={aspect:1.8,reduced:false,space:false,walls:[],visitor,podium,ghosts,
 
 test('broadcast visits each instrument and section and each available ghost before repeating',()=>{
  const camera=new BroadcastCamera(0,()=>.26);
- const parts=new Map(ORCHESTRA_LAYOUT.map(p=>[`${p.x},${STAGE_FLOOR+p.rise+.88},${p.z}`,p.section+'/'+p.instrument]));
+ const parts=new Map(ORCHESTRA_LAYOUT.map(player=>{
+  const {x,z,yaw,rise,instrument,section}=player;
+  const look=instrument==='drum-kit'
+   ?[x-Math.sin(yaw)*.58,STAGE_FLOOR+rise+.72,z-Math.cos(yaw)*.58]
+   :[x,STAGE_FLOOR+rise+.88,z];
+  return [look.join(','),section+'/'+instrument];
+ }));
  const expectedParts=new Set(parts.values());
  const seenParts=new Set<string>();
  const seenGhosts=new Set<string>();
@@ -131,7 +137,9 @@ test('space coverage uses a reverse stage angle and follows the current planet p
  const moved={...saturn,position:new Vector3(44,37,98)};
  assert.deepEqual(director.frame(67,{...space,planets:[moved]}).look,moved.position);
  const indoors=director.frame(68,view);
- assert.ok(indoors.position.z>0&&indoors.position.y<8.3);
+ const indoorFront=new BroadcastCamera(68,()=>0).frame(68,view);
+ assert.deepEqual(indoors,indoorFront);
+ assert.ok(indoors.position.z>indoors.look.z&&indoors.position.y<8.3);
 });
 
 test('close-ups change angles to avoid stage foliage and keep the stage when the subject is fully covered',()=>{

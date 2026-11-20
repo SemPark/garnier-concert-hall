@@ -1,3 +1,4 @@
+import './classicalHall';
 import {DINNER_SIT_DROP} from '../shared/dinnerTables';
 import test from 'node:test';
 import assert from 'node:assert/strict';
