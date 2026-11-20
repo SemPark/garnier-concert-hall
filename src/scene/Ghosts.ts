@@ -371,30 +371,33 @@ export class Ghosts{
     if(!guest){guest=buildTeaGuest(g.teaGuest);this.teaGuests.set(g.teaGuest,guest);this.scene.add(guest.root,guest.cup);}
     const age=g.age??0;
     const headYaw=g.behavior?.headYaw??0;
-    this.head.set(0,headYaw,0);
-    guest.head.rotation.y=headYaw;
     const replyAge=g.behavior?.action==='greet'?g.behavior.age:-1;
-    const reply=reducedMotion?0:T.MathUtils.smoothstep(replyAge,0,.45)*(1-T.MathUtils.smoothstep(replyAge,2,3));
+    const reply=reducedMotion?0:T.MathUtils.smoothstep(replyAge,0,.3)*(1-T.MathUtils.smoothstep(replyAge,1.35,1.95));
     const sip=(1-reply)*T.MathUtils.smoothstep(age,.4,1.4)*(1-T.MathUtils.smoothstep(age,2.4,3.4));
-    const toast=T.MathUtils.smoothstep(age,4,4.8)*(1-T.MathUtils.smoothstep(age,5.8,6.6));
-    const greeting=T.MathUtils.smoothstep(age,7,7.6)*(1-T.MathUtils.smoothstep(age,8.7,9.4));
+    const toast=(1-reply)*T.MathUtils.smoothstep(age,4,4.8)*(1-T.MathUtils.smoothstep(age,5.8,6.6));
+    const greeting=reducedMotion?0:T.MathUtils.smoothstep(age,7,7.6)*(1-T.MathUtils.smoothstep(age,8.7,9.4));
     this.d.copy(CUP_HAND).lerp(CUP_AT_MOUTH,sip);
-    this.d.y+=toast*(1-reply)*.42;this.d.z-=toast*(1-reply)*.08;
-    if(g.teaGuest==='hatter')this.d.lerp(this.hand.set(-.39,.26,.31),reply);
+    this.d.y+=toast*.11;this.d.z+=toast*.02;
     this.l.copy(this.d).sub(SHOULDER).normalize();this.r.copy(REST[1]);
+    let headPitch=0;
     if(g.teaGuest==='hatter'){
-     this.r.lerp(this.hand.set(.07,.42,.1).normalize(),greeting).normalize();
-     const wave=.24*Math.sin(replyAge*16);
-     this.r.lerp(this.hand.set(.65+wave,.8,.35).normalize(),reply).normalize();
-     guest.hat.rotation.z=-.035*greeting-.17*reply;
+     // Tip the hat during the idle loop. Save the open-hand sweep for a visitor's greeting.
+     const sweep=Math.sin(Math.PI*T.MathUtils.clamp(replyAge/1.35,0,1));
+     this.r.lerp(this.hand.set(.9,.06,.42+.22*sweep).normalize(),reply).normalize();
+     guest.hat.rotation.z=-.065*Math.max(greeting,reply);
     }else{
-     this.r.lerp(this.hand.set(.3,.23,.25).normalize(),greeting).normalize();
+     // The March Hare answers with two quick nods and a delayed flick of each ear.
+     const nod=Math.sin(Math.PI*T.MathUtils.clamp(replyAge/.92,0,1)*2)**2;
+     headPitch=.28*reply*nod+.16*greeting*(1-reply);
      for(const [i,ear] of guest.ears.entries()){
       const side=i===0?-1:1;
-      ear.rotation.z=-side*.16+Math.sin((reply>0?replyAge:age)*12+i)*.12*Math.max(greeting,reply);
-      ear.rotation.x=Math.sin((reply>0?replyAge:age)*9+i)*.10*Math.max(greeting,reply);
+      const flick=Math.sin(Math.PI*T.MathUtils.clamp((replyAge-i*.09)/.56,0,1));
+      ear.rotation.z=-side*(.16+.29*reply*flick+.11*greeting*(1-reply));
+      ear.rotation.x=.31*reply*flick-.14*greeting*(1-reply);
      }
     }
+    this.head.set(headPitch,headYaw,0);
+    guest.head.rotation.set(headPitch,headYaw,0,'YXZ');
     const bob=Math.sin(time*1.5+(h>>>8)%1000/1000*6)*.014;
     guest.root.visible=true;guest.root.position.copy(this.v);guest.root.position.y+=bob;guest.root.rotation.y=yaw;
     guest.cup.visible=true;guest.cup.position.copy(this.d).applyQuaternion(this.q).add(this.v);guest.cup.position.y+=bob;
