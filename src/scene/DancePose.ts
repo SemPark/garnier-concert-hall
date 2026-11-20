@@ -86,7 +86,7 @@ export function danceArmDirection(out:T.Vector3,pose:DancePose,side:-1|1){
  const behind=Math.max(0,side*pose.flossCross);
  const front=Math.max(0,-side*pose.flossCross);
  // Let the inner hand pass the centreline in front of the waist, then sweep it back for the tuck.
- const sweep=T.MathUtils.degToRad(T.MathUtils.lerp(8,117,inner)-93*behind-59*front);
+ const sweep=T.MathUtils.degToRad(T.MathUtils.lerp(8,133,inner)-93*behind-75*front);
  const drop=T.MathUtils.lerp(.59,.18,inner)+.12*behind+.23*front;
  const reach=Math.sqrt(1-drop*drop);
  return out.set(side*Math.cos(sweep)*reach,-drop,-Math.sin(sweep)*reach);
@@ -160,6 +160,8 @@ export function poseDancingAvatar(avatar:Avatar,pose:DancePose){
    }else{
     // Swing out from the shoulder before crossing the front or back of the waist.
     target.set(side*.60,-.88,-.38).normalize().lerp(direction,blend);
+    const forwardReach=Math.max(0,-side*pose.flossSwing)*(1-Math.abs(pose.flossCross));
+    arm.position.z-=.055*blend*forwardReach;
     if(side*pose.flossSwing<0)target.z-=blend*(1-blend)*1.4;
     target.normalize();
    }
