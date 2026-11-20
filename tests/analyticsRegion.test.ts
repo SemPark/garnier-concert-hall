@@ -6,6 +6,7 @@ import {analyticsModeResponse} from '../server/analyticsMode';
 import {classifyAnalyticsCountry} from '../shared/analyticsPolicy';
 import {AnalyticsConsent,expiryCookiesForHost} from '../src/analytics/ga4';
 import {AnalyticsChoices} from '../src/analytics/AnalyticsChoices';
+import {browserAnalyticsExcluded} from '../src/analytics/browserExclusion';
 import {
  ANALYTICS_CHOICE_KEY,PRIOR_ANALYTICS_CHOICE_KEY,analyticsMayStart,analyticsPrivacySignal,
  fetchAnalyticsMode,readAnalyticsPreference,type AnalyticsChoice,
@@ -96,4 +97,33 @@ test('prompt renders two equal real buttons and settings provide an access point
  assert.match(prompt,/href="\/privacy.html"/);
  const settings=renderToStaticMarkup(createElement(AnalyticsChoices,{choice:'no',choose(){},inSettings:true}));
  assert.match(settings,/>Manage analytics cookies<\/button>/);
+});
+
+
+test('operator exclusion persists across visits, preserves attribution, and can be undone',()=>{
+ const storage=new Map<string,string>();
+ const browser={
+  location:{href:'https://example.com/?visit-stats=off&utm_source=threads#stage'},
+  localStorage:{
+   getItem:(key:string)=>storage.get(key)??null,
+   setItem:(key:string,value:string)=>{storage.set(key,value);},
+   removeItem:(key:string)=>{storage.delete(key);},
+  },
+  history:{
+   state:null,
+   replaceState(_state:unknown,_unused:string,url:URL){browser.location.href=url.href;},
+  },
+ };
+ const excluded=()=>browserAnalyticsExcluded(browser as unknown as Pick<Window,'location'|'history'|'localStorage'>);
+ assert.equal(excluded(),true);
+ assert.equal(browser.location.href,'https://example.com/?utm_source=threads#stage');
+ assert.equal(excluded(),true);
+ browser.location.href='https://example.com/?visit-stats=on';
+ assert.equal(excluded(),false);
+ assert.equal(browser.location.href,'https://example.com/');
+ assert.equal(excluded(),false);
+ browser.location.href='https://example.com/?visit-stats=off';
+ browser.localStorage.setItem=()=>{throw new Error('Storage unavailable');};
+ assert.equal(excluded(),true);
+ assert.match(browser.location.href,/visit-stats=off/);
 });

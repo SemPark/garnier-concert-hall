@@ -1,0 +1,13 @@
+{
+  "hall_program_click": "공연 선택",
+  "hall_seat_map_open": "좌석 지도 열기",
+  "hall_music_panel_open": "음악 패널 열기",
+  "hall_playlist_open": "플레이리스트 열기",
+  "hall_next_track_click": "다음 곡 누르기",
+  "hall_space_click": "우주 공간 전환 누르기",
+  "hall_stage_click": "무대 앞으로 이동 누르기",
+  "hall_rear_click": "객석 뒤로 이동 누르기",
+  "hall_overview_view_click": "홀 전체 보기 선택",
+  "hall_stage_view_click": "무대 올려보기 선택",
+  "hall_broadcast_view_click": "방송 카메라 선택"
+}

@@ -177,6 +177,10 @@ export class EncoreTrain {
  private readonly length:number;
  private readonly sideBoundaries:number[];
  private readonly tangent=new T.Vector3();
+ private readonly visibilityRay=new T.Raycaster();
+ private readonly visibilityPoint=new T.Vector3();
+ private readonly visibilityScreen=new T.Vector3();
+ private readonly visibilityDirection=new T.Vector3();
  private readonly materials:T.Material[]=[];
  private readonly geometries:T.BufferGeometry[]=[];
  private readonly textures:T.Texture[]=[];
@@ -458,6 +462,29 @@ void main(){
  middleCarPosition(seconds:number,target:T.Vector3){
   const stationTime=T.MathUtils.euclideanModulo(seconds,TRAIN_PERIOD+STATION_DWELL);
   return this.curve.getPointAt(this.travelDistance(stationTime),target);
+ }
+ /** Check the moving cars against the displayed camera and the hall's solid walls and gallery slabs. */
+ isVisibleFrom(camera:T.PerspectiveCamera,walls:T.Object3D[]){
+  if(!this.root.visible)return false;
+  const ray=this.visibilityRay,point=this.visibilityPoint,screen=this.visibilityScreen,direction=this.visibilityDirection;
+  for(const car of this.cars){
+   for(const z of [0,-.67,.67]){
+    point.set(0,1,z).applyMatrix4(car.matrixWorld);
+    screen.copy(point).project(camera);
+    if(Math.abs(screen.x)>=.96||Math.abs(screen.y)>=.96||screen.z< -1||screen.z>1)continue;
+    direction.copy(point).sub(camera.position);
+    if(direction.lengthSq()<.01)continue;
+    ray.set(camera.position,direction.normalize());
+    ray.far=camera.position.distanceTo(point)-.12;
+    const blocked=ray.intersectObjects(walls,false).some(({object,point})=>{
+     if(point.y>(object.userData.openHallCutoff?.value??Infinity))return false;
+     for(let parent:T.Object3D|null=object;parent;parent=parent.parent)if(!parent.visible)return false;
+     return true;
+    });
+    if(!blocked)return true;
+   }
+  }
+  return false;
  }
  update(seconds:number,visible:boolean,reducedMotion=false){
   this.root.visible=visible;

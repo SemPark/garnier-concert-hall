@@ -1,12 +1,17 @@
 const query = (selector) => document.querySelector(selector);
 const elements = {
   refresh: query('#refresh'),
+  explain: query('#explain'),
+  explanationStatus: query('#explanation-status'),
+  explanationText: query('#explanation-text'),
   ranges: query('#ranges'),
   period: query('#period'),
   updated: query('#updated'),
   notice: query('#notice'),
   googleNotice: query('#google-notice'),
   summary: query('#summary'),
+  primaryMetrics: query('#primary-metrics'),
+  supportingMetrics: query('#supporting-metrics'),
   googleSummary: query('#google-summary'),
   googlePeriod: query('#google-period'),
   comparison: query('#comparison-content'),
@@ -56,8 +61,13 @@ const regionNames = new Intl.DisplayNames('ko-KR', {type: 'region'});
 const formatCountry = (name) => /^[A-Z]{2}$/.test(name) ? regionNames.of(name) : name;
 const formatDevice = (name) => deviceNames.get(name.toLowerCase()) ?? name;
 const formatPage = (name) => name === '/' ? '첫 화면 (/)' : name;
-const formatUtcHour = (name) => /^\d{4}-\d{2}-\d{2}T\d{2}:/.test(name)
-  ? `${name.slice(5, 10).replace('-', '.')} ${name.slice(11, 13)}:00` : name;
+const seoulHour = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', hourCycle: 'h23',
+});
+const formatSeoulHour = (name) => {
+  const date = new Date(name);
+  return Number.isNaN(date.getTime()) ? name : seoulHour.format(date);
+};
 const formatHour = (name) => /^\d{1,2}$/.test(name) ? `${name.padStart(2, '0')}:00` : name;
 const formatMinutesAgo = (name) => /^\d+$/.test(name) ? `${Number(name)}분 전` : name;
 const navigationLabels = new Map([
@@ -102,6 +112,7 @@ const channelNames = new Map([
 const eventNames = new Map([
   ['page_view', '페이지 조회'], ['session_start', '방문 시작'], ['first_visit', '첫 방문'],
   ['user_engagement', '페이지 이용'], ['scroll', '페이지 스크롤'], ['click', '외부 링크 클릭'],
+  ['playback_start', '음악 재생 시작'], ['playback_180_seconds', '누적 3분 재생 도달'],
 ]);
 const deviceNames = new Map([['desktop', '컴퓨터'], ['mobile', '휴대전화'], ['tablet', '태블릿']]);
 
@@ -127,7 +138,7 @@ const cfBreakdownDefinitions = [
   ['deliveryTypes', '페이지 전송 방식', '열람 수'],
 ];
 const googleBreakdownDefinitions = [
-  ['sourceMedium', '유입 출처 및 매체', '방문 수'],
+  ['channels', '유입 채널', '세션 수', name => channelNames.get(name) ?? name],
   ['campaigns', '캠페인', '방문 수'],
   ['manualSourceMedium', 'UTM 출처 및 매체', '방문 수'],
   ['manualCampaigns', 'UTM 캠페인', '방문 수'],
@@ -156,7 +167,7 @@ const realtimeBreakdownDefinitions = [
   ['minutes', '분별 활동', '활동한 방문자', formatMinutesAgo],
 ];
 const googleBreakdownGroups = {
-  '캠페인과 유입': ['sourceMedium', 'campaigns', 'manualSourceMedium', 'manualCampaigns', 'manualAdContents',
+  '캠페인과 유입': ['channels', 'campaigns', 'manualSourceMedium', 'manualCampaigns', 'manualAdContents',
     'manualTerms', 'firstUserSourceMedium', 'firstUserCampaigns'],
   '페이지와 방문 시간': ['pageTitles', 'hostNames', 'weekdays'],
   '방문자와 이용 환경': ['returning', 'continents', 'cities', 'regions', 'languages', 'ages', 'genders',
@@ -223,7 +234,7 @@ const comparisonDefinitions = [
   ['entryPages', '첫 방문 페이지', '방문 세션', '사이트 진입', formatPage],
   ['browsers', '브라우저', '활동한 방문자', '페이지 열람'],
   ['operatingSystems', '운영체제', '활동한 방문자', '페이지 열람'],
-  ['hours', '시간별 활동', '현지 시각별 방문 세션', '날짜·UTC 시각별 페이지 열람', formatHour, formatUtcHour],
+  ['hours', '시간별 활동', '현지 시각별 방문 세션', '날짜·한국 시각별 페이지 열람', formatHour, formatSeoulHour],
 ];
 const httpDefinitions = [
   metric('HTTP 요청', 'requests', count),
@@ -486,11 +497,16 @@ function paintQuickOverview(snapshot) {
 
   const referrer = rum?.referrers?.find(row => row.name !== '유입 주소 없음');
   const gaChannel = !web ? google?.data?.channels?.[0] : null;
-  const acquisition = referrer
-    ? quickCard('가장 많이 들어온 외부 사이트', referrer.name, `${count(referrer.value)}회 진입 · ${cfLabel}`)
+  const unknown = rum?.referrers?.find(row => row.name === '유입 주소 없음');
+  const attribution = [];
+  if (Number.isFinite(web?.visits)) attribution.push(`전체 ${count(web.visits)}회`);
+  if (referrer) attribution.push(`이 사이트에서 ${count(referrer.value)}회`);
+  if (unknown) attribution.push(`출처 미확인 ${count(unknown.value)}회`);
+  const acquisition = referrer || unknown
+    ? quickCard('가장 많이 들어온 외부 사이트', referrer?.name ?? '확인된 사이트 없음', [...attribution, cfLabel].join(' · '))
     : gaChannel
       ? quickCard('가장 많이 들어온 경로', channelNames.get(gaChannel.name) ?? gaChannel.name, `${count(gaChannel.value)}세션 · GA4`)
-      : quickCard('주요 유입 경로', '—', snapshot ? '기록된 외부 유입 경로 없음' : '조회 중');
+      : quickCard('주요 유입 경로', '—', Array.isArray(rum?.referrers) ? '기록된 외부 유입 경로 없음' : statusText(snapshot ? rum : null));
 
   const errors = http?.summary?.serverErrors ?? worker?.summary?.errors;
   const slow = cfExperience.map(definition => ({
@@ -512,7 +528,20 @@ function paintQuickOverview(snapshot) {
   } else {
     action = quickCard('방문 경험', '—', snapshot ? '측정값 없음' : '조회 중');
   }
-  elements.summary.replaceChildren(visit, acquisition, action);
+  const gaStatus = (value, description) => {
+    if (Number.isFinite(value)) return description + ' · GA4';
+    if (!snapshot) return '조회 중 · GA4';
+    return (google?.status === 'ok' ? '집계 없음' : stateNames[sourceState(google)]) + ' · GA4';
+  };
+  const activeUsers = ga?.activeUsers;
+  const engagementSeconds = ga?.avgEngagementSeconds;
+  elements.primaryMetrics.replaceChildren(
+    quickCard('활동한 방문자', valueText(activeUsers, value => `${count(value)}명`),
+      gaStatus(activeUsers, '선택 기간에 활동한 사용자 수')),
+    quickCard('방문자당 평균 이용 시간', valueText(engagementSeconds, duration),
+      gaStatus(engagementSeconds, '공연장 페이지가 화면에 표시된 시간')),
+  );
+  elements.supportingMetrics.replaceChildren(visit, acquisition, action);
 }
 
 function paintGoogleSummary(google) {
@@ -530,7 +559,7 @@ function paintComparison(google, rum) {
   const googleRows = {...ga?.breakdowns, countries: ga?.countries, devices: ga?.devices,
     topPages: ga?.topPages, entryPages: ga?.breakdowns?.landingPages};
   const cloudflareRows = {...rum?.breakdowns, topPages: rum?.topPages};
-  panel.append(element('p', 'panel-meta', '같은 분류에서 두 서비스를 비교할 수 있습니다. 표마다 집계 단위를 표시합니다.'));
+  panel.append(element('p', 'panel-meta', 'GA4는 방문자와 세션을, Cloudflare는 사이트 진입과 페이지 열람을 집계합니다. 각 표의 단위를 함께 확인하세요.'));
   panel.append(datasetPicker('비교 항목', 'source-comparison', comparisonDefinitions,
     ([key, title, gaMeasure, cfMeasure, formatName, cfFormat]) => {
       const columns = element('div', 'source-comparison-grid');
@@ -550,30 +579,50 @@ function paintComparison(google, rum) {
   elements.comparison.replaceChildren(panel);
 }
 
-function ranking(title, google, key, label, measure, formatName) {
-  const panel = makePanel(title);
-  const rows = google?.data?.[key];
-  if (rows?.length) panel.append(table(rows, label, measure, count, formatName));
-  else {
-    const message = rows ? statusText({status: 'ok'}) : statusText({status: sourceState(google)});
-    panel.append(element('p', 'empty', message));
-  }
-  return panel;
-}
-
 function paintAudience(google) {
   const data = google?.data;
-  const channels = ranking('어디서 왔나요?', google, 'channels', '방문 경로', '방문 횟수', (name) => channelNames.get(name) ?? name);
+  const sources = makePanel('어디서 왔나요?');
+  const sourceRows = data?.breakdowns?.sourceMedium;
+  sources.append(data
+    ? rankedData(sourceRows, '유입 출처 / 매체', '세션 수', name =>
+      /^(?:[a-z0-9-]+\.)*threads\.(?:net|com) \/ |^threads \/ /i.test(name) ? `스레드 · ${name}` : name)
+    : element('p', 'empty', statusText(google)));
+  if (sourceRows?.length) sources.append(element('p', 'panel-meta', 'GA4가 각 세션에 부여한 출처입니다. 재방문에는 이전 유입 출처가 표시될 수 있습니다.'));
   const trend = makePanel('방문 추이');
   appendChart(trend, '일별 방문', data?.daily, googleDaily, 'google', statusText(google));
-  const nodes = [channels, trend];
+  const nodes = [sources, trend];
   if (data) {
     const behavior = makePanel('방문 후 어떤 행동을 했나요?', true);
     behavior.append(metricGrid(googleEngagement, 'google', google, data.summary));
     nodes.push(behavior);
-    nodes.push(ranking('사이트에서 한 행동', google, 'events', '행동', '발생 횟수', (name) => eventNames.get(name) ?? name));
+    const journey = makePanel('음악 감상은 얼마나 이어졌나요?');
+    const result = data.playbackJourney;
+    if (result?.started > 0) {
+      journey.append(element('p', '', `재생을 시작한 사용자 ${count(result.started)}명 중 ${count(result.reachedThreeMinutes)}명이 같은 방문에서 누적 3분까지 재생했습니다 (${percent(result.rate)}).`));
+    } else {
+      journey.append(element('p', 'empty', '이 기간에 같은 방문의 재생 시작과 3분 도달을 비교할 수 있는 기록이 없습니다.'));
+    }
+    const activity = makePanel('공연장 이용 기록', true);
+    activity.id = 'hall-activity';
+    const existing = element('div');
+    existing.append(
+      element('h4', '', '기존 GA4 이용 기록'),
+      rankedData(data.events, '행동', '발생 횟수', name => eventNames.get(name) ?? name),
+    );
+    const actions = element('div');
+    actions.append(element('h4', '', '관객이 누른 공연장 기능'));
+    const clickRows = data.breakdowns?.hallActions;
+    if (Array.isArray(clickRows) && clickRows.length === 0) {
+      actions.append(element('p', 'panel-meta', '이 기간에 기능별 클릭 기록이 없습니다. 클릭 수집을 운영 공연장에 반영한 이후부터 표시됩니다.'));
+    } else {
+      actions.append(rankedData(clickRows, '공연장 기능', '누른 횟수'));
+    }
+    const activityColumns = element('div', 'detail-grid hall-activity-grid');
+    activityColumns.append(existing, actions);
+    activity.append(activityColumns);
+    nodes.push(journey, activity);
     if (data.breakdowns || data.keyEventNames) {
-      const breakdowns = {...data.breakdowns, keyEventNames: data.keyEventNames};
+      const breakdowns = {...data.breakdowns, channels: data.channels, keyEventNames: data.keyEventNames};
       nodes.push(detailSection('panel wide report-details', '유입 캠페인과 방문자 분석',
         datasetPicker('분류 기준', 'google-breakdowns', googleBreakdownDefinitions, ([key, title, measure, formatName]) =>
           rankedData(breakdowns[key], title, measure, formatName), googleBreakdownGroups)));
@@ -899,6 +948,49 @@ let days = new URL(window.location.href).searchParams.get('days');
 if (!allowedDays.includes(days)) days = '7';
 query(`input[name="days"][value="${days}"]`).checked = true;
 let pending = null;
+let explanationSnapshot = null;
+let explanationRequest = null;
+
+function resetExplanation(message, snapshot = null) {
+  explanationRequest?.abort();
+  explanationRequest = null;
+  explanationSnapshot = snapshot;
+  elements.explain.disabled = !snapshot;
+  elements.explanationStatus.textContent = message;
+  elements.explanationText.textContent = '';
+}
+
+async function requestExplanation() {
+  if (!explanationSnapshot || explanationRequest) return;
+  const request = new AbortController();
+  explanationRequest = request;
+  elements.explain.disabled = true;
+  elements.explanationStatus.textContent = 'Codex가 관객 경험에 미친 영향과 확인할 점을 분석하고 있습니다…';
+  try {
+    const response = await fetch(`/api/explanation?snapshot=${encodeURIComponent(explanationSnapshot)}`, {
+      method: 'POST',
+      signal: request.signal,
+    });
+    const result = await response.json();
+    if (request.signal.aborted) return;
+    if (!response.ok) {
+      elements.explanationStatus.textContent = result.error || 'Codex 분석을 완료하지 못했습니다.';
+      return;
+    }
+    if (typeof result.explanation !== 'string' || !result.explanation.trim()) throw new Error();
+    elements.explanationText.textContent = result.explanation;
+    elements.explanationStatus.textContent = '분석 완료';
+  } catch {
+    if (!request.signal.aborted) {
+      elements.explanationStatus.textContent = 'Codex 분석을 불러오지 못했습니다. 다시 시도해 주세요.';
+    }
+  } finally {
+    if (!request.signal.aborted) {
+      explanationRequest = null;
+      elements.explain.disabled = false;
+    }
+  }
+}
 
 function errorSnapshot() {
   const failure = {status: 'error', message: '대시보드 서버에서 응답을 받지 못했습니다.'};
@@ -928,6 +1020,7 @@ async function refresh() {
   const request = new AbortController();
   pending = request;
   busy(true);
+  resetExplanation('지표를 조회하는 중입니다.');
   elements.notice.hidden = true;
   elements.period.textContent = '';
   elements.googlePeriod.textContent = '';
@@ -944,17 +1037,24 @@ async function refresh() {
     if (request.signal.aborted) return;
     if (!snapshot.range || !snapshot.google || !snapshot.cloudflare) throw new Error('Invalid dashboard response');
     paint(snapshot);
+    resetExplanation(snapshot.explanationId
+      ? '관객이 공연을 듣는 데 어떤 영향이 있었고 무엇을 먼저 확인할지 분석합니다.'
+      : '선택한 기간에 분석할 수 있는 집계가 없습니다.', snapshot.explanationId);
     const period = marketingPeriod(snapshot);
     elements.googlePeriod.textContent = period ? `${period} (${snapshot.google.data.timeZone})` : '';
     const {startDate, endDate, timeZone} = snapshot.range;
-    elements.period.textContent = snapshot.cloudflare.rum?.summary
-      ? `${startDate === endDate ? endDate : startDate + ' ~ ' + endDate} (${timeZone})`
-      : elements.googlePeriod.textContent;
+    const dates = startDate === endDate ? endDate : `${startDate} ~ ${endDate}`;
+    const zoneLabel = timeZone === 'Asia/Seoul' ? '한국시간 0시 기준' : timeZone;
+    const gaZone = snapshot.google.data?.timeZone;
+    elements.period.textContent = gaZone && gaZone !== timeZone
+      ? `Cloudflare ${dates} (${zoneLabel}) · GA4 ${elements.googlePeriod.textContent}`
+      : `${dates} (${zoneLabel})`;
     if (snapshot.completedAt) elements.updated.textContent = `마지막 조회 ${timestamp(snapshot.completedAt)}`;
     else elements.updated.textContent = '조회 완료';
   } catch {
     if (request.signal.aborted) return;
     paint(errorSnapshot());
+    resetExplanation('지표를 다시 조회한 뒤 분석할 수 있습니다.');
     elements.notice.textContent = '대시보드 서버에 연결하지 못했습니다. 서버가 실행 중인지 확인하고 다시 새로고침해 주세요.';
     elements.notice.hidden = false;
     elements.updated.textContent = '조회 실패';
@@ -969,7 +1069,8 @@ async function refresh() {
 function setNavigation() {
   const active = window.location.hash || '#overview';
   const target = document.getElementById(active.slice(1));
-  if (target instanceof HTMLDetailsElement) target.open = true;
+  const report = target?.closest('details');
+  if (report) report.open = true;
   const navTarget = target?.closest('#reports') ? '#reports' : active;
   for (const link of document.querySelectorAll('.sidebar nav a')) {
     if (link.getAttribute('href') === navTarget) link.setAttribute('aria-current', 'location');
@@ -990,6 +1091,7 @@ for (const link of document.querySelectorAll('.sidebar nav a, .sidebar .brand'))
   });
 }
 elements.refresh.addEventListener('click', refresh);
+elements.explain.addEventListener('click', requestExplanation);
 elements.ranges.addEventListener('change', (event) => {
   if (!allowedDays.includes(event.target.value)) return;
   days = event.target.value;

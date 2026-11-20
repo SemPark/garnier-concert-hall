@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {serveTea,TEA_POUR_MS} from '../shared/tea';
 import {SEATS} from '../shared/venue';
+import {TEA_TABLE} from '../shared/storyGuestSeats';
 import {LocalConcert} from '../src/network/LocalConcert';
 
 function diner(column=3){
  const concert=new LocalConcert();
- const seat=SEATS.find(s=>s.row===23&&s.column===column)!;
+ const seat=SEATS.find(s=>s.row===TEA_TABLE&&s.column===column)!;
  Object.assign(concert.visitor,{zone:'auditorium',pose:'sit',seatId:seat.id});
  return concert;
 }
@@ -37,4 +38,17 @@ test('tea waits for pouring, allows three sips and supports discarding or standi
  concert.send({type:'clearDish'});assert.equal(v.teaReadyAt,undefined);
  assert.equal(concert.send({type:'dish',dish:'tea'}),true);
  concert.send({type:'release'});assert.equal(v.drink,undefined);
+});
+
+test('ordering tea replaces only the drink and cancels the previous drink expiry',()=>{
+ const concert=diner(),v=concert.visitor;
+ assert.equal(concert.send({type:'dish',dish:'salad'}),true);
+ assert.equal(concert.send({type:'dish',dish:'wine'}),true);
+ v.drinkSips=2;v.drinkEmptyAt=1;
+ assert.equal(concert.send({type:'dish',dish:'tea'}),true);
+ assert.equal(v.dish,'salad');
+ assert.equal(v.drink,'tea');
+ assert.equal(v.drinkSips,0);
+ assert.equal(v.drinkEmptyAt,undefined);
+ assert.equal(concert.snapshot().visitors[0].drink,'tea');
 });

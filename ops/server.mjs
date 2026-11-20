@@ -1,10 +1,14 @@
+import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { loadEnvFile } from 'node:process';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { getGoogleAnalytics } from './ga.mjs';
-import { fetchCloudflare } from './cloudflare.mjs';
+import { fetchCloudflare, getRange } from './cloudflare.mjs';
+import { analysisInput, explainAnalytics } from './codex.mjs';
 
+const snapshotLifetime = 30 * 60_000;
+const maxSnapshots = 24;
 const host = '127.0.0.1';
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
@@ -25,14 +29,7 @@ function sendJSON(res, status, value) {
   res.end(JSON.stringify(value));
 }
 
-export function getRange(days, now) {
-  const start = new Date(now);
-  start.setUTCDate(start.getUTCDate() - days + 1);
-  return {
-    days, startDate: start.toISOString().slice(0, 10),
-    endDate: now.toISOString().slice(0, 10), timeZone: 'UTC',
-  };
-}
+export { getRange };
 
 export async function probeHealth(site, fetchImpl = fetch) {
   if (!site) return { status: 'unconfigured', message: '운영 주소를 설정하면 공연장 API 응답을 확인할 수 있습니다.' };
@@ -69,7 +66,10 @@ export function createOpsServer({
   cloudflare = fetchCloudflare,
   health = probeHealth,
   clock = () => new Date(),
+  explain = explainAnalytics,
 } = {}) {
+  const snapshots = new Map();
+  let running = null;
   return createServer(async (req, res) => {
     try {
       const port = req.socket.localPort;
@@ -79,11 +79,43 @@ export function createOpsServer({
         || ['cross-site', 'same-site'].includes(req.headers['sec-fetch-site'])) {
         return sendJSON(res, 403, { error: '이 대시보드는 같은 컴퓨터에서만 열 수 있습니다.' });
       }
+      const url = new URL(req.url, 'http://' + req.headers.host);
+      if (url.pathname === '/api/explanation') {
+        if (req.method !== 'POST') {
+          res.setHeader('Allow', 'POST');
+          return sendJSON(res, 405, { error: '지원하지 않는 요청 방식입니다.' });
+        }
+        if (req.headers.origin !== 'http://' + req.headers.host) {
+          return sendJSON(res, 403, { error: '대시보드 화면에서 분석을 요청해 주세요.' });
+        }
+        const snapshot = snapshots.get(url.searchParams.get('snapshot'));
+        if (!snapshot || clock().getTime() - snapshot.savedAt > snapshotLifetime) {
+          return sendJSON(res, 409, { error: '조회한 데이터가 만료됐습니다. 새로고침한 뒤 다시 분석해 주세요.' });
+        }
+        if (snapshot.explanation) return sendJSON(res, 200, { explanation: snapshot.explanation });
+        if (running && running.snapshot !== snapshot) {
+          return sendJSON(res, 429, { error: '다른 기간을 분석 중입니다. 잠시 후 다시 시도해 주세요.' });
+        }
+        running ??= {
+          snapshot,
+          promise: Promise.resolve().then(() => explain(snapshot.input, env)).then(explanation => {
+            snapshot.explanation = explanation;
+            return explanation;
+          }).finally(() => { running = null; }),
+        };
+        try {
+          return sendJSON(res, 200, { explanation: await running.promise });
+        } catch (error) {
+          const message = error.code === 'ENOENT'
+            ? 'Codex CLI를 찾을 수 없습니다. 설치 경로를 확인해 주세요.'
+            : 'Codex 분석을 완료하지 못했습니다. 잠시 후 다시 시도하거나 Codex 로그인 상태를 확인해 주세요.';
+          return sendJSON(res, 502, { error: message });
+        }
+      }
       if (req.method !== 'GET') {
         res.setHeader('Allow', 'GET');
         return sendJSON(res, 405, { error: '지원하지 않는 요청 방식입니다.' });
       }
-      const url = new URL(req.url, 'http://' + req.headers.host);
       if (url.pathname === '/api/analytics') {
         const input = url.searchParams.get('days') ?? '7';
         if (!['1', '7', '14', '30'].includes(input) || url.searchParams.getAll('days').length > 1) {
@@ -98,10 +130,18 @@ export function createOpsServer({
           isolate(() => cloudflare({ ...range, now }, env), { http: genericError, worker: genericError, rum: genericError }),
           isolate(() => health(env.OPS_SITE_URL), genericError),
         ]);
-        return sendJSON(res, 200, {
-          requestedAt: now.toISOString(), completedAt: clock().toISOString(),
+        const completed = clock();
+        const snapshot = {
+          requestedAt: now.toISOString(), completedAt: completed.toISOString(),
           range, google: gaResult, cloudflare: cfResult, health: healthResult,
-        });
+        };
+        const metrics = analysisInput(snapshot);
+        if (metrics) {
+          snapshot.explanationId = randomUUID();
+          if (snapshots.size >= maxSnapshots) snapshots.delete(snapshots.keys().next().value);
+          snapshots.set(snapshot.explanationId, {input: metrics, savedAt: completed.getTime()});
+        }
+        return sendJSON(res, 200, snapshot);
       }
       if (!assets.has(url.pathname)) return sendJSON(res, 404, { error: '페이지를 찾을 수 없습니다.' });
       const [file, contentType] = assets.get(url.pathname);

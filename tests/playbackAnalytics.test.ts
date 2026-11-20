@@ -142,3 +142,15 @@ test('privacy disable acts immediately and discards elapsed time without duplica
  sample(consent.tracker,580);
  assert.deepEqual(events,['page_view','playback_start','playback_start','playback_180_seconds']);
 });
+
+test('hall action events require an active analytics consent',()=>{
+ const {consent,events,loaded}=consentHarness();
+ consent.trackAction('hall_seat_map_open');
+ consent.setAccepted(true);
+ consent.trackAction('hall_seat_map_open');
+ loaded[0]();
+ consent.trackAction('hall_seat_map_open');
+ consent.refuse();
+ consent.trackAction('hall_next_track_click');
+ assert.deepEqual(events,['page_view','hall_seat_map_open']);
+});

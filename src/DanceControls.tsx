@@ -17,7 +17,7 @@ function DanceMoveIcon({style}:{style:DanceStyle}){
 }
 
 export function DanceStart({world,disabled,children}:{world:World;disabled:boolean;children:ReactNode}){
- return <button type="button" className="dance-start" aria-label="춤추기" title="춤추기" disabled={disabled}
+ return <button type="button" className="dance-start" data-usher-label="춤추기" aria-label="춤추기" title="춤추기" disabled={disabled}
   onClick={()=>world.startDanceHere()}>{children}</button>;
 }
 

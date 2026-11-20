@@ -36,9 +36,11 @@ const STANDING_HEAD=1.4,SEATED_HEAD=1.36;
 const BOTTOM=-.72;
 const GHOST_ARM_RADIUS=.095,GHOST_ARM_SHAFT=.32,GHOST_ARM_CENTER=.22;
 const GHOST_ARM_CAP=GHOST_ARM_CENTER+GHOST_ARM_SHAFT/2;
+const HIGH_FIVE_ARM_FLAG=8192;
 const MITTEN_CLEARANCE=GHOST_ARM_RADIUS+.088;
 /** Seated ghosts sit this far forward of the seat centre so their back (0.41 m deep) stays in front of the backrest. */
 const SEAT_FORWARD=.21;
+const OCCLUDING_OPACITY=.17;
 const NPC_GLOW=new T.Color(0x4fa8ff);
 const hash=(id:string)=>{let h=2166136261;for(let i=0;i<id.length;i++)h=Math.imul(h^id.charCodeAt(i),16777619);return h>>>0;};
 
@@ -76,7 +78,7 @@ void main(){
  vPhantom=mod(floor(flags/32.),2.);
  vQueen=mod(floor(flags/64.),2.)*(1.-abs(aArm));
  vRabbitCloth=mod(floor(flags/16.),2.)*(1.-abs(aArm));
- float dancing=mod(floor(flags/128.),2.);
+ float dancing=mod(floor(flags/128.),2.),highFive=step(${HIGH_FIVE_ARM_FLAG.toFixed(1)},aSeed);
  // Dancing ghosts follow the shared pose without an additional idle float.
  float idle=(1.-visitor)*(1.-vPhantom)*(1.-dancing);
  vec3 p=position;vec3 n=normal;
@@ -89,10 +91,15 @@ void main(){
   vec3 pivot=dancing>.5?vec3(aArm*.31,-.12,.02):vec3(aArm*.28,-.12,0.);vec3 d=p-pivot;
   float sw=walk*aArm*.5*sin(uTime*9.+seed*6.),c=cos(sw),s=sin(sw);d.yz=mat2(c,s,-s,c)*d.yz;n.yz=mat2(c,s,-s,c)*n.yz;
   // Turn the arm from where it rests to where the pose points it.
-  vec3 rest=normalize(vec3(aArm*.172,-.675,.717)),to=aArm<0.?aLeft:aRight;
-  to=normalize(to);
+  vec3 rest=normalize(vec3(aArm*.172,-.675,.717)),target=aArm<0.?aLeft:aRight;
+  vec3 to=normalize(target);
   vec3 axis=cross(rest,to);float sn=length(axis),cs=dot(rest,to);
   if(sn>1e-4){axis/=sn;d=d*cs+cross(axis,d)*sn+axis*dot(axis,d)*(1.-cs);n=n*cs+cross(axis,n)*sn+axis*dot(axis,n)*(1.-cs);}
+  if(highFive>.5){
+   // Extend the shaft toward the requested hand position without flattening its rounded tip.
+   float along=dot(d,to),cap=${GHOST_ARM_CAP.toFixed(3)};
+   d+=to*(length(target)-1.)*cap*smoothstep(0.,cap-.06,along);
+  }
   p=pivot+d;
  }
  // Floss shifts the lower sheet under the shoulders without dragging the face or arms along.
@@ -124,7 +131,7 @@ void main(){
  #include <logdepthbuf_vertex>
 }`;
 const fragment=/* glsl */`
-uniform float uFace;uniform float uTime;
+uniform float uFace;uniform float uTime;uniform float uOpacity;
 varying vec3 vGlow;varying vec3 vLocal;varying vec3 vNormal;varying vec3 vView;varying float vUp;
 varying float vRabbitCloth;
 varying float vPhantom;
@@ -171,7 +178,7 @@ void main(){
   c=mix(c,vec3(0.),1.-smoothstep(1.-ew,1.+ew,e));
   c=mix(c,vec3(1.),1.-smoothstep(1.-sw,1.+sw,sqrt(shine)));
  }
- gl_FragColor=vec4(c,1.);
+ gl_FragColor=vec4(c,uOpacity);
  #include <colorspace_fragment>
 }`;
 
@@ -245,15 +252,59 @@ export class Ghosts{
  private readonly costumes=new Map<GhostCostume,ReturnType<typeof buildGhostCostume>>();
  private readonly teaGuests=new Map<TeaGuest,ReturnType<typeof buildTeaGuest>>();
  private time={value:0};
- private near:Batch;private far:Batch;
+ private near:Batch;private far:Batch;private faded?:Batch;
+ private readonly batches:Batch[]=[];
+ private readonly sightline=new T.Ray();
+ private readonly ghostBounds=new T.Box3();
+ private readonly intersection=new T.Vector3();
+ private readonly accessories=new WeakMap<T.Object3D,{faded:boolean;parts:{mesh:T.Mesh;original:T.Material;faded:T.Material}[]}>();
  private updatedAt=-Infinity;private frustum=new T.Frustum();private projection=new T.Matrix4();private sphere=new T.Sphere();
  private danceShoulder=new T.Vector3();
  private handForward=new T.Vector3();private handOutside=new T.Vector3();
  private angels:ReturnType<typeof angelKit>[]=[];private tableware:ReturnType<typeof tableware>[]=[];private l=new T.Vector3();private r=new T.Vector3();private b=new T.Vector3();private head=new T.Vector3();private d=new T.Vector3();private hand=new T.Vector3();private qa=new T.Quaternion();private qb=new T.Quaternion();private m=new T.Matrix4();private q=new T.Quaternion();private up=new T.Vector3(0,1,0);private v=new T.Vector3();private s=new T.Vector3(1,1,1);
  constructor(private scene:T.Scene){
-  const mat=(face:number)=>new T.ShaderMaterial({uniforms:{uTime:this.time,uFace:{value:face}},vertexShader:vertex,fragmentShader:fragment});
-
-  this.near=this.batch(body(32,6,7),mat(1));this.far=this.batch(body(16,3,4),mat(1));
+  this.near=this.bodyBatch(body(32,6,7));this.far=this.bodyBatch(body(16,3,4));
+ }
+ private bodyBatch(geometry:T.BufferGeometry,opacity=1){
+  const material=new T.ShaderMaterial({
+   uniforms:{uTime:this.time,uFace:{value:1},uOpacity:{value:opacity}},
+   vertexShader:vertex,fragmentShader:fragment,transparent:opacity<1,depthWrite:opacity===1,
+  });
+  const batch=this.batch(geometry,material,opacity<1?4:64);
+  this.batches.push(batch);
+  return batch;
+ }
+ /** The broad bounds cover the sheet and the tall hats/ears worn at the story tables. */
+ private blocksAvatar(head:T.Vector3,tall:boolean,lengthSq:number){
+  if(!lengthSq)return false;
+  this.ghostBounds.min.set(head.x-.53,head.y-.76,head.z-.53);
+  this.ghostBounds.max.set(head.x+.53,head.y+(tall?1.1:.4),head.z+.53);
+  if(this.ghostBounds.containsPoint(this.sightline.origin))return true;
+  return !!this.sightline.intersectBox(this.ghostBounds,this.intersection)&&
+   this.intersection.distanceToSquared(this.sightline.origin)<lengthSq;
+ }
+ private fadeAccessories(root:T.Object3D,covered:boolean){
+  let state=this.accessories.get(root);
+  if(!state){
+   if(!covered)return;
+   state={faded:false,parts:[]};
+   const parts=state.parts;
+   root.traverse(object=>{
+    if(!(object instanceof T.Mesh)||Array.isArray(object.material))return;
+    const original:T.Material=object.material,faded=original.clone();
+    faded.transparent=true;faded.depthWrite=false;faded.opacity*=OCCLUDING_OPACITY;
+    if(faded instanceof T.ShaderMaterial){
+     // The custom ghost surface and lantern halo write alpha directly.
+     faded.fragmentShader=faded.fragmentShader.replace('#include <colorspace_fragment>',
+      `gl_FragColor.a *= ${OCCLUDING_OPACITY};\n#include <colorspace_fragment>`);
+    }
+    parts.push({mesh:object,original,faded});
+   });
+   this.accessories.set(root,state);
+  }
+  if(state.faded===covered)return;
+  state.faded=covered;
+  for(const part of state.parts)part.mesh.material=covered?part.faded:part.original;
  }
  private batch(geometry:T.BufferGeometry,material:T.Material,size=64):Batch{
   const mesh=new T.InstancedMesh(geometry,material,size);mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);mesh.frustumCulled=false;mesh.matrixAutoUpdate=false;mesh.count=0;
@@ -314,11 +365,18 @@ export class Ghosts{
    arm.lerp(direction,weight).normalize();
   }
  }
- update(ghosts:Iterable<GhostSpot>,camera:T.Camera,now=performance.now(),reducedMotion=false,force=false){
+ update(ghosts:Iterable<GhostSpot>,camera:T.Camera,now=performance.now(),reducedMotion=false,force=false,avatarSightTarget?:T.Vector3|null){
   this.time.value=now/1000;
   if(!force&&now-this.updatedAt<1000/30)return;this.updatedAt=now;
   camera.updateMatrixWorld();this.frustum.setFromProjectionMatrix(this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
-  for(const b of [this.near,this.far])b.used=0;let angels=0,holding=0;const time=now/1000;
+  let sightLengthSq=0;
+  if(avatarSightTarget){
+   this.sightline.origin.copy(camera.position);
+   this.sightline.direction.subVectors(avatarSightTarget,camera.position);
+   sightLengthSq=this.sightline.direction.lengthSq();
+   this.sightline.direction.normalize();
+  }
+  for(const b of this.batches)b.used=0;let angels=0,holding=0;const time=now/1000;
   this.queenGivingWand=false;
   for(const costume of this.costumes.values())costume.root.visible=false;
   for(const guest of this.teaGuests.values()){guest.root.visible=false;guest.cup.visible=false;}
@@ -332,6 +390,7 @@ export class Ghosts{
    if(highFive){this.v.x+=highFive.dx;this.v.z+=highFive.dz;}
    const h=hash(g.id),glow=g.npc?NPC_GLOW:GLOWS[h%GLOWS.length],seed=(h>>>8)%1000/1000+(g.sitting?32:0)+(g.npc&&(!g.behavior||g.teaGuest)?0:64)+(g.walking&&!highFive&&!g.sitting&&!g.mirrorAvatar?128:0)+(g.costume==='vesper'||g.costume==='candra'?256:0)+(g.costume==='white-rabbit'?512:0)+(g.costume==='phantom'?1024:0)+(g.costume==='queen'?2048:0)+(g.dance?4096:0),distance=this.v.distanceTo(camera.position),far=distance>14;
    if(g.costume==='phantom'){this.s.set(.96,1.22,.96);this.v.y+=.16;}
+   const covered=this.blocksAvatar(this.v,!!(g.teaGuest||g.costume),sightLengthSq);
    this.m.compose(this.v,this.q.setFromAxisAngle(this.up,yaw),this.s);
    this.b.set(0,0,0);this.head.set(0,0,0);
    if(g.dance){
@@ -398,12 +457,14 @@ export class Ghosts{
     const bob=Math.sin(time*1.5+(h>>>8)%1000/1000*6)*.014;
     guest.root.visible=true;guest.root.position.copy(this.v);guest.root.position.y+=bob;guest.root.rotation.y=yaw;
     guest.cup.visible=true;guest.cup.position.copy(this.d).applyQuaternion(this.q).add(this.v);guest.cup.position.y+=bob;
+    this.fadeAccessories(guest.root,covered);this.fadeAccessories(guest.cup,covered);
     guest.cup.rotation.set(0,yaw,0);guest.cup.rotateX(-TIP*sip);
    }else if(g.angel){
     this.l.copy(REST[0]);this.r.copy(REST[1]);
     const a=this.angels[angels++]??=(()=>{const k=angelKit();this.scene.add(k.kit);return k;})();
     // Same slow float as the body (see the shader).
     a.kit.visible=true;a.kit.position.copy(this.v).y+=Math.sin(time*1.5+(h>>>8)%1000/1000*6)*.07;a.kit.rotation.y=yaw;
+    this.fadeAccessories(a.kit,covered);
     const flap=.45+.4*Math.sin(time*6+h);a.wings[0].rotation.y=-flap;a.wings[1].rotation.y=flap;
    }else if(g.gesture){
     const pose=poseVillager({time,speed:0,sit:g.sitting?1:0,music:false,musician:false,gesture:g.gesture,age:g.age??0}),w=pose.weight;
@@ -422,6 +483,7 @@ export class Ghosts{
      if((eat||g.drink&&w>.85)&&distance<30){ // a drink appears once the hand is out in front, not on its way past the body
       const t=this.tableware[holding++]??=(()=>{const k=tableware();this.scene.add(k.kit);return k;})();
       t.kit.visible=true;t.kit.position.copy(this.d).applyQuaternion(this.q).add(this.v);t.kit.rotation.y=yaw;
+      this.fadeAccessories(t.kit,covered);
       // The tines point down at the plate, then at the mouth.
       t.fork.visible=eat;if(eat)t.fork.quaternion.setFromUnitVectors(BACK,this.hand.copy(MOUTH).sub(FORK_AT_MOUTH).normalize().lerp(TINES_DOWN.copy(PLATE_CENTRE).sub(PLATE_HAND).normalize(),1-up).normalize());
       t.bite.visible=eat&&g.bite!==undefined&&age>.6&&age<1.5;if(g.bite!==undefined)(t.bite.material as T.MeshStandardMaterial).color.setHex(g.bite);
@@ -449,17 +511,26 @@ export class Ghosts{
      this.r.lerp(this.hand.set(-.15,.95,.3).normalize(),p.hands).normalize();
     }
    }else if(g.costume==='white-rabbit')this.b.x+=.14;
-   if(highFive&&highFive.reach>0){
+   const reaching=!!highFive&&highFive.reach>0;
+   if(highFive&&reaching){
     this.b.multiplyScalar(1-highFive.reach);
     this.head.multiplyScalar(1-highFive.reach);
-    const hand=this.d.set(highFive.hand.x,highFive.hand.y,highFive.hand.z).sub(this.v)
-     .applyAxisAngle(this.up,-yaw).divide(this.s).sub(SHOULDER).normalize();
-    this.l.lerp(hand,highFive.reach).normalize();
+    const right=highFive.side==='right';
+    const arm=right?this.l:this.r;
+    const hand=this.d.set(highFive.hand.x,highFive.hand.y,highFive.hand.z).sub(this.v);
+    if(g.npc&&(!g.behavior||g.teaGuest)&&g.costume!=='phantom'){
+     const idleFloat=Math.sin(time*1.5+(h>>>8)%1000/1000*6)*.07*(g.sitting?.2:1);
+     hand.y-=idleFloat*this.s.y;
+    }
+    hand.applyAxisAngle(this.up,-yaw).divide(this.s).sub(this.hand.set(right?-.28:.28,-.12,0));
+    const scale=T.MathUtils.lerp(1,T.MathUtils.clamp(hand.length()/GHOST_ARM_CAP,.45,1.7),highFive.reach);
+    arm.lerp(hand.normalize(),highFive.reach).normalize().multiplyScalar(scale);
    }
    if(g.costume){
     let costume=this.costumes.get(g.costume);
     if(!costume){costume=buildGhostCostume(g.costume);this.costumes.set(g.costume,costume);this.scene.add(costume.root);}
     costume.root.visible=true;
+    this.fadeAccessories(costume.root,covered);
     costume.root.position.copy(this.v);
     costume.root.position.y+=Math.sin(time*1.5+(h>>>8)%1000/1000*6)*.07*(g.behavior?0:g.sitting?.2:1);
     if(g.walking&&!g.sitting)costume.root.position.y+=Math.abs(Math.sin(time*9+(h>>>8)%1000/1000*6))*.05;
@@ -503,11 +574,13 @@ export class Ghosts{
     this.r.copy(avatar.leftHand.position).applyQuaternion(avatar.leftArm.quaternion)
      .applyAxisAngle(this.up,Math.PI).normalize();
    }
-   this.put(far?this.far:this.near,this.m,glow,seed);
+   let batch=far?this.far:this.near;
+   if(covered)batch=this.faded??=this.bodyBatch(body(32,6,7),OCCLUDING_OPACITY);
+   this.put(batch,this.m,glow,seed+(reaching&&!g.mirrorAvatar?HIGH_FIVE_ARM_FLAG:0));
   }
   for(let i=angels;i<this.angels.length;i++)this.angels[i].kit.visible=false;
   for(let i=holding;i<this.tableware.length;i++)this.tableware[i].kit.visible=false;
-  for(const b of [this.near,this.far]){
+  for(const b of this.batches){
    b.mesh.count=b.used;b.mesh.visible=b.used>0;if(!b.used)continue;
    b.mesh.instanceMatrix.clearUpdateRanges();b.mesh.instanceMatrix.addUpdateRange(0,b.used*16);b.mesh.instanceMatrix.needsUpdate=true;
    b.glow.clearUpdateRanges();b.glow.addUpdateRange(0,b.used*3);b.glow.needsUpdate=true;b.seed.clearUpdateRanges();b.seed.addUpdateRange(0,b.used);b.seed.needsUpdate=true;

@@ -18,13 +18,27 @@ function darkMarble(){
  }
  marble=new T.MeshStandardMaterial({color:0xd2c4a9,map,roughness:.48,metalness:0,envMapIntensity:.25});return marble;
 }
+/** Match the clickable surfaces to the rear landing and the central flight. */
+export function parterreRearWalkTargets(scene:T.Scene,width:number,rear:number){
+ const material=new T.MeshBasicMaterial({visible:false});
+ const landing=new T.PlaneGeometry(width,rear-P.stairBack).rotateX(-Math.PI/2);
+ const flight=new T.PlaneGeometry(P.stairHalfWidth*2,P.stairBack-P.stairFront).rotateX(-Math.PI/2);
+ const vertices=flight.getAttribute('position');
+ for(let i=0;i<vertices.count;i++)vertices.setY(i,vertices.getZ(i)<0?P.floor:0);
+ const surfaces=[new T.Mesh(landing,material),new T.Mesh(flight,material)];
+ surfaces[0].position.z=(P.stairBack+rear)/2;
+ surfaces[1].position.z=(P.stairFront+P.stairBack)/2;
+ for(const surface of surfaces){surface.userData.floor=true;scene.add(surface);}
+ return surfaces;
+}
+
 /** Walnut framing and dark marble continue around the excavated audience floor. */
 export function buildParterreWell(scene:T.Scene){
  const root=new T.Group();root.userData.landmark='sunken-parterre';scene.add(root);
  const height=-P.floor,marbleMaterial=darkMarble();
  const panel=(g:T.Group,width:number,bottom:number=P.floor,top:number=0)=>{
   const height=top-bottom,center=(bottom+top)/2;
-  box(g,[width,height,.20],[0,center,0],0x5e3925).material=woodMaterial('walnut');
+  const wall=box(g,[width,height,.20],[0,center,0],0x5e3925);wall.material=woodMaterial('walnut');wall.userData.wallSurface=true;
   const count=Math.max(1,Math.round(width/1.45)),span=width/count;
   for(let i=0;i<count;i++){
    const x=-width/2+(i+.5)*span;
@@ -36,7 +50,7 @@ export function buildParterreWell(scene:T.Scene){
  for(const side of [-1,1]){
   // Raised, usable side-seat platforms project from the wall, rather than a floating wall strip.
   const start=P.front,end=P.stairFront,depth=end-start,mid=(start+end)/2;
-  const deck=(a:number,b:number,inner:number=P.sideFront)=>{const floor=box(root,[16-inner,.16,b-a],[side*(16+inner)/2,-.09,(a+b)/2],0x805734);applyWoodSurface(floor,'walnut');floor.userData.landmark='side-box-floor';floor.userData.walkSurface=true;};
+  const deck=(a:number,b:number,inner:number=P.sideFront)=>{const floor=box(root,[16-inner,.16,b-a],[side*(16+inner)/2,-.09,(a+b)/2],0x805734);applyWoodSurface(floor,'walnut');floor.userData.landmark='side-box-floor';floor.userData.walkSurface=true;floor.userData.wallSurface=true;};
   const cuts=P.sideStairZ.map(z=>[z-P.sideStairWidth/2,z+P.sideStairWidth/2]);
   let spans:number[][]=[[start,end]];for(const [a,b]of cuts)spans=spans.flatMap(([lo,hi])=>hi<=a||lo>=b?[[lo,hi]]:[...(lo<a?[[lo,a]]:[]),...(hi>b?[[b,hi]]:[])]);
   for(const [a,b]of spans){
@@ -48,7 +62,7 @@ export function buildParterreWell(scene:T.Scene){
     const w=module.end-module.start-.02;
     if(module.kind==='marble')panel(unit,w,0,LOWER_HALL.plinth);
     else{
-     box(unit,[w,1.10,.18],[0,.55,0],0x805734).material=woodMaterial('walnut');
+     const guard=box(unit,[w,1.10,.18],[0,.55,0],0x805734);guard.material=woodMaterial('walnut');guard.userData.wallSurface=true;
      hallImage(unit,'damask',w-.10,.92,0,.58,.15);
      box(unit,[w,.10,.27],[0,.07,.04],0x805734).material=woodMaterial('frame');
      const rail=cylinder(unit,.065,w,[0,1.13,.13],0x6f2830);rail.rotation.z=Math.PI/2;
@@ -64,7 +78,7 @@ export function buildParterreWell(scene:T.Scene){
     const top=P.floor+(i+1)*rise,x=P.sideFront+(i+.5)*run;
     // Solid timber beneath each tread closes both exposed sides, flush with the platform cheek.
     const supportHeight=top-.085-P.floor;
-    const support=box(flight,[run,supportHeight,P.sideStairWidth],[side*x,P.floor+supportHeight/2,z],0x5d3824);support.material=woodMaterial('stage-side');support.userData.landmark='side-box-stair-solid';
+    const support=box(flight,[run,supportHeight,P.sideStairWidth],[side*x,P.floor+supportHeight/2,z],0x5d3824);support.material=woodMaterial('stage-side');support.userData.landmark='side-box-stair-solid';support.userData.wallSurface=true;
     const tread=box(flight,[run+.01,.085,P.sideStairWidth],[side*x,top-.0425,z],0x805734);applyWoodSurface(tread,'walnut');tread.userData.landmark='side-box-step';tread.userData.walkSurface=true;
     box(flight,[.04,rise,P.sideStairWidth],[side*(P.sideFront+i*run),top-rise/2,z],0x5d3824).material=woodMaterial('stage-side');
    }
@@ -76,18 +90,18 @@ export function buildParterreWell(scene:T.Scene){
   }
   const rear=new T.Group();rear.position.set(side*(16+P.stairHalfWidth)/2,0,P.stairFront+.08);rear.rotation.y=Math.PI;root.add(rear);panel(rear,16-P.stairHalfWidth);
   // Solid stone retaining mass behind the side cheeks, without a coplanar top surface.
-  box(root,[16-P.stairHalfWidth,height,P.stairBack-P.stairFront],[side*(16+P.stairHalfWidth)/2,P.floor+height/2,(P.stairBack+P.stairFront)/2],0x513a29).material=woodMaterial('walnut');
+  const retainingWall=box(root,[16-P.stairHalfWidth,height,P.stairBack-P.stairFront],[side*(16+P.stairHalfWidth)/2,P.floor+height/2,(P.stairBack+P.stairFront)/2],0x513a29);retainingWall.material=woodMaterial('walnut');retainingWall.userData.wallSurface=true;
  }
  const apron=new T.Group();apron.position.z=P.front+.12;apron.userData.landmark='stage-marble-apron';root.add(apron);panel(apron,30.4);
  const run=(P.stairBack-P.stairFront)/P.steps,rise=height/P.steps;
  const rearFlight=cameraFadeGroup(root);
  for(let i=0;i<P.steps;i++){
   const top=P.floor+(i+1)*rise,z=P.stairFront+(i+.5)*run;
-  const step=box(rearFlight,[P.stairHalfWidth*2,.10,run+.005],[0,top-.05,z],0x6b4429);applyWoodSurface(step,'walnut');step.userData.landmark='parterre-rear-step';
+  const step=box(rearFlight,[P.stairHalfWidth*2,.10,run+.005],[0,top-.05,z],0x6b4429);applyWoodSurface(step,'walnut');step.userData.landmark='parterre-rear-step';step.userData.wallSurface=true;
   box(rearFlight,[P.stairHalfWidth*2,rise-.02,.055],[0,top-rise/2,P.stairFront+i*run+.025],0x3d2a1e).material=woodMaterial('stage-side');
   box(rearFlight,[P.stairHalfWidth*2,.025,.035],[0,top+.003,P.stairFront+i*run+.035],0x9f7644).material=woodMaterial('frame');
  }
  // The raised rear landing remains at the entrances' original elevation.
- const landing=box(root,[32,.14,52-P.stairBack],[0,-.085,(52+P.stairBack)/2],0x5c412d);landing.material=woodMaterial('walnut');
+ const landing=box(root,[32,.14,52-P.stairBack],[0,-.085,(52+P.stairBack)/2],0x5c412d);landing.material=woodMaterial('walnut');landing.userData.wallSurface=true;
  root.traverse(o=>{o.userData.fullDetail=true;});return root;
 }

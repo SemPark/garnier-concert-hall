@@ -50,5 +50,9 @@ export class Presence{
  private ping(){this.bestRTT=Infinity;for(let i=0;i<3;i++)window.setTimeout(()=>this.send({type:'clock',sentAt:performance.now()}),i*150);}
  send(msg:ClientMessage){if(this.preview){const ok=this.preview.send(msg);this.accept(this.preview.snapshot());if(ok&&msg.type==='danceStop'){clearTimeout(this.danceEndTimer);this.danceEndTimer=window.setTimeout(()=>{if(this.preview&&!this.stopped)this.accept(this.preview.snapshot());},DANCE_END_MS+20);}if(ok&&msg.type==='hallMove'){const v=this.preview.visitor;this.onRelocated({x:v.x,y:v.y??0,z:v.z});}return ok;}if(this.socket?.readyState===WebSocket.OPEN&&this.status==='connected'){this.socket.send(JSON.stringify(msg));return true;}return false;}
  reserve(seatId:string,requestId=newId()){if(this.preview){const ok=this.preview.send({type:'reserve',seatId,requestId});this.accept(this.preview.snapshot());return Promise.resolve(ok);}if(this.status!=='connected'){this.onError('음악당에 다시 연결하고 있어요. 잠시 뒤 다시 눌러 주세요.');return Promise.resolve(false);}return new Promise<boolean>(resolve=>{const timer=window.setTimeout(()=>{this.requests.delete(requestId);this.onError('좌석 응답이 늦어요. 다시 눌러 주세요.');resolve(false);},6000);this.requests.set(requestId,{resolve,timer});this.send({type:'reserve',seatId,requestId});});}
+ forgetResume(){
+  sessionStorage.removeItem(RESUME_KEY);
+  sessionStorage.removeItem(ROOM_KEY);
+ }
  destroy(){this.stopped=true;clearTimeout(this.danceEndTimer);clearTimeout(this.timer);clearInterval(this.heartbeat);for(const q of this.requests.values()){clearTimeout(q.timer);q.resolve(false);}this.requests.clear();const socket=this.socket;this.socket=null;socket?.close();}
 }

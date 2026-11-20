@@ -1,0 +1,26 @@
+.ghost-table-discovery {
+ position:fixed;
+ inset:auto 0 max(84px,calc(env(safe-area-inset-bottom) + 76px));
+ width:min(350px,calc(100vw - 28px));
+ max-height:calc(100dvh - 112px);
+ margin:0 auto;
+ overflow:auto;
+ border:1px solid #b795635c;
+ border-radius:18px;
+ padding:16px;
+ background:#292017;
+ color:#f3e7cf;
+ box-shadow:0 10px 28px #150f0c80;
+}
+.ghost-table-discovery::backdrop {background:#100b081f}
+.ghost-table-discovery header {display:flex;align-items:start;justify-content:space-between;gap:12px}
+.ghost-table-number {margin:0 0 4px;color:#dbc18a;font-size:12px}
+.ghost-table-discovery h2 {margin:0;font-size:17px;line-height:1.4}
+.ghost-table-summary {margin:10px 0 12px;color:#e1d3bc;font-size:13px;line-height:1.5}
+.ghost-table-dismiss,.ghost-table-primary {min-height:44px;border-radius:10px;font-weight:700}
+.ghost-table-dismiss {width:44px;flex:none;background:#ffffff12;font-size:19px}
+.ghost-table-dismiss:hover {background:#ffffff22}
+.ghost-table-primary {width:100%;background:#e5c88d;color:#2b2218;font-size:14px}
+.ghost-table-primary:not(:disabled):hover {background:#f4d9a6}
+
+.ghost-table-secondary{display:block;margin:8px auto 0;min-height:44px;background:transparent;text-decoration:underline}

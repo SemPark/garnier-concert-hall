@@ -52,7 +52,18 @@
         <div class="section-head">
           <h2 id="summary-heading">한눈에 보기</h2>
         </div>
-        <div id="summary" class="quick-grid" aria-busy="true"></div>
+        <div id="summary" aria-busy="true">
+          <div id="primary-metrics" class="quick-grid primary-metrics"></div>
+          <div id="supporting-metrics" class="quick-grid"></div>
+        </div>
+      </section>
+      <section class="section panel explanation" aria-labelledby="explanation-heading">
+        <div class="section-head">
+          <h2 id="explanation-heading">관객 경험과 운영 판단</h2>
+          <button class="refresh" id="explain" type="button" disabled>Codex로 분석</button>
+        </div>
+        <p id="explanation-status" class="panel-meta" role="status">지표를 조회하는 중입니다.</p>
+        <div id="explanation-text" class="explanation-text" aria-live="polite"></div>
       </section>
       <section id="reports" class="section" aria-labelledby="reports-heading">
         <div class="section-head">

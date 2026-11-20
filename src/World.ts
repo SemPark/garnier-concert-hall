@@ -1,5 +1,5 @@
-import {activeHighFive,canHighFive,USHER_HIGH_FIVE_ID,withinHighFiveReach,type HighFivePosition,type HighFiveTarget} from '../shared/highFive';
-import {highFivePose,type HighFivePose} from './character/highFivePose';
+import {activeHighFive,canHighFive,HIGH_FIVE_CONTACT_MS,HIGH_FIVE_MS,USHER_HIGH_FIVE_ID,withinHighFiveReach,type HighFivePosition,type HighFiveTarget} from '../shared/highFive';
+import {highFivePoses,type HighFivePose} from './character/highFivePose';
 import {DanceCircles} from './scene/DanceCircles';
 import {JAZZ_HALL} from '../shared/hallKind';
 import {danceNpc,dancePose,duetCameraFacesFront,DANCE_JOIN_RADIUS,SOLO_DANCES,type DanceCommand} from '../shared/dance';
@@ -9,7 +9,7 @@ import {QueenWand} from './scene/QueenWand';
 import type {TarotCard} from './tarot/TarotCardFrame';
 import {isMagicChair} from '../shared/magicChairConfig';
 import {MAGIC_CHAIR_SEAT,magicChairPose} from '../shared/magicChair';
-import {onTrainDeck,TRAIN_DECK,TRAIN_PLATFORM,TRAIN_PERIOD} from '../shared/encoreTrain';
+import {onTrainDeck,TRAIN_DECK,TRAIN_PLATFORM,TRAIN_PERIOD,TRAIN_SEATS} from '../shared/encoreTrain';
 import {EncoreTrain} from './scene/EncoreTrain';
 import {EncoreClock} from './scene/EncoreClock';
 import type {CameraFade} from './scene/CameraFade';
@@ -57,13 +57,16 @@ import {Avatar,musicianSits} from './character/Avatar';
 import {PET_VISITOR_GAP,type PettableAnimal} from './character/PettableAnimal';
 import {USHER,USHER_LINES} from './character/Usher';
 import {Input} from './controls/Input';
+import {availableGhostTableSeat,isGhostTable} from './ghostTableSeats';
 import {stageShow} from './orchestra/stageShow';
 /** Gestures that make applause heard in the quiet time between pieces. */
 import {ATRIUM,HALL_INNER_DOOR,GRAND_STAIR,BOX_OFFICE_APPROACH} from '../shared/grandStair';
 import {LOBBY_ENABLED} from './audio/playlist';
-import {dinnerCameraFrame,localCameraFrame} from './controls/localCamera';
+import {DINNER_CAMERA_DISTANCE,dinnerCameraFrame,localCameraFrame,rearStairCameraBlend} from './controls/localCamera';
+import {seatedStageFrame,seatedStageRail,type SeatedStageRail} from './controls/seatedStageCamera';
 import {findPath,segmentClear} from './navigation/path';
-import {DINNER_LANES_Z,DINNER_TABLES} from '../shared/dinnerTables';
+import {DINNER_LANES_Z,DINNER_TABLE_HEIGHT,DINNER_TABLES} from '../shared/dinnerTables';
+import {PARTERRE} from '../shared/parterre';
 import {GHOST_ORCHESTRA} from './orchestra/buildOrchestra';
 import {ORCHESTRA_LAYOUT,STAGE_FLOOR as ORCHESTRA_FLOOR} from './orchestra/layout';
 /** Trial ghost orchestra: one ghost at every player's place (people face −z, ghosts +z, hence the half turn). */
@@ -131,6 +134,25 @@ export class World{
   if(won)this.queenWand.receive();
   this.onChange();
  }
+ private teaPrompt:HTMLElement|null=null;
+ private readonly teaPromptPoint=new T.Vector3();
+ setTeaPrompt(element:HTMLElement|null){
+  this.teaPrompt=element;
+  this.updateTeaPrompt();
+ }
+ private updateTeaPrompt(){
+  const prompt=this.teaPrompt;
+  if(!prompt)return;
+  const table=DINNER_TABLES[TEA_TABLE-1];
+  const point=this.teaPromptPoint.set(table.x,PARTERRE.floor+DINNER_TABLE_HEIGHT+.38,table.z).project(this.camera);
+  const x=(point.x+1)/2*innerWidth,y=(1-point.y)/2*innerHeight;
+  if(point.z<-1||point.z>=1||x<36||x>innerWidth-48||y<64||y>innerHeight-132){
+   prompt.style.visibility='hidden';
+   return;
+  }
+  prompt.style.transform=`translate3d(${Math.round(x)}px,${Math.round(y)}px,0) translate(-50%,-50%)`;
+  prompt.style.visibility='visible';
+ }
  get atTeaTable(){return !!this.self&&atTeaTable(this.self);}
  get teaPouring(){return this.drink==='tea'&&this.net.now()<(this.self?.teaReadyAt??0);}
  get atQueenTable(){
@@ -142,6 +164,7 @@ export class World{
  private onMirrorSpot=false;
  private mirrorView=false;
  private mirrorHintSeen=false;
+ private trainDiscoveryDone=false;
  private nearMirrorLanding=false;
  get wishFlowerCard(){return this.venues.auditorium?.storyTableProps?.wishFlower.cardName??null;}
  get atWishTarotTable(){
@@ -152,7 +175,7 @@ export class World{
   return claim?.visitorId===this.net.selfId&&claim?.status==='seated';
  }
  openWishTarot(){
-  if(!this.atWishTarotTable||this.net.status!=='connected'||this.photoMode||this.uiObscured)return;
+  if(!this.atWishTarotTable||this.net.status!=='connected'||this.photoMode||this.uiObscured||this.storyTableExperienceBlocked)return;
   this.input.keys.clear();
   this.input.touchMove.x=this.input.touchMove.z=0;
   this.route=[];
@@ -180,7 +203,7 @@ export class World{
   this.onChange();
  }
  openQueenCardGame(){
-  if(this.zone!=='auditorium')return;
+  if(this.zone!=='auditorium'||this.storyTableExperienceBlocked)return;
   if(this.queenWand.receiving)return;
   if(this.queenWand.casting||this.queenWand.charges){
    this.onToast('마법을 다 쓰거나 지팡이를 버리면 다시 도전할 수 있어요.');
@@ -207,7 +230,10 @@ export class World{
   this.onChange();
  }
  onProgramBook:()=>void=()=>{};
- onChange:()=>void=()=>{};onToast:(message:string)=>void=()=>{};onSeatMap:()=>void=()=>{};onWardrobe:()=>void=()=>{};private wardrobeNear=false;private visitingWardrobe=false;private pendingSeat:string|null=null;private loungeTarget:string|null=null;private petVisit:{animal:PettableAnimal;route:Point[];expiresAt:number}|null=null;private pettingAnimal:PettableAnimal|null=null;private petUntil=0;private visitingBoxOffice=false;private seatWalkAt=0;
+ onArrivalGuide:()=>void=()=>{};
+ onGhostTable:(table:number)=>void=()=>{};
+ visitGuideActive=false;
+ onChange:()=>void=()=>{};onToast:(message:string)=>void=()=>{};onSeatProgress:(message:string)=>void=()=>{};onSeatMap:()=>void=()=>{};onWardrobe:()=>void=()=>{};private wardrobeNear=false;private visitingWardrobe=false;private pendingSeat:string|null=null;private loungeTarget:string|null=null;private petVisit:{animal:PettableAnimal;route:Point[];expiresAt:number}|null=null;private pettingAnimal:PettableAnimal|null=null;private petUntil=0;private visitingBoxOffice=false;private seatWalkAt=0;
  private fireworks:StageFireworks|null=null;
  private hallDust:HallDust|null=null;
  private musicLights:MusicLights|null=null;
@@ -248,7 +274,10 @@ export class World{
   // Phones start on the cool-running setting; a saved choice still wins.
   this.quality=this.mobile?'low':'balanced';
   try{this.showVisitorNames=localStorage.getItem('pleee-show-visitor-names')!=='0';}catch{/* Local storage is optional. */}
-  try{this.mirrorHintSeen=localStorage.getItem('pleee-mirror-discovery')==='1';}catch{/* Local storage is optional. */}
+  try{
+   this.mirrorHintSeen=localStorage.getItem('pleee-mirror-discovery')==='1';
+   this.trainDiscoveryDone=localStorage.getItem('pleee-train-discovery')==='1';
+  }catch{/* Local storage is optional. */}
   try{const saved=localStorage.getItem('concert-quality');if(saved==='balanced'||saved==='sharp'||saved==='low')this.quality=saved;}catch{/* Storage can be unavailable in private browsing. */}
   this.renderer=new T.WebGLRenderer({antialias:true,powerPreference:'low-power'});this.renderer.setPixelRatio(renderRatio(innerWidth,innerHeight,devicePixelRatio,this.quality,this.mobile,this.ipad));this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1;this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFShadowMap;
   const canvas=this.renderer.domElement;canvas.tabIndex=0;canvas.setAttribute('aria-label','캐릭터 뒤에서 둘러보는 플리 음악당. 바닥 클릭으로 이동하고 드래그로 둘러봅니다.');host.append(canvas);this.visitorNames=new VisitorNames(host);this.visitorNames.setVisible(this.showVisitorNames);
@@ -258,9 +287,9 @@ export class World{
   this.venues.lobby.scene.environment=this.environment.texture;this.venues.lobby.scene.environmentIntensity=.18;this.lightingPass=new LobbyLightPass(this.renderer,this.venues.lobby.scene,this.camera,bloomResolution(this.mobile,this.quality),msaaSamples(this.quality));
   this.crowds={lobby:new Ghosts(this.venues.lobby.scene)} as Record<Zone,Ghosts>;
   this.marker=new T.Mesh(new T.RingGeometry(.16,.24,24),new T.MeshBasicMaterial({color:0xe5c786,transparent:true,opacity:.8,depthWrite:false}));this.marker.rotation.x=-Math.PI/2;this.marker.visible=false;this.venues.lobby.scene.add(this.marker);
-  this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>{if(this.uiObscured)return;if(this.photoMode)this.endPhotoMode();else if(this.broadcastView)this.stopBroadcastView();else if(this.catView)this.stopCatView();else this.stand();}});
+  this.input=new Input(canvas,{click:(x,y)=>this.click(x,y),rotate:(dx,dy)=>this.rotateView(dx,dy),zoom:f=>this.zoomView(f),escape:()=>{if(this.uiObscured)return;if(this.photoMode)this.endPhotoMode();else if(this.broadcastView)this.stopBroadcastView();else if(this.catView)this.stopCatView();else if(this.seatedStageView)this.toggleConcertView();else this.stand();}});
   for(const event of ['pointerdown','pointermove','keydown','wheel'])window.addEventListener(event,()=>{const now=performance.now();this.lobbyEnteredAt=now;this.cameraInputAt=now;if(this.entered&&this.zone==='lobby'&&now-this.activitySentAt>2000){this.activitySentAt=now;this.net.send({type:'activity'});}},{passive:true,signal:this.activityEvents.signal});
-  for(const event of ['pointerdown','keydown','wheel'])window.addEventListener(event,this.skipEntranceReveal,{capture:true,passive:true,signal:this.activityEvents.signal});
+  for(const event of ['pointerdown','keydown','wheel'])window.addEventListener(event,this.interruptEntranceReveal,{capture:true,passive:true,signal:this.activityEvents.signal});
   window.addEventListener('resize',this.resize);
   canvas.addEventListener('webglcontextlost',event=>{
    event.preventDefault();
@@ -563,7 +592,24 @@ export class World{
    request.reject(new Error('사진을 저장하지 못했습니다. 다시 촬영해 주세요.'));
   }
  }
- setStageView(low:boolean){if(this.entranceViewLocked||this.zone!=='auditorium')return;this.stopBroadcastView();this.stopCatView();this.introUntil=0;this.concertView=true;this.hallOverview=false;this.stageLowView=low;this.resetCameraSway(performance.now());this.cameraYaw=0;this.cameraPitch=.13;this.hallZoom=1;this.route=[];this.marker.visible=false;this.onChange();}
+ private seatedStage:SeatedStageRail|null=null;
+ private seatedStageDolly=.38;
+ get seatedStageView(){return !!this.seatedStage&&this.concertView&&this.pose==='sit'&&!this.self?.dance;}
+ setSeatedStageView(){
+  const seat=this.self?.seatId&&DINNER_SEATS_BY_ID.get(this.self.seatId);
+  if(!seat||this.pose!=='sit'||this.self?.dance||this.conducting.active)return;
+  this.activateStageView(false,seatedStageRail(seat));
+ }
+ setStageView(low:boolean){this.activateStageView(low,null);}
+ private activateStageView(low:boolean,seated:SeatedStageRail|null){
+  if(this.entranceViewLocked||this.zone!=='auditorium')return;
+  this.revealingFirstSpace=false;this.stopBroadcastView();this.stopCatView();this.mirrorView=false;
+  this.seatedStage=seated;this.seatedStageDolly=.38;
+  this.introUntil=0;this.concertView=true;this.hallOverview=false;this.stageLowView=low;
+  this.resetCameraSway(performance.now());this.cameraYaw=0;this.cameraPitch=.13;this.hallZoom=1;
+  this.route=[];this.marker.visible=false;this.onChange();
+ }
+ private moveSeatedStage(amount:number){this.seatedStageDolly=T.MathUtils.clamp(this.seatedStageDolly+amount,0,1);}
  private broadcastCamera:BroadcastCamera|null=null;
  private renderedBroadcastShotAt:number|undefined;
  private broadcastEventGhosts:GhostSpot[]=[];
@@ -596,6 +642,16 @@ export class World{
   this.onChange();
  }
  openHall=false;
+ private revealingFirstSpace=false;
+ private spaceFullyOpenedAt:number|null=null;
+ private spaceOverviewReturning=false;
+ private spaceOverviewCut=false;
+ // A centered view near the stalls keeps the stage and planets in the same frame.
+ private readonly spaceOverviewEye=new T.Vector3(0,4,36);
+ private readonly spaceOverviewLook=new T.Vector3(0,4.2,STAGE.back);
+ private readonly cameraOcclusionTarget=new T.Vector3();
+ get spaceRevealRunning(){return this.revealingFirstSpace;}
+ get spaceOverviewReady(){return this.revealingFirstSpace&&this.spaceFullyOpenedAt!==null&&!this.spaceOverviewReturning;}
  private lunarStride=0;
  private lunarLift=0;
  private lunarVelocity=new T.Vector3();
@@ -608,22 +664,33 @@ export class World{
   try{localStorage.setItem('pleee-galaxies-'+(this.mobile?'mobile':'desktop'),JSON.stringify({...settings,layoutVersion:2}));}catch{/* Storage may be unavailable. */}
   this.onChange();
  }
+ get openHallProgress():number{return this.venues.auditorium?.scene.userData.openHallProgress??0;}
+ get spaceTransitioning(){return this.openHall?this.openHallProgress<1:this.openHallProgress>0;}
  get spaceVisible(){return this.openHall||(this.venues.auditorium?.scene.userData.openHallProgress??0)>0;}
- toggleOpenHall(){
+ toggleOpenHall(revealFirstSpace=false){
   if(this.zone!=='auditorium')return;
   const scene=this.venue.scene,upper=scene.userData.upperArchitecture;
   if(!upper)return;
   this.openHall=!this.openHall;
+  this.revealingFirstSpace=this.openHall&&revealFirstSpace;
+  // Cut to the fixed shot if easing there would move the camera through a partition.
+  this.spaceOverviewCut=this.revealingFirstSpace&&(this.reduced||
+   constrainCamera(this.camera.position,this.spaceOverviewEye,this.venue.cameraWalls).distanceToSquared(this.spaceOverviewEye)>.001);
+  this.spaceOverviewReturning=false;
+  this.spaceFullyOpenedAt=null;
   scene.userData.hallTransition.setOpen(this.openHall,this.galaxySettings);
   this.onChange();
+  return this.openHall;
  }
  showHallOverview(){
   if(this.entranceViewLocked||this.zone!=='auditorium')return;
+  this.revealingFirstSpace=false;
   this.stopBroadcastView();
   this.introUntil=0;
   this.introEase=0;
   this.concertView=true;
   this.hallOverview=true;
+  this.seatedStage=null;
   this.cameraYaw=0;
   this.cameraPitch=.13;
   this.cameraDistance=4.8;
@@ -631,7 +698,12 @@ export class World{
   this.snapCamera();
   this.onChange();
  }
- toggleConcertView(){this.stopBroadcastView();if(this.entranceViewLocked)return;this.introUntil=0;this.concertView=!this.concertView;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.onChange();}
+ toggleConcertView(){
+  this.stopBroadcastView();if(this.entranceViewLocked)return;
+  const fromSeatedStage=this.seatedStageView;
+  this.seatedStage=null;this.revealingFirstSpace=false;this.introUntil=0;this.concertView=!this.concertView;
+  this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=fromSeatedStage?DINNER_CAMERA_DISTANCE:4.8;this.hallZoom=1;this.onChange();
+ }
  setDiagnosticActive(active:boolean){
   this.diagnosticActive=active;
   this.resize();
@@ -671,6 +743,9 @@ export class World{
   const wasRiding=this.ridingTrain;const self=state.visitors.find(v=>v.id===this.net.selfId);if(self){const initial=!this.self,changedZone=this.zone!==self.zone,stood=this.pose==='sit'&&self.pose!=='sit',satDown=this.pose!=='sit'&&self.pose==='sit';const previousDance=this.self?.dance;
    if(this.gesture==='wave'&&self.highFive?.at===self.gestureAt&&self.highFive.at!==this.self?.highFive?.at)this.gesture=null;
    this.self=self;
+   if(this.seatedStage&&(self.zone!=='auditorium'||self.pose!=='sit'||self.seatId!==this.seatedStage.seat.id)){
+    this.seatedStage=null;this.concertView=false;
+   }
    if(this.predictedSolo&&(!self.dance||self.dance.partnerId||self.dance.endingAt!==undefined
     ||self.dance.startedAt!==this.predictedSolo.dance?.startedAt
     ||(self.dance.style===this.predictedSolo.dance?.style&&self.dance.moveStartedAt!==previousDance?.moveStartedAt))){
@@ -707,7 +782,7 @@ export class World{
     if(self.pose==='sit'&&!initial&&!changedZone)this.seatedTarget=new T.Vector3(self.x,self.y??SEATS.find(s=>s.id===self.seatId)?.y??0,self.z);
     else{this.position.set(self.x,self.y??(self.pose==='sit'?(SEATS.find(s=>s.id===self.seatId)?.y??0):0),self.z);this.seatedTarget=null;}
     this.yaw=self.yaw;this.pose=self.pose;
-    if(initial||changedZone){this.catView=false;this.pendingDanceView=false;this.clearPetInteraction();this.cameraSeatAmount=self.pose==='sit'?1:0;this.zone=self.zone;this.lobbyEnteredAt=self.zone==='lobby'?performance.now():0;if(self.zone==='auditorium')this.stopHallLoading();
+    if(initial||changedZone){this.catView=false;this.pendingDanceView=false;this.clearPetInteraction();this.cameraSeatAmount=self.pose==='sit'?1:0;this.zone=self.zone;this.lobbyEnteredAt=self.zone==='lobby'?performance.now():0;
      // Enter beside the usher so the welcome is visible from the first hall frame.
      if(self.zone==='auditorium'){this.concertView=false;this.hallOverview=true;this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.hallZoom=1;this.introUntil=0;this.seatWalkAt=0;this.usherGreetingPending=true;}else{this.introUntil=0;this.seatWalkAt=0;}
      this.entranceFraming=self.zone==='auditorium'&&self.pose!=='sit'&&underEntranceRoof(this.position);
@@ -725,21 +800,28 @@ export class World{
     if(self.pose==='sit'){
      this.route=[];this.seating=false;this.marker.visible=false;
      if(satDown){
+      this.setSeatProgress('');
       this.concertView=false;this.hallZoom=1;
       this.resetCameraSway(performance.now());
       if(self.zone==='auditorium'&&self.seatId&&DINNER_SEATS_BY_ID.has(self.seatId)){
-       this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.4;
+       this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=DINNER_CAMERA_DISTANCE;
       }
      }
     }
    }
    if(this.ridingTrain){
+    this.rememberTrainDiscovery();
     this.seatedTarget=null;this.route=[];this.entranceFraming=false;this.introUntil=0;this.concertView=false;
     this.encoreTrain?.update(this.net.now()/1000,true,this.reduced);
     if(this.encoreTrain)this.yaw=this.encoreTrain.seat(self.trainSeat!,this.position);
     if(!wasRiding){this.cameraYaw=Math.PI;this.cameraPitch=.08;this.cameraDistance=3.8;this.updatePhotoLens();this.snapCamera();this.onToast('앙코르 열차에 탔어요. 드래그해서 둘러보세요.');}
    }else if(wasRiding){this.seatedTarget=null;this.position.set(self.x,self.y??0,self.z);this.cameraYaw=0;this.cameraPitch=.13;this.cameraDistance=4.8;this.updatePhotoLens();this.snapCamera();this.onToast('2층 뒤 승강장에 내렸어요.');}
-   if(this.reservedSeat&&state.seats[this.reservedSeat]?.visitorId!==self.id){this.route=[];this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
+   if(this.reservedSeat&&state.seats[this.reservedSeat]?.visitorId!==self.id){
+    const interrupted=!!this.seatProgress;
+    this.route=[];this.reservedSeat=null;this.seating=false;this.marker.visible=false;
+    this.setSeatProgress('');
+    if(interrupted)this.onToast('예약한 좌석을 사용할 수 없어요. 다른 빈 의자를 눌러 주세요.');
+   }
   }
   const ids=new Set(state.visitors.filter(v=>v.id!==this.net.selfId).map(v=>v.id));for(const [id,r]of this.remotes)if(!ids.has(id)){r.avatar.root.removeFromParent();this.remotes.delete(id);}
   for(const v of state.visitors){if(v.id===this.net.selfId)continue;let r=this.remotes.get(v.id);if(r&&(r.avatar.variant!==visitorVariant(v)||r.avatar.outfit!==v.outfit)){r.avatar.root.removeFromParent();this.remotes.delete(v.id);r=undefined;}if(!r){const avatar=new Avatar(visitorColor(v),undefined,visitorVariant(v),v.outfit);avatar.root.position.set(v.x,v.y??0,v.z);r={avatar,visitor:v,lastPosition:avatar.root.position.clone(),zone:v.zone,poseAt:0};this.remotes.set(v.id,r);}if(v.zone===this.zone&&v.gesture&&v.gestureAt>r.visitor.gestureAt){if(v.gesture==='clap')this.audio.clap(.6);else if(v.gesture==='bravo')this.audio.bravo(.6);}r.visitor=v;
@@ -844,37 +926,99 @@ export class World{
   if(!path){this.onToast('공연장 문으로 가는 통로를 찾지 못했어요.');return;}
   this.cancelSeat();this.pendingSeat=seatId;this.route=path;this.marker.position.set(target.x,target.y+.035,target.z);this.marker.visible=true;this.onToast('공연장 문까지 걸어갑니다.');
  }
+ private get storyTableExperienceBlocked(){
+  return this.visitGuideActive||this.hallLoading||this.changingZone||this.entranceRevealAt!==null||this.spaceTransitioning;
+ }
+ private get canDiscoverGhostTable(){
+  return this.zone==='auditorium'&&this.entered&&this.net.status==='connected'&&!this.storyTableExperienceBlocked
+   &&!this.photoMode&&!this.broadcastView&&!this.catView&&!this.ridingTrain&&!this.conducting.active&&!this.self?.dance;
+ }
+ async chooseGhostTableSeat(table:number){
+  if(!this.canDiscoverGhostTable)return false;
+  if(this.pose==='sit'&&SEATS.some(seat=>seat.id===this.self?.seatId&&seat.row===table&&isGhostTable(table)))return true;
+  const seat=availableGhostTableSeat(table,this.net.state?.seats??{},this.net.selfId);
+  if(!seat)return false;
+  return this.chooseSeat(seat.id);
+ }
  async chooseSeat(id:string,direct=false){
-  if(this.zone!=='auditorium'||!this.entered)return;const seat=SEATS.find(s=>s.id===id);if(!seat)return;
+  if(this.zone!=='auditorium'||!this.entered)return false;const seat=SEATS.find(s=>s.id===id);if(!seat)return false;
+  if(this.seatProgress){this.cancelSeat();this.route=[];}
+  if(this.net.status!=='connected'){this.onToast('음악당에 다시 연결되면 빈 의자를 눌러 주세요.');return false;}
+  const label=seatLabel(seat),claim=this.net.state?.seats[id];
+  if(claim&&claim.visitorId!==this.net.selfId){this.onToast(`${label}에 다른 관객이 앉아 있거나 이동 중이에요.`);return false;}
   this.stopBroadcastView();
   // Already seated: stand up and head straight to the new seat.
   if(this.pose==='sit')this.stand();
-  const path=findPath(this.zone,{x:this.position.x,y:this.position.y,z:this.position.z},seat.approach);
+  const path=direct?null:findPath(this.zone,{x:this.position.x,y:this.position.y,z:this.position.z},seat.approach);
   // There are no stairs: a seat on the other floor is reached by jumping to that floor first, then walking.
   if(!path&&!direct){const upper=seat.level==='balcony',here=this.position.y>GOLDEN_HALL.balconyHeight-1;
-   if(upper!==here){this.floorSeat=id;this.goToHallPoint(upper?'upper':'rear');return;}
-   this.onToast('이 좌석으로 가는 길을 찾지 못했어요.');return;}
-  this.cancelSeat();const version=++this.reserveVersion,requestId=newId();const ok=await this.net.reserve(id,requestId);if(version!==this.reserveVersion){this.net.send({type:'release',requestId});return;}
-  if(!ok){this.net.send({type:'release',requestId});return;}this.reservedSeat=id;this.concertView=false;this.cameraYaw=0;this.seating=false;this.route=path??[seat.approach];this.renewAt=performance.now();this.marker.visible=true;this.marker.position.set(seat.approach.x,seat.y+.035,seat.approach.z);
+   if(upper!==here){this.floorSeat=id;this.goToHallPoint(upper?'upper':'rear');return true;}
+   this.onToast(`${label}까지 가는 길을 찾지 못했어요. 가까운 통로로 이동한 뒤 다시 눌러 주세요.`);return false;}
+  this.cancelSeat();this.route=[];
+  const version=++this.reserveVersion,requestId=newId();
+  this.setSeatProgress(`좌석을 확인하고 있어요. ${label}`);
+  const ok=await this.net.reserve(id,requestId);
+  if(version!==this.reserveVersion){this.net.send({type:'release',requestId});return false;}
+  if(!ok){
+   this.setSeatProgress('');this.net.send({type:'release',requestId});
+   if(this.net.status!=='connected')this.onToast('연결이 끊겼어요. 다시 연결되면 빈 의자를 눌러 주세요.');
+   return false;
+  }
+  this.reservedSeat=id;this.concertView=false;this.cameraYaw=0;this.seating=false;this.route=path?.length?path:[seat.approach];this.renewAt=performance.now();this.marker.visible=true;this.marker.position.set(seat.approach.x,seat.y+.035,seat.approach.z);
   // Chosen on the seat map: appear in front of the seat and sit at once, no walk across the hall.
   if(direct&&!this.candle)this.net.send({type:'candle',state:'on'});
-  if(direct){this.position.set(seat.approach.x,seat.approach.y??seat.y,seat.approach.z);this.route=[seat.approach];this.marker.visible=false;this.sentAt=0;this.onToast(`${seatLabel(seat)}에 앉아요.`);}else this.onToast(`${seatLabel(seat)}까지 걸어가요.`);
+  if(direct){this.position.set(seat.approach.x,seat.approach.y??seat.y,seat.approach.z);this.marker.visible=false;this.sentAt=0;}
+  this.setSeatProgress(direct?`${label}에 앉는 중이에요.`:`${label}까지 걸어가고 있어요.`);
+  return true;
  }
  get ridingTrain(){return this.zone==='auditorium'&&this.self?.trainSeat!==undefined;}
  toggleTrain(){
   if(this.ridingTrain)this.stand();
   else this.boardTrain(true);
  }
+ private trainApproachCache:{from:Point;path:Point[]|null}|null=null;
+ private trainApproach(){
+  const {x,y,z}=this.position,cached=this.trainApproachCache;
+  if(cached&&cached.from.x===x&&cached.from.y===y&&cached.from.z===z)return cached.path;
+  const from={x,y,z};
+  const target={x:TRAIN_PLATFORM.x,y:TRAIN_PLATFORM.y+TRAIN_DECK.height,z:TRAIN_DECK.z};
+  const path=findPath(this.zone,from,target);
+  this.trainApproachCache={from,path};
+  return path;
+ }
+ get trainDiscoveryAction(){
+  if(this.trainDiscoveryDone||this.zone!=='auditorium'||!this.entered||this.hallLoading
+   ||this.changingZone||this.net.status!=='connected'||this.ridingTrain||this.pose==='sit'||this.self?.dance
+   ||this.entranceViewLocked||this.photoMode||this.concertView||this.broadcastView||this.catView||this.mirrorView||this.spaceTransitioning
+   ||this.visitGuideActive
+   ||this.uiObscured||this.conducting.active||this.pettingAnimal||this.petVisit||this.wishing
+   ||this.self&&this.highFives.has(this.self.id)
+   ||this.queenWand.casting||this.queenWand.receiving||this.seatProgress||this.dishMenu
+   ||this.position.y<TRAIN_PLATFORM.y-.3||this.boardingRoute===this.route)return null;
+  const full=(this.net.state?.visitors??[]).filter(v=>v.zone==='auditorium'&&v.trainSeat!==undefined).length>=TRAIN_SEATS;
+  if(full||!this.encoreTrain?.isVisibleFrom(this.camera,this.venue.cameraWalls))return null;
+  return onTrainDeck(this.position)?'board':this.trainApproach()?.length?'approach':null;
+ }
+ activateTrainDiscovery(){
+  if(!this.trainDiscoveryAction)return;
+  this.boardTrain();
+  this.onChange();
+ }
+ private rememberTrainDiscovery(){
+  if(this.trainDiscoveryDone)return;
+  this.trainDiscoveryDone=true;
+  try{localStorage.setItem('pleee-train-discovery','1');}catch{/* Keep the state for this visit. */}
+ }
+ dismissTrainDiscovery(){this.rememberTrainDiscovery();this.onChange();}
  private boardingRoute:Point[]|null=null;
  private boardTrain(direct=false){
   if(this.ridingTrain)return;
   if(this.zone!=='auditorium'||!this.entered||this.net.status!=='connected')return;
   this.stopBroadcastView();
   if(!direct&&!onTrainDeck(this.position)){
-   const target={x:TRAIN_PLATFORM.x,y:TRAIN_PLATFORM.y+TRAIN_DECK.height,z:TRAIN_DECK.z};
-   const path=findPath(this.zone,this.position,target);
+   const path=this.trainApproach();
    if(!path||this.pose==='sit'){this.onToast('2층 승강장으로 이동한 뒤 눌러 주세요.');return;}
-   this.cancelSeat();this.route=path;this.boardingRoute=path;
+   this.cancelSeat();this.route=path.slice();this.boardingRoute=this.route;
    return;
   }
   this.endPhotoMode();this.cancelSeat();this.route=[];this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;
@@ -887,6 +1031,7 @@ export class World{
   if(this.pose==='sit'||this.reservedSeat){
    const seat=this.self?.loungeSeatId?LOUNGE_SEATS.find(s=>s.id===this.self?.loungeSeatId):SEATS.find(s=>s.id===(this.self?.seatId??this.reservedSeat));
    if(this.pose==='sit'&&seat){const point=freeVisitorPosition(this.zone,seat.approach);if(!point){this.onToast('일어설 위치를 찾지 못했어요.');return;}this.position.set(point.x,point.y??0,point.z);}
+   if(this.seatedStage){this.seatedStage=null;this.concertView=false;}
    this.net.send({type:'release'});this.pose='idle';
   }
   this.cancelSeat();this.route=[];this.onChange();
@@ -921,6 +1066,7 @@ export class World{
  /** Seat to walk to once a floor jump lands (chosen on the other floor). */
  private floorSeat:string|null=null;
  finishHallMove(point:{x:number;y:number;z:number}){
+  this.revealingFirstSpace=false;this.seatedStage=null;
   this.stopBroadcastView();
   this.cancelSeat();this.pose='idle';this.seatedTarget=null;this.position.set(point.x,point.y,point.z);this.yaw=0;
   this.lunarStride=this.lunarLift=0;
@@ -933,7 +1079,13 @@ export class World{
  }
  /** Floor menu: jump straight to the rear gallery (2F) or back down to the rear of the stalls (1F). */
  goToGallery(){if(this.zone!=='auditorium')return;this.goToHallPoint(this.position.y<GOLDEN_HALL.balconyHeight-.3?'upper':'rear');}
- private cancelSeat(keepPending=false){this.stopCatView();this.visitingCafe=false;this.clearPetInteraction();this.visitingBoxOffice=false;this.visitingWardrobe=false;this.loungeTarget=null;if(!keepPending){this.pendingSeat=null;this.seatWalkAt=0;}this.reserveVersion++;if(this.reservedSeat)this.net.send({type:'release'});this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
+ private seatProgress='';
+ private setSeatProgress(message:string){
+  if(this.seatProgress===message)return;
+  this.seatProgress=message;
+  this.onSeatProgress(message);
+ }
+ private cancelSeat(keepPending=false){this.setSeatProgress('');this.stopCatView();this.visitingCafe=false;this.clearPetInteraction();this.visitingBoxOffice=false;this.visitingWardrobe=false;this.loungeTarget=null;if(!keepPending){this.pendingSeat=null;this.seatWalkAt=0;}this.reserveVersion++;if(this.reservedSeat)this.net.send({type:'release'});this.reservedSeat=null;this.seating=false;this.marker.visible=false;}
  /** Wardrobe changes happen in front of the cloakroom, then travel with the visitor into the hall. */
  visitWardrobe(){
   if(this.zone!=='lobby'||!this.entered||this.net.status!=='connected')return;
@@ -952,7 +1104,9 @@ export class World{
  /** One drag rule for every view. */
  get entranceViewLocked(){return this.entered&&this.entranceFraming&&this.zone==='auditorium'&&this.pose!=='sit'&&underEntranceRoof(this.position);}
  rotateView(dx:number,dy:number){
+  this.revealingFirstSpace=false;
   if(this.broadcastView||this.catView)return;
+  this.skipEntranceReveal();
   this.danceCameraGlide=false;this.duetCameraOrbit=null;
   this.mirrorView=false;
   if(this.photoMode){
@@ -960,6 +1114,10 @@ export class World{
    this.photoYaw-=dx*scale;
    this.photoPitch=T.MathUtils.clamp(this.photoPitch-dy*(1.6/Math.max(320,this.renderer.domElement.clientHeight)),-.5,.65);
    this.snapCamera();
+   return;
+  }
+  if(this.seatedStageView&&!this.conducting.active){
+   if(dy){this.dragAt=performance.now();this.moveSeatedStage(1.8*dy/Math.max(320,this.renderer.domElement.clientHeight));}
    return;
   }
   // Reverse both drag axes consistently in the lobby, walking, seated and overview views.
@@ -974,6 +1132,7 @@ export class World{
  }
  private get firstPerson(){return !this.broadcastView&&!this.catView&&!this.self?.dance&&!this.ridingTrain&&this.entered&&!this.conducting.active&&!(this.zone==='auditorium'&&this.concertView)&&this.cameraDistance<=FIRST_PERSON_ZOOM;}
  zoomView(f:number){
+  this.revealingFirstSpace=false;
   if(this.broadcastView||this.catView)return;
   this.danceCameraGlide=false;
   this.mirrorView=false;
@@ -987,6 +1146,7 @@ export class World{
    this.cameraDistance=T.MathUtils.clamp(this.cameraDistance*f,1.8,12);
    return;
   }
+  if(this.seatedStageView&&!this.conducting.active){this.moveSeatedStage(.8*Math.log(f));return;}
   if(this.entranceViewLocked)return;
   if(this.zone==='auditorium'&&this.concertView){
    const maxZoom=this.hallOverview?1:this.stageLowView?(GOLDEN_HALL.rear-2+23)/21:1.6;
@@ -1039,7 +1199,13 @@ export class World{
  openDishMenu(){if(!this.atDinnerTable)return;this.dishMenu=true;this.onChange();}
  closeDishMenu(){this.dishMenu=false;this.onChange();}
  get drink(){return this.net.state?.visitors.find(v=>v.id===this.net.selfId)?.drink;}
- orderDish(dish:Dish){if(!this.atDinnerTable||(isDrink(dish)?this.drink:this.dish))return;this.net.send({type:'dish',dish});this.dishMenu=false;this.onChange();}
+ orderDish(dish:Dish,keepMenuOpen=false){
+  if(!this.atDinnerTable)return;
+  const unavailable=dish==='tea'?(!this.atTeaTable||this.spaceTransitioning||this.drink==='tea'):isDrink(dish)?!!this.drink:!!this.dish;
+  if(unavailable||!this.net.send({type:'dish',dish}))return;
+  this.dishMenu=keepMenuOpen;
+  this.onChange();
+ }
  /** Throw away whatever food and drink is on the table. */
  clearDishes(){if(this.dish||this.drink)this.net.send({type:'clearDish'});}
  private dinnerDishes=new WeakMap<T.Scene,DinnerDishes>();
@@ -1059,6 +1225,7 @@ export class World{
   layer.update(carriers,this.reduced?0:now/1000);
  }
  private readonly highFives=new Map<string,HighFivePose>();
+ private readonly playedHighFives=new Map<string,number>();
  private *highFiveNpcs():Generator<HighFivePosition&{id:string}>{
   if(this.zone!=='auditorium')return;
   for(const ghost of this.ghostBuffer)if(!ghost.angel)yield ghost;
@@ -1093,6 +1260,9 @@ export class World{
  }
  private updateHighFives(now:number){
   this.highFives.clear();
+  for(const [id,at] of this.playedHighFives)if(now-at>=HIGH_FIVE_MS)this.playedHighFives.delete(id);
+  const holdingCoffeeAlone=this.zone==='lobby'&&this.coffee&&!this.macaron&&!this.wishFlowerCard;
+  const usesLeftHand=(id:string)=>id===USHER_HIGH_FIVE_ID||id===this.net.selfId&&holdingCoffeeAlone;
   const positionOf=(visitor:Visitor):HighFivePosition=>{
    const p=visitor.id===this.net.selfId?this.position:this.remotes.get(visitor.id)?.avatar.root.position??visitor;
    return {x:p.x,y:p.y,z:p.z,sitting:visitor.pose==='sit'};
@@ -1109,17 +1279,24 @@ export class World{
     if(partner?.zone===this.zone&&canHighFive(partner,now))to=positionOf(partner);
    }
    if(!to||!withinHighFiveReach(this.zone,from,to))continue;
-   const age=(now-event.at)/1000;
-   this.highFives.set(visitor.id,highFivePose(from,to,age,this.reduced));
-   this.highFives.set(event.id,highFivePose(to,from,age,this.reduced));
+   const elapsed=now-event.at,age=elapsed/1000;
+   if(elapsed>=HIGH_FIVE_CONTACT_MS&&elapsed<HIGH_FIVE_CONTACT_MS+170&&this.playedHighFives.get(visitor.id)!==event.at){
+    this.playedHighFives.set(visitor.id,event.at);
+    const own=visitor.id===this.net.selfId||event.id===this.net.selfId;
+    const gain=own?1:.55*Math.max(0,1-Math.min(distance(this.position,from),distance(this.position,to))/12);
+    this.audio.highFive(gain);
+   }
+   const [senderPose,targetPose]=highFivePoses(from,to,age,this.reduced,usesLeftHand(visitor.id)?'left':'right',usesLeftHand(event.id)?'left':'right');
+   this.highFives.set(visitor.id,senderPose);
+   this.highFives.set(event.id,targetPose);
   }
  }
- gestureAction(gesture:Gesture){if(this.self?.dance||gesture==='wave'&&this.self&&this.highFives.has(this.self.id))return;const me=this.net.state?.visitors.find(v=>v.id===this.net.selfId);if((gesture==='eat'||gesture==='drink')&&(this.gesture==='eat'||this.gesture==='drink')&&this.net.now()-this.gestureAt<3200)return;
+ gestureAction(gesture:Gesture,usherLesson=false){if(this.self?.dance||gesture==='wave'&&this.self&&this.highFives.has(this.self.id))return false;const me=this.net.state?.visitors.find(v=>v.id===this.net.selfId);if((gesture==='eat'||gesture==='drink')&&(this.gesture==='eat'||this.gesture==='drink')&&this.net.now()-this.gestureAt<3200)return;
   if(gesture==='drink'&&this.teaPouring)return;
   if(gesture==='drink'){if(this.zone==='auditorium'?!me?.drink||(me.drinkSips??0)>=DISH_BITES||me.drinkEmptyAt:!me?.coffee||(me.coffeeSips??0)>=3)return;}
   if(gesture==='eat'&&(me?.dish?(me.dishBites??0)>=DISH_BITES||me.dishEmptyAt:!me?.macaron||me.macaronEmptyAt||(me.macaronBites??0)>=2))return;
   this.lobbyEnteredAt=performance.now();this.gesture=gesture;this.gestureAt=this.net.now();this.gestureCameraTurn=null;
-  const highFive=gesture==='wave'?this.nearestHighFive(this.gestureAt):undefined;
+  const highFive=gesture==='wave'&&!usherLesson?this.nearestHighFive(this.gestureAt):undefined;
   if(highFive&&!highFive.npc)this.sendPosition(this.lobbyEnteredAt,true);
   this.net.send({type:'gesture',gesture,highFive});if(gesture==='clap')this.audio.clap();else if(gesture==='bravo')this.audio.bravo();
   if(this.entered&&(gesture==='wave'||gesture==='bow')){
@@ -1129,7 +1306,8 @@ export class World{
     usher.greet(this.lobbyEnteredAt/1000,'반가워요. 편하게 공연을 즐겨 주세요.');
    }
   }
-  }
+  return true;
+ }
  private pendingDanceView=false;
  private keepDanceView=false;
  private beforeDanceCamera:{cameraYaw:number;cameraPitch:number;cameraDistance:number}|null=null;
@@ -1283,7 +1461,22 @@ export class World{
   this.selectedDanceHost=host.id;
   return true;
  }
- private click(x:number,y:number){if(!this.entered||this.photoMode||this.uiObscured||this.broadcastView)return;if(this.self?.dance)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
+ /** Only an unobstructed tablecloth can offer discovery. Existing scene controls take the click first. */
+ private offerGhostTable(maxDistance:number){
+  const tables=this.venue.dinnerTables;
+  if(!tables||!this.canDiscoverGhostTable)return false;
+  const hit=this.ray.intersectObject(tables,false)[0];
+  if(!hit||hit.distance>maxDistance||hit.instanceId===undefined)return false;
+  const table=DINNER_TABLES[hit.instanceId];
+  if(!table||!isGhostTable(table.id))return false;
+  this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;
+  this.onGhostTable(table.id);
+  return true;
+ }
+ private click(x:number,y:number){if(!this.entered||this.photoMode||this.uiObscured||this.broadcastView||this.seatedStageView)return;if(this.self?.dance)return;const rect=this.renderer.domElement.getBoundingClientRect();this.ndc.set((x-rect.left)/rect.width*2-1,-(y-rect.top)/rect.height*2+1);this.ray.setFromCamera(this.ndc,this.camera);
+  // The seat ray uses the displayed framing before the entrance camera snaps back.
+  const revealingEntrance=this.entranceRevealAt!==null;
+  this.skipEntranceReveal();
   if(this.catView){
    const cat=this.activeCat;
    if(cat&&this.ray.intersectObjects(cat.targets).length)this.visitAnimal(cat);
@@ -1293,6 +1486,7 @@ export class World{
   this.selectedDanceHost=null;
   const hits=this.ray.intersectObjects([...(this.zone==='auditorium'?this.encoreTrain?.targets??[]:[]),...(this.venue.usher?.targets??[]),...(this.venue.portrait?[this.venue.portrait.surface]:[]),...(this.dishLayer()?.targets??[]),...(this.activeCat?.targets??[]),...this.venue.dog.targets,...(this.venue.stairArrows?.targets??[]),...this.venue.seatTargets,this.venue.portal,...this.venue.walkTargets],true);
   const hit=hits[0];
+  if(!revealingEntrance&&this.offerGhostTable(hit?.distance??Infinity))return;
   if(!hit)return;
   if(hit.object.userData.trainSeat!==undefined){if(this.ridingTrain)this.net.send({type:'trainBoard',seat:hit.object.userData.trainSeat});return;}
   if(this.ridingTrain)return;
@@ -1323,7 +1517,15 @@ export class World{
   if(this.zone==='auditorium'&&Math.abs(point.y??0)<.4&&point.z<STAGE_APRON_Z&&point.z>STAGE_APRON_Z-3)point.z=STAGE_APRON_Z+.3;
   // A tap beside a chair or table lands on furniture clearance: walk to the nearest free spot instead.
   if(!walkable(this.zone,point))for(let r=.15;r<=1.5&&!walkable(this.zone,point);r+=.15)for(let k=0;k<16;k++){const a=k/16*Math.PI*2,p={x:hit.point.x+Math.cos(a)*r,y:point.y,z:hit.point.z+Math.sin(a)*r};if(walkable(this.zone,p)){point.x=p.x;point.z=p.z;break;}}
-  const path=findPath(this.zone,{x:this.position.x,y:this.position.y,z:this.position.z},point);if(!path){this.onToast('통로나 빈 바닥을 선택해 주세요.');return;}this.cancelSeat();this.route=path;this.marker.position.set(point.x,(point.y??0)+.035,point.z);this.marker.visible=true;
+  const path=findPath(this.zone,{x:this.position.x,y:this.position.y,z:this.position.z},point);
+  if(!path){this.onToast('통로나 빈 바닥을 선택해 주세요.');return;}
+  this.cancelSeat();this.route=path;this.marker.position.set(point.x,(point.y??0)+.035,point.z);this.marker.visible=path.length>0;
+  if(path.length&&this.zone==='auditorium'){
+   const fromEntrance=this.entranceViewLocked&&point.z<this.position.z-1&&point.z>STAGE_APRON_Z+1;
+   const nearChair=this.venue.seatTargets.some(({position})=>Math.abs(position.y-(point.y??0))<1.2
+    &&Math.hypot(position.x-hit.point.x,position.z-hit.point.z)<.85);
+   if(fromEntrance||nearChair)this.onToast('객석으로 이동해요. 가까이에서 빈 의자를 다시 눌러 주세요.');
+  }
  }
  /** Give the roaming lobby pets space as visitors walk past. */
  private visitorStepClear(target:Point){
@@ -1337,7 +1539,11 @@ export class World{
   if(this.visitorStepClear(target)){this.position.set(target.x,target.y??0,target.z);return;}
   // Wait for the occupied route to clear; steering sideways can leave a stair flight.
  }
- correctMove(point:{x:number;y:number;z:number}){if(this.pose==='sit')return;this.position.set(point.x,point.y,point.z);this.pose='idle';this.route=[];this.marker.visible=false;this.collisionPauseUntil=performance.now()+350;this.sentAt=performance.now();}
+ correctMove(point:{x:number;y:number;z:number}){
+  if(this.pose==='sit')return;
+  this.position.set(point.x,point.y,point.z);this.pose='idle';this.route=[];this.marker.visible=false;this.collisionPauseUntil=performance.now()+350;this.sentAt=performance.now();
+  if(this.reservedSeat&&this.seatProgress){this.cancelSeat();this.onToast('좌석까지 이동하지 못했어요. 빈 의자를 다시 눌러 주세요.');}
+ }
  private sendPosition(now:number,force=false){if(this.self?.dance)return;if(this.ridingTrain||!this.entered||!this.self||this.pose==='sit')return;if(force||now-this.sentAt>(this.pose==='walk'?100:300)||this.lastPose!==this.pose){this.sentAt=now;this.lastPose=this.pose;this.net.send({type:'move',x:this.position.x,y:this.position.y,z:this.position.z,yaw:this.yaw,pose:this.pose});}}
  startConducting(){if(this.zone!=='auditorium'||!this.ready||this.entranceViewLocked)return;this.stopBroadcastView();this.conductView=this.concertView;this.concertView=true;this.route=[];this.pendingSeat=null;this.introUntil=0;this.input.keys.clear();this.conducting.start(performance.now());this.venue.scene.userData.conducting=true;
   if(this.self){this.demoAvatar=new Avatar(visitorColor(this.self),undefined,visitorVariant(this.self),this.self.outfit);this.demoAvatar.instrumentType='conductor';buildInstrument('conductor',this.demoAvatar.instrument,this.demoAvatar.leftHand,this.demoAvatar.rightHand);this.demoAvatar.root.position.set(CONDUCTOR.x,STAGE_FLOOR+.25,CONDUCTOR.z);this.demoAvatar.root.scale.setScalar(1.1);this.demoAvatar.settlePose(false);this.venue.scene.add(this.demoAvatar.root);}
@@ -1378,12 +1584,16 @@ export class World{
   view.applyAxisAngle(right,.19*forwardBlend);
   return {position,look:position.clone().add(view)};
  }
- private skipEntranceReveal=()=>{
+ private interruptEntranceReveal=(event:Event)=>{
+  if(event.type==='pointerdown'&&event.target===this.renderer.domElement)return;
+  this.skipEntranceReveal();
+ };
+ private skipEntranceReveal(){
   if(this.entranceRevealAt===null)return;
   this.entranceRevealAt=null;
   this.snapCamera();
   this.camera.updateMatrixWorld();
- };
+ }
  private updateEntranceReveal(now:number){
   if(this.entranceRevealAt===null)return;
   if(!this.entranceViewLocked||this.uiObscured||this.route.length||this.self?.dance||this.concertView||this.ridingTrain||this.photoMode||this.broadcastView){
@@ -1547,7 +1757,7 @@ export class World{
  }
  private readonly broadcastPlanets=['saturn','earth','jupiter'].map(id=>({id,position:new T.Vector3()}));
 
- private cameraFrame(){
+ private cameraFrame():{position:T.Vector3;look:T.Vector3;origin?:T.Vector3}{
   const cat=this.catView?this.activeCat:null;
   if(cat){
    const look=cat.root.position.clone();
@@ -1635,16 +1845,17 @@ export class World{
    const center=dance.center??(dance.chair?this.visitorDancePose(this.self!,this.net.now()):this.position);
    return danceCameraFrame(center,this.cameraYaw,this.cameraPitch,d,!!dance.center,this.venue.cameraWalls);
   }
-  if(this.entranceViewLocked){
-   const entry=this.entranceCameraFrame(this.position,this.venue.cameraWalls,this.cameraYaw,this.cameraPitch);
-   return this.entranceRevealAt===null?entry:this.entranceRevealFrame(entry);
-  }
+  const stairBlend=this.zone==='auditorium'&&!this.concertView&&this.pose!=='sit'?rearStairCameraBlend(this.position):0;
+  const entry=this.entranceViewLocked?this.entranceCameraFrame(this.position,this.venue.cameraWalls,this.cameraYaw,this.cameraPitch):null;
+  if(entry&&this.entranceRevealAt!==null)return this.entranceRevealFrame(entry);
+  if(entry&&!stairBlend)return entry;
+  if(this.seatedStage&&this.seatedStageView)return seatedStageFrame(this.seatedStage,this.seatedStageDolly,this.camera.aspect);
   if(this.zone==='auditorium'&&this.concertView){
    const preset=this.hallOverview?HALL_CAMERA:this.stageLowView?{eye:[0,1.6,-2] as const,look:[0,5.2,-23] as const}:CONCERT_CAMERA,center=new T.Vector3(...preset.look),offset=new T.Vector3(...preset.eye).sub(center);
    const portrait=this.camera.aspect<.8;
    const aspectZoom=this.hallOverview&&!portrait?1:Math.min(portrait?2.2:1.3,Math.max(1,1.65/this.camera.aspect));
    offset.multiplyScalar(aspectZoom*(this.hallOverview?1:this.hallZoom));
-   const position=center.clone().add(offset);
+   let position=center.clone().add(offset);
    if(this.hallOverview){
     // The opening view is the rear limit. Move toward the stage at a fixed height.
     const rear=Math.min(position.z,GOLDEN_HALL.rear-2);
@@ -1657,10 +1868,12 @@ export class World{
     position.x+=this.cameraSway*Math.min(offset.z,26);
    }
    position.x=T.MathUtils.clamp(position.x,-13.8,13.8);position.y=T.MathUtils.clamp(position.y,1.2,GOLDEN_HALL.height-1.2);position.z=Math.min(position.z,GOLDEN_HALL.rear-2);
+   const origin=center.clone();
+   position=constrainCamera(origin,position,this.venue.cameraWalls);
    // Turn the head where the camera stands: sideways about the vertical, then up or down.
    const view=center.clone().sub(position).applyAxisAngle(new T.Vector3(0,1,0),this.cameraYaw),right=new T.Vector3().crossVectors(view,new T.Vector3(0,1,0)).normalize();
    view.applyAxisAngle(right,-(this.cameraPitch-.13));
-   return {look:position.clone().add(view),position};
+   return {look:position.clone().add(view),position,origin};
   }
   const framingAngle=Math.atan(Math.tan(T.MathUtils.degToRad(this.camera.fov/2))/3);
   if(this.firstPerson){
@@ -1674,15 +1887,21 @@ export class World{
   const yaw=this.cameraYaw+this.cameraSway;
   const local=dinnerSeat
    ? dinnerCameraFrame(this.position,dinnerSeat,DINNER_TABLES[dinnerSeat.row-1],yaw,this.cameraPitch,d,this.camera.aspect,this.camera.fov)
-   : localCameraFrame(this.position,sitting,yaw,this.cameraPitch,d);
+   : localCameraFrame(this.position,sitting,yaw,
+    T.MathUtils.lerp(this.cameraPitch,Math.max(this.cameraPitch,.52),stairBlend),
+    T.MathUtils.lerp(d,Math.min(d,2.35),stairBlend));
   const target=local.position;look.copy(local.look);
+  if(entry&&stairBlend<1){
+   target.lerp(entry.position,1-stairBlend);
+   look.lerp(entry.look,1-stairBlend);
+  }
   // In the hall the camera never slips through a stair door into the corridor: it just comes closer along its orbit.
   if(this.zone==='auditorium'&&target.z>GOLDEN_HALL.rear-.5&&target.z>local.origin.z){const t=Math.max(0,(GOLDEN_HALL.rear-.5-local.origin.z)/(target.z-local.origin.z));target.lerpVectors(local.origin,target,t);}
   // Stay under the ceiling, so zooming out never leaves the building.
   target.y=Math.min(target.y,this.zone==='lobby'?ATRIUM.height-1:GOLDEN_HALL.height-1.5);
   // Keep the viewing camera inside the room even during a rapid orbit near an outer wall.
   const bounds=BOUNDS[this.zone];target.x=T.MathUtils.clamp(target.x,bounds.minX+.15,bounds.maxX-.15);target.z=T.MathUtils.clamp(target.z,bounds.minZ+.15,bounds.maxZ-.15);
-  return {look,position:constrainCamera(local.origin,target,this.venue.cameraWalls)};
+  return {look,position:constrainCamera(local.origin,target,this.venue.cameraWalls),origin:local.origin};
  }
  /** Reaction icons float above every visible visitor's head, with a short pop when they appear. */
  private showEmotes(){
@@ -1716,9 +1935,14 @@ export class World{
   if(this.zone==='lobby'&&!this.hallWarmed||this.net.status!=='connected')return Math.min(chosen,30);
   return chosen;
  }
+ // Give the updated controls a paint before the next full Three.js frame.
+ private yieldNextFrame=false;
+ yieldFrameForControls(){this.yieldNextFrame=true;}
  private animate=()=>{
   if(this.disposed)return;
-  this.frame=requestAnimationFrame(this.animate);const now=performance.now();if(document.hidden){this.last=now;this.renderedAt=0;return;}if(this.graphicsRestorePending)this.restoreGraphics();if(this.graphicsLost){this.last=now;this.renderedAt=0;return;}const rate=this.frameBudget(),interval=1000/rate;if(now-this.renderedAt<interval)return;this.renderedAt=interval?now-((now-this.renderedAt)%interval):now;const elapsed=(now-this.last)/1000,dt=Math.min(.1,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
+  this.frame=requestAnimationFrame(this.animate);
+  if(this.yieldNextFrame){this.yieldNextFrame=false;return;}
+  const now=performance.now();if(document.hidden){this.last=now;this.renderedAt=0;return;}if(this.graphicsRestorePending)this.restoreGraphics();if(this.graphicsLost){this.last=now;this.renderedAt=0;return;}const rate=this.frameBudget(),interval=1000/rate;if(now-this.renderedAt<interval)return;this.renderedAt=interval?now-((now-this.renderedAt)%interval):now;const elapsed=(now-this.last)/1000,dt=Math.min(.1,elapsed);this.last=now;this.frames++;this.statsTime+=elapsed;if(this.statsTime>.7){this.fps=Math.round(this.frames/this.statsTime);this.frames=0;this.statsTime=0;}
   const workStart=this.diagnosticActive?performance.now():0;
   if(this.diagnosticActive&&this.diagnosticMode==='audio-only'){this.frameCost={at:now,cpu:0,submit:0};if(now-this.lastUI>500){this.lastUI=now;this.onChange();}return;}
   const timings:FrameTimings|undefined=this.onDiagnosticFrame
@@ -1729,8 +1953,21 @@ export class World{
   const movementLocked=this.self?.dance||this.photoMode||this.ridingTrain||this.uiObscured||this.queenWand.casting||this.queenWand.receiving;
   if(this.petVisit&&(this.petVisit.route!==this.route||now>=this.petVisit.expiresAt||this.net.status!=='connected'))this.clearPetInteraction();
   if(this.pettingAnimal&&now>=this.petUntil)this.pettingAnimal=null;
-  if(movementLocked){this.clearPetInteraction();this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;this.route=[];}
-  const lunarFloor=this.openHall&&this.zone==='auditorium';
+  if(movementLocked){
+   this.clearPetInteraction();this.input.keys.clear();this.input.touchMove.x=this.input.touchMove.z=0;
+   // Keep a seat path paused while a dialog is open, then continue on close.
+   if(!this.uiObscured||!this.seatProgress){
+    if(this.seatProgress)this.cancelSeat();
+    this.route=[];
+   }
+  }
+  if(this.seatProgress){
+   if(this.net.status!=='connected'){
+    this.cancelSeat();this.route=[];
+    this.onToast('연결이 끊겼어요. 다시 연결되면 빈 의자를 눌러 주세요.');
+   }else if(this.reservedSeat&&!this.route.length&&!this.seating)this.cancelSeat();
+  }
+  const lunarFloor=this.openHall&&this.zone==='auditorium'&&this.position.y>=GOLDEN_HALL.balconyHeight-.3;
   const lunarWalk=lunarFloor&&!this.reduced&&!movementLocked&&!this.changingZone&&!this.conducting.active;
   const stepPhase=this.lunarStride%1;
   const strideDelta=dt/LUNAR_STEP_SECONDS;
@@ -1740,6 +1977,10 @@ export class World{
   let speed=0;const keys=this.input.keys;let kx=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+this.input.touchMove.x;let kz=Number(keys.has('KeyS')||keys.has('ArrowDown'))-Number(keys.has('KeyW')||keys.has('ArrowUp'))+this.input.touchMove.z;
   if(this.broadcastView&&(kx||kz))this.stopBroadcastView();
   if(this.catView&&(kx||kz))this.stopCatView();
+  if(this.seatedStageView&&!this.photoMode&&!this.broadcastView&&!this.catView&&!this.conducting.active){
+   this.moveSeatedStage(kz*dt*.7);
+   kx=kz=0;
+  }
   if(this.entered&&this.net.status==='connected'){
    // Automatically enter only after 30 seconds without activity.
    if(this.zone!=='lobby')this.lobbyEnteredAt=0;
@@ -1771,7 +2012,7 @@ export class World{
     if((candidateY===null||this.visitorStepClear({x:candidate.x,y:candidateY,z:candidate.z}))&&!move(candidate.x,candidate.z)){if(!move(candidate.x,this.position.z))move(this.position.x,candidate.z);}
     if(lunarWalk&&steering)this.lunarVelocity.subVectors(this.position,previous).setY(0).divideScalar(Math.max(dt,.001));
     if(gliding&&this.position.equals(previous))this.lunarVelocity.set(0,0,0);
-   }else if(this.route.length&&this.pose!=='sit'){
+   }else if(!movementLocked&&this.route.length&&this.pose!=='sit'){
     const p=this.route[0],d=distance(this.position,p);
     if(d<.035){if(this.visitorStepClear(p)){this.position.set(p.x,p.y??0,p.z);this.route.shift();}}else{const step=Math.min(d,5.1*moveTime);this.advanceRoute({x:this.position.x+(p.x-this.position.x)/d*step,z:this.position.z+(p.z-this.position.z)/d*step,y:this.position.y+((p.y??0)-this.position.y)/d*step});
      // Follow the currently connected lobby floor, flight or balcony.
@@ -1779,7 +2020,12 @@ export class World{
     if(!this.route.length){
      this.marker.visible=false;this.pose='idle';
      if(this.route===this.boardingRoute){this.boardingRoute=null;this.boardTrain();}
-     else if(this.reservedSeat&&!this.seating){this.seating=true;this.sendPosition(now,true);this.net.send({type:'seated',seatId:this.reservedSeat});}
+     else if(this.reservedSeat&&!this.seating){
+      this.seating=true;
+      const seat=SEATS.find(s=>s.id===this.reservedSeat);
+      if(seat)this.setSeatProgress(`${seatLabel(seat)}에 앉는 중이에요.`);
+      this.sendPosition(now,true);this.net.send({type:'seated',seatId:this.reservedSeat});
+     }
     }
    }
    const visit=this.petVisit;
@@ -1882,10 +2128,7 @@ export class World{
    const dance=dancer?.dance?this.visitorDancePose(dancer,clock,true):null;
    const lunarSwing=lunarPose?Math.sin(Math.PI*this.lunarStride)*.86:undefined;
    this.avatar.update(clock/1000,speed,dance?.chair?1-dance.chairStand:seated,music,dance?.chair?null:gesture,gestureAge,dt,cameraFacing,!!dance?.captain,lunarSwing);
-   if(highFive){
-    const useLeft=this.avatar.holdingCoffee&&!this.avatar.holdingMacaron&&!this.avatar.holdingCandle&&!this.avatar.holdingBouquet;
-    this.avatar.highFive(highFive,useLeft?'left':'right');
-   }
+   if(highFive)this.avatar.highFive(highFive);
    if(dance){
     poseDancingAvatar(this.avatar,dance);
     reflectedDance=dance;
@@ -1961,6 +2204,29 @@ export class World{
   this.cameraSeatAmount=T.MathUtils.damp(this.cameraSeatAmount,this.pose==='sit'?1:0,8,dt);
   this.updateDuetCamera(dt);
   const f=this.cameraFrame();
+  const localSpaceView=hallActive&&!broadcast&&!this.photoMode&&!this.catView&&!this.conducting.active
+   &&!this.mirrorView&&!this.ridingTrain&&!this.self?.dance;
+  const cutSpaceCamera=this.revealingFirstSpace&&this.spaceOverviewCut;
+  if(this.revealingFirstSpace){
+   if(!localSpaceView||!this.openHall||firstPerson||steering||this.route.length||this.uiObscured){
+    this.revealingFirstSpace=false;
+   }else{
+    const progress=this.openHallProgress;
+    if(progress>=1&&this.spaceFullyOpenedAt===null){
+     this.spaceFullyOpenedAt=now;
+     this.onChange();
+    }
+    const held=this.spaceFullyOpenedAt===null?0:now-this.spaceFullyOpenedAt;
+    if(held>=2200&&!this.spaceOverviewReturning){
+     this.spaceOverviewReturning=true;
+     this.onChange();
+    }
+    const overview=cutSpaceCamera?Number(!this.spaceOverviewReturning):T.MathUtils.smootherstep(progress,0,.31)*(1-T.MathUtils.smootherstep(held,2200,3350));
+    f.position.lerp(this.spaceOverviewEye,overview);
+    f.look.lerp(this.spaceOverviewLook,overview);
+    if(held>=3350||cutSpaceCamera&&this.spaceOverviewReturning){this.revealingFirstSpace=false;this.onChange();}
+   }
+  }
   const gap=this.camera.position.distanceTo(f.position);
   if(this.danceCameraGlide&&this.duetCameraOrbit===null&&gap<.025&&this.look.distanceTo(f.look)<.025)this.danceCameraGlide=false;
   const follow=!this.concertView&&this.introEase<=0&&gap<1.5;
@@ -1970,16 +2236,18 @@ export class World{
   const snap=!this.danceCameraGlide&&((this.entered&&!this.concertView&&this.introEase<=0&&!this.introGlide)
    ||firstPerson||now-this.dragAt<150||this.cameraLocked);
   const glideRate=this.danceCameraGlide?2.8:(this.introEase>0||this.introGlide?1.6:7);
-  const smooth=this.catView?1-Math.exp(-dt*10):snap||broadcast?1:1-Math.exp(-dt*(this.duetCameraOrbit===null?glideRate:12));
+  const smooth=this.catView?1-Math.exp(-dt*10):snap||broadcast||cutSpaceCamera||this.reduced?1:1-Math.exp(-dt*(this.duetCameraOrbit===null?glideRate:12));
   if(this.introEase>0)this.introEase=Math.max(0,this.introEase-dt);
-  const walled=this.entered&&!entranceReveal&&!broadcast&&!this.catView&&!this.self?.dance&&!this.ridingTrain&&!this.photoMode&&!firstPerson&&!this.concertView&&this.position.z<=GOLDEN_HALL.rear,origin=walled?localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin:null;
-  if(origin)f.position.copy(constrainCamera(origin,f.position,this.venue.cameraWalls));
   this.camera.position.lerp(f.position,smooth);
-  if(origin&&this.cameraLocked)this.camera.position.copy(constrainCamera(origin,this.camera.position,this.venue.cameraWalls));
+  // Even interpolation between clear camera poses can cut through the corner of a wall.
+  if(smooth<1&&f.origin&&!entranceReveal&&!this.revealingFirstSpace){
+   this.camera.position.copy(constrainCamera(f.origin,this.camera.position,this.venue.cameraWalls));
+  }
   const scene=this.venue.scene;
   if(!this.entered)scene.userData.cameraFocus=null;
   else if(firstPerson)scene.userData.cameraFocus=f.position;
-  else if(this.concertView||broadcast||this.catView)scene.userData.cameraFocus=f.look;
+  else if(this.concertView||broadcast||this.catView||this.revealingFirstSpace)scene.userData.cameraFocus=f.look;
+  else if(f.origin)scene.userData.cameraFocus=f.origin;
   else scene.userData.cameraFocus=localCameraFrame(this.position,this.cameraSeatAmount,this.cameraYaw,this.cameraPitch,this.cameraDistance).origin;
   this.look.lerp(f.look,smooth);
   this.camera.lookAt(this.look);
@@ -1993,6 +2261,7 @@ export class World{
   this.renderedBroadcastShotAt=broadcastShotAt;
   if(broadcastCut||now-this.lodAt>200){this.lodAt=now;this.venue.updateLOD(this.camera);}
   this.camera.updateMatrixWorld();
+  this.updateTeaPrompt();
   this.poseFrustum.setFromProjectionMatrix(this.poseProjection.multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse));
   if(broadcastCut||now-this.orchestraAt>=1000/30){
    const animationStart=timings?performance.now():0;
@@ -2049,11 +2318,15 @@ export class World{
    }:null,!!this.photoCapture);
    if(this.entered)this.venue.portrait?.update(this.renderer,this.camera,this.position,now);
    const namedAvatar=this.demoAvatar??this.avatar;
-   const self=this.entered&&this.self&&namedAvatar&&!(this.zone==='auditorium'&&this.concertView&&!this.demoAvatar)?{avatar:namedAvatar,visitor:this.self}:null;
+   const self=this.entered&&this.self&&namedAvatar&&!(this.zone==='auditorium'&&this.concertView&&!this.seatedStageView&&!this.demoAvatar)?{avatar:namedAvatar,visitor:this.self}:null;
    this.visitorNames.update(this.camera,broadcast?null:self,broadcast?[]:this.remotes.values(),this.venue.scene.userData.solidOccluded,this.probeViewport);
    this.venues.auditorium?.usher?.updateSpeech(this.camera,this.renderer.domElement,this.entered&&this.zone==='auditorium'&&!this.uiObscured,now/1000);
    const crowdStart=timings?performance.now():0;
-   this.crowds[this.zone].update(this.allGhosts(),this.camera,now,this.reduced,broadcastCut);
+   const seatedSight=hallActive&&this.pose==='sit'&&this.avatar?.root.visible&&!entranceReveal&&!this.revealingFirstSpace
+    &&!broadcast&&!firstPerson&&!this.photoMode&&!this.conducting.active&&(!this.concertView||this.seatedStageView);
+   const sightTarget=seatedSight&&this.avatar?this.cameraOcclusionTarget.copy(this.avatar.root.position):null;
+   if(sightTarget)sightTarget.y+=.94;
+   this.crowds[this.zone].update(this.allGhosts(),this.camera,now,this.reduced,broadcastCut,sightTarget);
    if(this.avatar){
     const crowd=this.crowds[this.zone];
     const wasReceiving=this.queenWand.receiving;
@@ -2062,8 +2335,8 @@ export class World{
     if(wasReceiving&&!this.queenWand.receiving)this.onChange();
    }
    if(timings)timings.crowdBatch=performance.now()-crowdStart;
-   const avatarFocus=!entranceReveal&&!broadcast&&!firstPerson&&!this.concertView&&!this.photoMode
-    ?this.venue.scene.userData.cameraFocus as T.Vector3|null: null;
+   const avatarFocus=sightTarget??(!entranceReveal&&!this.revealingFirstSpace&&!broadcast&&!firstPerson&&!this.concertView&&!this.photoMode
+    ?this.venue.scene.userData.cameraFocus as T.Vector3|null:null);
    const fadeFocus=avatarFocus??this.look,fadeDistance=avatarFocus?Infinity:5;
    for(const fade of this.venue.scene.userData.cameraFades as CameraFade[]??[]){
     fade.update(this.camera.position,fadeFocus,fadeDistance,dt);
@@ -2085,7 +2358,12 @@ export class World{
     if(this.hallLoading)this.stopHallLoading();
     completeInitialLoading();
    }
-    if(this.usherGreetingPending&&this.entered&&!entranceReveal&&!document.getElementById('boot-screen')){this.usherGreetingPending=false;this.venue.usher?.greet(performance.now()/1000);if(this.pendingSeat)this.seatWalkAt=performance.now()+4500;}
+    if(this.usherGreetingPending&&this.entered&&!entranceReveal&&!document.getElementById('boot-screen')){
+     this.usherGreetingPending=false;
+     this.venue.usher?.greet(performance.now()/1000);
+     if(this.pendingSeat)this.seatWalkAt=performance.now()+4500;
+     else this.onArrivalGuide();
+    }
    if(!this.ready&&this.texturesLoaded){this.ready=true;performance.measure('aurea-first-scene',{start:0,end:performance.now()});document.body.classList.add('scene-ready');reportLoading(100,'공연장 연결을 준비하고 있어요');this.onChange();
    }
   }if(this.diagnosticActive){const end=performance.now();this.frameCost={at:now,cpu:end-workStart,submit:end-submitStart};}

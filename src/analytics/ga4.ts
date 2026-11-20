@@ -1,9 +1,13 @@
+import type hallAnalyticsActions from '../../shared/hall-analytics-actions.json';
 import {PlaybackTracker} from './PlaybackTracker';
+import {browserAnalyticsExcluded} from './browserExclusion';
 
 const PRODUCTION_ORIGIN='https://pleee.hall-live.workers.dev';
+const PRODUCTION_HOST=new URL(PRODUCTION_ORIGIN).hostname;
 type Tag=(...args:unknown[])=>void;
 type AnalyticsWindow=Window&{dataLayer?:unknown[];gtag?:Tag};
-type EventName='page_view'|'playback_start'|'playback_180_seconds';
+type HallAction=keyof typeof hallAnalyticsActions;
+type EventName='page_view'|'playback_start'|'playback_180_seconds'|HallAction;
 type AnalyticsTransport={
  // Return a cleanup for a script which has not loaded yet.
  load(onReady:()=>void,onFailure:()=>void):()=>void;
@@ -38,6 +42,12 @@ export class AnalyticsConsent {
  constructor(private transport:AnalyticsTransport|null){}
 
  get tracker(){return this.current;}
+
+ trackAction(action:HallAction){
+  if(!this.current)return;
+  try{this.transport?.send(action);}
+  catch{/* Optional analytics must not interrupt the action. */}
+ }
 
  refuse(){
   this.setAccepted(false);
@@ -78,9 +88,39 @@ export function expiryCookiesForHost(measurementId:string){
  return names.map(name=>name+'=; Max-Age=0; Path=/; Secure; SameSite=Lax');
 }
 
+function parseUrl(value:string){
+ try{return new URL(value);}
+ catch{return null;}
+}
+
+export function landingAnalyticsParameters(landingUrl:string,referrer:string){
+ const page={page_location:PRODUCTION_ORIGIN+'/',page_referrer:'',page_title:'PLEEE'};
+ if(referrer){
+  const parsed=parseUrl(referrer);
+  if(parsed&&(parsed.protocol==='https:'||parsed.protocol==='http:')&&parsed.hostname!==PRODUCTION_HOST){
+   page.page_referrer=parsed.origin;
+  }
+  return {page};
+ }
+
+ // Some in-app browsers omit the referrer. Recognize our tagged Threads links
+ // without forwarding any user-supplied values or tagging unmarked visits.
+ const query=parseUrl(landingUrl)?.searchParams;
+ const sources=query?.getAll('utm_source');
+ const media=query?.getAll('utm_medium');
+ if(sources?.length===1&&sources[0]==='threads'){
+  if(media?.length===0)return {page,campaign:{campaign_source:'threads'}};
+  if(media?.length===1&&media[0]==='social'){
+   return {page,campaign:{campaign_source:'threads',campaign_medium:'social'}};
+  }
+ }
+ return {page};
+}
+
 function browserTransport(id:string):AnalyticsTransport{
  const analytics=window as AnalyticsWindow;
- const parameters={page_location:PRODUCTION_ORIGIN+'/',page_referrer:'',page_title:'PLEEE'};
+ // Snapshot the landing attribution while creating the consent controller.
+ const {page,campaign}=landingAnalyticsParameters(location.href,document.referrer);
  let tag:Tag|undefined;
  return {
   disable(disabled){Reflect.set(analytics,`ga-disable-${id}`,disabled);},
@@ -97,7 +137,7 @@ function browserTransport(id:string):AnalyticsTransport{
    // No measurement is queued until the script loads and the visitor is not opted out.
    script.onload=()=>{
     tag?.('js',new Date());
-    tag?.('config',id,{...parameters,send_page_view:false,
+    tag?.('config',id,{...page,...campaign,send_page_view:false,
      allow_google_signals:false,allow_ad_personalization_signals:false,cookie_domain:'none',cookie_path:'/'});
     onReady();
    };
@@ -105,7 +145,7 @@ function browserTransport(id:string):AnalyticsTransport{
    document.head.append(script);
    return ()=>{script.onload=null;script.onerror=null;script.remove();};
   },
-  send(event){tag?.('event',event,{...parameters,send_to:id});},
+  send(event){tag?.('event',event,{...page,send_to:id});},
  };
 }
 
@@ -114,5 +154,5 @@ export function createPlaybackAnalytics(){
   production:import.meta.env.PROD,origin:location.origin,
   enabled:import.meta.env.VITE_PLEEE_GA4_ENABLED,measurementId:import.meta.env.VITE_GA4_MEASUREMENT_ID,
  });
- return id?new AnalyticsConsent(browserTransport(id)):null;
+ return id&&!browserAnalyticsExcluded()?new AnalyticsConsent(browserTransport(id)):null;
 }

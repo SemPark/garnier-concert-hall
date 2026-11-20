@@ -2,6 +2,7 @@ import {gestureSeconds} from './gestures';
 import {distance, walkable, type Point, type Visitor, type Zone} from './venue';
 
 export const HIGH_FIVE_MS = 1300;
+export const HIGH_FIVE_CONTACT_MS = 490;
 export const USHER_HIGH_FIVE_ID = 'npc-usher';
 export type HighFiveTarget = {id: string; npc?: true};
 export type HighFive = HighFiveTarget & {at: number; zone: Zone};

@@ -431,12 +431,13 @@ export class Avatar{
    shoe.position.y-=SHIN_LENGTH;
   }
  }
- /** Each arm is one rigid piece: rotate only at the shoulder, never stretch or bend. */
- highFive(pose:HighFivePose,side:'left'|'right'='right'){
+ /** Turn sideways and aim the free hand at the shared contact point. */
+ highFive(pose:HighFivePose,side=pose.side){
   this.root.position.x+=pose.dx;
   this.root.position.z+=pose.dz;
   this.root.rotation.y=turnForHighFive(this.root.rotation.y,pose.yaw+Math.PI,pose.turn);
   if(pose.reach<=0)return;
+  this.head.rotation.x=T.MathUtils.lerp(this.head.rotation.x,-.12,pose.reach);
   const arm=this[side];
   const point=this.body.worldToLocal(this.direction.set(pose.hand.x,pose.hand.y,pose.hand.z));
   const reach=T.MathUtils.lerp(ARM_LENGTH,T.MathUtils.clamp(point.distanceTo(arm.shoulder.position),.23,.49),pose.reach);
