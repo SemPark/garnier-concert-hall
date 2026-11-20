@@ -993,9 +993,10 @@ function App(){
     </section>
     <div className="settings-disclosures">
      {analytics&&<details name="settings-extra">
-      <summary>개인정보와 통계</summary>
+      <summary>쿠키 및 데이터 수집</summary>
       <div className="settings-extra">
-       <a href="/privacy.html" target="_blank" rel="noreferrer">개인정보 안내</a>
+       <p>음악당은 방문 및 음악 재생 통계를 집계하기 위해 Google Analytics를 사용합니다. 이 과정에서 브라우저에 통계 쿠키가 저장될 수 있습니다.</p>
+       <a href="https://policies.google.com/technologies/partner-sites?hl=ko" target="_blank" rel="noreferrer">Google의 데이터 수집 및 처리 방식</a>
        {analyticsPreference.detailAutomatic?<AnalyticsOptOut {...analyticsPreference}/>:
         (analyticsPreference.mode==='auto'||analyticsPreference.mode==='ask')&&
          <AnalyticsChoices {...analyticsPreference} inSettings/>}
