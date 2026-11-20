@@ -2,6 +2,7 @@ import type {DetailEvent as SeatDwellEvent} from './DetailedAnalytics';
 import type {ExtraEvent} from './ExtraAnalytics';
 import type {ZoneEvent} from './ZoneAnalytics';
 import type {ResearchEvent} from './ResearchAnalytics';
+import type {WebPerformanceEvent} from './WebPerformanceAnalytics';
 import {PlaybackTracker} from './PlaybackTracker';
 import {browserAnalyticsExcluded} from './browserExclusion';
 
@@ -9,7 +10,7 @@ const PRODUCTION_ORIGIN='https://pleee.hall-live.workers.dev';
 const PRODUCTION_HOST=new URL(PRODUCTION_ORIGIN).hostname;
 type Tag=(...args:unknown[])=>void;
 type AnalyticsWindow=Window&{dataLayer?:unknown[];gtag?:Tag};
-type DetailEvent=SeatDwellEvent|ExtraEvent|ZoneEvent|ResearchEvent;
+type DetailEvent=SeatDwellEvent|ExtraEvent|ZoneEvent|ResearchEvent|WebPerformanceEvent;
 type EventName='page_view'|'playback_start'|'playback_180_seconds';
 type AnalyticsTransport={
  // Return a cleanup for a script which has not loaded yet.
@@ -161,7 +162,8 @@ export const detailedAnalyticsMock=import.meta.env?.DEV===true&&
  new URL(location.href).searchParams.get('detail-analytics')==='mock';
 
 export function createPlaybackAnalytics(){
- if(detailedAnalyticsMock&&!browserAnalyticsExcluded()){
+ if(browserAnalyticsExcluded())return null;
+ if(detailedAnalyticsMock){
   return new AnalyticsConsent({
    load(ready){queueMicrotask(ready);return ()=>{};},
    disable(){},
@@ -176,5 +178,5 @@ export function createPlaybackAnalytics(){
   production:import.meta.env.PROD,origin:location.origin,
   enabled:import.meta.env.VITE_PLEEE_GA4_ENABLED,measurementId:import.meta.env.VITE_GA4_MEASUREMENT_ID,
  });
- return id&&!browserAnalyticsExcluded()?new AnalyticsConsent(browserTransport(id)):null;
+ return id?new AnalyticsConsent(browserTransport(id)):null;
 }

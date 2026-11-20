@@ -1,0 +1,33 @@
+{
+  "durationBuckets": [0, 50, 100, 150, 200, 250, 300, 400, 500, 750, 800, 1000, 1500, 1800, 2000, 2500, 3000, 4000, 5000, 8000, 10000, 20000, 60000],
+  "durationMeasures": {
+    "perf_inp": "클릭·탭 반응(INP)",
+    "perf_lcp": "주요 콘텐츠 표시(LCP)",
+    "perf_cls": "화면 이동(CLS)",
+    "perf_fcp": "첫 콘텐츠 표시(FCP)",
+    "perf_ttfb": "첫 바이트 응답(TTFB)",
+    "perf_inp_input": "입력 처리 대기",
+    "perf_inp_processing": "입력 처리 시간",
+    "perf_inp_presentation": "입력 후 화면 반영",
+    "perf_lcp_resource_delay": "주요 콘텐츠 요청 전 대기",
+    "perf_lcp_resource_load": "주요 콘텐츠 다운로드",
+    "perf_lcp_render": "주요 콘텐츠 렌더링 대기",
+    "perf_page_load": "페이지 전체 로딩",
+    "perf_page_render": "응답 후 문서 로딩 완료",
+    "perf_first_paint": "첫 화면 표시",
+    "perf_dns": "DNS 조회",
+    "perf_connection": "연결 설정",
+    "perf_tls": "TLS 설정",
+    "perf_redirect": "리디렉션",
+    "perf_request": "요청 후 첫 응답",
+    "perf_response": "응답 다운로드",
+    "perf_load_event": "페이지 로드 이벤트 처리"
+  },
+  "categoryMeasures": {
+    "perf_navigation_type": ["navigate", "reload", "back_forward", "prerender", "restore"],
+    "perf_delivery_type": ["cache", "navigational_prefetch", "no_type"],
+    "perf_component_inp": ["hall", "loading", "music_panel", "music_controls", "seating", "program", "settings", "navigation", "other"],
+    "perf_component_lcp": ["hall", "loading", "music_panel", "music_controls", "seating", "program", "settings", "navigation", "other"],
+    "perf_component_cls": ["hall", "loading", "music_panel", "music_controls", "seating", "program", "settings", "navigation", "other"]
+  }
+}

@@ -946,6 +946,7 @@ function App(){
     <DetailedAnalyticsChoices {...detailPreference.extraChoice} kind="extra"/>
     <DetailedAnalyticsChoices {...detailPreference.zoneChoice} kind="zones"/>
     <DetailedAnalyticsChoices {...detailPreference.researchChoice} kind="research"/>
+    <DetailedAnalyticsChoices {...detailPreference.performanceChoice} kind="performance"/>
    </>}
    {analytics&&<div className="setting-row">
      <span><a href="/privacy.html" target="_blank" rel="noreferrer">개인정보 안내</a></span>
