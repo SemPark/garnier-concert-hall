@@ -3,6 +3,7 @@ import {DEFAULT_PLAYLIST,INITIAL_PLAYLIST,PLAYLISTS,type PlaylistId} from './pla
 import {adjacentPiece,playbackAt,type Playback} from '../../shared/timeline';
 import type {Zone} from '../../shared/venue';
 import {MediaSync} from './MediaSync';
+import {PlaybackTracker} from '../analytics/PlaybackTracker';
 import type {AnalyticsConsent} from '../analytics/ga4';
 export class ConcertAudio{
  readonly media=new Audio();enabled=false;volume=1;zone:Zone='lobby';state='소리 꺼짐';
@@ -106,7 +107,11 @@ export class ConcertAudio{
   this.musicGain=context.createGain();this.musicGain.gain.value=0;previous.connect(this.musicGain);this.musicGain.connect(context.destination);
   void this.startAmbience(context);return context.resume();
  }
- private resetMeasurement(){this.analytics?.resetSample();this.extraAnalytics?.resetPlayback();}
+ private localTracker:PlaybackTracker|null=null;
+ startLocalMeasurement(){this.localTracker=new PlaybackTracker(()=>{},true);}
+ stopLocalMeasurement(){this.localTracker=null;}
+ get localMeasuredMs(){return this.localTracker?.measuredMs??0;}
+ private resetMeasurement(){this.analytics?.resetSample();this.localTracker?.resetSample();this.extraAnalytics?.resetPlayback();}
  private get analytics(){return this.analyticsConsent?.tracker??null;}
  constructor(private now:()=>number,initial:PlaylistId=INITIAL_PLAYLIST,wantsSound=true,private readonly analyticsConsent:AnalyticsConsent|null=null,
   private readonly extraAnalytics:ExtraAnalytics|null=null){
@@ -116,23 +121,26 @@ export class ConcertAudio{
   this.media.setAttribute('playsinline','');
   const opts={signal:this.abort.signal};
   this.media.addEventListener('playing',()=>this.sync.playing(performance.now()),opts);
-  if(this.analyticsConsent)for(const event of ['pause','waiting','stalled','seeking','seeked','ended','emptied','ratechange','volumechange','error']){
+  if(this.analyticsConsent||import.meta.env.DEV)for(const event of ['pause','waiting','stalled','seeking','seeked','ended','emptied','ratechange','volumechange','error']){
    this.media.addEventListener(event,()=>this.resetMeasurement(),opts);
   }
   for(const event of ['waiting','stalled'])this.media.addEventListener(event,()=>{this.state='음악을 불러오는 중';this.sync.buffering();},opts);
   this.media.addEventListener('error',()=>{this.state='음원을 불러오지 못했어요';},opts);
   document.addEventListener('visibilitychange',()=>{this.sync.request();if(document.hidden)this.media.pause();},opts);
   // If the browser left the audio graph suspended, the next tap or key wakes it (music, door spill and lobby room tone all pass through it).
-  for(const type of ['pointerdown','keydown','touchend'])document.addEventListener(type,event=>{
-   if((event.target as Element)?.closest?.('button[aria-label^="소리"], [data-device-probe], [data-concert-picker]'))return;
-   if(!this.wantsSound||document.hidden)return;
-   if(this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});
-   if(this.unlocking)return;
-   if(!this.enabled){void this.unlock();return;}
-   if(this.media.paused&&this.playback.playing&&!this.playback.track.stage)this.playMedia();
+  for(const type of ['pointerdown','pointerup','keydown','touchend','click'])document.addEventListener(type,event=>{
+   if((event.target as Element)?.closest?.('button[aria-label^="소리"], [data-device-probe], [data-audio-ignore], [data-concert-picker]'))return;
+   this.wakeFromGesture();
   },{...opts,capture:true});
   // Media playback does not depend on rendering frames arriving on time.
   this.timer=setInterval(()=>this.tick(.1),100);
+ }
+ wakeFromGesture(){
+  if(!this.wantsSound||document.hidden)return;
+  if(this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});
+  if(this.unlocking)return;
+  if(!this.enabled){void this.unlock();return;}
+  if(this.media.paused&&this.playback.playing&&!this.playback.track.stage)this.playMedia();
  }
  private mediaUrl(url:string){return import.meta.env.VITE_STATIC_PREVIEW==='true'?import.meta.env.BASE_URL+url.replace(/^\/api\//,''):url;}
  /** A personal time shift: zero follows the shared concert; otherwise this visitor replays the program from the start. */
@@ -146,13 +154,24 @@ export class ConcertAudio{
  }
  /** Change tracks for this listener without changing the room clock. */
  skipTrack(direction:1|-1=1){
-  const now=this.now(),playlist=this.playlist,tracks=playlist.tracks;
+  const now=this.now(),playlist=this.playlist;
   const current=this.usesMediaClock?this.playback:playbackAt(playlist,now+this.shift);
   const target=adjacentPiece(playlist,current.index,direction);
   if(!target)return;
-  const index=tracks.indexOf(target);
+  const index=playlist.tracks.indexOf(target);
   const wrapped=direction===1?index<=current.index:index>=current.index;
-  const cycle=Math.max(0,current.cycle+(wrapped?direction:0));
+  this.switchTrack(index,Math.max(0,current.cycle+(wrapped?direction:0)),now);
+ }
+ selectTrack(id:string){
+  const playlist=this.playlist,index=playlist.tracks.findIndex(track=>track.id===id&&!track.stage);
+  if(index<0)return false;
+  const now=this.now(),current=this.usesMediaClock?this.playback:playbackAt(playlist,now+this.shift);
+  if(current.index===index&&current.playing&&(!this.usesMediaClock||!this.media.ended))return true;
+  this.switchTrack(index,Math.max(0,current.cycle),now);
+  return true;
+ }
+ private switchTrack(index:number,cycle:number,now:number){
+  const playlist=this.playlist,tracks=playlist.tracks;
   if(this.usesMediaClock){
    this.mediaTrackIndex=index;
    this.mediaCycle=cycle;
@@ -166,6 +185,7 @@ export class ConcertAudio{
   if(this.enabled)this.tick(.1);
   else if(this.wantsSound)void this.unlock();
  }
+
  /** Start the whole program again for this visitor only, from the hall murmur and tuning. */
  replayFromStart(){const program=this.playlist,total=program.tracks.reduce((s,t)=>s+t.durationSeconds+t.gapAfterSeconds,0)*1000;
   const into=(((this.now()-program.epochMs)%total)+total)%total;this.shift=-into+50;this.lastId='';this.sync.request();}
@@ -197,6 +217,31 @@ export class ConcertAudio{
    source.connect(high);high.connect(low);low.connect(level);level.connect(c.destination);level.connect(room);room.connect(wet);wet.connect(c.destination);
    source.start(c.currentTime+offset);source.onended=()=>window.setTimeout(()=>{for(const node of [source,high,low,level,room,wet])node.disconnect();},700);
   }
+  return true;
+ }
+ private palmTapBuffer:AudioBuffer|null=null;
+ /** One short palm strike for a high five. */
+ highFive(gain=1){
+  const c=this.context;if(!this.enabled||this.volume<=0||document.hidden||!c||gain<=0)return false;
+  if(c.state!=='running')void c.resume().catch(()=>{});
+  if(!this.palmTapBuffer){
+   this.palmTapBuffer=c.createBuffer(1,Math.ceil(c.sampleRate*.09),c.sampleRate);
+   const samples=this.palmTapBuffer.getChannelData(0);
+   let softened=0;
+   for(let i=0;i<samples.length;i++){
+    const t=i/c.sampleRate,noise=Math.random()*2-1;
+    softened+=.33*(noise-softened);
+    const snap=(noise-softened)*.65*Math.exp(-t*130);
+    const body=(softened*.55+Math.sin(2*Math.PI*195*t)*.24)*Math.exp(-t*71);
+    samples[i]=(snap+body)*Math.min(1,t/.0006);
+   }
+  }
+  const source=c.createBufferSource(),level=c.createGain();
+  source.buffer=this.palmTapBuffer;
+  level.gain.value=Math.min(1,this.volume*gain)*.85;
+  source.connect(level).connect(c.destination);
+  source.onended=()=>{source.disconnect();level.disconnect();};
+  source.start();
   return true;
  }
  /** A brief celebratory whistle, distinct from applause and generated without an audio download. */
@@ -339,7 +384,7 @@ export class ConcertAudio{
    this.outputTarget=target;
   }
   const analytics=this.analytics;
-  if(analytics||this.extraAnalytics?.measuring){
+  if(analytics||this.localTracker||this.extraAnalytics?.measuring){
    const media=this.media;
    const measurement={
     nowMs:performance.now(),positionSeconds:media.currentTime,revision:this.mediaRevision,playbackRate:media.playbackRate,
@@ -348,6 +393,7 @@ export class ConcertAudio{
      &&!media.paused&&!media.ended&&!media.muted&&media.volume>0&&!media.seeking&&media.readyState>=2&&!document.hidden,
    };
    analytics?.sample(measurement);
+   this.localTracker?.sample(measurement);
    this.extraAnalytics?.samplePlayback(measurement);
   }
   // Keep the user-unlocked stream running silently in the lobby. Pausing it here can

@@ -1,11 +1,17 @@
 import {useEffect,useRef,useState} from 'react';
 import type {AnalyticsMode} from '../../shared/analyticsPolicy';
-import type {AnalyticsConsent} from './ga4';
+import {detailedAnalyticsMock,type AnalyticsConsent} from './ga4';
 import {
  ANALYTICS_CHOICE_KEY,PRIOR_ANALYTICS_CHOICE_KEY,analyticsMayStart,analyticsPrivacySignal,
  fetchAnalyticsMode,readAnalyticsPreference,type AnalyticsChoice,
 } from './regionConsent';
 
+const choiceKey=detailedAnalyticsMock?'pleee-ga4-choice-mock-v1':ANALYTICS_CHOICE_KEY;
+function readChoice(){
+ if(!detailedAnalyticsMock)return readAnalyticsPreference(window.localStorage);
+ const value=window.localStorage.getItem(choiceKey);
+ return value==='yes'||value==='no'?value:null;
+}
 export function useAnalyticsPreference(analytics:AnalyticsConsent|null){
  const [mode,setMode]=useState<AnalyticsMode>('off');
  const [choice,setChoice]=useState<AnalyticsChoice>(null);
@@ -21,22 +27,22 @@ export function useAnalyticsPreference(analytics:AnalyticsConsent|null){
  }
  function choose(value:Exclude<AnalyticsChoice,null>){
   if(modeRef.current==='off'||analyticsPrivacySignal(navigator))return;
-  try{localStorage.setItem(ANALYTICS_CHOICE_KEY,value);}
+  try{localStorage.setItem(choiceKey,value);}
   catch{if(value==='yes')return;}
   apply(value);
  }
  useEffect(()=>{
   if(!analytics||analyticsPrivacySignal(navigator))return;
   const abort=new AbortController();
-  try{apply(readAnalyticsPreference(window.localStorage));}
+  try{apply(readChoice());}
   catch{return;}
   const sync=(event:StorageEvent)=>{
-   if(event.key!==null&&event.key!==ANALYTICS_CHOICE_KEY&&event.key!==PRIOR_ANALYTICS_CHOICE_KEY)return;
-   try{if(event.storageArea===window.localStorage)apply(readAnalyticsPreference(window.localStorage));}
+   if(event.key!==null&&event.key!==choiceKey&&event.key!==PRIOR_ANALYTICS_CHOICE_KEY)return;
+   try{if(event.storageArea===window.localStorage)apply(readChoice());}
    catch{apply('no');}
   };
   window.addEventListener('storage',sync);
-  void fetchAnalyticsMode(abort.signal).then(next=>{
+  void (detailedAnalyticsMock?Promise.resolve<AnalyticsMode>('ask'):fetchAnalyticsMode(abort.signal)).then(next=>{
    if(abort.signal.aborted)return;
    modeRef.current=next;setMode(next);apply(choiceRef.current);
   });

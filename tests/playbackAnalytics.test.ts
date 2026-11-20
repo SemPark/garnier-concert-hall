@@ -142,3 +142,12 @@ test('privacy disable acts immediately and discards elapsed time without duplica
  sample(consent.tracker,580);
  assert.deepEqual(events,['page_view','playback_start','playback_start','playback_180_seconds']);
 });
+
+test('offline listening meter keeps credit after 3 minutes, skips reset intervals',()=>{
+ const events:PlaybackAnalyticsEvent[]=[];
+ const meter=new PlaybackTracker(e=>events.push(e),true);
+ sample(meter,0);sample(meter,180);sample(meter,300);
+ meter.resetSample();sample(meter,500);sample(meter,600);
+ assert.equal(meter.measuredMs,400_000);
+ assert.deepEqual(events,['playback_start','playback_180_seconds']);
+});

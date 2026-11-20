@@ -20,6 +20,7 @@
       <nav aria-label="리포트 메뉴">
         <a href="#overview">한눈에 보기</a>
         <a href="#reports">상세 보고서</a>
+        <a href="/analysis">분야별 분석 · 좌석 지도</a>
       </nav>
       <div class="source-list">
         <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer">Google Analytics <span aria-hidden="true">↗</span></a>
@@ -52,12 +53,37 @@
         <div class="section-head">
           <h2 id="summary-heading">한눈에 보기</h2>
         </div>
-        <div id="summary" class="quick-grid" aria-busy="true"></div>
+        <div id="summary" aria-busy="true">
+          <div id="primary-metrics" class="quick-grid primary-metrics"></div>
+          <div id="supporting-metrics" class="quick-grid"></div>
+        </div>
+      </section>
+      <section class="section panel explanation" aria-labelledby="explanation-heading">
+        <div class="section-head">
+          <h2 id="explanation-heading">관객 경험과 운영 판단</h2>
+          <button class="refresh" id="explain" type="button" disabled>Codex로 분석</button>
+        </div>
+        <p id="explanation-status" class="panel-meta" role="status">지표를 조회하는 중입니다.</p>
+        <div id="explanation-text" class="explanation-text" aria-live="polite"></div>
       </section>
       <section id="reports" class="section" aria-labelledby="reports-heading">
         <div class="section-head">
           <h2 id="reports-heading">상세 보고서</h2>
         </div>
+        <details id="behavior-report" class="report-fold" open>
+          <summary>음악·행동 분석 16개 분야</summary>
+          <div class="report-fold-content detail-grid" id="behavior-areas"></div>
+        </details>
+        <details id="space-report" class="report-fold" open>
+          <summary>공간 이용 지도와 방문 타임라인</summary>
+          <div class="report-fold-content">
+            <label>직접 기록한 개발 방문 JSON <input type="file" id="local-visit" accept=".json,application/json"></label>
+            <button type="button" class="refresh" id="local-visit-import">로컬에서 열기</button>
+            <p id="local-visit-result" class="panel-meta" role="status"></p>
+          </div>
+          <div class="report-fold-content" id="behavior-map"></div>
+          <div class="report-fold-content" id="behavior-seats"></div>
+        </details>
         <details id="comparison" class="report-fold">
           <summary>페이지·방문자 비교</summary>
           <div id="comparison-content" class="report-fold-content" aria-busy="true"></div>

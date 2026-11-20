@@ -43,14 +43,14 @@ export function buildLobbyDetails(scene:T.Scene){
  // End arcades continue the same spring heights and share the side cornice datum.
  for(const z of [A.front+A.balconyDepth,A.back-A.balconyDepth])for(const x of LOBBY_ARCADE.endColumns.slice(1,-1))for(const base of [A.balconyY,13.4]){
   const column=cameraFadeGroup(scene);
-  cylinder(column,.29,.16,[x,base+.08,z],P.deep);cylinder(column,.235,1.95,[x,base+1.22,z],P.ivory).material=surfaceMaterial('marble',0xded6c8);cylinder(column,.31,.15,[x,base+2.35,z],P.gold);box(column,[.72,.16,.72],[x,base+2.48,z],P.light);
+  cylinder(column,.29,.16,[x,base+.08,z],P.deep);const shaft=cylinder(column,.235,1.95,[x,base+1.22,z],P.ivory);shaft.material=surfaceMaterial('marble',0xded6c8);shaft.userData.wallSurface=true;cylinder(column,.31,.15,[x,base+2.35,z],P.gold);box(column,[.72,.16,.72],[x,base+2.48,z],P.light);
  }
  // Single round shafts at the joints shared by adjacent arches; no doubled piers.
  for(const side of [-1,1])for(const z of LOBBY_ARCADE.columns)for(const [base,h] of [[0,3.6],[A.balconyY,2.6],[13.4,2.6]]){
   const x=side*LOBBY_ARCADE.x;
   const column=cameraFadeGroup(scene);
   cylinder(column,.34,.16,[x,base+.08,z],P.deep);cylinder(column,.29,.14,[x,base+.23,z],P.light);
-  cylinder(column,.235,h-.55,[x,base+h/2,z],P.ivory).material=surfaceMaterial('marble',0xded6c8);cylinder(column,.3,.14,[x,base+h-.22,z],P.gold);box(column,[.72,.16,.72],[x,base+h-.07,z],P.light);
+  const shaft=cylinder(column,.235,h-.55,[x,base+h/2,z],P.ivory);shaft.material=surfaceMaterial('marble',0xded6c8);shaft.userData.wallSurface=true;cylinder(column,.3,.14,[x,base+h-.22,z],P.gold);box(column,[.72,.16,.72],[x,base+h-.07,z],P.light);
  }
  for(const side of [-1,1]){
   for(const z of LOBBY_ARCADE.bays){const frame=wallFrame(scene,side*(A.halfWidth-.2),z,-side*Math.PI/2);if(!(side===-1&&z<36)&&!(side===1&&z===LOBBY_ARCADE.bays[0]))panel(frame,3.7,4.3,3.05);panel(frame,3.7,4.5,10.25);windowBay(frame,3.3);}

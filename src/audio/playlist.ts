@@ -42,5 +42,5 @@ const search=new URLSearchParams(globalThis.location?.search);
 const requestedPlaylist=search.get('playlist');
 export const INITIAL_PLAYLIST:PlaylistId=CONCERT_OPTIONS.find(
  option=>option.hallId===HALL_ID&&option.playlistId===requestedPlaylist&&PLAYLISTS[option.playlistId],
-)?.playlistId??DEFAULT_PLAYLIST;
+)?.playlistId??(JAZZ_HALL&&PLAYLISTS['jazz-yeoun']?'jazz-yeoun':DEFAULT_PLAYLIST);
 export const LOBBY_ENABLED = true;

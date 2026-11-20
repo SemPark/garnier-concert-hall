@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { fetchCloudflare } from './cloudflare.mjs';
+import { fetchCloudflare, getRange } from './cloudflare.mjs';
 
 const snapshot = {
   startDate: '2026-11-17',
@@ -15,7 +15,7 @@ const env = {
   CF_RUM_SITE_TAG: 'fixture-site',
   CF_HOSTNAME: 'pleee.hall-live.workers.dev',
 };
-const date = '2026-11-18';
+const datetimeHour = '2026-11-17T15:00:00Z';
 const data = (scope, result) => Response.json({ data: { viewer: { [scope]: [result] } }, errors: null });
 
 test('reads each Cloudflare source through the refresh time and aggregates daily metrics', async () => {
@@ -25,7 +25,7 @@ test('reads each Cloudflare source through the refresh time and aggregates daily
     assert.equal(options.headers.authorization, 'Bearer fixture-token');
     assert.equal(options.cache, 'no-store');
     const { query, variables } = JSON.parse(options.body);
-    assert.equal(variables.start, '2026-11-17T00:00:00.000Z');
+    assert.equal(variables.start, '2026-11-16T15:00:00.000Z');
     assert.equal(variables.end, '2026-11-18T02:30:00.000Z');
     const operation = query.split(/\W+/)[1];
     requested.add(operation);
@@ -33,9 +33,9 @@ test('reads each Cloudflare source through the refresh time and aggregates daily
       assert.equal(variables.id, env.CF_ZONE_ID);
       assert.equal(variables.host, env.CF_HOSTNAME);
       return data('zones', {
-        trend: [{ dimensions: { date }, count: 50, sum: { edgeResponseBytes: 2000 } }],
-        clientErrors: [{ dimensions: { date }, count: 2 }],
-        serverErrors: [{ dimensions: { date }, count: 1 }],
+        trend: [{ dimensions: { datetimeHour }, count: 50, sum: { edgeResponseBytes: 2000 } }],
+        clientErrors: [{ dimensions: { datetimeHour }, count: 2 }],
+        serverErrors: [{ dimensions: { datetimeHour }, count: 1 }],
       });
     }
     if (operation === 'WorkerMetrics') {
@@ -43,8 +43,8 @@ test('reads each Cloudflare source through the refresh time and aggregates daily
       return data('accounts', {
         total: [{ sum: { requests: 20, errors: 1, subrequests: 6 }, quantiles: { cpuTimeP50: 124, cpuTimeP99: 1120 } }],
         trend: [
-          { dimensions: { date: '2026-11-17' }, sum: { requests: 17, errors: 1, subrequests: 6 } },
-          { dimensions: { date }, sum: { requests: 3, errors: 0, subrequests: 0 } },
+          { dimensions: { datetimeHour: '2026-11-17T14:00:00Z' }, sum: { requests: 17, errors: 1, subrequests: 6 } },
+          { dimensions: { datetimeHour }, sum: { requests: 3, errors: 0, subrequests: 0 } },
         ],
       });
     }
@@ -61,7 +61,7 @@ test('reads each Cloudflare source through the refresh time and aggregates daily
     assert.match(query, /bot: 0/);
     if (operation === 'WebAnalytics') {
       return data('accounts', {
-        trend: [{ dimensions: { date }, count: 30, sum: { visits: 22 } }],
+        trend: [{ dimensions: { datetimeHour }, count: 30, sum: { visits: 22 } }],
       });
     }
     if (operation === 'WebRankings') {
@@ -106,7 +106,9 @@ test('reads each Cloudflare source through the refresh time and aggregates daily
   assert.deepEqual(result.worker.summary, { requests: 20, errors: 1, subrequests: 6, errorRate: 0.05, cpuP50Ms: 0.124, cpuP99Ms: 1.12,
     clientDisconnects: 1, responseBytes: 950, requestP50Ms: 1, requestP95Ms: 2, requestP99Ms: 3, wallP95Ms: 1.5, memoryP95Bytes: 2048 });
   assert.deepEqual(result.worker.breakdowns.httpStatus, [{ name: '200', value: 19 }]);
-  assert.equal(result.worker.daily[0].requests, 17);
+  assert.deepEqual(result.worker.daily.map(row => row.requests), [17, 3]);
+  assert.deepEqual(result.rum.daily.map(row => row.pageViews), [0, 30]);
+  assert.deepEqual(result.http.daily.map(row => row.requests), [0, 50]);
   const { pageViews, visits, lcpP75Ms, inpP75Ms, clsP75, quality } = result.rum.summary;
   assert.deepEqual({ pageViews, visits, lcpP75Ms, inpP75Ms, clsP75 }, { pageViews: 30, visits: 22, lcpP75Ms: 1625, inpP75Ms: null, clsP75: 0.08 });
   assert.deepEqual(quality.lcp, { good: 2, needsImprovement: 1, poor: 0, total: 3 });
@@ -137,4 +139,11 @@ test('isolates API errors and keeps available data when vitals fail', async () =
   assert.equal(result.rum.summary.lcpP75Ms, null);
   assert.equal(result.rum.topPages, null);
   assert.match(result.rum.message, /Core Web Vitals/);
+});
+
+test('selected calendar dates roll over at Seoul midnight across year boundaries', () => {
+  assert.deepEqual(getRange(7, new Date('2026-12-31T15:00:00Z')), {
+    days: 7, startDate: '2026-12-26', endDate: '2027-01-01', timeZone: 'Asia/Seoul',
+  });
+  assert.equal(getRange(1, new Date('2026-12-31T14:59:59Z')).endDate, '2026-12-31');
 });

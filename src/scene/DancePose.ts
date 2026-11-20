@@ -85,9 +85,9 @@ export function danceArmDirection(out:T.Vector3,pose:DancePose,side:-1|1){
  const inner=(1-side*pose.flossSwing)/2;
  const behind=Math.max(0,side*pose.flossCross);
  const front=Math.max(0,-side*pose.flossCross);
- // Keep the front sweep low and beside the waist so the sleeve stays visible behind the mitten.
- const sweep=T.MathUtils.degToRad(T.MathUtils.lerp(8,98,inner)-93*behind-40*front);
- const drop=T.MathUtils.lerp(.59,.37,inner)+.12*behind+.04*front;
+ // Let the inner hand pass the centreline in front of the waist, then sweep it back for the tuck.
+ const sweep=T.MathUtils.degToRad(T.MathUtils.lerp(8,117,inner)-93*behind-59*front);
+ const drop=T.MathUtils.lerp(.59,.18,inner)+.12*behind+.23*front;
  const reach=Math.sqrt(1-drop*drop);
  return out.set(side*Math.cos(sweep)*reach,-drop,-Math.sin(sweep)*reach);
 }

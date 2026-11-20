@@ -1,5 +1,18 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {SEATS,FLOOR_SEATS,SPAWN,walkable,surfaceHeight,canSit,HALL_DESTINATIONS,distance} from '../shared/venue';import {findPath,segmentClear} from '../src/navigation/path';import {GALLERY_BRIDGE} from '../shared/gallery';
+import {Raycaster,Scene,Vector3} from 'three';
+import {PARTERRE,parterreHeight} from '../shared/parterre';
+import {parterreRearWalkTargets} from '../src/scene/ParterreWell';
+test('an entrance click reaches the sloped flight instead of stopping on the upper landing',()=>{
+ const scene=new Scene(),surfaces=parterreRearWalkTargets(scene,32,52);
+ scene.updateMatrixWorld(true);
+ const origin=new Vector3(.05,3.1,50.3),z=(PARTERRE.stairFront+PARTERRE.stairBack)/2;
+ const step=new Vector3(0,parterreHeight(0,z)!,z);
+ const [hit]=new Raycaster(origin,step.clone().sub(origin).normalize()).intersectObjects(surfaces);
+ assert.ok(hit&&hit.point.distanceTo(step)<.001,'the cursor reaches the stair at its visible level');
+ assert.ok(findPath('auditorium',SPAWN.auditorium,hit.point));
+});
+
 test('every selectable seat is reachable on its floor (2F from the gallery jump point) without passing through a chair',()=>{for(const seat of SEATS){const start=seat.level==='balcony'?HALL_DESTINATIONS.upper:SPAWN.auditorium,path=findPath('auditorium',start,seat.approach);assert.ok(path,seat.id);let previous:{x:number;y?:number;z:number}=start;for(const step of path){assert.ok(segmentClear('auditorium',previous,step),seat.id);previous=step;}assert.deepEqual(path.at(-1),seat.approach);}});
 test('the entrance leaves the centre clear and reachable from the right-hand spawn',()=>{
  const floor={x:0,y:0,z:45.5};

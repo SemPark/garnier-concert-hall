@@ -1,5 +1,17 @@
 const ENDPOINT = 'https://api.cloudflare.com/client/v4/graphql';
 const DAY_MS = 86_400_000;
+const SEOUL_OFFSET_MS = 9 * 3_600_000;
+
+function seoulDate(timestamp) {
+  return new Date(timestamp + SEOUL_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+export function getRange(days, now) {
+  return {
+    days, startDate: seoulDate(now.getTime() - (days - 1) * DAY_MS),
+    endDate: seoulDate(now.getTime()), timeZone: 'Asia/Seoul',
+  };
+}
 
 // GraphQL permits variables in the selection's filter without typing the
 // whole filter as a scope-specific input object.
@@ -16,10 +28,10 @@ const WORKER = `query WorkerMetrics(${VARIABLES}, $scriptName: string!) {
         quantiles { cpuTimeP50 cpuTimeP99 }
       }
       trend: workersInvocationsAdaptive(
-        limit: 30, orderBy: [date_ASC],
+        limit: 720, orderBy: [datetimeHour_ASC],
         filter: { ${WINDOW}, scriptName: $scriptName }
       ) {
-        dimensions { date }
+        dimensions { datetimeHour }
         sum { requests errors subrequests }
       }
     }
@@ -57,24 +69,24 @@ function zoneQuery(hostname) {
     viewer {
       zones(filter: { zoneTag: $id }) {
         trend: httpRequestsAdaptiveGroups(
-          limit: 30, orderBy: [date_ASC], filter: { ${filter} }
+          limit: 720, orderBy: [datetimeHour_ASC], filter: { ${filter} }
         ) {
-          dimensions { date }
+          dimensions { datetimeHour }
           count
           sum { edgeResponseBytes }
         }
         clientErrors: httpRequestsAdaptiveGroups(
-          limit: 30, orderBy: [date_ASC],
+          limit: 720, orderBy: [datetimeHour_ASC],
           filter: { ${filter}, edgeResponseStatus_geq: 400, edgeResponseStatus_lt: 500 }
         ) {
-          dimensions { date }
+          dimensions { datetimeHour }
           count
         }
         serverErrors: httpRequestsAdaptiveGroups(
-          limit: 30, orderBy: [date_ASC],
+          limit: 720, orderBy: [datetimeHour_ASC],
           filter: { ${filter}, edgeResponseStatus_geq: 500, edgeResponseStatus_lt: 600 }
         ) {
-          dimensions { date }
+          dimensions { datetimeHour }
           count
         }
       }
@@ -132,9 +144,9 @@ function rumQuery(hostname, operation, buildSelection) {
   const filter = `${WINDOW}, siteTag: $siteTag, bot: 0${hostname ? ', requestHost: $host' : ''}`;
   const queries = {
     WebAnalytics: `trend: rumPageloadEventsAdaptiveGroups(
-      limit: 30, orderBy: [date_ASC], filter: { ${filter} }
+      limit: 720, orderBy: [datetimeHour_ASC], filter: { ${filter} }
     ) {
-      dimensions { date }
+      dimensions { datetimeHour }
       count
       sum { visits }
     }`,
@@ -248,12 +260,12 @@ function rows(source, name) {
 }
 
 function windowFor({ startDate, endDate, now }) {
-  const first = Date.parse(`${startDate}T00:00:00Z`);
-  const last = Date.parse(`${endDate}T00:00:00Z`);
+  const first = Date.parse(`${startDate}T00:00:00+09:00`);
+  const last = Date.parse(`${endDate}T00:00:00+09:00`);
   const cutoff = Math.min(last + DAY_MS, new Date(now ?? Date.now()).valueOf());
   const dates = [];
   for (let day = first; day <= last; day += DAY_MS) {
-    dates.push(new Date(day).toISOString().slice(0, 10));
+    dates.push(seoulDate(day));
   }
   return { dates, variables: { start: new Date(first).toISOString(), end: new Date(cutoff).toISOString() } };
 }
@@ -270,24 +282,34 @@ function percentile(value, divider = 1) {
   return Number.isFinite(value) && value >= 0 ? value / divider : null;
 }
 
+// Cloudflare buckets are UTC hours. Fold them at Seoul midnight for the report.
+function dailyTotals(dates, hourlyRows, metrics) {
+  const daily = dates.map(date => ({ date, ...Object.fromEntries(Object.keys(metrics).map(key => [key, 0])) }));
+  const byDate = new Map(daily.map(day => [day.date, day]));
+  for (const row of hourlyRows) {
+    const day = byDate.get(seoulDate(Date.parse(row.dimensions.datetimeHour)));
+    if (day) {
+      for (const [key, read] of Object.entries(metrics)) day[key] += read(row);
+    }
+  }
+  return daily;
+}
+
 function zoneMetrics(source, dates) {
-  const fields = ['requests', 'bytes', 'clientErrors', 'serverErrors'];
-  const trend = new Map(rows(source, 'trend').map(row => [row.dimensions.date, row]));
-  const clientErrors = new Map(rows(source, 'clientErrors').map(row => [row.dimensions.date, row.count]));
-  const serverErrors = new Map(rows(source, 'serverErrors').map(row => [row.dimensions.date, row.count]));
-  const daily = dates.map(date => withErrorRate({
-    date,
-    requests: trend.get(date)?.count ?? 0,
-    bytes: trend.get(date)?.sum.edgeResponseBytes ?? 0,
-    clientErrors: clientErrors.get(date) ?? 0,
-    serverErrors: serverErrors.get(date) ?? 0,
-  }, 'serverErrors'));
-  return { summary: withErrorRate(aggregate(daily, fields), 'serverErrors'), daily };
+  const traffic = dailyTotals(dates, rows(source, 'trend'), {
+    requests: row => row.count, bytes: row => row.sum.edgeResponseBytes,
+  });
+  const clients = dailyTotals(dates, rows(source, 'clientErrors'), {clientErrors: row => row.count});
+  const servers = dailyTotals(dates, rows(source, 'serverErrors'), {serverErrors: row => row.count});
+  const daily = traffic.map((day, i) => withErrorRate({...day, ...clients[i], ...servers[i]}, 'serverErrors'));
+  return { summary: withErrorRate(aggregate(daily, ['requests', 'bytes', 'clientErrors', 'serverErrors']), 'serverErrors'), daily };
 }
 
 function workerMetrics(source, dates) {
   const zero = { requests: 0, errors: 0, subrequests: 0 };
-  const trend = new Map(rows(source, 'trend').map(row => [row.dimensions.date, row.sum]));
+  const daily = dailyTotals(dates, rows(source, 'trend'), {
+    requests: row => row.sum.requests, errors: row => row.sum.errors, subrequests: row => row.sum.subrequests,
+  });
   const total = rows(source, 'total')[0];
   return {
     summary: {
@@ -295,7 +317,7 @@ function workerMetrics(source, dates) {
       cpuP50Ms: percentile(total?.quantiles?.cpuTimeP50, 1_000),
       cpuP99Ms: percentile(total?.quantiles?.cpuTimeP99, 1_000),
     },
-    daily: dates.map(date => withErrorRate({ date, ...(trend.get(date) ?? zero) }, 'errors')),
+    daily: daily.map(day => withErrorRate(day, 'errors')),
   };
 }
 
@@ -329,12 +351,9 @@ function performanceValues(quantiles) {
 }
 
 function rumMetrics(source, dates, quantiles, quality) {
-  const trend = new Map(rows(source, 'trend').map(row => [row.dimensions.date, row]));
-  const daily = dates.map(date => ({
-    date,
-    pageViews: trend.get(date)?.count ?? 0,
-    visits: trend.get(date)?.sum.visits ?? 0,
-  }));
+  const daily = dailyTotals(dates, rows(source, 'trend'), {
+    pageViews: row => row.count, visits: row => row.sum.visits,
+  });
   return {
     summary: {
       ...aggregate(daily, ['pageViews', 'visits']),

@@ -1,0 +1,22 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {importSamples,readSamples} from './spatial-archive.mjs';
+test('offline visits are date-scoped, deduplicated and discard unexpected fields',async t=>{
+  const dir=await mkdtemp(join(tmpdir(),'local-visit-'));
+  t.after(()=>rm(dir,{recursive:true,force:true}));
+  const now=Date.now();
+  const opts={dbPath:join(dir,'dev.sqlite'),now};
+  const row={visit:'test-visit',at:now,seq:1,hall:'jazz',zone:'lobby',floor:1,x:0,z:26,area:'lobby',layout:'dinner-v1',move:'unknown',name:'unused',track:'local-id'};
+  assert.equal(await importSamples({samples:[row]},opts),1);
+  assert.equal(await importSamples([row],opts),0);
+  await assert.rejects(importSamples([{...row,seq:2},{...row,seq:3,hall:'other'}],opts));
+  const endDate=new Date(now+9*3600000).toISOString().slice(0,10);
+  const {samples}=await readSamples({...opts,endDate,days:1});
+  assert.equal(samples.length,1);
+  assert.equal(samples[0].track,'local-id');
+  assert.equal(samples[0].dwellMs,null);
+  assert.equal(samples[0].name,undefined);
+});

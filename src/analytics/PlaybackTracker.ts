@@ -16,7 +16,7 @@ export class PlaybackTracker{
  private seconds=0;
  private started=false;
  private reachedThreshold=false;
- constructor(private readonly emit:(event:PlaybackAnalyticsEvent)=>void,private readonly keepCounting=false){}
+ constructor(private readonly emit:(event:PlaybackAnalyticsEvent)=>void, private readonly keepCounting=false){}
  get measuredMs(){return Math.round(this.seconds*1000);}
 
  /** A seek, wait or source change invalidates an interval, not earlier listening. */
@@ -35,9 +35,7 @@ export class PlaybackTracker{
   this.seconds+=Math.min(wall,media/sample.playbackRate);
   if(!this.started){this.started=true;this.report('playback_start');}
   if(!this.reachedThreshold&&this.seconds>=LISTENING_THRESHOLD_SECONDS-1e-8){
-   this.reachedThreshold=true;
-   if(!this.keepCounting)this.resetSample();
-   this.report('playback_180_seconds');
+   this.reachedThreshold=true;this.report('playback_180_seconds');
   }
  }
 

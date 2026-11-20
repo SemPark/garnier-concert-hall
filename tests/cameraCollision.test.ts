@@ -6,6 +6,13 @@ import {CameraFade,cameraFadeGroup} from '../src/scene/CameraFade';
 function wall(z:number){const mesh=new T.Mesh(new T.BoxGeometry(20,20,.1),new T.MeshBasicMaterial());mesh.position.z=z;mesh.updateMatrixWorld(true);return mesh;}
 test('very close wall hits cannot push the camera through a wall with a fixed minimum distance',()=>{const origin=new T.Vector3(),desired=new T.Vector3(0,0,5),result=constrainCamera(origin,desired,[wall(.4)]);assert.ok(result.z>0&&result.z<.2);});
 test('the near-plane footprint is swept even when the centre ray misses a column',()=>{const mesh=new T.Mesh(new T.BoxGeometry(.15,2,.2));mesh.position.set(.2,0,1);mesh.updateMatrixWorld(true);const result=constrainCamera(new T.Vector3(),new T.Vector3(0,0,4),[mesh]);assert.ok(result.z<1);});
+test('a corner of the camera footprint stops before an offset wall edge',()=>{
+ const edge=new T.Mesh(new T.BoxGeometry(.08,.08,.2));
+ edge.position.set(.22,.22,1);
+ edge.updateMatrixWorld(true);
+ const eye=constrainCamera(new T.Vector3(),new T.Vector3(0,0,4),[edge]);
+ assert.ok(eye.z<.9);
+});
 test('close occluding wall instances are hidden and restored when the sight line clears',()=>{const scene=new T.Scene(),mesh=wall(0);mesh.userData.cameraOccluder=true;scene.add(mesh);const update=batchArchitecture(scene,[]),camera=new T.PerspectiveCamera(60,1,.1,100);camera.position.z=2;camera.lookAt(0,0,-2);scene.userData.cameraFocus=new T.Vector3(0,0,-2);update(camera);const batch=scene.children.find(o=>o instanceof T.InstancedMesh) as T.InstancedMesh;assert.equal(batch.count,0);scene.userData.cameraFocus=null;update(camera);assert.equal(batch.count,1);});
 test('near-wall cutaways retain the enclosing hall shell instead of opening a hole outside',()=>{
  const scene=new T.Scene();buildHallShell(scene);const update=batchArchitecture(scene,[]),camera=new T.PerspectiveCamera(70,1,.08,150);

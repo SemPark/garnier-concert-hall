@@ -1,3 +1,6 @@
+import {loadBehavior} from './behavior.mjs';
+import {getRange} from './cloudflare.mjs';
+import hallAnalyticsActions from '../shared/hall-analytics-actions.json' with {type: 'json'};
 import {sign} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 
@@ -34,6 +37,7 @@ const breakdowns = [
   ['devices', '기기', 'deviceCategory', 'activeUsers'],
   ['countries', '국가', 'country', 'activeUsers'],
   ['events', '이벤트', 'eventName', 'eventCount'],
+  ['hallActions', '관객이 누른 기능', 'eventName', 'eventCount'],
   ['keyEventNames', '주요 이벤트', 'eventName', 'keyEvents'],
   ['sourceMedium', '유입 소스 및 매체', 'sessionSourceMedium', 'sessions'],
   ['campaigns', '캠페인', 'sessionCampaignName', 'sessions'],
@@ -202,6 +206,57 @@ function collectBreakdown({rows}) {
   ));
 }
 
+const playbackSteps = [
+  {name: 'Playback start', eventName: 'playback_start'},
+  {name: 'Three minutes', eventName: 'playback_180_seconds'},
+];
+const startedSegment = 'Started';
+const matchedSegment = 'Same visit';
+const sameVisit = 'USER_CRITERIA_WITHIN_SAME_SESSION';
+const segmentEvent = (eventName) => ({segmentEventFilter: {eventName}});
+
+async function loadPlaybackJourney(api, dateRanges) {
+  const report = await api('runFunnelReport', {
+    dateRanges,
+    funnel: {steps: playbackSteps.map(({name, eventName}) => ({
+      name, filterExpression: {funnelEventFilter: {eventName}},
+    }))},
+    segments: [
+      {name: startedSegment, userSegment: {userInclusionCriteria: {andConditionGroups: [{
+        conditionScoping: 'USER_CRITERIA_WITHIN_SAME_EVENT',
+        segmentFilterExpression: segmentEvent(playbackSteps[0].eventName),
+      }]}}},
+      {name: matchedSegment, userSegment: {userInclusionCriteria: {andSequenceGroups: [{
+        sequenceScoping: sameVisit,
+        userSequenceSteps: playbackSteps.map(({eventName}) => ({
+          stepScoping: sameVisit, segmentFilterExpression: segmentEvent(eventName),
+        })),
+      }]}}},
+    ],
+  }, 'v1alpha');
+  return readPlaybackJourney(report);
+}
+
+export function readPlaybackJourney({funnelTable: table}) {
+  const stepIndex = table?.dimensionHeaders?.findIndex(({name}) => name === 'funnelStepName') ?? -1;
+  const segmentIndex = table?.dimensionHeaders?.findIndex(({name}) => name === 'segment') ?? -1;
+  const countIndex = table?.metricHeaders?.findIndex(({name}) => name === 'activeUsers') ?? -1;
+  if (Math.min(stepIndex, segmentIndex, countIndex) < 0 || table.metadata?.subjectToThresholding
+    || table.metadata?.samplingMetadatas?.length) return null;
+
+  const read = (segment, step) => {
+    const match = table.rows?.find(row => row.dimensionValues?.[segmentIndex]?.value === segment
+      && row.dimensionValues?.[stepIndex]?.value === step);
+    const value = match?.metricValues?.[countIndex]?.value;
+    return typeof value === 'string' && /^[0-9]+$/.test(value) && Number.isSafeInteger(Number(value))
+      ? Number(value) : null;
+  };
+  const started = read('1. ' + startedSegment, '1. ' + playbackSteps[0].name);
+  const reachedThreeMinutes = read('2. ' + matchedSegment, '1. ' + playbackSteps[0].name);
+  if (started == null || reachedThreeMinutes == null || reachedThreeMinutes > started) return null;
+  return {started, reachedThreeMinutes, rate: started ? reachedThreeMinutes / started : null};
+}
+
 async function batchReports(api, requests) {
   try {
     const response = await api('batchRunReports', {requests});
@@ -245,9 +300,9 @@ export async function getGoogleAnalytics({days, now = new Date(), env = process.
     ...(dimensionName ? {dimensions: [{name: dimensionName}]} : {}),
     ...options,
   });
-  const api = (method, body) => post(
+  const api = (method, body, version = 'v1beta') => post(
     fetchImpl,
-    `https://analyticsdata.googleapis.com/v1beta/properties/${property}:${method}`,
+    `https://analyticsdata.googleapis.com/${version}/properties/${property}:${method}`,
     JSON.stringify(body),
     {authorization: `Bearer ${token}`, 'content-type': 'application/json'},
   );
@@ -261,6 +316,9 @@ export async function getGoogleAnalytics({days, now = new Date(), env = process.
       orderBys: key === 'hours'
         ? [{dimension: {dimensionName: dimension}}]
         : [{metric: {metricName: metric}, desc: true}],
+      ...(key === 'hallActions' && {dimensionFilter: {
+        filter: {fieldName: 'eventName', inListFilter: {values: Object.keys(hallAnalyticsActions)}},
+      }}),
       ...(key === 'keyEventNames' && {metricFilter: {
         filter: {fieldName: 'keyEvents', numericFilter: {operation: 'GREATER_THAN', value: {int64Value: '0'}}},
       }}),
@@ -276,7 +334,7 @@ export async function getGoogleAnalytics({days, now = new Date(), env = process.
     }
     return reports;
   }
-  const [coreReports, realtimeReports] = await Promise.all([
+  const [coreReports, realtimeReports, playbackJourney] = await Promise.all([
     loadCoreReports(),
     Promise.allSettled([
       api('runRealtimeReport', {metrics: Object.values(realtimeMetrics).map((name) => ({name}))}),
@@ -289,11 +347,12 @@ export async function getGoogleAnalytics({days, now = new Date(), env = process.
           : [{metric: {metricName: metric}, desc: true}],
       })),
     ]),
+    loadPlaybackJourney(api, dateRanges).catch(() => null),
   ]);
 
   const failures = new Map();
   const warnings = new Set();
-  const data = {timeZone: null};
+  const data = {timeZone: null, playbackJourney};
   let successfulReports = 0;
   function collect(label, result, parse, format) {
     try {
@@ -337,6 +396,10 @@ export async function getGoogleAnalytics({days, now = new Date(), env = process.
   for (const [index, [key, label, dimension, metric]] of breakdowns.entries()) {
     const result = collect(label, coreReports[5 + index], (value) => readReport(value, [metric], dimension), (report) => {
       const rows = collectBreakdown(report);
+      if (key === 'hallActions') {
+        return rows.filter(({name}) => Object.hasOwn(hallAnalyticsActions, name))
+          .map(({name, value}) => ({name: hallAnalyticsActions[name], value}));
+      }
       if (key === 'returning') {
         returningUsers = rows.find(({name}) => name === 'returning')?.value
           ?? (report.metadata?.subjectToThresholding ? null : 0);
@@ -356,6 +419,17 @@ export async function getGoogleAnalytics({days, now = new Date(), env = process.
   data.realtime = realtime || Object.values(liveBreakdowns).some((report) => report !== null)
     ? {...realtime, breakdowns: liveBreakdowns}
     : null;
+
+  const range = getRange(days, now);
+  data.behavior = await loadBehavior(api, async () => {
+    const response = await fetchImpl(
+      `https://analyticsdata.googleapis.com/v1beta/properties/${property}/metadata`,
+      {headers: {authorization: `Bearer ${token}`}, redirect: 'error', signal: AbortSignal.timeout(10_000)},
+    );
+    if (!response.ok) throw new GoogleAnalyticsError('GA4 맞춤 정의를 조회하지 못했습니다.');
+    return response.json();
+  }, {...range, includesToday: true});
+  if (data.behavior.eventStatus === 'ok' || data.behavior.realtimeStatus === 'ok') successfulReports += 1;
 
   const fetchedAt = new Date().toISOString();
   if (!failures.size) return {status: 'ok', fetchedAt, warnings: [...warnings], data};

@@ -90,6 +90,7 @@ h1 { font-size: clamp(25px, 3vw, 38px); line-height: 1.2; letter-spacing: -.045e
 .section-head h2 { font-size: 21px; letter-spacing: -.025em; }
 .section-head p { margin-top: 4px; }
 .quick-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.quick-grid.primary-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 12px; }
 .quick-card { min-width: 0; padding: clamp(14px, 2.25vw, 24px); border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
 .quick-card h3 { color: var(--muted); font-size: 13px; font-weight: 500; }
 .quick-value { display: block; margin: 10px 0 5px; font-size: clamp(22px, 2.5vw, 32px); letter-spacing: -.035em; overflow-wrap: anywhere; }
@@ -120,6 +121,11 @@ h1 { font-size: clamp(25px, 3vw, 38px); line-height: 1.2; letter-spacing: -.045e
 .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .panel { min-width: 0; padding: 17px; }
 .panel h3 { font-size: 15px; }
+.hall-activity-grid { margin-top: 12px; }
+.hall-activity-grid h4 { font-size: 13px; }
+.explanation .section-head { margin-bottom: 0; }
+.explanation-text { margin-top: 12px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.explanation-text:empty { display: none; }
 .detail-grid > .wide, .detail-grid > .metric-grid { grid-column: 1 / -1; }
 .panel > .metric-grid { margin-top: 13px; }
 .panel-meta, .empty { margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.55; }
@@ -243,6 +249,7 @@ footer { padding-top: 14px; border-top: 1px solid var(--line); }
 }
 @media (max-width: 470px) {
   .quick-grid { grid-template-columns: 1fr; gap: 8px; }
+  .quick-grid.primary-metrics { margin-bottom: 8px; }
   .quick-value { margin: 5px 0 3px; }
   .hero, .section-head { align-items: flex-start; flex-direction: column; gap: 11px; }
   .hero { flex-direction: row; align-items: center; padding: 13px 14px; }
@@ -267,3 +274,27 @@ footer { padding-top: 14px; border-top: 1px solid var(--line); }
 .chart-toolbar h4 { margin: 0; color: var(--muted); font-size: 13px; font-weight: 600; }
 .chart-picker { max-width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; background: #232231; color: #efedf3; font: inherit; font-size: 12px; }
 .warning-list { padding-left: 19px; margin: 9px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+
+#daily { overflow-x: auto; }
+#daily h3 { margin: 1.25rem 0 .5rem; }
+#daily table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+#daily td, #daily th { padding: .4rem; text-align: right; white-space: nowrap; }
+#daily td:first-child, #daily th:first-child { text-align: left; }
+
+.spatial-controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; margin:16px 0; }
+.spatial-controls label { display:inline-flex; gap:6px; align-items:center; font-size:13px; }
+.spatial-controls label[hidden] { display:none; }
+.spatial-analysis { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(210px,1fr); gap:18px; align-items:start; }
+.spatial-analysis figure { margin:0; min-width:0; }
+.spatial-analysis figcaption { color:var(--muted); font-size:12px; margin-top:8px; }
+.spatial-chart { display:block; width:100%; max-height:330px; }
+.spatial-analysis > div { max-height:350px; overflow:auto; }
+.spatial-analysis table, .spatial-event-totals table { width:100%; font-size:13px; border-collapse:collapse; }
+.spatial-analysis th, .spatial-analysis td, .spatial-event-totals th, .spatial-event-totals td { padding:6px 8px; text-align:left; border-bottom:1px solid var(--line); }
+.spatial-analysis p, .spatial-event-totals p { font-size:13px; color:var(--muted); margin-top:8px; }
+#action-report { margin-top:18px; padding-top:12px; border-top:1px solid var(--line); }
+#action-report ol { padding-inline-start:20px; font-size:13px; }
+@media(max-width:740px) { .spatial-analysis { grid-template-columns:minmax(0,1fr); } }
+
+.spatial-event-totals { margin-top:18px; }
+.spatial-event-totals table { margin-top:9px; }

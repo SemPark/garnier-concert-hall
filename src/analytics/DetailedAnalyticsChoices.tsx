@@ -1,19 +1,20 @@
 import {useEffect,useState} from 'react';
-import type {AnalyticsConsent} from './ga4';
+import {detailedAnalyticsMock,type AnalyticsConsent} from './ga4';
 import {DetailedAnalytics} from './DetailedAnalytics';
 import {ExtraAnalytics} from './ExtraAnalytics';
 import {ZoneAnalytics} from './ZoneAnalytics';
 import {analyticsMayStart,analyticsPrivacySignal,type AnalyticsChoice} from './regionConsent';
 import type {AnalyticsMode} from '../../shared/analyticsPolicy';
 
-const CHOICE_KEY='pleee-seat-and-dwell-consent-v1';
-const EXTRA_CHOICE_KEY='pleee-extra-analytics-consent-v1';
-const ZONE_CHOICE_KEY='pleee-zone-analytics-consent-v1';
+const consentKey=(key:string)=>detailedAnalyticsMock?'mock-'+key:key;
+const CHOICE_KEY=consentKey('pleee-seat-and-dwell-consent-v1');
+const EXTRA_CHOICE_KEY=consentKey('pleee-extra-analytics-consent-v1');
+const ZONE_CHOICE_KEY=consentKey('pleee-zone-analytics-consent-v1');
 
 export function useDetailedAnalytics(analytics:AnalyticsConsent|null,
  mode:AnalyticsMode,basicChoice:AnalyticsChoice,hall:'classical'|'jazz'){
  const [{detail,extra,zones}]=useState(()=>{
-  if(!analytics||import.meta.env.VITE_PLEEE_SEAT_DWELL_ENABLED!=='true')return {detail:null,extra:null,zones:null};
+  if(!analytics||(!detailedAnalyticsMock&&import.meta.env.VITE_PLEEE_SEAT_DWELL_ENABLED!=='true'))return {detail:null,extra:null,zones:null};
   const available=(key:string)=>()=>analytics.detailReady&&!analyticsPrivacySignal(navigator)&&readChoice(key)==='yes';
   return {
    detail:new DetailedAnalytics(available(CHOICE_KEY),event=>analytics.sendDetail(event)),
@@ -79,7 +80,7 @@ export function DetailedAnalyticsChoices({choice,choose,kind='seat'}:{choice:Ana
  return <section className="device-diagnostic" aria-label={label}>
   <strong>{label}</strong>
   <p>{explanation}</p>
-  <p>{ko?'수신처는 Google LLC의 Google Analytics입니다.':'Google LLC receives the summaries through Google Analytics.'}{' '}
+  <p>{detailedAnalyticsMock?(ko?'로컬 모의 환경입니다.':'Local simulation.'):(ko?'수신처는 Google LLC의 Google Analytics입니다.':'Google LLC receives the summaries through Google Analytics.')}{' '}
    <a href="/privacy.html" target="_blank" rel="noreferrer">{ko?'개인정보 안내':'Privacy notice'}</a></p>
   <div className="analytics-choice-buttons">
    <button type="button" aria-pressed={choice==='yes'} onClick={()=>choose('yes')}>{allow}</button>

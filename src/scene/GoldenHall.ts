@@ -26,7 +26,7 @@ function frustum(parent:T.Object3D,top:number,bottom:number,h:number,pos:number[
 function cornice(g:T.Object3D,width:number,y:number,z:number,color:number=P.light){for(const [dy,depth,h]of [[0,.38,.13],[.18,.54,.18],[.38,.72,.12]])box(g,[width,h,depth],[0,y+dy,z],color);for(let x=-width/2+.12;x<width/2;x+=.36)box(g,[.13,.18,.25],[x,y-.16,z+.16],P.gold);}
 function rosette(g:T.Object3D,x:number,y:number,z:number,size=.12){const center=sphere(g,size,[x,y,z],P.light);center.scale.z*=.45;for(let i=0;i<6;i++){const a=i/6*Math.PI*2;sphere(g,size*.62,[x+Math.cos(a)*size,y+Math.sin(a)*size,z],P.gold).scale.z*=.35;}}
 function gildedColumn(g:T.Object3D,x:number,y:number,h:number,r=.27){
- cylinder(g,r*1.7,.18,[x,y+.09,.1],P.deep);cylinder(g,r*1.45,.17,[x,y+.25,.1],P.light);cylinder(g,r,h-.9,[x,y+h/2,.1],P.gold);
+ cylinder(g,r*1.7,.18,[x,y+.09,.1],P.deep);cylinder(g,r*1.45,.17,[x,y+.25,.1],P.light);cylinder(g,r,h-.9,[x,y+h/2,.1],P.gold).userData.wallSurface=true;
  for(let i=0;i<10;i++){const a=i/10*Math.PI*2;cylinder(g,.012,h-1.1,[x+Math.cos(a)*r*1.01,y+h/2,.1+Math.sin(a)*r*1.01],P.light);}
  frustum(g,r*1.65,r*.95,.4,[x,y+h-.48,.1],P.light);box(g,[r*3.6,.18,r*3.6],[x,y+h-.16,.1],P.gold);
  for(const side of [-1,1])sphere(g,r*.45,[x+side*r*1.35,y+h-.35,.2],P.light);
@@ -34,7 +34,7 @@ function gildedColumn(g:T.Object3D,x:number,y:number,h:number,r=.27){
 function caryatid(g:T.Object3D,capital=true){
  // Repeated gilded figures supporting the first gallery, with draped robes.
  box(g,[1.05,.2,.8],[0,.1,.45],P.deep);box(g,[.82,.18,.67],[0,.29,.45],P.light);
- frustum(g,.24,.43,2.45,[0,1.7,.46],P.gold);frustum(g,.42,.26,1.05,[0,3.4,.45],P.gold);
+ frustum(g,.24,.43,2.45,[0,1.7,.46],P.gold).userData.wallSurface=true;frustum(g,.42,.26,1.05,[0,3.4,.45],P.gold).userData.wallSurface=true;
  for(let i=0;i<8;i++){const a=i/8*Math.PI*2;line(g,new T.Vector3(Math.cos(a)*.22,2.8,.46+Math.sin(a)*.22),new T.Vector3(Math.cos(a)*.38,.5,.46+Math.sin(a)*.38),.025,P.light);}
  sphere(g,.3,[0,4.24,.45],P.gold).scale.y*=1.3;sphere(g,.32,[0,4.38,.5],P.deep).scale.y*=.75;sphere(g,.075,[0,4.2,.74],P.light);
  for(const s of [-1,1]){line(g,new T.Vector3(s*.3,3.8,.45),new T.Vector3(s*.56,4.6,.4),.11,P.gold);line(g,new T.Vector3(s*.56,4.6,.4),new T.Vector3(s*.35,5.45,.3),.09,P.light);sphere(g,.11,[s*.35,5.45,.3],P.gold);}
@@ -59,7 +59,7 @@ let gildedFrieze:T.Material|null=null;
 // Gallery fronts are gilded relief, as in the hall: the scroll frieze is tinted gold and framed in gold.
 export function balustrade(g:T.Object3D,width:number,ornament:T.Material|null=(gildedFrieze??=(()=>{const m=friezeMaterial().clone() as T.MeshLambertMaterial;m.color.set(0xe2b866);return m;})()),posts=true){
  g.scale.y=GALLERY_RAIL_HEIGHT/1.58;
- box(g,[width,1.4,.22],[0,.78,.4],P.gold);box(g,[width,.12,.5],[0,.08,.43],P.gold);box(g,[width,.17,.42],[0,1.48,.45],P.gold);
+ box(g,[width,1.4,.22],[0,.78,.4],P.gold).userData.wallSurface=true;box(g,[width,.12,.5],[0,.08,.43],P.gold).userData.wallSurface=true;box(g,[width,.17,.42],[0,1.48,.45],P.gold).userData.wallSurface=true;
  if(ornament){const count=Math.max(1,Math.ceil(width/2.1));for(let i=0;i<count;i++){const face=new T.Mesh(friezePlane,ornament);face.scale.set(width/count,1.14,1);face.position.set(-width/2+(i+.5)*width/count,.79,.525);g.add(face);}}
  if(posts)for(let x=-width/2;x<=width/2+.01;x+=2.4)box(g,[.075,1.25,.1],[x,.78,.55],P.light);
 }
@@ -128,8 +128,8 @@ export function buildOrgan(scene:T.Scene,ornament:T.Material=friezeMaterial()){
  for(const x of [-8,-5,0,5,8]){const y=23.15+(x===0?2.15:.28),figure=new T.Group();figure.position.set(x,y,1.3);figure.scale.setScalar(1.7);g.add(figure);sphere(figure,.2,[0,.45,0],P.ivory);frustum(figure,.16,.34,.65,[0,0,0],P.ivory);for(const side of [-1,1])line(figure,new T.Vector3(side*.15,.15,0),new T.Vector3(side*.48,-.05,.04),.065,P.ivory);}
  // The loft has its own slab, rounded apron and supporting brackets. Its wings
  // meet the existing galleries at the same 8.3-unit floor elevation.
- const floor=loftSlab(g,.48,H.balconyHeight);floor.userData.landmark='organ-loft-floor';floor.material=material(0xc39a59);applyWoodSurface(floor,'oak',true);
- const apron=loftSlab(g,.28,H.balconyHeight-.48,-.14);apron.userData.landmark='organ-loft-apron';apron.material=material(P.gold);
+ const floor=loftSlab(g,.48,H.balconyHeight);floor.userData.landmark='organ-loft-floor';floor.userData.wallSurface=true;floor.material=material(0xc39a59);applyWoodSurface(floor,'oak',true);
+ const apron=loftSlab(g,.28,H.balconyHeight-.48,-.14);apron.userData.landmark='organ-loft-apron';apron.userData.wallSurface=true;apron.material=material(P.gold);
  const lip=loftSlab(g,.16,H.balconyHeight-.76,-.23);lip.userData.landmark='organ-loft-lower-cornice';lip.material=material(P.light);
  const railPath=ORGAN_LOFT_CONTOUR.filter(p=>Math.abs(p.x)<=ORGAN_RAIL_JOIN_X-ORGAN_RAIL_POST_HALF);
  for(let i=0;i<railPath.length-1;i++){
@@ -325,7 +325,7 @@ export function rearFacade(scene:T.Scene){
  for(const x of REAR_COLUMNS.xs){
   const column=cameraFadeGroup(g);column.position.set(x,0,front);column.userData.landmark='rear-portico-column';
   cylinder(column,.49,.23,[0,.12,0],0x3e3025);cylinder(column,.40,.17,[0,.32,0],P.light);
-  const shaft=cylinder(column,.30,6.55,[0,3.75,0],0x6e4029);shaft.material=woodMaterial('walnut');
+  const shaft=cylinder(column,.30,6.55,[0,3.75,0],0x6e4029);shaft.material=woodMaterial('walnut');shaft.userData.wallSurface=true;
   for(let i=0;i<12;i++){const a=i/12*Math.PI*2;cylinder(column,.014,6.45,[Math.cos(a)*.304,3.75,Math.sin(a)*.304],0x9a6a3f);}
   box(column,[1.05,.25,.8],[0,7.25,0],P.gold);
   for(const side of [-1,1]){const volute=cylinder(column,.16,.2,[side*.38,7.04,.28],P.gold);volute.rotation.x=Math.PI/2;}
@@ -359,8 +359,7 @@ function rearScreens(scene:T.Scene){
  const r=REAR_SCREENS,width=r.outerX-r.innerX,top=r.height-.5;
  for(const side of [-1,1]){
   const g=cameraFadeGroup(scene);g.userData.landmark='rear-screen';const X=(x:number)=>side*x,mid=X((r.innerX+r.outerX)/2),face=r.z-r.thickness/2;
-  // Shared movement rules block this screen. The camera can orbit through it and fade the panel.
-  box(g,[width,r.height,r.thickness],[mid,r.height/2,r.z],0xeadfc4);
+  box(g,[width,r.height,r.thickness],[mid,r.height/2,r.z],0xeadfc4).userData.wallSurface=true;
   const pilaster=(x:number,w:number)=>{
    box(g,[w,top-.35,.12],[X(x),.35+(top-.35)/2,face-.06],0x6e3326);
    box(g,[w-.28,top-.75,.05],[X(x),.35+(top-.35)/2,face-.14],0xb3705d).userData.landmark='rear-screen-marble';
@@ -403,7 +402,7 @@ export function buildGoldenHall(scene:T.Scene){return finishBuild(buildGoldenHal
 export function* buildGoldenHallSteps(scene:T.Scene){
  scene.userData.venue='musikverein-golden-hall';
  const cameraWalls:T.Object3D[]=buildHallShell(scene);
- const stage=box(scene,[STAGE.width,STAGE_FLOOR-PARTERRE.floor+.075,STAGE.front-STAGE.back],[0,(STAGE_FLOOR+PARTERRE.floor-.075)/2,(STAGE.front+STAGE.back)/2],0xa77343);stage.material=woodMaterial('stage-side');applyWoodSurface(stage,'stage-top',true);stage.receiveShadow=true;
+ const stage=box(scene,[STAGE.width,STAGE_FLOOR-PARTERRE.floor+.075,STAGE.front-STAGE.back],[0,(STAGE_FLOOR+PARTERRE.floor-.075)/2,(STAGE.front+STAGE.back)/2],0xa77343);stage.material=woodMaterial('stage-side');applyWoodSurface(stage,'stage-top',true);stage.receiveShadow=true;stage.userData.wallSurface=true;
  buildParterreWell(scene);
  // Straight oak boards on stage contrast with the audience's herringbone parquet.
  // Floor board joints are part of the shared timber texture; no coplanar strips.
@@ -426,7 +425,7 @@ export function* buildGoldenHallSteps(scene:T.Scene){
   // The repeated bays stop short of both corners; finish those returns too.
   for(const [a,b]of [[WALL_DATUM.front,-27],[51,WALL_DATUM.rear]]){const end=new T.Group();end.position.set(side*WALL_DATUM.halfWidth,0,(a+b)/2);end.rotation.y=side<0?Math.PI/2:-Math.PI/2;scene.add(end);wallPanel(end,0,WALL_LEVELS.panelY,b-a,WALL_LEVELS.panelHeight);}
  }
- cameraWalls.push(...buildGalleryFloors(scene).filter(slab=>slab.userData.rearGallery));
+ cameraWalls.push(...buildGalleryFloors(scene));
  rearScreens(scene);rearCornice(scene);
  buildPerimeterCornices(scene);buildPerimeterFriezes(scene,friezeMaterial());
  buildFrontWindows(scene);yield;buildOrgan(scene);yield;paintedCeiling(scene);yield;
