@@ -25,6 +25,8 @@ a { color: #653263; }
 <h2>선택 사항인 공간·기능·음악 분석</h2>
 <p>설정에서 추가 분석을 허용하면 그때부터 클래식·재즈 공간 종류, 공연 선택과 화면·이동 기능 사용, 타로 꽃 받기·여왕 카드 성공, 마지막으로 관측한 음악 재생 여부와 실제 청취 시간(초)을 집계합니다. 페이지를 떠날 때 Google LLC의 기존 Google Analytics 웹 스트림에 집계값을 보내요. 상세 이벤트에는 정확한 좌표, 이름, 곡명, 별도 방문 식별자나 이동 순서가 포함되지 않습니다.</p>
 <p>설정에서 좌석·체류 분석과 추가 분석을 각각 거부하거나 철회할 수 있어요. 철회한 항목은 수집과 전송을 즉시 중단하고 아직 보내지 않은 집계값을 지워요.</p>
+<h2>선택 사항인 구역 이동 분석</h2>
+<p>별도로 허용하면 클래식·재즈 공연장에서 관측한 출발·도착 구역 조합별 변경 횟수와 마지막으로 관측한 층·구역을 집계합니다. 페이지를 떠날 때 기존 Google LLC의 Google Analytics 웹 스트림에 보냅니다. 마지막 관측 구역은 실제 퇴장 위치와 다를 수 있어요. 정확한 좌표, 방문 ID, 개별 이동 순서는 보내지 않습니다. 설정에서 철회하면 수집과 전송을 중단하고 아직 보내지 않은 집계값을 지웁니다.</p>
 <h2>통계 쿠키</h2>
 <p>GA4가 활성화된 경우 사용하는 쿠키는 방문을 구분하는 <code>_ga</code>와 세션 상태를 유지하는 <code>_ga_*</code>입니다. <a href="https://support.google.com/analytics/answer/11397207?hl=ko" rel="noreferrer">Google의 쿠키 안내</a>에 따르면 기본 만료 기간은 2년이며, 브라우저에 따라 더 짧을 수 있습니다. 브라우저의 사이트 데이터 설정에서 쿠키를 삭제할 수 있어요.</p>
 <h2>Google Analytics 보관 기간</h2>
@@ -38,6 +40,7 @@ a { color: #653263; }
 <p>PLEEE uses Google Analytics to measure page views, playback starts, and whether total playback reaches 180 seconds. Cloudflare classifies the request region to choose how measurement works. In the EEA, UK, Switzerland and California, Google Analytics is off unless you choose Allow. In South Korea and known U.S. states and D.C. except California, analytics may start without a prompt. In other or unverified regions Google Analytics stays off. No advertising cookies or personalized advertising are enabled. In the settings footer you can change your choice; PLEEE also respects browser privacy signals and previous refusals. Separate Cloudflare Web Analytics runs without cookies.</p>
 <p>Detailed seat and dwell analytics requires a separate opt-in in Settings. We summarize dwell in 30-second units by floor and area and count selections and confirmed seating by seat number. We send the summaries on page exit to Google LLC through the existing Google Analytics stream. Withdraw in Settings to stop collection and discard unsent summaries.</p>
 <p>With separate additional analytics consent, PLEEE sends classical or jazz hall type, feature use and completion counts, last observed playback status, and audible listening seconds to the same Google Analytics stream on page exit. You can reject or withdraw either detailed analytics choice in Settings.</p>
+<p>With separate zone analytics consent, PLEEE sends coarse zone change counts and last observed floor and area to the same Google Analytics stream on page exit. Withdraw in Settings to discard unsent summaries and stop collection.</p>
 <p><a href="https://policies.google.com/technologies/partner-sites?hl=en" rel="noreferrer">How Google uses data</a> · <a href="https://tools.google.com/dlpage/gaoptout?hl=en" rel="noreferrer">Google Analytics browser opt-out</a></p>
 </section>
 </main>

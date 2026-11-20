@@ -1,8 +1,9 @@
+import type {ZoneEvent} from './ZoneAnalytics';
 import type {ExtraEvent} from './ExtraAnalytics';
 import type {DetailEvent as SeatDwellEvent} from './DetailedAnalytics';
 import {PlaybackTracker} from './PlaybackTracker';
 
-type DetailEvent=SeatDwellEvent|ExtraEvent;
+type DetailEvent=SeatDwellEvent|ExtraEvent|ZoneEvent;
 
 const PRODUCTION_ORIGIN='https://pleee.hall-live.workers.dev';
 type Tag=(...args:unknown[])=>void;

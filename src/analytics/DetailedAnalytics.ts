@@ -1,9 +1,6 @@
-import {ATRIUM} from '../../shared/grandStair';
-import {GOLDEN_HALL} from '../../shared/goldenHall';
+import {analyticsArea,type Area,type Floor} from './analyticsArea';
 import {SEATS,type Zone} from '../../shared/venue';
 
-type Floor=1|2;
-type Area='lobby'|'front'|'middle'|'rear';
 type SeatAction='selected'|'seated';
 type AreaTime={floor:Floor;area:Area;ms:number};
 type SeatCount={seat_id:string;seat_action:SeatAction;action_count:number};
@@ -37,10 +34,9 @@ export class DetailedAnalytics{
 
  position(zone:Zone,y:number,z:number,now:number){
   const visit=this.current();
-  if(!visit||![y,z,now].every(Number.isFinite)){this.interrupt();return;}
-  const floor:Floor=y>=(zone==='lobby'?ATRIUM.balconyY:GOLDEN_HALL.balconyHeight)-.3?2:1;
-  const area:Area=zone==='lobby'?'lobby':z<8?'front':z<24?'middle':'rear';
-  const key=floor+'_'+area;
+  const region=analyticsArea(zone,y,z);
+  if(!visit||!region||!Number.isFinite(now)){this.interrupt();return;}
+  const {floor,area,key}=region;
   const before=visit.previous;
   visit.previous={key,now};
   if(!before||before.key!==key||now<=before.now||now-before.now>2500)return;
