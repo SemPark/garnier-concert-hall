@@ -49,15 +49,3 @@ export function GalaxySettings({world}:{world:World}){
   </div>}
  </fieldset>;
 }
-
-export function GalaxyCredits(){
- return <div className="settings-info galaxy-credits">
-  <p><a href="https://science.nasa.gov/image-detail/hubble_m51/" target="_blank" rel="noreferrer">M51</a> · NASA, ESA, S. Beckwith (STScI), and the Hubble Heritage Team (STScI/AURA)</p>
-  <p><a href="https://science.nasa.gov/asset/hubble/the-majestic-sombrero-galaxy-m104/" target="_blank" rel="noreferrer">M104</a> · NASA/ESA and The Hubble Heritage Team (STScI/AURA)</p>
-  <p><a href="https://science.nasa.gov/asset/hubble/m87-4/" target="_blank" rel="noreferrer">M87</a> · NASA, ESA, A. Lessing (Stanford University), E. Baltz (Stanford University), M. Shara (AMNH), J. DePasquale (STScI)</p>
-  <p><a href="https://esahubble.org/images/opo0221a/" target="_blank" rel="noreferrer">호그 천체</a> · NASA/ESA and The Hubble Heritage Team (STScI/AURA)</p>
-  <p><a href="https://esahubble.org/images/opo0501a/" target="_blank" rel="noreferrer">NGC 1300</a> · NASA, ESA, and The Hubble Heritage Team (STScI/AURA)</p>
-  <p><a href="https://esahubble.org/images/heic0711a/" target="_blank" rel="noreferrer">NGC 4449</a> · NASA, ESA, A. Aloisi (STScI/ESA), and The Hubble Heritage (STScI/AURA)-ESA/Hubble Collaboration</p>
-  <p><a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a> · 자르기, 배경 투명화, 크기 조정</p>
- </div>;
-}

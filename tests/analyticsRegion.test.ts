@@ -5,11 +5,11 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {analyticsModeResponse} from '../server/analyticsMode';
 import {classifyAnalyticsCountry} from '../shared/analyticsPolicy';
 import {AnalyticsConsent,expiryCookiesForHost} from '../src/analytics/ga4';
-import {AnalyticsChoices} from '../src/analytics/AnalyticsChoices';
+import {AnalyticsChoices,AnalyticsOptOut} from '../src/analytics/AnalyticsChoices';
 import {browserAnalyticsExcluded} from '../src/analytics/browserExclusion';
 import {
  ANALYTICS_CHOICE_KEY,PRIOR_ANALYTICS_CHOICE_KEY,analyticsMayStart,analyticsPrivacySignal,
- fetchAnalyticsMode,readAnalyticsPreference,type AnalyticsChoice,
+ analyticsDetailAllowed,fetchAnalyticsPolicy,readAnalyticsPreference,type AnalyticsChoice,
 } from '../src/analytics/regionConsent';
 
 test('Cloudflare returns only no-store policy, not country, state or personal identifiers',async()=>{
@@ -17,7 +17,7 @@ test('Cloudflare returns only no-store policy, not country, state or personal id
   const res=analyticsModeResponse({method:'GET',headers:new Headers({'CF-IPCountry':'KR'}),cf});
   assert.equal(res.headers.get('Cache-Control'),'private, no-store');
   assert.equal(res.headers.get('CDN-Cache-Control'),'no-store');
-  assert.deepEqual(await res.json(),{mode});
+  assert.deepEqual(await res.json(),cf?.country==='KR'?{mode,detailAutomatic:true}:{mode});
  }
  for(const key of ['DNT','Sec-GPC'])assert.deepEqual(await analyticsModeResponse({
   method:'GET',headers:new Headers({[key]:'1'}),cf:{country:'KR'},
@@ -35,13 +35,29 @@ test('optional automatic US policy only matches known states and never overrides
 
 test('mode fetch sends no cookies, is same-origin, and fails closed on errors or unexpected responses',async()=>{
  const signal=new AbortController().signal;
- assert.equal(await fetchAnalyticsMode(signal,async(input,init)=>{
+ assert.deepEqual(await fetchAnalyticsPolicy(signal,async(input,init)=>{
   assert.equal(input,'/api/analytics-mode');
   assert.deepEqual(init,{signal,cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer',mode:'same-origin',redirect:'error'});
   return Response.json({mode:'ask'});
- }), 'ask');
+ }), {mode:'ask'});
+ for(const [payload,expected] of [
+  [{mode:'auto',detailAutomatic:true},{mode:'auto',detailAutomatic:true}],
+  [{mode:'auto'},{mode:'auto'}],
+  [{mode:'ask',detailAutomatic:true},{mode:'ask'}],
+ ])assert.deepEqual(await fetchAnalyticsPolicy(signal,async()=>Response.json(payload)),expected);
  for(const response of [()=>new Response('not-json'),()=>Response.json({country:'KR'}),()=>Response.json({mode:'new'}),()=>Response.json({mode:'auto'},{status:500}),()=>{throw new Error('offline');}])
-  assert.equal(await fetchAnalyticsMode(signal,async()=>response()),'off');
+  assert.deepEqual(await fetchAnalyticsPolicy(signal,async()=>response()),{mode:'off'});
+});
+
+test('automatic detail respects prior refusal and settings can block analytics',()=>{
+ assert.equal(analyticsDetailAllowed(null,true),true);
+ assert.equal(analyticsDetailAllowed('no',true),false);
+ assert.equal(analyticsDetailAllowed(null),false);
+ assert.equal(analyticsDetailAllowed('yes'),true);
+ const settings=renderToStaticMarkup(createElement(AnalyticsOptOut,{choice:'no',choose(){}}));
+ assert.match(settings,/role="switch"/);
+ assert.match(settings,/checked=""/);
+ assert.doesNotMatch(settings,/<button/);
 });
 
 test('prior refusal persists; old permission never implies new opt-in',()=>{

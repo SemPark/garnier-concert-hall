@@ -541,7 +541,6 @@ body.photo-active #world > :not(canvas){display:none!important}
 .galaxy-preset-actions button{padding:7px 10px;border:1px solid #a68c5b50;border-radius:8px;background:#c6aa7020;color:#f3e7cc;font-size:12px}
 .galaxy-preset-actions button:enabled:hover{background:#c6aa7038}
 .galaxy-preset-actions p{flex-basis:100%;margin:3px 0 0;color:var(--muted);font-size:12px}
-.settings-info.galaxy-credits{display:grid;gap:6px}
 
 .dance-controls{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:22;display:flex;align-items:center;gap:6px;width:max-content;padding:5px;border:1px solid #9b8552;border-radius:28px;background:#211d15f5}
 .dance-controls button{min-height:44px;padding:0 14px;border-radius:22px;background:transparent;color:#eadbb7;font-size:13px}
@@ -656,7 +655,7 @@ body.photo-active #world > :not(canvas){display:none!important}
  position:absolute;z-index:3;top:var(--guide-exit-top,72px);
  left:max(var(--guide-exit-left,16px),env(safe-area-inset-left));background:#211c17bb
 }
-:is(.guide-exit,.guide-direction:not(.guide-next,.reference-guide-next),.reference-guide-replay):focus-visible{outline-color:#e9e0d2}
+:is(.guide-exit,.guide-direction:not(.guide-next,.reference-guide-next)):focus-visible{outline-color:#e9e0d2}
 .visit-guide-actions button:focus-visible{outline-offset:3px}
 .usher-help{
  position:fixed;z-index:8;right:max(12px,env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom));
@@ -716,10 +715,6 @@ body.photo-active #world > :not(canvas){display:none!important}
  width:min(330px,44vw);max-height:calc(100dvh - var(--reference-panel-top) - 16px);
  flex:none;display:flex;flex-direction:column;gap:8px;overflow:hidden;padding:9px;
  border:1px solid #dcb575;border-radius:16px;background:#211b16
-}
-.reference-guide-replay{
- margin-top:12px;min-height:44px;padding:0 14px;border:1px solid #e0d9cf45;border-radius:24px;
- background:#201811ed;color:#f0e9df;font-size:13px;font-weight:700
 }
 .reference-guide-programs .hall-choices{position:static;display:grid;flex:1 1 auto;width:100%;min-width:0;min-height:0;max-height:none;overflow:auto;padding:0;box-shadow:none;border:0}
 .reference-guide-programs .hall-choices :is(a,button){min-height:36px}

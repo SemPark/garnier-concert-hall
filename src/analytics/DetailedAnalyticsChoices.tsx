@@ -1,11 +1,11 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {detailedAnalyticsMock,type AnalyticsConsent} from './ga4';
 import {DetailedAnalytics} from './DetailedAnalytics';
 import {ExtraAnalytics} from './ExtraAnalytics';
 import {ZoneAnalytics} from './ZoneAnalytics';
 import {ResearchAnalytics} from './ResearchAnalytics';
 import {WebPerformanceAnalytics} from './WebPerformanceAnalytics';
-import {analyticsMayStart,analyticsPrivacySignal,readAnalyticsPreference,type AnalyticsChoice} from './regionConsent';
+import {analyticsDetailAllowed,analyticsMayStart,analyticsPrivacySignal,readAnalyticsPreference,type AnalyticsChoice} from './regionConsent';
 import type {AnalyticsMode} from '../../shared/analyticsPolicy';
 
 const consentKey=(key:string)=>detailedAnalyticsMock?'mock-'+key:key;
@@ -21,34 +21,40 @@ const readBasicChoice=()=>{
 };
 
 export function useDetailedAnalytics(analytics:AnalyticsConsent|null,
- mode:AnalyticsMode,basicChoice:AnalyticsChoice,hall:'classical'|'jazz'){
+ mode:AnalyticsMode,basicChoice:AnalyticsChoice,hall:'classical'|'jazz',detailAutomatic=false){
  const [initialBasicChoice]=useState(readBasicChoice);
+ const automatic=useRef(false);
+ const optionalAnalyticsEnabled=detailedAnalyticsMock||import.meta.env?.VITE_PLEEE_SEAT_DWELL_ENABLED==='true';
+ useEffect(()=>{automatic.current=detailAutomatic;},[detailAutomatic]);
  const [{detail,extra,zones,research,performance}]=useState(()=>{
-  if(!analytics||(!detailedAnalyticsMock&&import.meta.env.VITE_PLEEE_SEAT_DWELL_ENABLED!=='true'))return {detail:null,extra:null,zones:null,research:null,performance:null};
-  const available=(key:string)=>()=>analytics.detailReady&&!analyticsPrivacySignal(navigator)&&readChoice(key)==='yes';
+  if(!analytics)return {detail:null,extra:null,zones:null,research:null,performance:null};
+  const available=(key:string,allowAutomatic=false)=>()=>analytics.detailReady&&!analyticsPrivacySignal(navigator)&&
+   analyticsDetailAllowed(readChoice(key),allowAutomatic&&automatic.current);
   return {
-   detail:new DetailedAnalytics(available(CHOICE_KEY),event=>analytics.sendDetail(event)),
-   extra:new ExtraAnalytics(hall,available(EXTRA_CHOICE_KEY),event=>analytics.sendDetail(event)),
-   zones:new ZoneAnalytics(hall,available(ZONE_CHOICE_KEY),event=>analytics.sendDetail(event)),
-   research:new ResearchAnalytics(hall,available(RESEARCH_CHOICE_KEY),event=>analytics.sendDetail(event)),
-   performance:new WebPerformanceAnalytics(hall,readChoice(PERFORMANCE_CHOICE_KEY)==='yes',
+   detail:new DetailedAnalytics(available(CHOICE_KEY,true),event=>analytics.sendDetail(event)),
+   extra:new ExtraAnalytics(hall,available(EXTRA_CHOICE_KEY,true),event=>analytics.sendDetail(event)),
+   zones:optionalAnalyticsEnabled?new ZoneAnalytics(hall,available(ZONE_CHOICE_KEY),event=>analytics.sendDetail(event)):null,
+   research:optionalAnalyticsEnabled?new ResearchAnalytics(hall,available(RESEARCH_CHOICE_KEY),event=>analytics.sendDetail(event)):null,
+   performance:optionalAnalyticsEnabled?new WebPerformanceAnalytics(hall,readChoice(PERFORMANCE_CHOICE_KEY)==='yes',
     ()=>!analyticsPrivacySignal(navigator)&&readBasicChoice()!=='no'&&readChoice(PERFORMANCE_CHOICE_KEY)==='yes',
-    ()=>analytics.detailReady,event=>analytics.sendDetail(event)),
+    ()=>analytics.detailReady,event=>analytics.sendDetail(event)):null,
   };
  });
- const eligible=!!detail&&analyticsMayStart(mode,basicChoice,analyticsPrivacySignal(navigator));
- const seatChoice=useDetailChoice(CHOICE_KEY,detail,eligible);
- const extraChoice=useDetailChoice(EXTRA_CHOICE_KEY,extra,eligible);
- const zoneChoice=useDetailChoice(ZONE_CHOICE_KEY,zones,eligible);
- const researchChoice=useDetailChoice(RESEARCH_CHOICE_KEY,research,eligible);
- const performanceChoice=useDetailChoice(PERFORMANCE_CHOICE_KEY,performance,eligible,eligible&&analyticsMayStart(mode,initialBasicChoice));
+ const basicEligible=!!detail&&analyticsMayStart(mode,basicChoice,analyticsPrivacySignal(navigator));
+ const eligible=basicEligible&&(optionalAnalyticsEnabled||detailAutomatic);
+ const optionalEligible=basicEligible&&optionalAnalyticsEnabled;
+ const seatChoice=useDetailChoice(CHOICE_KEY,detail,eligible,eligible,detailAutomatic);
+ const extraChoice=useDetailChoice(EXTRA_CHOICE_KEY,extra,eligible,eligible,detailAutomatic);
+ const zoneChoice=useDetailChoice(ZONE_CHOICE_KEY,zones,optionalEligible);
+ const researchChoice=useDetailChoice(RESEARCH_CHOICE_KEY,research,optionalEligible);
+ const performanceChoice=useDetailChoice(PERFORMANCE_CHOICE_KEY,performance,optionalEligible,optionalEligible&&analyticsMayStart(mode,initialBasicChoice));
  return {detail,extra,zones,research,seatChoice,extraChoice,zoneChoice,researchChoice,performanceChoice,eligible};
 }
 
-function useDetailChoice(key:string,collector:{setAllowed(allowed:boolean):void}|null,eligible:boolean,canMeasure=eligible){
+function useDetailChoice(key:string,collector:{setAllowed(allowed:boolean):void}|null,eligible:boolean,canMeasure=eligible,automatic=false){
  const [choice,setChoice]=useState(()=>readChoice(key));
  function apply(value:AnalyticsChoice){
-  collector?.setAllowed(canMeasure&&value==='yes');
+  collector?.setAllowed(canMeasure&&analyticsDetailAllowed(value,automatic));
   setChoice(value);
  }
  function choose(value:'yes'|'no'){
@@ -65,7 +71,7 @@ function useDetailChoice(key:string,collector:{setAllowed(allowed:boolean):void}
   };
   window.addEventListener('storage',sync);
   return ()=>{window.removeEventListener('storage',sync);collector.setAllowed(false);};
- },[key,collector,canMeasure]);
+ },[key,collector,canMeasure,automatic]);
  return {choice,choose};
 }
 

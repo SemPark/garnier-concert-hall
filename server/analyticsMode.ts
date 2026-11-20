@@ -30,5 +30,5 @@ export function analyticsModeResponse(request:{
  const mode=privacy?'off':country==='US'
   ?classifyAnalyticsCountry(state,usAutomatic?US_STATES:NO_US_AUTOMATIC,US_CONSENT)
   :classifyAnalyticsCountry(country,AUTOMATIC,CONSENT);
- return Response.json({mode},{headers});
+ return Response.json(country==='KR'&&mode==='auto'?{mode,detailAutomatic:true}:{mode},{headers});
 }

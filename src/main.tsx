@@ -3,7 +3,7 @@ import {confirmedVisitorSeat} from './diagnostics/LocalVisitRecorder';
 import {DanceControls,DanceStart} from './DanceControls';
 import {createPlaybackAnalytics} from './analytics/ga4';
 import type {ExtraAnalytics} from './analytics/ExtraAnalytics';
-import {AnalyticsChoices,useAnalyticsPreference} from './analytics/AnalyticsChoices';
+import {AnalyticsChoices,AnalyticsOptOut,useAnalyticsPreference} from './analytics/AnalyticsChoices';
 import {QueenCardGame} from './QueenCardGame';
 import {WishTarot} from './WishTarot';
 import {ProgramBook} from './ProgramBook';
@@ -20,9 +20,7 @@ import {CONCERT_OPTIONS,HALL_ID,INITIAL_PLAYLIST,LOBBY_ENABLED,PLAYLISTS,type Co
 import {adjacentPiece} from '../shared/timeline';
 import {createRoot} from 'react-dom/client';
 import {World} from './World';
-import type {VisitObserver} from './diagnostics/LocalVisitControls';
-const LocalVisitControls=import.meta.env.DEV?React.lazy(async()=>({default:(await import('./diagnostics/LocalVisitControls')).LocalVisitControls})):null;
-import {GalaxySettings,GalaxyCredits} from './GalaxySettings';
+import {GalaxySettings} from './GalaxySettings';
 import {Presence} from './network/Presence';
 import {ConcertAudio} from './audio/ConcertAudio';
 import {GUEST_INTRO_KEY,SeatMap} from './SeatMap';
@@ -45,6 +43,7 @@ function savePreference(key:string,active:boolean){
  try{if(active)localStorage.setItem(key,'1');else localStorage.removeItem(key);}catch{/* Kept in memory for this visit. */}
 }
 import './style.css';
+import './settings.css';
 import {runDeviceProbe} from './diagnostics/DeviceProbe';
 import {JAZZ_HALL} from '../shared/hallKind';
 /** Conducting is available with the classical orchestra. */
@@ -194,12 +193,10 @@ function ViewModeMenu({world,onBroadcast,extra}:{world:World;onBroadcast:()=>voi
 
 function App(){
  const [analytics]=useState(createPlaybackAnalytics);
- const visitObserver=useRef<VisitObserver|null>(null);
  const analyticsPreference=useAnalyticsPreference(analytics);
- const detailPreference=useDetailedAnalytics(analytics,analyticsPreference.mode,analyticsPreference.choice,JAZZ_HALL?'jazz':'classical');
+ const detailPreference=useDetailedAnalytics(analytics,analyticsPreference.mode,analyticsPreference.choice,JAZZ_HALL?'jazz':'classical',analyticsPreference.detailAutomatic);
  const {detail,extra,zones,research}=detailPreference;
  const onMapSeatClick=useCallback((id:string)=>{
-  if(import.meta.env.DEV)visitObserver.current?.select(id);
   detail?.selected(id);
  },[detail]);
  // The icon menu stays listed from the start; ☰ hides or shows it.
@@ -322,26 +319,22 @@ function App(){
      if(trackResult&&seat&&previousSeat!==undefined&&seat!==previousSeat)research.count('action_result','seat_confirmed');
      previousSeat=trackResult?seat:undefined;
     }else previousSeat=undefined;
-    if(import.meta.env.DEV)visitObserver.current?.snapshot(s);
    };
    net.onMoveBlocked=point=>active.correctMove(point);
    net.onRelocated=point=>{
     active.finishHallMove(point);
     detail?.interrupt();
-    if(import.meta.env.DEV)visitObserver.current?.relocate();
    };
    net.onStatus=()=>{
     if(net.status!=='connected'){
      previousSeat=undefined;
      active.stopHallLoading();
      detail?.interrupt();zones?.interrupt();
-     if(import.meta.env.DEV)visitObserver.current?.interrupt();
     }
     update();
    };
    net.onError=message=>{active.stopHallLoading();notify(message);};setApp({world,net,audio});
    if(research)net.onSeatDenied=()=>research.count('action_result','seat_denied');
-   if(import.meta.env.DEV)net.onLocalSeatDenied=()=>visitObserver.current?.action('seat_denied');
    world.onWishTarot=()=>setWishTarotOpen(true);
    world.onGhostTable=table=>{
     const seatId=active.self?.seatId;
@@ -382,15 +375,24 @@ function App(){
    window.removeEventListener('pageshow',restore);release();};
  },[openArrivalGuide]);
  useEffect(()=>{const key=(e:KeyboardEvent)=>{const i=Number(e.code.replace('Digit',''))-1;if(!app||!entered||settings||!(i>=0&&i<GESTURES.length)||app.net.status!=='connected'||(e.target as HTMLElement)?.closest('input,textarea,select,dialog'))return;e.preventDefault();app.world.gestureAction(GESTURES[i].id);};window.addEventListener('keydown',key);return ()=>window.removeEventListener('keydown',key);},[app,entered,settings]);
- useEffect(()=>{if(settings){dialog.current?.showModal();app?.world.input.keys.clear();}else dialog.current?.close();},[settings,app]);
+ useEffect(()=>{
+  const panel=dialog.current;
+  if(!panel)return;
+  if(!settings){panel.close();return;}
+  if(!panel.open){
+   panel.showModal();
+   panel.querySelector<HTMLElement>('#settings-title')?.focus({preventScroll:true});
+  }
+  app?.world.input.keys.clear();
+ },[settings,app]);
  const world=app?.world,net=app?.net,audio=app?.audio,p=audio?.playback,zone=world?.zone??'lobby',connected=net?.status==='connected',sitting=world?.pose==='sit';
  const program=audio?.playlist;
  const currentTrack=p?.track.stage&&program?adjacentPiece(program,p.index):p?.track;
  const atWishTarotTable=!!world?.atWishTarotTable;
  const atTeaTable=!!world?.atTeaTable;
  const tarotVisible=wishTarotOpen&&atWishTarotTable&&connected;
- useEffect(()=>{if(tarotVisible){extra?.feature('tarot');if(import.meta.env.DEV)visitObserver.current?.action('tarot_open');}},[tarotVisible]);
- useEffect(()=>{if(queenGameOpen){extra?.feature('queen_cards');if(import.meta.env.DEV)visitObserver.current?.action('queen_open');}},[queenGameOpen]);
+ useEffect(()=>{if(tarotVisible)extra?.feature('tarot');},[tarotVisible]);
+ useEffect(()=>{if(queenGameOpen)extra?.feature('queen_cards');},[queenGameOpen]);
  const specialTable=atWishTarotTable||!!world?.atQueenTable||atTeaTable;
  const tableSeat=zone==='auditorium'&&sitting?world?.self?.seatId:null;
  const confirmedSeat=tableSeat?SEATS.find(seat=>seat.id===tableSeat):undefined;
@@ -585,7 +587,6 @@ function App(){
  const closeSeats=useCallback(()=>setSeats(false),[]);
  const skipPiece=(direction:1|-1)=>{
   world?.yieldFrameForControls();
-  if(import.meta.env.DEV&&audio)visitObserver.current?.action(direction===1?'user_skip_next':'user_skip_previous');
   audio?.skipTrack(direction);
   redraw(n=>n+1);
  };
@@ -697,7 +698,6 @@ function App(){
    }
    event.preventDefault();
    audio?.selectPlaylist(option.playlistId);
-   if(import.meta.env.DEV&&!current&&audio?.playlistId===option.playlistId)visitObserver.current?.action('playlist_change');
    if(location.href!==href)history.replaceState(history.state,'',href);
    setHallPickerOpen(false);
    if(!referenceShowsHall)hallPickerButton.current?.focus();
@@ -794,7 +794,7 @@ function App(){
    {world&&<EncoreTrainHint world={world} blocked={trainHintBlocked}/>}
    {world&&discoveredTable!==null&&!guideActive&&<GhostTableDiscovery table={discoveredTable} claims={net?.state?.seats??EMPTY_CLAIMS}
     selfId={net?.selfId??''} connected={connected} onClose={closeGhostTable} onChoose={()=>world.chooseGhostTableSeat(discoveredTable)} onOpenSeatMap={()=>{extra?.feature('hall_seat_map_open');closeGhostTable();setSeats(true);}}/>}
-   {world?.ready&&<SeatMap open={seats} claims={net?.state?.seats??EMPTY_CLAIMS} selfId={net?.selfId??''} connected={connected} onClose={closeSeats} onChoose={chooseMappedSeat} onSeatClick={import.meta.env.DEV||detail?onMapSeatClick:undefined}/>}
+   {world?.ready&&<SeatMap open={seats} claims={net?.state?.seats??EMPTY_CLAIMS} selfId={net?.selfId??''} connected={connected} onClose={closeSeats} onChoose={chooseMappedSeat} onSeatClick={detail?onMapSeatClick:undefined}/>}
   {entered&&<>
    {!connected&&<div className="connection-banner" role="status">{net?.status==='connecting'?'음악당의 문을 여는 중이에요…':'연결이 잠시 끊겼어요. 다시 연결하고 있습니다.'}</div>}
    {connected&&zone==='lobby'&&lookPicker&&<div className="look-picker" role="dialog" aria-label="내 캐릭터 고르기"><span>YOUR CHARACTER</span><h2>내 캐릭터를 골라주세요</h2><div className="look-choice">{(["man","woman"] as const).map(v=><button key={v} className={world?.visitorLook===v?"active":""} onClick={()=>{try{localStorage.setItem('garnier-look',v);}catch{}if(world?.visitorLook!==v)world?.setLook(v);setLookPicker(false);}}>{v==="man"?"남자":"여자"}</button>)}</div></div>}
@@ -862,7 +862,7 @@ function App(){
    {world&&<DanceControls world={world} exitIcon={<Icon name="exit" size={22}/>}/>}
    {toast&&(world?.self?.dance)&&<div className="toast" role="status">{toast}</div>}<div className="bottom-center" style={world?.self?.dance?{display:'none'}:undefined}>{reactions&&<div className="reaction-panel" role="group" aria-label="리액션">{GESTURES.filter(g=>(g.id!=='drink'||world?.coffee)&&(g.id!=='eat'||world?.macaron)).map((g,n)=><button key={g.id} onClick={()=>{world?.gestureAction(g.id);setReactions(false);}} disabled={!connected}><b>{g.id==='drink'||g.id==='eat'?<img className="food-icon" src={g.id==='drink'?coffeeIcon:macaronIcon} alt="" aria-hidden="true"/>:GLYPH[g.id]}</b><span>{g.label}</span><kbd>{n+1}</kbd></button>)}</div>}{toast&&!seatProgress&&<div className="toast" role="status">{toast}</div>}
    {seatProgress&&!seats&&<div className="toast" role="status">{seatProgress}</div>}
-   {referenceGuide!==null&&canShowSeatHint&&<ReferenceGuide index={referenceGuide} onStepChange={setReferenceGuide} onExit={quitReferenceGuide} onFinish={finishReferenceGuide} onReplay={arrivalReference.current?undefined:startUsherGuide}
+   {referenceGuide!==null&&canShowSeatHint&&<ReferenceGuide index={referenceGuide} onStepChange={setReferenceGuide} onExit={quitReferenceGuide} onFinish={finishReferenceGuide}
     programChoices={referenceShowsHall&&<>
      <div className="hall-choices" data-concert-picker role="group" aria-label="공연 선택">{concertChoices}</div>
      {audio&&program&&<label className="reference-guide-song">이 공연에서 들을 곡
@@ -930,29 +930,123 @@ function App(){
   {toast&&!entered&&<div className="toast" role="status">{toast}</div>}
   {error&&<section className="fatal" role="alert"><h1>음악당을 열지 못했어요.</h1><p>WebGL을 지원하는 브라우저에서 다시 열어주세요.</p><small>{error}</small><button onClick={()=>location.reload()}>다시 열기</button></section>}
   {wardrobe&&world&&<Wardrobe look={world.visitorLook} selected={world.self?.outfit} onSelect={outfit=>world.setOutfit(outfit)} onClose={()=>setWardrobe(false)}/>}
-  <dialog ref={dialog} onCancel={()=>setSettings(false)} onClose={()=>setSettings(false)} className="settings-dialog" data-audio-ignore={localDevelopment||undefined}><div className="panel-heading"><div><span className="eyebrow">YOUR LITTLE CONCERT</span><h2>편안하게 감상하기</h2></div><button className="icon-button" aria-label="설정 닫기" onClick={()=>setSettings(false)}><Icon name="close"/></button></div>
-   {localDevelopment&&<div className="setting-row">
-    <span>개발 도구<small>입구부터 첫 안내와 연출을 다시 볼 수 있어요.</small></span>
-    <button type="button" className="setting-toggle" onClick={restartFirstVisit}>첫 방문 다시 테스트</button>
-   </div>}
-   <label className="setting-row"><span>음악 소리 <b>{Math.round((audio?.volume??1)*100)}</b><small>공연장에서 들리는 음량 (0~100)</small></span><input aria-label="음악 음량" type="range" min="0" max="100" value={Math.round((audio?.volume??1)*100)} onChange={e=>{if(audio)audio.volume=Number(e.target.value)/100;redraw(n=>n+1);}}/></label><label className="setting-row"><span>공간 소리 <b>{audio?.roomLevel??5}</b><small>로비와 공연장의 은은한 울림 (1~10, 5가 기본)</small></span><input aria-label="공간 소리" type="range" min="1" max="10" step="1" value={audio?.roomLevel??5} onChange={e=>{audio?.setRoomLevel(Number(e.target.value));redraw(n=>n+1);}}/></label><label className="setting-row"><span>내 캐릭터<small>다른 관객에게도 이렇게 보여요</small></span><select aria-label="내 캐릭터" value={world?.visitorLook??'man'} onChange={e=>{const look=e.target.value as 'man'|'woman';try{localStorage.setItem('garnier-look',look);}catch{}world?.setLook(look);redraw(n=>n+1);}}><option value="man">남자</option><option value="woman">여자</option></select></label><div className="setting-row"><span>캐릭터 이름<small>내 이름과 다른 관객의 이름을 표시해요</small></span><button type="button" className="setting-toggle" aria-label="캐릭터 이름 표시" aria-pressed={world?.showVisitorNames??true} onClick={()=>world?.setShowVisitorNames(!world.showVisitorNames)}>{world?.showVisitorNames!==false?"켜짐":"꺼짐"}</button></div><label className="setting-row"><span>화면 품질<small>{world?`${world.fps} FPS · ${world.renderer.domElement.width}×${world.renderer.domElement.height}`:'선명도를 선택할 수 있어요'}</small></span><select aria-label="화면 품질" value={world?.quality??"balanced"} onChange={e=>world?.setQuality(e.target.value)}><option value="balanced">균형 · {world?.mobile?'60':'30'}FPS</option><option value="sharp">선명하게 · 60FPS</option><option value="low">저발열 · {world?.mobile?'60':'30'}FPS</option></select></label><div className="settings-info"><Icon name="music" size={19}/><p>{p?.track.title}<br/>{p?.track.credit&&<><a href={p.track.credit.sourceUrl} target="_blank" rel="noreferrer">{p.track.credit.sourceName}</a> · {p.track.credit.artist&&<>{p.track.credit.artist} · </>} <a href={p.track.credit.licenseUrl} target="_blank" rel="noreferrer">{p.track.credit.licenseName}</a>{p.track.credit.changes&&<> · {p.track.credit.changes}</>}</>}</p></div><p className="settings-info"><small>로비 천장 사진: <a href="https://commons.wikimedia.org/wiki/File:Ópera,_París,_Francia,_2022-10-31,_DD_54-56_HDR.jpg" target="_blank" rel="noreferrer">Diego Delso / Wikimedia Commons</a> · <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a> · 2048px·WebP 변환</small></p>
-   {localDevelopment&&LocalVisitControls&&world&&net&&audio&&<React.Suspense fallback={null}><LocalVisitControls world={world} net={net} audio={audio} observer={visitObserver}/></React.Suspense>}
-   {import.meta.env.DEV&&world&&<GalaxySettings world={world}/>}
-   <GalaxyCredits/>
-   <p className="settings-info"><small>행성 텍스처 · <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noreferrer">Solar System Scope</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a></small></p>
-   {import.meta.env.DEV&&<section className="device-diagnostic">{iphoneBridge?<><button data-device-probe disabled={iphonePending} onClick={()=>void measureIPhone()}>연결된 아이폰 측정</button><p>USB로 연결된 아이폰에서 플리를 열고 FPS와 CPU·GPU 시간을 측정합니다.</p></>:<><button data-device-probe disabled={!entered||zone!=='auditorium'||!!probeProgress} onClick={()=>void diagnose()}>끊김 진단 · 최대 30초</button><p>{world?.mobile?'이 기기의 화면 설정으로 FPS와 CPU·GPU 시간을 측정합니다.':'iPhone 13 Pro 화면 조건에서 이 PC의 FPS와 CPU·GPU 시간을 측정합니다.'} 음악을 비교할 수 있을 때는 30초, 그 외에는 10초 동안 실행합니다.</p></>}{probeMessage&&<p role="status">{probeMessage}</p>}{probeReport&&<><button onClick={copyProbeReport}>진단 결과 복사</button><details ref={probeDetails}><summary>진단 결과 보기</summary><textarea ref={probeText} aria-label="기기 진단 결과" readOnly value={probeReport}/></details></>}</section>}<div className="controls-copy">{net?.local&&<p>GitHub Pages 감상 버전 · 다른 관객과의 실시간 연결은 제공하지 않습니다.</p>}<p>바닥 클릭 / WASD / 방향키 — 이동</p><p>드래그 — 둘러보기 · 휠 / 두 손가락 — 거리 조절</p><p>좌석 클릭 — 앉기 · ESC — 일어나기</p></div>
-   {detailPreference.eligible&&<>
-    <DetailedAnalyticsChoices {...detailPreference.seatChoice}/>
-    <DetailedAnalyticsChoices {...detailPreference.extraChoice} kind="extra"/>
-    <DetailedAnalyticsChoices {...detailPreference.zoneChoice} kind="zones"/>
-    <DetailedAnalyticsChoices {...detailPreference.researchChoice} kind="research"/>
-    <DetailedAnalyticsChoices {...detailPreference.performanceChoice} kind="performance"/>
-   </>}
-   {analytics&&<div className="setting-row">
-     <span><a href="/privacy.html" target="_blank" rel="noreferrer">개인정보 안내</a></span>
-     {(analyticsPreference.mode==='auto'||analyticsPreference.mode==='ask')&&
-      <AnalyticsChoices {...analyticsPreference} inSettings/>}
-   </div>}
+  <dialog ref={dialog} className="settings-dialog" aria-labelledby="settings-title"
+   onCancel={()=>setSettings(false)} onClose={()=>setSettings(false)} data-audio-ignore={localDevelopment||undefined}>
+   <header className="settings-header">
+    <h2 id="settings-title" tabIndex={-1}>설정</h2>
+    <button type="button" className="icon-button" aria-label="설정 닫기" onClick={()=>setSettings(false)}><Icon name="close"/></button>
+   </header>
+   <div className="settings-body">
+    <section className="settings-group" aria-labelledby="settings-sound">
+     <h3 id="settings-sound">소리</h3>
+     <label className="setting-row">
+      <span>음악 소리</span>
+      <span className="setting-range">
+       <input aria-label="음악 음량" type="range" min="0" max="100" value={Math.round((audio?.volume??1)*100)}
+        onChange={event=>{if(audio)audio.volume=Number(event.target.value)/100;redraw(n=>n+1);}}/>
+       <span className="setting-value" aria-hidden="true">{Math.round((audio?.volume??1)*100)}</span>
+      </span>
+     </label>
+     <label className="setting-row">
+      <span>공간 소리</span>
+      <span className="setting-range">
+       <input aria-label="공간 소리" type="range" min="1" max="10" step="1" value={audio?.roomLevel??5}
+        onChange={event=>{audio?.setRoomLevel(Number(event.target.value));redraw(n=>n+1);}}/>
+       <span className="setting-value" aria-hidden="true">{audio?.roomLevel??5}</span>
+      </span>
+     </label>
+    </section>
+    <section className="settings-group" aria-labelledby="settings-display">
+     <h3 id="settings-display">화면과 캐릭터</h3>
+     <label className="setting-row">
+      <span>화면 품질</span>
+      <span className="setting-select">
+       <select aria-label="화면 품질" value={world?.quality??'balanced'}
+        onChange={event=>world?.setQuality(event.target.value)}>
+        <option value="balanced">균형 · {world?.mobile?'60':'30'} FPS</option>
+        <option value="sharp">선명 · 60 FPS</option>
+        <option value="low">저발열 · {world?.mobile?'60':'30'} FPS</option>
+       </select>
+      </span>
+     </label>
+     <label className="setting-row">
+      <span>내 캐릭터</span>
+      <span className="setting-select">
+       <select aria-label="내 캐릭터" value={world?.visitorLook??'man'} onChange={event=>{
+        const look=event.target.value as 'man'|'woman';
+        try{localStorage.setItem('garnier-look',look);}catch{/* Keep the choice for this visit. */}
+        world?.setLook(look);
+        redraw(n=>n+1);
+       }}>
+        <option value="man">남자</option>
+        <option value="woman">여자</option>
+       </select>
+      </span>
+     </label>
+     <div className="setting-row">
+      <span>캐릭터 이름</span>
+      <button type="button" className="setting-toggle" aria-label="캐릭터 이름 표시"
+       aria-pressed={world?.showVisitorNames??true} onClick={()=>world?.setShowVisitorNames(!world.showVisitorNames)}>
+       {world?.showVisitorNames!==false?'켜짐':'꺼짐'}
+      </button>
+     </div>
+    </section>
+    <div className="settings-disclosures">
+     {analytics&&<details name="settings-extra">
+      <summary>개인정보와 통계</summary>
+      <div className="settings-extra">
+       <a href="/privacy.html" target="_blank" rel="noreferrer">개인정보 안내</a>
+       {analyticsPreference.detailAutomatic?<AnalyticsOptOut {...analyticsPreference}/>:
+        (analyticsPreference.mode==='auto'||analyticsPreference.mode==='ask')&&
+         <AnalyticsChoices {...analyticsPreference} inSettings/>}
+       {detailPreference.eligible&&!analyticsPreference.detailAutomatic&&<>
+        <DetailedAnalyticsChoices {...detailPreference.seatChoice}/>
+        <DetailedAnalyticsChoices {...detailPreference.extraChoice} kind="extra"/>
+        <DetailedAnalyticsChoices {...detailPreference.zoneChoice} kind="zones"/>
+        <DetailedAnalyticsChoices {...detailPreference.researchChoice} kind="research"/>
+        <DetailedAnalyticsChoices {...detailPreference.performanceChoice} kind="performance"/>
+       </>}
+      </div>
+     </details>}
+     <details name="settings-extra">
+      <summary>음악과 이미지 출처</summary>
+      <div className="settings-extra settings-credits">
+       <a href={import.meta.env.BASE_URL+'credits/music.html?playlist='+encodeURIComponent(audio?.playlistId??INITIAL_PLAYLIST)}
+        target="_blank" rel="noreferrer">음원 출처</a>
+       <a href={import.meta.env.BASE_URL+'credits/space.html'} target="_blank" rel="noreferrer">우주 이미지 출처</a>
+       <p className="ceiling-photo-credit">
+        <a href="https://commons.wikimedia.org/wiki/File:Ópera,_París,_Francia,_2022-10-31,_DD_54-56_HDR.jpg"
+         target="_blank" rel="noreferrer">천장 사진</a>
+        {' · '}<a href="https://delso.photo/" target="_blank" rel="noreferrer">Diego Delso</a>
+        {' · '}<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>
+       </p>
+      </div>
+     </details>
+     {import.meta.env.DEV&&<details name="settings-extra">
+      <summary>개발 도구</summary>
+      <div className="settings-extra">
+       {localDevelopment&&<button type="button" className="setting-toggle" onClick={restartFirstVisit}>첫 방문 다시 테스트</button>}
+       {world&&<p>{world.fps} FPS · {world.renderer.domElement.width} × {world.renderer.domElement.height}</p>}
+       <section className="device-diagnostic">
+        {iphoneBridge
+         ?<><button data-device-probe disabled={iphonePending} onClick={()=>void measureIPhone()}>연결된 아이폰 측정</button>
+          <p>USB로 연결된 아이폰에서 플리를 열고 FPS와 CPU·GPU 시간을 측정합니다.</p></>
+         :<><button data-device-probe disabled={!entered||zone!=='auditorium'||!!probeProgress} onClick={()=>void diagnose()}>끊김 진단 · 최대 30초</button>
+          <p>{world?.mobile?'이 기기의 화면 설정':'iPhone 13 Pro 화면 조건'}으로 FPS와 CPU·GPU 시간을 측정합니다. 음악을 비교할 수 있을 때는 30초, 그 외에는 10초 동안 실행합니다.</p></>}
+        {probeMessage&&<p role="status">{probeMessage}</p>}
+        {probeReport&&<>
+         <button onClick={copyProbeReport}>진단 결과 복사</button>
+         <details ref={probeDetails}>
+          <summary>진단 결과 보기</summary>
+          <textarea ref={probeText} aria-label="기기 진단 결과" readOnly value={probeReport}/>
+         </details>
+        </>}
+       </section>
+       {world&&<GalaxySettings world={world}/>}
+      </div>
+     </details>}
+    </div>
+   </div>
   </dialog>
   {interfaceHidden&&<button type="button" className="concert-interface-restore" data-audio-ignore
    aria-label="화면 UI 다시 보기" title="화면을 누르거나 Esc를 눌러 UI 다시 보기"

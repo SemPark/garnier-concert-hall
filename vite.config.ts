@@ -1,5 +1,6 @@
 import {defineConfig} from 'vite';
 import {statSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
 import warmth from './content/playlist-jazz-warmth.json';
 import nightscape from './content/playlist-jazz-nightscape.json';
 import yeoun from './content/playlist-jazz-yeoun.json';
@@ -35,6 +36,12 @@ export default defineConfig(({mode})=>{
    'import.meta.env.VITE_STATIC_PREVIEW':JSON.stringify(mode==='pages'?'true':'false'),'import.meta.env.VITE_PRESENCE_ORIGIN':JSON.stringify(mode==='pages'?'https://garnier-concert-hall.cleansam7.workers.dev':'')},
   // Vite reloads the page when its development socket reconnects after backgrounding.
   server:{host:iphone?'0.0.0.0':'127.0.0.1',port:5174,strictPort:true,ws:false,proxy:{'/api':{target:`http://127.0.0.1:${iphone?8788:8787}`,ws:true}}},
-  build:{target:'es2022',chunkSizeWarningLimit:750},
+  build:{
+   target:'es2022',chunkSizeWarningLimit:750,
+   rolldownOptions:{input:[
+    fileURLToPath(new URL('./index.html',import.meta.url)),
+    fileURLToPath(new URL('./credits/music.html',import.meta.url)),
+   ]},
+  },
  };
 });

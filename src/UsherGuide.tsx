@@ -171,8 +171,8 @@ type ReferenceLayout={
  labels:{text:string;x:number;y:number}[];
 };
 
-export function ReferenceGuide({index,onStepChange,onExit,onFinish,onReplay,onAction,programChoices}:{
- index:ReferenceGuideStep;onStepChange:(step:ReferenceGuideStep)=>void;onExit:()=>void;onFinish:()=>void;onReplay?:()=>void;onAction?:()=>void;programChoices?:ReactNode;
+export function ReferenceGuide({index,onStepChange,onExit,onFinish,onAction,programChoices}:{
+ index:ReferenceGuideStep;onStepChange:(step:ReferenceGuideStep)=>void;onExit:()=>void;onFinish:()=>void;onAction?:()=>void;programChoices?:ReactNode;
 }){
  const dialog=useRef<HTMLDialogElement>(null);
  const firstNext=useRef<HTMLButtonElement>(null);
@@ -238,7 +238,6 @@ export function ReferenceGuide({index,onStepChange,onExit,onFinish,onReplay,onAc
     {nextChevron}
    </button>
   </div>:actions}
-  {onReplay&&<button type="button" className="reference-guide-replay" onClick={()=>{onAction?.();onReplay();}}>첫 방문 체험 다시 보기</button>}
  </section>;
  return <dialog ref={dialog} className={`usher-walkthrough reference-guide ${step.side}`}
   aria-labelledby="reference-guide-title" onCancel={event=>{event.preventDefault();onExit();}}>

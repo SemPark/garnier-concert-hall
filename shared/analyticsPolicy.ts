@@ -1,4 +1,5 @@
 export type AnalyticsMode='auto'|'ask'|'off';
+export type AnalyticsPolicy={mode:AnalyticsMode;detailAutomatic?:true};
 export const ANALYTICS_MODE_PATH='/api/analytics-mode';
 
 export function classifyAnalyticsCountry(

@@ -1,4 +1,4 @@
-import {ANALYTICS_MODE_PATH,type AnalyticsMode} from '../../shared/analyticsPolicy';
+import {ANALYTICS_MODE_PATH,type AnalyticsMode,type AnalyticsPolicy} from '../../shared/analyticsPolicy';
 export const ANALYTICS_CHOICE_KEY='pleee-ga4-choice-v2';
 export const PRIOR_ANALYTICS_CHOICE_KEY='pleee-ga4-opt-in-v1';
 export type AnalyticsChoice='yes'|'no'|null;
@@ -16,12 +16,16 @@ export function analyticsPrivacySignal(privacy:{globalPrivacyControl?:boolean;do
 export function analyticsMayStart(mode:AnalyticsMode,choice:AnalyticsChoice,blocked=false){
  return !blocked&&choice!=='no'&&(mode==='auto'||(mode==='ask'&&choice==='yes'));
 }
-export async function fetchAnalyticsMode(signal:AbortSignal,request:typeof fetch=fetch):Promise<AnalyticsMode>{
+export function analyticsDetailAllowed(choice:AnalyticsChoice,automatic=false){
+ return choice==='yes'||(choice===null&&automatic);
+}
+export async function fetchAnalyticsPolicy(signal:AbortSignal,request:typeof fetch=fetch):Promise<AnalyticsPolicy>{
  try{
   const res=await request(ANALYTICS_MODE_PATH,{signal,cache:'no-store',credentials:'omit',
    referrerPolicy:'no-referrer',mode:'same-origin',redirect:'error'});
-  if(!res.ok)return 'off';
+  if(!res.ok)return {mode:'off'};
   const data=await res.json();
-  return data?.mode==='auto'||data?.mode==='ask'?data.mode:'off';
- }catch{return 'off';}
+  if(data?.mode==='auto'&&data.detailAutomatic===true)return {mode:'auto',detailAutomatic:true};
+  return {mode:data?.mode==='auto'||data?.mode==='ask'?data.mode:'off'};
+ }catch{return {mode:'off'};}
 }

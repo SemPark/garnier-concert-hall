@@ -1,9 +1,9 @@
 import {useEffect,useRef,useState} from 'react';
-import type {AnalyticsMode} from '../../shared/analyticsPolicy';
+import type {AnalyticsMode,AnalyticsPolicy} from '../../shared/analyticsPolicy';
 import {detailedAnalyticsMock,type AnalyticsConsent} from './ga4';
 import {
  ANALYTICS_CHOICE_KEY,PRIOR_ANALYTICS_CHOICE_KEY,analyticsMayStart,analyticsPrivacySignal,
- fetchAnalyticsMode,readAnalyticsPreference,type AnalyticsChoice,
+ fetchAnalyticsPolicy,readAnalyticsPreference,type AnalyticsChoice,
 } from './regionConsent';
 
 const choiceKey=detailedAnalyticsMock?'pleee-ga4-choice-mock-v1':ANALYTICS_CHOICE_KEY;
@@ -13,7 +13,7 @@ function readChoice(){
  return value==='yes'||value==='no'?value:null;
 }
 export function useAnalyticsPreference(analytics:AnalyticsConsent|null){
- const [mode,setMode]=useState<AnalyticsMode>('off');
+ const [policy,setPolicy]=useState<AnalyticsPolicy>({mode:'off'});
  const [choice,setChoice]=useState<AnalyticsChoice>(null);
  const modeRef=useRef<AnalyticsMode>('off');
  const choiceRef=useRef<AnalyticsChoice>(null);
@@ -42,16 +42,27 @@ export function useAnalyticsPreference(analytics:AnalyticsConsent|null){
    catch{apply('no');}
   };
   window.addEventListener('storage',sync);
-  void (detailedAnalyticsMock?Promise.resolve<AnalyticsMode>('ask'):fetchAnalyticsMode(abort.signal)).then(next=>{
+  void (detailedAnalyticsMock?Promise.resolve<AnalyticsPolicy>({mode:'ask'}):fetchAnalyticsPolicy(abort.signal)).then(next=>{
    if(abort.signal.aborted)return;
-   modeRef.current=next;setMode(next);apply(choiceRef.current);
+   modeRef.current=next.mode;setPolicy(next);apply(choiceRef.current);
   });
   return ()=>{
    abort.abort();window.removeEventListener('storage',sync);
    modeRef.current='off';analytics.setAccepted(false);
   };
  },[analytics]);
- return {mode,choice,choose};
+ return {...policy,choice,choose};
+}
+
+export function AnalyticsOptOut({choice,choose}:{
+ choice:AnalyticsChoice;choose:(value:'yes'|'no')=>void;
+}){
+ const ko=typeof navigator!=='undefined'&&/^ko(?:-|$)/i.test(navigator.language);
+ return <label className="analytics-opt-out">
+  <input type="checkbox" role="switch" checked={choice==='no'}
+   onChange={event=>choose(event.currentTarget.checked?'no':'yes')}/>
+  {ko?'Google Analytics 통계 수집 차단':'Block Google Analytics collection'}
+ </label>;
 }
 
 export function AnalyticsChoices({choose,choice,inSettings=false}:{
