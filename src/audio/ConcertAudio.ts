@@ -123,16 +123,19 @@ export class ConcertAudio{
   this.media.addEventListener('error',()=>{this.state='음원을 불러오지 못했어요';},opts);
   document.addEventListener('visibilitychange',()=>{this.sync.request();if(document.hidden)this.media.pause();},opts);
   // If the browser left the audio graph suspended, the next tap or key wakes it (music, door spill and lobby room tone all pass through it).
-  for(const type of ['pointerdown','keydown','touchend'])document.addEventListener(type,event=>{
-   if((event.target as Element)?.closest?.('button[aria-label^="소리"], [data-device-probe], [data-concert-picker]'))return;
-   if(!this.wantsSound||document.hidden)return;
-   if(this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});
-   if(this.unlocking)return;
-   if(!this.enabled){void this.unlock();return;}
-   if(this.media.paused&&this.playback.playing&&!this.playback.track.stage)this.playMedia();
+  for(const type of ['pointerdown','pointerup','keydown','touchend','click'])document.addEventListener(type,event=>{
+   if((event.target as Element)?.closest?.('button[aria-label^="소리"], [data-device-probe], [data-audio-ignore], [data-concert-picker]'))return;
+   this.wakeFromGesture();
   },{...opts,capture:true});
   // Media playback does not depend on rendering frames arriving on time.
   this.timer=setInterval(()=>this.tick(.1),100);
+ }
+ wakeFromGesture(){
+  if(!this.wantsSound||document.hidden)return;
+  if(this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});
+  if(this.unlocking)return;
+  if(!this.enabled){void this.unlock();return;}
+  if(this.media.paused&&this.playback.playing&&!this.playback.track.stage)this.playMedia();
  }
  private mediaUrl(url:string){return import.meta.env.VITE_STATIC_PREVIEW==='true'?import.meta.env.BASE_URL+url.replace(/^\/api\//,''):url;}
  /** A personal time shift: zero follows the shared concert; otherwise this visitor replays the program from the start. */
@@ -146,13 +149,24 @@ export class ConcertAudio{
  }
  /** Change tracks for this listener without changing the room clock. */
  skipTrack(direction:1|-1=1){
-  const now=this.now(),playlist=this.playlist,tracks=playlist.tracks;
+  const now=this.now(),playlist=this.playlist;
   const current=this.usesMediaClock?this.playback:playbackAt(playlist,now+this.shift);
   const target=adjacentPiece(playlist,current.index,direction);
   if(!target)return;
-  const index=tracks.indexOf(target);
+  const index=playlist.tracks.indexOf(target);
   const wrapped=direction===1?index<=current.index:index>=current.index;
-  const cycle=Math.max(0,current.cycle+(wrapped?direction:0));
+  this.switchTrack(index,Math.max(0,current.cycle+(wrapped?direction:0)),now);
+ }
+ selectTrack(id:string){
+  const playlist=this.playlist,index=playlist.tracks.findIndex(track=>track.id===id&&!track.stage);
+  if(index<0)return false;
+  const now=this.now(),current=this.usesMediaClock?this.playback:playbackAt(playlist,now+this.shift);
+  if(current.index===index&&current.playing&&(!this.usesMediaClock||!this.media.ended))return true;
+  this.switchTrack(index,Math.max(0,current.cycle),now);
+  return true;
+ }
+ private switchTrack(index:number,cycle:number,now:number){
+  const playlist=this.playlist,tracks=playlist.tracks;
   if(this.usesMediaClock){
    this.mediaTrackIndex=index;
    this.mediaCycle=cycle;
