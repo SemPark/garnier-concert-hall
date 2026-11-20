@@ -139,6 +139,10 @@
   padding-inline: 12px 30px;
 }
 
+.settings-group .setting-select select:focus-visible {
+  outline-offset: -2px;
+}
+
 .settings-disclosures summary {
   display: flex;
   align-items: center;
@@ -243,17 +247,4 @@
   align-items: center;
   column-gap: 4px;
   min-height: 44px;
-}
-
-.settings-extra .analytics-opt-out {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  cursor: pointer;
-}
-
-.analytics-opt-out input {
-  margin: 0;
-  accent-color: var(--gold);
 }

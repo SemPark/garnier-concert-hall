@@ -3,7 +3,7 @@ import {confirmedVisitorSeat} from './diagnostics/LocalVisitRecorder';
 import {DanceControls,DanceStart} from './DanceControls';
 import {createPlaybackAnalytics} from './analytics/ga4';
 import type {ExtraAnalytics} from './analytics/ExtraAnalytics';
-import {AnalyticsChoices,AnalyticsOptOut,useAnalyticsPreference} from './analytics/AnalyticsChoices';
+import {AnalyticsChoices,useAnalyticsPreference} from './analytics/AnalyticsChoices';
 import {QueenCardGame} from './QueenCardGame';
 import {WishTarot} from './WishTarot';
 import {ProgramBook} from './ProgramBook';
@@ -997,8 +997,7 @@ function App(){
       <div className="settings-extra">
        <p>음악당은 방문 및 음악 재생 통계를 집계하기 위해 Google Analytics를 사용합니다. 이 과정에서 브라우저에 통계 쿠키가 저장될 수 있습니다.</p>
        <a href="https://policies.google.com/technologies/partner-sites?hl=ko" target="_blank" rel="noreferrer">Google의 데이터 수집 및 처리 방식</a>
-       {analyticsPreference.detailAutomatic?<AnalyticsOptOut {...analyticsPreference}/>:
-        (analyticsPreference.mode==='auto'||analyticsPreference.mode==='ask')&&
+       {!analyticsPreference.detailAutomatic&&(analyticsPreference.mode==='auto'||analyticsPreference.mode==='ask')&&
          <AnalyticsChoices {...analyticsPreference} inSettings/>}
        {detailPreference.eligible&&!analyticsPreference.detailAutomatic&&<>
         <DetailedAnalyticsChoices {...detailPreference.seatChoice}/>

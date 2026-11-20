@@ -54,17 +54,6 @@ export function useAnalyticsPreference(analytics:AnalyticsConsent|null){
  return {...policy,choice,choose};
 }
 
-export function AnalyticsOptOut({choice,choose}:{
- choice:AnalyticsChoice;choose:(value:'yes'|'no')=>void;
-}){
- const ko=typeof navigator!=='undefined'&&/^ko(?:-|$)/i.test(navigator.language);
- return <label className="analytics-opt-out">
-  <input type="checkbox" role="switch" checked={choice==='no'}
-   onChange={event=>choose(event.currentTarget.checked?'no':'yes')}/>
-  {ko?'Google Analytics 통계 수집 차단':'Block Google Analytics collection'}
- </label>;
-}
-
 export function AnalyticsChoices({choose,choice,inSettings=false}:{
  choose:(choice:'yes'|'no')=>void;choice:AnalyticsChoice;inSettings?:boolean;
 }){

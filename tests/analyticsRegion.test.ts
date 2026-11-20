@@ -5,7 +5,7 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {analyticsModeResponse} from '../server/analyticsMode';
 import {classifyAnalyticsCountry} from '../shared/analyticsPolicy';
 import {AnalyticsConsent,expiryCookiesForHost} from '../src/analytics/ga4';
-import {AnalyticsChoices,AnalyticsOptOut} from '../src/analytics/AnalyticsChoices';
+import {AnalyticsChoices} from '../src/analytics/AnalyticsChoices';
 import {browserAnalyticsExcluded} from '../src/analytics/browserExclusion';
 import {
  ANALYTICS_CHOICE_KEY,PRIOR_ANALYTICS_CHOICE_KEY,analyticsMayStart,analyticsPrivacySignal,
@@ -49,15 +49,11 @@ test('mode fetch sends no cookies, is same-origin, and fails closed on errors or
   assert.deepEqual(await fetchAnalyticsPolicy(signal,async()=>response()),{mode:'off'});
 });
 
-test('automatic detail respects prior refusal and settings can block analytics',()=>{
+test('automatic detail respects prior refusal',()=>{
  assert.equal(analyticsDetailAllowed(null,true),true);
  assert.equal(analyticsDetailAllowed('no',true),false);
  assert.equal(analyticsDetailAllowed(null),false);
  assert.equal(analyticsDetailAllowed('yes'),true);
- const settings=renderToStaticMarkup(createElement(AnalyticsOptOut,{choice:'no',choose(){}}));
- assert.match(settings,/role="switch"/);
- assert.match(settings,/checked=""/);
- assert.doesNotMatch(settings,/<button/);
 });
 
 test('prior refusal persists; old permission never implies new opt-in',()=>{
