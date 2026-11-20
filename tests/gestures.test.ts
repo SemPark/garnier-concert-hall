@@ -155,7 +155,8 @@ test('floss swings both arms together, tucks one behind the hips, and mirrors th
    assert.ok((frontHand.x-shoulders.x)*side<-.18);
    assert.ok((frontHand.x-pelvis.x)*side<-.30);
   }else{
-   assert.ok(side*outer.x>.43&&side*inner.x>0&&Math.abs(outer.z)<.08);
+   // At full extension the front mitten passes the centreline.
+   assert.ok(side*outer.x>.43&&side*inner.x>.01&&Math.abs(outer.z)<.08);
    outReach.set(side*outer.x,side*inner.x);
   }
   assert.ok((pelvis.x-shoulders.x)*side*(tucked?1:-1)>.10);
