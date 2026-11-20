@@ -150,12 +150,13 @@ test('floss swings both arms together, tucks one behind the hips, and mirrors th
   assert.ok(inner.z<-.25);
   if(tucked){
    assert.ok(outer.z>.24);
-   assert.ok(side*outer.x<outReach.x-.22&&side*inner.x<outReach.y-.30);
+   assert.ok(side*outer.x<outReach.x-.22&&side*inner.x<outReach.y-.22);
    const frontHand=avatar.body.localToWorld(inner.clone());
    assert.ok((frontHand.x-shoulders.x)*side<-.18);
    assert.ok((frontHand.x-pelvis.x)*side<-.30);
   }else{
-   assert.ok(side*outer.x>.43&&side*inner.x>0&&Math.abs(outer.z)<.08);
+   // At full extension the front mitten stays beside its own hip.
+   assert.ok(side*outer.x>.43&&side*inner.x<-.08&&Math.abs(outer.z)<.08);
    outReach.set(side*outer.x,side*inner.x);
   }
   assert.ok((pelvis.x-shoulders.x)*side*(tucked?1:-1)>.10);

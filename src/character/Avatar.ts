@@ -21,6 +21,7 @@ const ARM_LENGTH=.4,HIP=new T.Vector3(0,.55,0),DOWN=new T.Vector3(0,-1,0);
 const THIGH_LENGTH=.25,SHIN_LENGTH=.24;
 const LEG_REACH=THIGH_LENGTH+SHIN_LENGTH;
 const danceFeet=[new T.Vector3(),new T.Vector3()],danceShoulders=new T.Vector3(),danceTilt=new T.Vector3();
+const hushElbowGuide=new T.Vector3();
 const ankleDirection=new T.Vector3(),kneeDirection=new T.Vector3(),thighDirection=new T.Vector3(),inverseBody=new T.Quaternion();
 export const AVATAR_HEAD_HEIGHT=1.318;
 const SHOULDER_X=.16,SHOULDER_Y=.99;
@@ -201,7 +202,7 @@ const longHairGeometry=buildLongHair(24,7,8),longHairFar=buildLongHair(12,4,4);
 const bobGeometry=buildLongHair(28,8,7,true),bobFar=buildLongHair(14,4,4,true);
 
 /** Index finger seat on the right mitten: thumb side, toward the face, rising above the knuckles. */
-export const FINGER_OFFSET=[-.035,.105,-.045] as const;
+export const FINGER_OFFSET=[-.035,.125,.035] as const;
 /** In the jazz hall the trumpets stand on the back tier, as a big band's do. */
 export function musicianSits(type:Instrument|undefined){return !!type&&type!=='bass'&&type!=='conductor'&&type!=='vocals'&&!PERCUSSION.includes(type)&&!(JAZZ_HALL&&type==='trumpet');}
 export class Avatar{
@@ -477,7 +478,7 @@ export class Avatar{
    arm.sleeve!.geometry=armGeometry;
    arm.sleeve!.updateMorphTargets();
   }
-  this.head.position.y=AVATAR_HEAD_HEIGHT;
+  this.head.position.set(0,AVATAR_HEAD_HEIGHT,0);
   this.rightHand.position.set(0,-ARM_LENGTH,0);this.leftHand.position.set(0,-ARM_LENGTH,0);
   const leftSleeve=this.leftArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;if(leftSleeve){leftSleeve.scale.y=1;leftSleeve.position.y=SLEEVE_CENTER_Y;leftSleeve.morphTargetInfluences?.fill(0);}
   const sleeve=this.rightArm.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined;
@@ -527,7 +528,15 @@ export class Avatar{
   // Leaning sideways rises onto the lower foot so neither foot sinks into the floor.
   this.body.position.set(-this.hipOffset.x,sit*.1+pose.lift+HIP.y-this.hipOffset.y+.115*Math.abs(Math.sin(pose.sway))*(1-sit),-sit*.12-rise*.5-this.hipOffset.z);this.body.rotation.copy(this.tilt);
   if(this.skirt){this.skirt.morphTargetInfluences![0]=sit;this.skirt.rotation.set(0,-pose.turn,(1-sit)*Math.sin(t*5)*Math.min(.035,speed*.012));}
-  this.head.rotation.set(-pose.headPitch,pose.turn?pose.headYaw:0,pose.turn?pose.headRoll:0);for(const eye of this.eyes.children){const mesh=eye as T.Mesh;if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[0]=1-pose.blink;}
+  const wave=gesture==='wave';
+  this.head.rotation.set(-pose.headPitch,pose.turn?pose.headYaw:0,pose.turn||wave?pose.headRoll:0);
+  if(wave&&pose.weight>0){
+   // Nod and lean away from the lifted arm around the neck.
+   const neckHeight=1.045;
+   this.head.position.set(0,AVATAR_HEAD_HEIGHT-neckHeight,0).applyQuaternion(this.head.quaternion);
+   this.head.position.y+=neckHeight;
+  }
+  for(const eye of this.eyes.children){const mesh=eye as T.Mesh;if(mesh.morphTargetInfluences)mesh.morphTargetInfluences[0]=1-pose.blink;}
   // A seated cellist opens the knees around the instrument instead of kicking through it.
   const splay=type==='cello'?.75*sit:0;
   for(const [hip,sign]of [[this.leftLeg,1],[this.rightLeg,-1]] as const){hip.position.set(-sign*.115*Math.cos(pose.turn),.55,-sign*.115*Math.sin(pose.turn));hip.rotation.order='YXZ';hip.rotation.set(T.MathUtils.lerp(pose.swing*.5*sign,Math.PI/2,sit)+pose.lean*(1-sit),splay*sign-pose.turn,-pose.sway);}
@@ -584,7 +593,7 @@ export class Avatar{
    // Use the arm on the side of the turn, and blend through the switch.
    for(const [arm,side,weight] of [[this.left,-1,leftReach],[this.right,1,rightReach]] as const){
     if(!weight)continue;
-    this.aimAt(arm,...greetingTarget(gestureAge,side),pose.weight*weight);
+    this.aimAt(arm,...greetingTarget(gestureAge,side,true),pose.weight*weight);
    }
   }
   const vessel=this.holdingTea?this.teaCup:this.holdingWine?this.wineGlass:this.holdingCoffee?this.coffeeCup:undefined;
@@ -649,22 +658,21 @@ export class Avatar{
    // The animated mouth position would raise the right hand first on every gesture.
    this.direction.set(0,-.14,faceSurfaceZ(0,-.14)-.012).applyQuaternion(this.head.quaternion).add(this.head.position);
    const mouthX=this.direction.x,mouthY=this.direction.y,mouthZ=this.direction.z;
-   for(const [arm,side,weight] of [[this.left,-1,leftReach],[this.right,1,rightReach]] as const){
+   for(const [side,weight] of [[-1,leftReach],[1,rightReach]] as const){
     if(!weight)continue;
     this.direction.set(side*FINGER_OFFSET[0],FINGER_OFFSET[1],FINGER_OFFSET[2]).applyQuaternion(this.head.quaternion);
     const fingerX=this.direction.x,fingerY=this.direction.y,fingerZ=this.direction.z;
-    this.direction.set(mouthX-fingerX,mouthY-fingerY,mouthZ-fingerZ);
-    const blend=pose.weight*weight;
-    const reach=T.MathUtils.lerp(ARM_LENGTH,T.MathUtils.clamp(this.direction.distanceTo(arm.shoulder.position),.28,ARM_LENGTH),blend);
-    this.aimAt(arm,this.direction.x,this.direction.y,this.direction.z,blend);
-    arm.hand.position.y=-reach;
-    const armSleeve=side<0?leftSleeve:sleeve;
-    if(armSleeve){armSleeve.scale.y=(reach-.06)/(ARM_LENGTH-.06);armSleeve.position.y=-(reach-.06)/2;}
+    const blend=pose.weight*weight*T.MathUtils.smoothstep(gestureAge,.12,.75);
+    // Fold the elbow below the chin while the index finger reaches the lips.
+    this.direction.set(mouthX-fingerX,mouthY-fingerY,mouthZ-fingerZ-.08*(1-blend));
+    hushElbowGuide.set(side*.55,-1,0);
+    this.poseJointedArm(side,this.direction,hushElbowGuide,0,0,blend,T.MathUtils.lerp(.96,1,blend));
     if(weight>.5){
-     if(this.finger.parent!==arm.hand)arm.hand.add(this.finger);
+     const hand=side<0?this.leftHand:this.rightHand;
+     if(this.finger.parent!==hand)hand.add(this.finger);
      this.finger.position.set(fingerX,fingerY,fingerZ);
      this.finger.quaternion.copy(this.head.quaternion);
-     this.finger.scale.setScalar(T.MathUtils.smoothstep(pose.weight,.6,1)*T.MathUtils.smoothstep(weight,.5,1));
+     this.finger.scale.setScalar(T.MathUtils.smoothstep(blend,.6,1));
     }
    }
   }

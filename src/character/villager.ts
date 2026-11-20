@@ -7,7 +7,13 @@ export const GESTURE_ICON:Record<Gesture,Icon|null>={wave:null,clap:'note',bravo
 
 type Vec=[number,number,number];
 /** Shared rigid-arm greeting, mirrored for the chosen hand. */
-export function greetingTarget(age:number,side:number):Vec {return [side*(1.30+Math.sin(age*11)*.06),1.50+Math.cos(age*11)*.035,-.44];}
+export function greetingTarget(age:number,side:number,turning=false):Vec {
+ const lift=turning?smooth(age,.58,.88):smooth(age,.04,.29);
+ const wave=Math.sin(age*11);
+ const reach=turning?1.12+.06*wave:.86+.02*wave;
+ const rise=turning?.03+.045*Math.cos(age*11):.71+.013*Math.cos(age*11);
+ return [side*(.3+lift*reach),.6+lift*rise,-lift*(turning?.92:.25)];
+}
 export type CameraFacing={turn:number;pitch:number};
 export type PoseInput={time:number;speed:number;sit:number;music:boolean;musician:boolean;gesture:Gesture|null|undefined;age:number;cameraFacing?:CameraFacing};
 export type VillagerPose={
@@ -74,9 +80,16 @@ export function poseVillager(input:PoseInput,phase=0):VillagerPose{
  pose.headYaw=mix(pose.headYaw,0);
  switch(gesture){
   // The hand swings outward before it rises past the cheek.
-  case 'wave':pose.left=greetingTarget(age,-1);pose.sway=mix(pose.sway,-.14);pose.headRoll=mix(pose.headRoll,-.12-Math.sin(age*11)*.03);break;
+  case 'wave':{
+   const nod=smooth(age,0,.28)*(1-smooth(age,.32,.8));
+   pose.left=greetingTarget(age,-1);
+   pose.sway=mix(pose.sway,-.14);
+   pose.headPitch=mix(pose.headPitch,.36*nod);
+   pose.headRoll=mix(pose.headRoll,-.144-Math.sin(age*11)*.011);
+   break;
+  }
   case 'clap':{const d=.105+.155*(.5+.5*Math.cos(age*13.5));pose.left=[-d,.94,-.3];pose.right=[d,.94,-.3];pose.headPitch=mix(pose.headPitch,-.05);break;}
-  case 'bravo':{const pump=Math.sin(age*9)*.05;pose.left=[-1.02,1.39+pump,-.56];pose.right=[1.02,1.39+pump,-.56];pose.headPitch=mix(pose.headPitch,-.18);break;}
+  case 'bravo':{const pump=Math.sin(age*9)*.05;pose.left=[-1.22,1.05+pump,-.66];pose.right=[1.22,1.05+pump,-.66];pose.headPitch=mix(pose.headPitch,-.18);break;}
   // Remote visitors and NPCs keep the default pose when no camera target is supplied.
   case 'ovation':{
    const turn=gestureTurnWeight('ovation',age);
@@ -85,7 +98,8 @@ export function poseVillager(input:PoseInput,phase=0):VillagerPose{
    }else{
     pose.turn=-(input.sit>.5?1.55:2.4)*turn;pose.headYaw=-(input.sit>.5?.95:.3)*turn;
    }
-   pose.right=greetingTarget(age,1);pose.sway=mix(pose.sway,0);pose.headPitch=mix(pose.headPitch,-.05);break;
+   pose.headYaw=Math.max(-.5,Math.min(.5,pose.headYaw));
+   pose.right=greetingTarget(age,1,true);pose.sway=mix(pose.sway,0);pose.headPitch=mix(pose.headPitch,-.05);break;
   }
   case 'bow':pose.lean=.55*w;pose.headPitch=mix(pose.headPitch,.2);break;
   case 'moved':pose.left=[-.12,.86,-.32];pose.right=[.12,.86,-.32];pose.headRoll=mix(pose.headRoll,.18);pose.headPitch=mix(pose.headPitch,-.1);break;
@@ -103,7 +117,8 @@ export function poseVillager(input:PoseInput,phase=0):VillagerPose{
  }
  if(input.cameraFacing){
   // Steep angles swing the long hair into the sleeves during a turn.
-  const pitch=Math.max(-.23,Math.min(.22,input.cameraFacing.pitch));
+  const verticalLimit=gesture==='shh'||gesture==='ovation'?.06:.22;
+  const pitch=Math.max(-verticalLimit,Math.min(verticalLimit,input.cameraFacing.pitch));
   pose.headPitch=mix(pose.headPitch,pitch);
  }
  return pose;
