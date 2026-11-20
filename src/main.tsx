@@ -197,13 +197,14 @@ function App(){
  const visitObserver=useRef<VisitObserver|null>(null);
  const analyticsPreference=useAnalyticsPreference(analytics);
  const detailPreference=useDetailedAnalytics(analytics,analyticsPreference.mode,analyticsPreference.choice,JAZZ_HALL?'jazz':'classical');
- const {detail,extra,zones}=detailPreference;
+ const {detail,extra,zones,research}=detailPreference;
  const onMapSeatClick=useCallback((id:string)=>{
   if(import.meta.env.DEV)visitObserver.current?.select(id);
   detail?.selected(id);
  },[detail]);
  // The icon menu stays listed from the start; ☰ hides or shows it.
  const [queenGameOpen,setQueenGameOpen]=useState(false);
+ const queenAttempt=useRef<{hadResult:boolean}|null>(null);
  const [wishTarotOpen,setWishTarotOpen]=useState(false);
  const [discoveredTable,setDiscoveredTable]=useState<number|null>(null);
  const [tableExperienceSeat,setTableExperienceSeat]=useState<string|null>(null);
@@ -216,6 +217,7 @@ function App(){
  const [tutorialSeat,setTutorialSeat]=useState<string|null>(null);
  const arrivalHandled=useRef(false);
  const arrivalReference=useRef(false);
+ const firstVisitGuide=useRef(false);
  const [dismissedStageSeat,setDismissedStageSeat]=useState<string|null>(null);
  const [mealExperienced,setMealExperienced]=useState(()=>readPreference(MEAL_GUIDE_KEY));
  const [mealHintSeat,setMealHintSeat]=useState<string|null>(null);
@@ -256,6 +258,7 @@ function App(){
   }catch{/* Continue from the usual entry. */}
   if(!resume&&readPreference(VISIT_GUIDE_KEY))return;
   arrivalReference.current=resume!=='manual';
+  firstVisitGuide.current=arrivalReference.current;
   setMenu(true);
   setReferenceGuide(resume?2:0);
  },[]);
@@ -297,8 +300,9 @@ function App(){
  useEffect(()=>{
   let world:World|undefined;
   const intent=takeHallAudioIntent();
-  const net=new Presence(),audio=new ConcertAudio(net.now,INITIAL_PLAYLIST,intent!=='mute'&&!readPreference(SOUND_CHOICE_KEY),analytics,extra);
+  const net=new Presence(),audio=new ConcertAudio(net.now,INITIAL_PLAYLIST,intent!=='mute'&&!readPreference(SOUND_CHOICE_KEY),analytics,extra,research);
   let triedEntryAudio=false;
+  let previousSeat:string|null|undefined;
   try{world=new World(document.getElementById('world')!,net,audio);const active=world;const update=()=>redraw(n=>n+1);const notify=(message:string)=>{setToast(message);clearTimeout(toastTimer.current);toastTimer.current=window.setTimeout(()=>setToast(''),3500);};
    world.onChange=()=>{
     if(!triedEntryAudio&&intent==='play'&&active.entered&&active.zone==='auditorium'){
@@ -307,11 +311,17 @@ function App(){
     }
     update();
    };
-   world.onQueenCardGame=()=>setQueenGameOpen(true);world.onProgramBook=()=>setProgramOpen(true);world.onArrivalGuide=openArrivalGuide;world.onToast=notify;world.onSeatProgress=setSeatProgress;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{extra?.feature('hall_seat_map_open');active.input.keys.clear();setSeats(true);};
+   world.onQueenCardGame=()=>{queenAttempt.current={hadResult:false};setQueenGameOpen(true);};world.onProgramBook=()=>setProgramOpen(true);world.onArrivalGuide=openArrivalGuide;world.onToast=notify;world.onSeatProgress=setSeatProgress;world.onWardrobe=()=>setWardrobe(true);world.onSeatMap=()=>{extra?.feature('hall_seat_map_open');active.input.keys.clear();setSeats(true);};
    if(detail)active.onAnalyticsSeatSelected=id=>detail.selected(id);
    net.onState=s=>{
     active.apply(s);
-    if(detail?.measuring&&active.self)detail.seated(confirmedVisitorSeat(s,active.self,net.selfId));
+    const trackSeat=detail?.measuring, trackResult=research?.measuring;
+    if(active.self&&(trackSeat||trackResult)){
+     const seat=confirmedVisitorSeat(s,active.self,net.selfId);
+     if(trackSeat)detail.seated(seat);
+     if(trackResult&&seat&&previousSeat!==undefined&&seat!==previousSeat)research.count('action_result','seat_confirmed');
+     previousSeat=trackResult?seat:undefined;
+    }else previousSeat=undefined;
     if(import.meta.env.DEV)visitObserver.current?.snapshot(s);
    };
    net.onMoveBlocked=point=>active.correctMove(point);
@@ -322,6 +332,7 @@ function App(){
    };
    net.onStatus=()=>{
     if(net.status!=='connected'){
+     previousSeat=undefined;
      active.stopHallLoading();
      detail?.interrupt();zones?.interrupt();
      if(import.meta.env.DEV)visitObserver.current?.interrupt();
@@ -329,6 +340,7 @@ function App(){
     update();
    };
    net.onError=message=>{active.stopHallLoading();notify(message);};setApp({world,net,audio});
+   if(research)net.onSeatDenied=()=>research.count('action_result','seat_denied');
    if(import.meta.env.DEV)net.onLocalSeatDenied=()=>visitObserver.current?.action('seat_denied');
    world.onWishTarot=()=>setWishTarotOpen(true);
    world.onGhostTable=table=>{
@@ -345,9 +357,14 @@ function App(){
   const release=()=>{if(released)return;released=true;net.destroy();audio.destroy();world?.destroy();};
   const restore=(event:PageTransitionEvent)=>{if(event.persisted&&released)location.reload();};
   const sampleArea=()=>{
-   if(!world?.entered||!world.self||document.hidden||world.ridingTrain||net.status!=='connected'){
+   if(!world?.entered||!world.self||document.hidden||net.status!=='connected'){
     detail?.interrupt();zones?.interrupt();return;
    }
+   if(research?.measuring&&!world.hallLoading&&net.state&&!net.local){
+    const others=net.state.visitors.filter(visitor=>visitor.id!==net.selfId&&visitor.zone===world.zone).length;
+    research.once('co_audience',others<=1?others===0?'0':'1':others<=4?'2-4':'5+');
+   }
+   if(world.ridingTrain){detail?.interrupt();zones?.interrupt();return;}
    const {y,z}=world.position;
    const now=performance.now();
    if(zones?.measuring)zones.position(world.zone,y,z,now);
@@ -357,7 +374,7 @@ function App(){
   };
   const suspendDetail=()=>{detail?.interrupt();zones?.interrupt();};
   const timer=detail?window.setInterval(sampleArea,1000):undefined;
-  const pagehide=()=>{detail?.flush();extra?.flush();zones?.flush();release();};
+  const pagehide=()=>{detail?.flush();extra?.flush();zones?.flush();research?.flush();release();};
   if(detail)document.addEventListener('visibilitychange',suspendDetail);
   window.addEventListener('pagehide',pagehide);
   window.addEventListener('pageshow',restore);
@@ -412,6 +429,7 @@ function App(){
   if(world?.gestureAction(gesture)&&usherGuide==='meal'&&!choosingMeal)setObservedGesture(gesture);
  };
  const finishUsherGuide=useCallback(()=>{
+  firstVisitGuide.current=false;
   savePreference(VISIT_GUIDE_KEY,true);
   setObservedGesture(null);
   setUsherGuide(null);
@@ -426,9 +444,10 @@ function App(){
   finishUsherGuide();
  };
  const completeSpaceGuide=useCallback(()=>{
+  if(firstVisitGuide.current)research?.once('first_visit_stage','complete');
   if(seatConfirmed&&tableSeat&&specialTable)setPostSpaceSeat(tableSeat);
   finishUsherGuide();
- },[seatConfirmed,tableSeat,specialTable,finishUsherGuide]);
+ },[seatConfirmed,tableSeat,specialTable,finishUsherGuide,research]);
  const toggleSpace=()=>{
   if(world&&!world.openHall)extra?.feature('hall_space_click');
   if(world?.toggleOpenHall(usherGuide==='space'||!readPreference(SPACE_REVEAL_KEY))){
@@ -447,6 +466,7 @@ function App(){
  useLayoutEffect(()=>{
   if(!usherGuide)return;
   if(initialHallReady&&zone!=='auditorium'){
+   firstVisitGuide.current=false;
    setObservedGesture(null);
    setUsherGuide(null);
    return;
@@ -468,6 +488,16 @@ function App(){
    if(world?.openHall&&world.openHallProgress>=1&&!world.spaceRevealRunning)completeSpaceGuide();
   }
  },[usherGuide,seatConfirmed,seatedGuideStep,tableSeat,initialHallReady,zone,menu,world,world?.openHall,world?.openHallProgress,world?.spaceRevealRunning,completeSpaceGuide]);
+ useEffect(()=>{
+  if(firstVisitGuide.current&&!document.hidden&&referenceGuide!==null&&canShowSeatHint){
+   research?.once('first_visit_stage','guide_open');
+  }
+ },[referenceGuide,canShowSeatHint,research]);
+ useEffect(()=>{
+  if(firstVisitGuide.current&&!document.hidden&&showUsherGuide&&usherGuide){
+   research?.once('first_visit_stage',usherGuide);
+  }
+ },[showUsherGuide,usherGuide,research]);
  const hallChoicesVisible=hallPickerOpen;
  const showStagePrompt=!specialTable&&canShowSeatHint&&confirmedSeat&&!guideActive&&!referenceActive&&tutorialSeat!==tableSeat&&dismissedStageSeat!==tableSeat&&!world?.concertView&&!world?.dishMenu;
  const showMealGuide=!mealExperienced&&!mealTasted&&!!showStagePrompt&&mealAvailable&&tableSeat===mealHintSeat;
@@ -535,6 +565,23 @@ function App(){
   ||!!competingPanel||!!world?.spaceTransitioning||!!probeProgress;
  useEffect(()=>{if(!atWishTarotTable||!connected||world?.photoMode)setWishTarotOpen(false);},[atWishTarotTable,connected,world?.photoMode]);
  useEffect(()=>{if(zone!=='lobby')setWardrobe(false);setProgramOpen(false);setQueenGameOpen(false);setMusicExpanded(false);setMusicListOpen(false);},[zone]);
+ const musicPanelExposed=!!(zone==='auditorium'&&audio&&program&&currentTrack&&musicExpanded&&
+  !interfaceHidden&&!settings&&!seats&&!wardrobe&&!programOpen&&!queenGameOpen&&!tarotVisible&&!referenceActive&&!showMealGuide);
+ const playlistExposed=musicPanelExposed&&musicListOpen;
+ const seatMapExposed=!!world?.ready&&seats&&!interfaceHidden;
+ useEffect(()=>{if(musicPanelExposed&&!document.hidden)research?.count('feature_exposure','music_panel');},[musicPanelExposed,research]);
+ useEffect(()=>{if(playlistExposed&&!document.hidden)research?.count('feature_exposure','playlist');},[playlistExposed,research]);
+ useEffect(()=>{if(seatMapExposed&&!document.hidden)research?.count('feature_exposure','seat_map');},[seatMapExposed,research]);
+ useEffect(()=>{if(tarotVisible&&!document.hidden)research?.count('feature_exposure','tarot');},[tarotVisible,research]);
+ useEffect(()=>{if(queenGameOpen&&!document.hidden)research?.count('feature_exposure','queen_cards');},[queenGameOpen,research]);
+ const closeQueenGame=()=>{
+  const attempt=queenAttempt.current;
+  if(attempt)queueMicrotask(()=>{
+   if(!attempt.hadResult)research?.count('feature_cancel','queen_cards');
+   if(queenAttempt.current===attempt)queenAttempt.current=null;
+  });
+  setQueenGameOpen(false);
+ };
  const closeSeats=useCallback(()=>setSeats(false),[]);
  const skipPiece=(direction:1|-1)=>{
   world?.yieldFrameForControls();
@@ -669,8 +716,18 @@ function App(){
 
   {entered&&<header className="topbar">
    {entered&&<div className="location"><span className="location-en">{zone==='lobby'?'LOBBY':JAZZ_HALL?'pleee jazz':'pleee hall'}</span><span>{zone==='lobby'?'로비':'공연장'}<i>·</i>{net?.state?.roomId?.replace('hall-','본관 ').replace('jazz-','재즈홀 ')??'입장 중'}</span></div>}
-   {queenGameOpen&&world&&<QueenCardGame onResult={won=>{world.queenCardResult(won);if(won)extra?.feature('queen_cards','completed');}} onClose={()=>setQueenGameOpen(false)}/>}
-   {wishTarotOpen&&atWishTarotTable&&connected&&<WishTarot onClose={closeWishTarot} onFlower={(card,image)=>{world?.receiveWishFlower(card,image);extra?.feature('tarot','completed');closeWishTarot();}}/>}
+   {queenGameOpen&&world&&<QueenCardGame onResult={won=>{
+    if(queenAttempt.current)queenAttempt.current.hadResult=true;
+    world.queenCardResult(won);
+    if(won){extra?.feature('queen_cards','completed');research?.count('action_result','queen_cards_completed');}
+   }} onClose={closeQueenGame}/>}
+   {wishTarotOpen&&atWishTarotTable&&connected&&<WishTarot onClose={()=>{
+    research?.count('feature_cancel','tarot');closeWishTarot();
+   }} onFlower={(card,image)=>{
+    world?.receiveWishFlower(card,image);
+    extra?.feature('tarot','completed');research?.count('action_result','tarot_completed');
+    closeWishTarot();
+   }}/>}
    {programOpen&&audio&&program&&<ProgramBook playlist={program} playlistId={audio.playlistId} onClose={()=>{setProgramOpen(false);world?.renderer.domElement.focus();}}/>}
    {zone==='auditorium'&&audio&&program&&currentTrack&&<aside className="now-playing" ref={musicPlayer} aria-label="음악 재생" onKeyDown={event=>{
     if(event.key!=='Escape'||!musicExpanded)return;
@@ -888,6 +945,7 @@ function App(){
     <DetailedAnalyticsChoices {...detailPreference.seatChoice}/>
     <DetailedAnalyticsChoices {...detailPreference.extraChoice} kind="extra"/>
     <DetailedAnalyticsChoices {...detailPreference.zoneChoice} kind="zones"/>
+    <DetailedAnalyticsChoices {...detailPreference.researchChoice} kind="research"/>
    </>}
    {analytics&&<div className="setting-row">
      <span><a href="/privacy.html" target="_blank" rel="noreferrer">개인정보 안내</a></span>

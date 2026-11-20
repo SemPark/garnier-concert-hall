@@ -1,4 +1,5 @@
 import type {ExtraAnalytics} from '../analytics/ExtraAnalytics';
+import type {ResearchAnalytics} from '../analytics/ResearchAnalytics';
 import {DEFAULT_PLAYLIST,INITIAL_PLAYLIST,PLAYLISTS,type PlaylistId} from './playlist';
 import {adjacentPiece,playbackAt,type Playback} from '../../shared/timeline';
 import type {Zone} from '../../shared/venue';
@@ -20,6 +21,8 @@ export class ConcertAudio{
  selectPlaylist(id:PlaylistId){
   if(!PLAYLISTS[id])return;
   if(id!==this.selected){
+   this.researchAnalytics?.count('playlist_select',id);
+   this.researchAnalytics?.finishWait(performance.now());
    this.selected=id;
    this.mediaTrackIndex=0;
    this.mediaCycle=0;
@@ -43,6 +46,7 @@ export class ConcertAudio{
  }
 
  private loadTrack(p:Playback){
+  this.researchAnalytics?.finishWait(performance.now());
   this.mediaRevision++;
   this.playingRequest=false;
   this.media.src=this.mediaUrl(p.track.url);
@@ -111,22 +115,37 @@ export class ConcertAudio{
  startLocalMeasurement(){this.localTracker=new PlaybackTracker(()=>{},true);}
  stopLocalMeasurement(){this.localTracker=null;}
  get localMeasuredMs(){return this.localTracker?.measuredMs??0;}
- private resetMeasurement(){this.analytics?.resetSample();this.localTracker?.resetSample();this.extraAnalytics?.resetPlayback();}
+ private resetMeasurement(){this.analytics?.resetSample();this.localTracker?.resetSample();this.extraAnalytics?.resetPlayback();this.researchAnalytics?.resetPlayback();}
  private get analytics(){return this.analyticsConsent?.tracker??null;}
  constructor(private now:()=>number,initial:PlaylistId=INITIAL_PLAYLIST,wantsSound=true,private readonly analyticsConsent:AnalyticsConsent|null=null,
-  private readonly extraAnalytics:ExtraAnalytics|null=null){
+  private readonly extraAnalytics:ExtraAnalytics|null=null,private readonly researchAnalytics:ResearchAnalytics|null=null){
   this.selected=PLAYLISTS[initial]?initial:DEFAULT_PLAYLIST;
   this.wantsSound=wantsSound;
   this.media.preload='auto';
   this.media.setAttribute('playsinline','');
   const opts={signal:this.abort.signal};
   this.media.addEventListener('playing',()=>this.sync.playing(performance.now()),opts);
-  if(this.analyticsConsent||import.meta.env.DEV)for(const event of ['pause','waiting','stalled','seeking','seeked','ended','emptied','ratechange','volumechange','error']){
+  if(this.analyticsConsent||this.researchAnalytics||import.meta.env.DEV)for(const event of ['pause','waiting','stalled','seeking','seeked','ended','emptied','ratechange','volumechange','error']){
    this.media.addEventListener(event,()=>this.resetMeasurement(),opts);
   }
-  for(const event of ['waiting','stalled'])this.media.addEventListener(event,()=>{this.state='음악을 불러오는 중';this.sync.buffering();},opts);
+  for(const event of ['waiting','stalled'])this.media.addEventListener(event,()=>{
+   this.state='음악을 불러오는 중';this.sync.buffering();
+   if(this.enabled&&!document.hidden&&!this.media.paused&&this.media.readyState<3)this.researchAnalytics?.beginWait(performance.now());
+  },opts);
+  if(this.researchAnalytics){
+   for(const event of ['playing','pause','ended','emptied','error'])this.media.addEventListener(event,()=>this.researchAnalytics?.finishWait(performance.now()),opts);
+   this.media.addEventListener('ended',()=>{
+    if(this.media.ended&&this.enabled&&!document.hidden)this.researchAnalytics?.count('song_finished',this.lastId);
+   },opts);
+  }
   this.media.addEventListener('error',()=>{this.state='음원을 불러오지 못했어요';},opts);
-  document.addEventListener('visibilitychange',()=>{this.sync.request();if(document.hidden)this.media.pause();},opts);
+  document.addEventListener('visibilitychange',()=>{
+   this.sync.request();
+   if(document.hidden){
+    this.researchAnalytics?.finishWait(performance.now());
+    this.media.pause();
+   }
+  },opts);
   // If the browser left the audio graph suspended, the next tap or key wakes it (music, door spill and lobby room tone all pass through it).
   for(const type of ['pointerdown','pointerup','keydown','touchend','click'])document.addEventListener(type,event=>{
    if((event.target as Element)?.closest?.('button[aria-label^="소리"], [data-device-probe], [data-audio-ignore], [data-concert-picker]'))return;
@@ -172,6 +191,7 @@ export class ConcertAudio{
  }
  private switchTrack(index:number,cycle:number,now:number){
   const playlist=this.playlist,tracks=playlist.tracks;
+  this.researchAnalytics?.count('song_selected',tracks[index].id);
   if(this.usesMediaClock){
    this.mediaTrackIndex=index;
    this.mediaCycle=cycle;
@@ -325,17 +345,23 @@ export class ConcertAudio{
   if(this.lastId!==p.track.id||this.media.error)this.loadTrack(p);
   const revision=this.mediaRevision;
   this.cycle=p.cycle;this.media.volume=1;this.media.muted=false;this.sync.request();
+  const attempt=this.researchAnalytics?.beginPlayback(performance.now());
   // Start the audio graph and the media in the same tap: browsers only allow sound that begins inside the gesture.
   try{const graph=this.prepareFilter(),playing=this.media.play();await Promise.all([graph,playing]);
    if(revision!==this.mediaRevision)return false;
+   this.researchAnalytics?.finishPlayback(attempt,true,performance.now());
    this.sync.request();this.state=this.zone==='lobby'?'공연장에서 음악이 시작돼요':'함께 감상 중';return true;}
-  catch{if(revision===this.mediaRevision){this.enabled=false;this.state='소리를 켜주세요';}return false;}
+  catch{if(revision===this.mediaRevision){
+   this.researchAnalytics?.finishPlayback(attempt,false,performance.now());
+   this.enabled=false;this.state='소리를 켜주세요';
+  }return false;}
   finally{if(revision===this.mediaRevision)this.unlocking=false;}
  }
  toggle(){
   if(!this.enabled){void this.unlock();return;}
   this.wantsSound=false;
   this.enabled=false;
+  this.researchAnalytics?.finishWait(performance.now());
   this.mediaRevision++;
   this.unlocking=false;
   this.playingRequest=false;
@@ -359,8 +385,14 @@ export class ConcertAudio{
   if(this.playingRequest)return;
   const revision=this.mediaRevision;
   this.playingRequest=true;
-  void this.media.play().catch(()=>{
-   if(revision===this.mediaRevision){this.enabled=false;this.state='소리 버튼을 눌러주세요';}
+  const attempt=this.researchAnalytics?.beginPlayback(performance.now());
+  void this.media.play().then(()=>{
+   if(revision===this.mediaRevision)this.researchAnalytics?.finishPlayback(attempt,true,performance.now());
+  }).catch(()=>{
+   if(revision===this.mediaRevision){
+    this.researchAnalytics?.finishPlayback(attempt,false,performance.now());
+    this.enabled=false;this.state='소리 버튼을 눌러주세요';
+   }
   }).finally(()=>{if(revision===this.mediaRevision)this.playingRequest=false;});
  }
  tick(dt:number){
@@ -384,7 +416,7 @@ export class ConcertAudio{
    this.outputTarget=target;
   }
   const analytics=this.analytics;
-  if(analytics||this.localTracker||this.extraAnalytics?.measuring){
+  if(analytics||this.localTracker||this.extraAnalytics?.measuring||this.researchAnalytics?.measuring){
    const media=this.media;
    const measurement={
     nowMs:performance.now(),positionSeconds:media.currentTime,revision:this.mediaRevision,playbackRate:media.playbackRate,
@@ -395,6 +427,7 @@ export class ConcertAudio{
    analytics?.sample(measurement);
    this.localTracker?.sample(measurement);
    this.extraAnalytics?.samplePlayback(measurement);
+   this.researchAnalytics?.samplePlayback(this.selected,p.track.id,measurement);
   }
   // Keep the user-unlocked stream running silently in the lobby. Pausing it here can
   // make a later asynchronous hall entry fail mobile autoplay restrictions.
