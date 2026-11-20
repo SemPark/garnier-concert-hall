@@ -1,3 +1,4 @@
+import type {ExtraAnalytics} from '../analytics/ExtraAnalytics';
 import {DEFAULT_PLAYLIST,INITIAL_PLAYLIST,PLAYLISTS,type PlaylistId} from './playlist';
 import {adjacentPiece,playbackAt,type Playback} from '../../shared/timeline';
 import type {Zone} from '../../shared/venue';
@@ -105,8 +106,10 @@ export class ConcertAudio{
   this.musicGain=context.createGain();this.musicGain.gain.value=0;previous.connect(this.musicGain);this.musicGain.connect(context.destination);
   void this.startAmbience(context);return context.resume();
  }
+ private resetMeasurement(){this.analytics?.resetSample();this.extraAnalytics?.resetPlayback();}
  private get analytics(){return this.analyticsConsent?.tracker??null;}
- constructor(private now:()=>number,initial:PlaylistId=INITIAL_PLAYLIST,wantsSound=true,private readonly analyticsConsent:AnalyticsConsent|null=null){
+ constructor(private now:()=>number,initial:PlaylistId=INITIAL_PLAYLIST,wantsSound=true,private readonly analyticsConsent:AnalyticsConsent|null=null,
+  private readonly extraAnalytics:ExtraAnalytics|null=null){
   this.selected=PLAYLISTS[initial]?initial:DEFAULT_PLAYLIST;
   this.wantsSound=wantsSound;
   this.media.preload='auto';
@@ -114,7 +117,7 @@ export class ConcertAudio{
   const opts={signal:this.abort.signal};
   this.media.addEventListener('playing',()=>this.sync.playing(performance.now()),opts);
   if(this.analyticsConsent)for(const event of ['pause','waiting','stalled','seeking','seeked','ended','emptied','ratechange','volumechange','error']){
-   this.media.addEventListener(event,()=>this.analytics?.resetSample(),opts);
+   this.media.addEventListener(event,()=>this.resetMeasurement(),opts);
   }
   for(const event of ['waiting','stalled'])this.media.addEventListener(event,()=>{this.state='음악을 불러오는 중';this.sync.buffering();},opts);
   this.media.addEventListener('error',()=>{this.state='음원을 불러오지 못했어요';},opts);
@@ -319,7 +322,7 @@ export class ConcertAudio{
   // The room tone stays under everything, in the lobby and in the hall, about 20 dB below the music; at the lobby door it ducks so the music spilling through stays clear.
   if(this.ambience&&this.context){const on=this.enabled&&!document.hidden,duck=this.zone==='lobby'?1-.8*Math.min(1,this.doorLeak/.5):1;// the same level in the lobby and the hall; only near the hall door does it dip for the music
    const target=on?Math.min(1,this.volume*this.roomLevel*.018*duck):0;if(Math.abs(target-this.ambienceTarget)>.00001){this.ambience.gain.setTargetAtTime(target,this.context.currentTime,.4);this.ambienceTarget=target;}}
-  if(this.unlocking){this.analytics?.resetSample();return;}
+  if(this.unlocking){this.resetMeasurement();return;}
   const usesMediaClock=this.usesMediaClock;
   if(usesMediaClock&&this.enabled&&!document.hidden&&this.media.ended){
    this.mediaTrackIndex=(this.mediaTrackIndex+1)%this.playlist.tracks.length;
@@ -336,14 +339,16 @@ export class ConcertAudio{
    this.outputTarget=target;
   }
   const analytics=this.analytics;
-  if(analytics){
+  if(analytics||this.extraAnalytics?.measuring){
    const media=this.media;
-   analytics.sample({
+   const measurement={
     nowMs:performance.now(),positionSeconds:media.currentTime,revision:this.mediaRevision,playbackRate:media.playbackRate,
     audible:this.enabled&&this.volume>0&&level>0&&p.playing&&!p.track.stage&&(p.track.gain??1)>0
      &&this.context?.state==='running'&&this.lastId===p.track.id
-     &&!media.paused&&!media.ended&&!media.muted&&media.volume>0&&!media.seeking&&media.readyState>=2,
-   });
+     &&!media.paused&&!media.ended&&!media.muted&&media.volume>0&&!media.seeking&&media.readyState>=2&&!document.hidden,
+   };
+   analytics?.sample(measurement);
+   this.extraAnalytics?.samplePlayback(measurement);
   }
   // Keep the user-unlocked stream running silently in the lobby. Pausing it here can
   // make a later asynchronous hall entry fail mobile autoplay restrictions.
@@ -360,7 +365,7 @@ export class ConcertAudio{
   const expected=Math.min(p.offset,Math.max(0,this.media.duration-.02));
   const targetBuffered=Array.from({length:this.media.buffered.length},(_,i)=>i).some(i=>this.media.buffered.start(i)<=expected&&this.media.buffered.end(i)>=expected+1);
   const seekTarget=this.sync.target(performance.now(),expected,this.media.currentTime,this.media.readyState,this.media.seeking,this.media.paused,targetBuffered);
-  if(seekTarget!==null){this.analytics?.resetSample();try{this.media.currentTime=seekTarget;}catch{this.sync.request();this.state='음악을 준비하는 중';return;}}
+  if(seekTarget!==null){this.resetMeasurement();try{this.media.currentTime=seekTarget;}catch{this.sync.request();this.state='음악을 준비하는 중';return;}}
   if(this.media.paused)this.playMedia();
   this.state=this.context?.state!=='running'?'화면을 눌러 음악을 이어주세요':this.media.readyState<3?'음악을 불러오는 중':this.zone==='lobby'?(level>0?'문 너머에서 음악이 들려요':'로비에서 쉬어가세요'):'함께 감상 중';
  }

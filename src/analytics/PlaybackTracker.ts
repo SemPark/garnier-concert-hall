@@ -16,13 +16,14 @@ export class PlaybackTracker{
  private seconds=0;
  private started=false;
  private reachedThreshold=false;
- constructor(private readonly emit:(event:PlaybackAnalyticsEvent)=>void){}
+ constructor(private readonly emit:(event:PlaybackAnalyticsEvent)=>void,private readonly keepCounting=false){}
+ get measuredMs(){return Math.round(this.seconds*1000);}
 
  /** A seek, wait or source change invalidates an interval, not earlier listening. */
  resetSample(){this.previous=null;}
 
  sample(sample:PlaybackSample){
-  if(this.reachedThreshold)return;
+  if(this.reachedThreshold&&!this.keepCounting)return;
   if(!sample.audible||!Number.isFinite(sample.positionSeconds)||!Number.isFinite(sample.nowMs)||
    !Number.isFinite(sample.playbackRate)||sample.playbackRate<=0){this.resetSample();return;}
   const before=this.previous;
@@ -33,8 +34,10 @@ export class PlaybackTracker{
   if(wall<=0||media<=0||media>wall*sample.playbackRate+.25)return;
   this.seconds+=Math.min(wall,media/sample.playbackRate);
   if(!this.started){this.started=true;this.report('playback_start');}
-  if(this.seconds>=LISTENING_THRESHOLD_SECONDS-1e-8){
-   this.reachedThreshold=true;this.resetSample();this.report('playback_180_seconds');
+  if(!this.reachedThreshold&&this.seconds>=LISTENING_THRESHOLD_SECONDS-1e-8){
+   this.reachedThreshold=true;
+   if(!this.keepCounting)this.resetSample();
+   this.report('playback_180_seconds');
   }
  }
 

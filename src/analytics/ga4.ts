@@ -1,5 +1,8 @@
-import type {DetailEvent} from './DetailedAnalytics';
+import type {ExtraEvent} from './ExtraAnalytics';
+import type {DetailEvent as SeatDwellEvent} from './DetailedAnalytics';
 import {PlaybackTracker} from './PlaybackTracker';
+
+type DetailEvent=SeatDwellEvent|ExtraEvent;
 
 const PRODUCTION_ORIGIN='https://pleee.hall-live.workers.dev';
 type Tag=(...args:unknown[])=>void;
